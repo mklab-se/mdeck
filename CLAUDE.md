@@ -47,6 +47,8 @@ crates/
         layouts/     # Layout strategies (title, section, bullet, code, content, two_column, quote, image_slide)
         image_cache.rs # Async image loading and caching
       theme.rs       # Theme definitions (light, dark, solarized, etc.)
+    doc/
+      mdeck-spec.md  # Markdown format specification (included via include_str!)
 ```
 
 - **Workspace root** `Cargo.toml` defines shared dependencies and metadata

@@ -1,4 +1,4 @@
-const SPEC: &str = include_str!("../../../../doc/mdeck-spec.md");
+const SPEC: &str = include_str!("../../doc/mdeck-spec.md");
 
 pub fn run(short: bool) {
     if short {
