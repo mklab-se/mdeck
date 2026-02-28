@@ -1,15 +1,15 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/presemd",
+    "crates/mdeck",
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 authors = ["Kristofer Liljeblad <kristofer@mklab.se>"]
 license = "MIT"
-repository = "https://github.com/mklab-se/presemd"
+repository = "https://github.com/mklab-se/mdeck"
 rust-version = "1.85"
 
 [workspace.dependencies]

@@ -1,5 +1,5 @@
 [package]
-name = "presemd"
+name = "mdeck"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,7 +12,7 @@ keywords = ["markdown", "presentation", "slides"]
 categories = ["command-line-utilities"]
 
 [[bin]]
-name = "presemd"
+name = "mdeck"
 path = "src/main.rs"
 
 [dependencies]
@@ -30,8 +30,8 @@ image.workspace = true
 syntect.workspace = true
 
 [package.metadata.binstall]
-pkg-url = "{ repo }/releases/download/v{ version }/presemd-v{ version }-{ target }.{ archive-format }"
-bin-dir = "presemd{ binary-ext }"
+pkg-url = "{ repo }/releases/download/v{ version }/mdeck-v{ version }-{ target }.{ archive-format }"
+bin-dir = "mdeck{ binary-ext }"
 pkg-fmt = "tgz"
 
 [package.metadata.binstall.overrides.x86_64-pc-windows-msvc]

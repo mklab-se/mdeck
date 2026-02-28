@@ -1670,7 +1670,7 @@ pub fn run(
 
     let title = presentation.meta.title.clone().unwrap_or_else(|| {
         format!(
-            "presemd \u{2014} {}",
+            "mdeck \u{2014} {}",
             file.file_name().unwrap_or_default().to_string_lossy()
         )
     });

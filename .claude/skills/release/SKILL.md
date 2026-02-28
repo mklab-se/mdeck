@@ -4,7 +4,7 @@ description: "Release a new version: bump version, update docs, commit, push, an
 argument-hint: "<major|minor|patch>"
 ---
 
-Release a new version of presemd.
+Release a new version of mdeck.
 
 ## Input
 
@@ -19,7 +19,7 @@ $ARGUMENTS must be one of: `major`, `minor`, `patch`. If empty or invalid, stop 
   - `patch`: 0.2.0 -> 0.2.1
   - `minor`: 0.2.0 -> 0.3.0
   - `major`: 0.2.0 -> 1.0.0
-- Show the user: "Releasing presemd v{OLD} -> v{NEW}"
+- Show the user: "Releasing mdeck v{OLD} -> v{NEW}"
 
 ### 2. Pre-flight checks
 

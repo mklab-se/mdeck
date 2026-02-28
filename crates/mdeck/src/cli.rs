@@ -2,15 +2,15 @@ use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(name = "presemd")]
+#[command(name = "mdeck")]
 #[command(author, version, about)]
 #[command(long_about = "A markdown-based presentation tool.\n\n\
     Write your slides in standard markdown and present them beautifully.\n\n\
     Examples:\n  \
-    presemd slides.md              Launch presentation (fullscreen)\n  \
-    presemd slides.md --windowed   Launch in a window\n  \
-    presemd spec                   Print format specification\n  \
-    presemd spec --short           Print quick reference card")]
+    mdeck slides.md              Launch presentation (fullscreen)\n  \
+    mdeck slides.md --windowed   Launch in a window\n  \
+    mdeck spec                   Print format specification\n  \
+    mdeck spec --short           Print quick reference card")]
 #[command(propagate_version = true)]
 #[command(args_conflicts_with_subcommands = true)]
 pub struct Cli {
@@ -84,7 +84,7 @@ pub enum Commands {
         height: u32,
     },
 
-    /// Print the presemd markdown format specification
+    /// Print the mdeck markdown format specification
     Spec {
         /// Print a concise quick-reference card instead of the full spec
         #[arg(long)]

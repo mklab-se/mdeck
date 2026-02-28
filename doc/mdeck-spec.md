@@ -1,27 +1,27 @@
-# Presemd Markdown Syntax Specification
+# MDeck Markdown Syntax Specification
 
 **Version:** 0.1
 **Status:** Draft
 
-Presemd is a markdown-based presentation tool. Authors write standard markdown; Presemd infers slide layout from content structure and renders it as a presentation.
+MDeck is a markdown-based presentation tool. Authors write standard markdown; MDeck infers slide layout from content structure and renders it as a presentation.
 
 ---
 
 ## 1. Design Principles
 
-1. **Readability over expressiveness.** A Presemd document should read as a natural markdown document. Someone reading the raw source should understand the content without knowing Presemd exists.
+1. **Readability over expressiveness.** A MDeck document should read as a natural markdown document. Someone reading the raw source should understand the content without knowing MDeck exists.
 
-2. **Inference over configuration.** Presemd determines slide layout from content structure. Authors should almost never need to specify a layout explicitly.
+2. **Inference over configuration.** MDeck determines slide layout from content structure. Authors should almost never need to specify a layout explicitly.
 
 3. **Standard markdown first.** Every feature uses standard CommonMark markdown when possible. The `@` directive system exists only for things markdown cannot express.
 
-4. **Graceful degradation.** When rendered in a standard markdown viewer, a Presemd document should still be readable. Directives degrade to visible text; separators degrade to horizontal rules.
+4. **Graceful degradation.** When rendered in a standard markdown viewer, a MDeck document should still be readable. Directives degrade to visible text; separators degrade to horizontal rules.
 
 ---
 
 ## 2. Document Structure
 
-A Presemd document has two parts:
+A MDeck document has two parts:
 
 ```
 [frontmatter]       (optional, YAML metadata)
@@ -51,7 +51,7 @@ date: 2026-02-28
 | `author` | string | Author name                                     |
 | `date`   | string | Presentation date                               |
 
-#### Presemd fields (prefixed with `@`)
+#### MDeck fields (prefixed with `@`)
 
 | Field         | Type   | Default   | Description                                        |
 |---------------|--------|-----------|----------------------------------------------------|
@@ -123,7 +123,7 @@ This starts a new slide automatically.
 
 ## 4. Slide Layout Inference
 
-After parsing a slide's content into block elements, Presemd classifies them and matches against layout patterns. The first match wins, checked in the order below.
+After parsing a slide's content into block elements, MDeck classifies them and matches against layout patterns. The first match wins, checked in the order below.
 
 ### Element types
 
@@ -397,7 +397,7 @@ Phase 2: Implementation
 
 ## 6. Incremental Reveal
 
-Presemd uses the three standard markdown list markers to control how content is revealed during a presentation:
+MDeck uses the three standard markdown list markers to control how content is revealed during a presentation:
 
 | Marker | Name           | Behavior                                                    |
 |--------|----------------|-------------------------------------------------------------|
@@ -568,7 +568,7 @@ The `pos: x,y` values are relative grid coordinates:
 - `1,1` is the top-left of the diagram area
 - Higher x moves right; higher y moves down
 - The grid auto-scales to fill available space
-- If no `pos` is specified for any component, Presemd uses an automatic layout algorithm (left-to-right for linear chains, tree layout for hierarchical structures)
+- If no `pos` is specified for any component, MDeck uses an automatic layout algorithm (left-to-right for linear chains, tree layout for hierarchical structures)
 
 ### 8.7 Diagram type qualifier
 
@@ -701,7 +701,7 @@ The `+++` separator was chosen because it is visually distinct from `---` (slide
 ## 11. Edge Cases
 
 ### Content overflow
-Text is never truncated silently. If content overflows, Presemd reduces font size (down to 60% of theme default). If it still overflows, content is clipped with a subtle fade indicator and a warning is emitted.
+Text is never truncated silently. If content overflows, MDeck reduces font size (down to 60% of theme default). If it still overflows, content is clipped with a subtle fade indicator and a warning is emitted.
 
 ### Empty slides
 A slide with no content renders as a blank slide with the theme's background. This is intentional, not an error.
@@ -710,7 +710,7 @@ A slide with no content renders as a blank slide with the theme's background. Th
 Multiple `---` separators in a row create empty slides between them.
 
 ### Frontmatter parse failures
-If YAML in the frontmatter is malformed, Presemd warns and treats the entire frontmatter block as content on the first slide.
+If YAML in the frontmatter is malformed, MDeck warns and treats the entire frontmatter block as content on the first slide.
 
 ### Missing images
 If an image path cannot be resolved, a placeholder box with the alt text is rendered, and a warning is emitted.

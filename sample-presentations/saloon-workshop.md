@@ -1,10 +1,10 @@
 ---
 title: "The Art of Presentation"
-author: "Presemd Demo"
+author: "MDeck Demo"
 date: 2026-02-28
 @theme: light
 @transition: fade
-@footer: "presemd sample presentation"
+@footer: "mdeck sample presentation"
 ---
 
 # The Art of Presentation

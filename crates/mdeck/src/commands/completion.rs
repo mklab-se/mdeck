@@ -20,7 +20,7 @@ pub fn run(shell: Shell) {
     };
 
     let mut cmd = Cli::command();
-    generate(clap_shell, &mut cmd, "presemd", &mut io::stdout());
+    generate(clap_shell, &mut cmd, "mdeck", &mut io::stdout());
 
     eprintln!();
     eprintln!(
@@ -29,6 +29,6 @@ pub fn run(shell: Shell) {
     );
     eprintln!(
         "  {}",
-        format!("source <(COMPLETE={shell_name} presemd)").cyan()
+        format!("source <(COMPLETE={shell_name} mdeck)").cyan()
     );
 }

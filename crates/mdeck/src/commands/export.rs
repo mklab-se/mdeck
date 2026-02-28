@@ -157,7 +157,7 @@ pub fn run(file: PathBuf, output_dir: PathBuf, width: u32, height: u32) -> anyho
         .meta
         .title
         .clone()
-        .unwrap_or_else(|| "presemd export".to_string());
+        .unwrap_or_else(|| "mdeck export".to_string());
 
     let viewport = egui::ViewportBuilder::default()
         .with_inner_size([width as f32, height as f32])

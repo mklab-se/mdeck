@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/mklab-se/presemd/main/media/presemd-horizontal.png" alt="presemd" width="600">
+  <img src="https://raw.githubusercontent.com/mklab-se/mdeck/main/media/mdeck-horizontal.png" alt="mdeck" width="600">
 </p>
 
 <h1 align="center">MDeck</h1>
@@ -10,11 +10,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/mklab-se/presemd/actions/workflows/ci.yml"><img src="https://github.com/mklab-se/presemd/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://crates.io/crates/presemd"><img src="https://img.shields.io/crates/v/presemd.svg" alt="crates.io"></a>
-  <a href="https://github.com/mklab-se/presemd/releases/latest"><img src="https://img.shields.io/github/v/release/mklab-se/presemd" alt="GitHub Release"></a>
-  <a href="https://github.com/mklab-se/homebrew-tap/blob/main/Formula/presemd.rb"><img src="https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmklab-se%2Fhomebrew-tap%2Fmain%2FFormula%2Fpresemd.rb&search=%5Cd%2B%5C.%5Cd%2B%5C.%5Cd%2B&label=homebrew&prefix=v&color=orange" alt="Homebrew"></a>
-  <a href="https://github.com/mklab-se/presemd/blob/main/LICENSE.md"><img src="https://img.shields.io/crates/l/presemd.svg" alt="License"></a>
+  <a href="https://github.com/mklab-se/mdeck/actions/workflows/ci.yml"><img src="https://github.com/mklab-se/mdeck/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://crates.io/crates/mdeck"><img src="https://img.shields.io/crates/v/mdeck.svg" alt="crates.io"></a>
+  <a href="https://github.com/mklab-se/mdeck/releases/latest"><img src="https://img.shields.io/github/v/release/mklab-se/mdeck" alt="GitHub Release"></a>
+  <a href="https://github.com/mklab-se/homebrew-tap/blob/main/Formula/mdeck.rb"><img src="https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmklab-se%2Fhomebrew-tap%2Fmain%2FFormula%2Fmdeck.rb&search=%5Cd%2B%5C.%5Cd%2B%5C.%5Cd%2B&label=homebrew&prefix=v&color=orange" alt="Homebrew"></a>
+  <a href="https://github.com/mklab-se/mdeck/blob/main/LICENSE.md"><img src="https://img.shields.io/crates/l/mdeck.svg" alt="License"></a>
 </p>
 
 ## Installation
@@ -22,55 +22,55 @@
 ### Homebrew (macOS / Linux)
 
 ```bash
-brew install mklab-se/tap/presemd
+brew install mklab-se/tap/mdeck
 ```
 
 ### Pre-built binaries
 
-Download from [GitHub Releases](https://github.com/mklab-se/presemd/releases).
+Download from [GitHub Releases](https://github.com/mklab-se/mdeck/releases).
 
 ### Cargo
 
 ```bash
-cargo install presemd
+cargo install mdeck
 ```
 
 ### Build from source
 
 ```bash
-git clone https://github.com/mklab-se/presemd.git
-cd presemd
-cargo install --path crates/presemd
+git clone https://github.com/mklab-se/mdeck.git
+cd mdeck
+cargo install --path crates/mdeck
 ```
 
 ## Usage
 
 ```bash
-presemd slides.md      # Present a markdown file
-presemd --help         # Show all commands
-presemd --version      # Show version
+mdeck slides.md      # Present a markdown file
+mdeck --help         # Show all commands
+mdeck --version      # Show version
 ```
 
 ### Commands
 
 ```bash
-presemd ai init                          # Set up AI provider (interactive)
-presemd ai status                        # Show AI configuration
-presemd config show                      # Display current settings
-presemd config set defaults.theme dark   # Set a config value
-presemd completion zsh                   # Generate shell completions
+mdeck ai init                          # Set up AI provider (interactive)
+mdeck ai status                        # Show AI configuration
+mdeck config show                      # Display current settings
+mdeck config set defaults.theme dark   # Set a config value
+mdeck completion zsh                   # Generate shell completions
 ```
 
 ### Shell Completions
 
 ```bash
 # Static completions
-presemd completion bash > ~/.bash_completion.d/presemd
-presemd completion zsh > ~/.zfunc/_presemd
+mdeck completion bash > ~/.bash_completion.d/mdeck
+mdeck completion zsh > ~/.zfunc/_mdeck
 
 # Dynamic completions (recommended)
-source <(COMPLETE=bash presemd)
-source <(COMPLETE=zsh presemd)
+source <(COMPLETE=bash mdeck)
+source <(COMPLETE=zsh mdeck)
 ```
 
 ### Keyboard Controls
@@ -87,7 +87,7 @@ cargo build              # Build
 cargo test --workspace   # Run tests
 cargo clippy --workspace -- -D warnings  # Lint
 cargo fmt --all -- --check               # Format check
-cargo run -p presemd     # Run the app
+cargo run -p mdeck     # Run the app
 ```
 
 ## License

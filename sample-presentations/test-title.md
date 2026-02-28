@@ -12,7 +12,7 @@ Focused tests for the title layout
 A subtitle that explains the topic
 
 
-# presemd v2.0
+# mdeck v2.0
 Markdown-powered slides for developers
 
 

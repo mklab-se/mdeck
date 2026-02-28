@@ -365,7 +365,7 @@ mod tests {
         assert_eq!(pres.meta.transition.as_deref(), Some("fade"));
         assert_eq!(
             pres.meta.footer.as_deref(),
-            Some("presemd sample presentation")
+            Some("mdeck sample presentation")
         );
         assert!(
             pres.slides.len() >= 16,

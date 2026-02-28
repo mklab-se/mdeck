@@ -85,7 +85,7 @@ fn status() -> Result<()> {
             println!(
                 "{} AI is not configured. Run {} to set up a provider.",
                 "!".yellow().bold(),
-                "presemd ai init".cyan()
+                "mdeck ai init".cyan()
             );
         }
     }

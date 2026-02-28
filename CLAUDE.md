@@ -1,4 +1,4 @@
-# presemd
+# mdeck
 
 A markdown-based presentation tool.
 
@@ -15,7 +15,7 @@ cargo build              # Build all crates
 cargo test --workspace   # Run all tests
 cargo clippy --workspace -- -D warnings  # Lint (CI-enforced)
 cargo fmt --all -- --check               # Format check (CI-enforced)
-cargo run -p presemd     # Run the app
+cargo run -p mdeck     # Run the app
 ```
 
 ## Architecture
@@ -24,13 +24,13 @@ Rust workspace with a single crate:
 
 ```
 crates/
-  presemd/           # GUI binary (package and binary name: presemd)
+  mdeck/           # GUI binary (package and binary name: mdeck)
     src/
       main.rs        # Entry point, CLI bootstrap
       cli.rs         # Clap argument definitions (Cli, Commands, subcommands)
       app.rs         # GUI presentation app (eframe/egui rendering)
       banner.rs      # Version banner display
-      config.rs      # Config struct, load/save (~/.config/presemd/config.yaml)
+      config.rs      # Config struct, load/save (~/.config/mdeck/config.yaml)
       commands/
         mod.rs       # Re-exports
         ai.rs        # AI provider init/status/remove
@@ -50,32 +50,32 @@ crates/
 ```
 
 - **Workspace root** `Cargo.toml` defines shared dependencies and metadata
-- All crates inherit `version`, `edition`, `authors`, `license`, `repository`, `rust-version` from workspace
+- All crates inherit `version`, `edition`, `authors`, `license`, `repository` from workspace
 - Single version bump in root `Cargo.toml` updates everything
 
 ## CLI Usage
 
 ```bash
-presemd <file.md>              # Launch presentation
-presemd ai init                # Set up AI provider (interactive)
-presemd ai status              # Show AI config
-presemd ai remove              # Remove AI config
-presemd config show            # Display configuration
-presemd config set <key> <val> # Set config value (defaults.theme, defaults.transition, defaults.aspect)
-presemd export <file.md>       # Export slides as PNG images (1920x1080 default)
-presemd export <file.md> --width 3840 --height 2160  # Export at custom resolution
-presemd completion <shell>     # Generate shell completions (bash, zsh, fish, powershell)
-presemd spec                   # Print format specification
-presemd spec --short           # Print quick reference card
-presemd version                # Show version banner
-presemd --help                 # Show help
+mdeck <file.md>              # Launch presentation
+mdeck ai init                # Set up AI provider (interactive)
+mdeck ai status              # Show AI config
+mdeck ai remove              # Remove AI config
+mdeck config show            # Display configuration
+mdeck config set <key> <val> # Set config value (defaults.theme, defaults.transition, defaults.aspect)
+mdeck export <file.md>       # Export slides as PNG images (1920x1080 default)
+mdeck export <file.md> --width 3840 --height 2160  # Export at custom resolution
+mdeck completion <shell>     # Generate shell completions (bash, zsh, fish, powershell)
+mdeck spec                   # Print format specification
+mdeck spec --short           # Print quick reference card
+mdeck version                # Show version banner
+mdeck --help                 # Show help
 ```
 
 ## Key Patterns
 
 - **CLI framework:** `clap` with derive macros, `clap_complete` for shell completions
 - **GUI framework:** `eframe` / `egui`
-- **Config:** YAML via `serde_yaml`, stored at `~/.config/presemd/config.yaml` (via `dirs`)
+- **Config:** YAML via `serde_yaml`, stored at `~/.config/mdeck/config.yaml` (via `dirs`)
 - **Interactive prompts:** `inquire` for selections (e.g., AI provider picker)
 - **Terminal output:** `colored` for styled CLI output
 - **Error handling:** `anyhow` for ergonomic error propagation
@@ -115,7 +115,7 @@ presemd --help                 # Show help
 ### Visual Testing
 - **Always verify rendering changes visually before declaring work complete.** Use the export command to generate slide PNGs and inspect them:
   ```bash
-  cargo run -p presemd -- export sample-presentations/test-code.md --output-dir /tmp/slides
+  cargo run -p mdeck -- export sample-presentations/test-code.md --output-dir /tmp/slides
   ```
   Then read the exported PNGs to check layout, syntax highlighting, spacing, and overall visual quality.
 - Test presentations in `sample-presentations/` cover specific layouts: `test-bullet.md`, `test-code.md`, `poker-night.md`, etc.

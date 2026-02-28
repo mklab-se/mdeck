@@ -1,6 +1,6 @@
-# Contributing to presemd
+# Contributing to mdeck
 
-Thank you for considering contributing to presemd! This guide will help you get started.
+Thank you for considering contributing to mdeck! This guide will help you get started.
 
 ## Getting Started
 
@@ -15,14 +15,14 @@ Thank you for considering contributing to presemd! This guide will help you get 
 
 ```
 crates/
-  presemd/    # GUI binary and presentation engine
+  mdeck/    # GUI binary and presentation engine
 ```
 
 ### Running Tests
 
 ```bash
 cargo test                    # All tests
-cargo test -p presemd         # Single crate
+cargo test -p mdeck           # Single crate
 cargo test test_name          # Single test
 cargo clippy                  # Lint check
 ```

@@ -1,6 +1,6 @@
 ---
 title: "Poker Night: Humans vs Machines"
-author: "Presemd Demo"
+author: "MDeck Demo"
 date: 2026-02-28
 @theme: dark
 @transition: slide

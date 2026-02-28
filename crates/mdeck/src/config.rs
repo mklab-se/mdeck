@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 const FILENAME: &str = "config.yaml";
-const APP_DIR: &str = "presemd";
+const APP_DIR: &str = "mdeck";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -124,7 +124,7 @@ impl Config {
     pub fn load_from(path: &Path) -> Result<Self> {
         let contents = std::fs::read_to_string(path).map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                anyhow::anyhow!("No config found. Run `presemd config show` to see defaults.")
+                anyhow::anyhow!("No config found. Run `mdeck config show` to see defaults.")
             } else {
                 anyhow::anyhow!("Failed to read config: {e}")
             }
@@ -143,8 +143,7 @@ impl Config {
             std::fs::create_dir_all(parent)?;
         }
         let yaml = serde_yaml::to_string(self)?;
-        let contents =
-            format!("# Presemd configuration — https://github.com/mklab-se/presemd\n{yaml}");
+        let contents = format!("# MDeck configuration — https://github.com/mklab-se/mdeck\n{yaml}");
         std::fs::write(&path, contents)?;
         Ok(path)
     }

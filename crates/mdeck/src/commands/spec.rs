@@ -1,4 +1,4 @@
-const SPEC: &str = include_str!("../../../../doc/presemd-spec.md");
+const SPEC: &str = include_str!("../../../../doc/mdeck-spec.md");
 
 pub fn run(short: bool) {
     if short {
@@ -10,8 +10,8 @@ pub fn run(short: bool) {
 
 fn print_short_reference() {
     println!(
-        r#"presemd Quick Reference
-=======================
+        r#"MDeck Quick Reference
+=====================
 
 SLIDE SEPARATION
   ---              Explicit separator (blank lines above and below)
