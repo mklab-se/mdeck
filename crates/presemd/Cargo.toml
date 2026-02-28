@@ -17,6 +17,16 @@ path = "src/main.rs"
 
 [dependencies]
 eframe.workspace = true
+clap.workspace = true
+clap_complete.workspace = true
+serde.workspace = true
+serde_yaml.workspace = true
+anyhow.workspace = true
+colored.workspace = true
+inquire.workspace = true
+dirs.workspace = true
+regex.workspace = true
+image.workspace = true
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/presemd-v{ version }-{ target }.{ archive-format }"

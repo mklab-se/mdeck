@@ -46,8 +46,31 @@ cargo install --path crates/presemd
 ## Usage
 
 ```bash
-presemd                # Launch the presentation viewer
+presemd slides.md      # Present a markdown file
+presemd --help         # Show all commands
 presemd --version      # Show version
+```
+
+### Commands
+
+```bash
+presemd ai init                          # Set up AI provider (interactive)
+presemd ai status                        # Show AI configuration
+presemd config show                      # Display current settings
+presemd config set defaults.theme dark   # Set a config value
+presemd completion zsh                   # Generate shell completions
+```
+
+### Shell Completions
+
+```bash
+# Static completions
+presemd completion bash > ~/.bash_completion.d/presemd
+presemd completion zsh > ~/.zfunc/_presemd
+
+# Dynamic completions (recommended)
+source <(COMPLETE=bash presemd)
+source <(COMPLETE=zsh presemd)
 ```
 
 ### Keyboard Controls

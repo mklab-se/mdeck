@@ -14,3 +14,27 @@ rust-version = "1.85"
 
 [workspace.dependencies]
 eframe = "0.33"
+
+# CLI
+clap = { version = "4.5", features = ["derive", "wrap_help"] }
+clap_complete = { version = "4.5", features = ["unstable-dynamic"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+
+# Error handling
+anyhow = "1.0"
+
+# Terminal
+colored = "2.1"
+inquire = "0.7"
+
+# Regex
+regex = "1.11"
+
+# Image loading
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+
+# Directories
+dirs = "6.0"

@@ -20,16 +20,59 @@ Rust workspace with a single crate:
 crates/
   presemd/           # GUI binary (package and binary name: presemd)
     src/
-      main.rs        # Entry point, slide rendering, transitions
+      main.rs        # Entry point, CLI bootstrap
+      cli.rs         # Clap argument definitions (Cli, Commands, subcommands)
+      app.rs         # GUI presentation app (eframe/egui rendering)
+      banner.rs      # Version banner display
+      config.rs      # Config struct, load/save (~/.config/presemd/config.yaml)
+      commands/
+        mod.rs       # Re-exports
+        ai.rs        # AI provider init/status/remove
+        completion.rs # Shell completion generation
+        config.rs    # Config show/set
+        export.rs    # PNG export via headless eframe rendering
+        spec.rs      # Format specification printer
+      parser/          # Markdown-to-slide parser (frontmatter, blocks, inlines, splitter)
+      render/          # Slide rendering engine
+        mod.rs       # render_slide entry point
+        text.rs      # Block-level drawing (headings, lists, code, tables, diagrams, images)
+        layouts/     # Layout strategies (title, section, bullet, code, content, two_column, quote, image_slide)
+        image_cache.rs # Async image loading and caching
+      theme.rs       # Theme definitions (light, dark, solarized, etc.)
 ```
 
 - **Workspace root** `Cargo.toml` defines shared dependencies and metadata
 - All crates inherit `version`, `edition`, `authors`, `license`, `repository`, `rust-version` from workspace
 - Single version bump in root `Cargo.toml` updates everything
 
+## CLI Usage
+
+```bash
+presemd <file.md>              # Launch presentation
+presemd ai init                # Set up AI provider (interactive)
+presemd ai status              # Show AI config
+presemd ai remove              # Remove AI config
+presemd config show            # Display configuration
+presemd config set <key> <val> # Set config value (defaults.theme, defaults.transition, defaults.aspect)
+presemd export <file.md>       # Export slides as PNG images (1920x1080 default)
+presemd export <file.md> --width 3840 --height 2160  # Export at custom resolution
+presemd completion <shell>     # Generate shell completions (bash, zsh, fish, powershell)
+presemd spec                   # Print format specification
+presemd spec --short           # Print quick reference card
+presemd version                # Show version banner
+presemd --help                 # Show help
+```
+
 ## Key Patterns
 
-- GUI framework: `eframe` / `egui`
+- **CLI framework:** `clap` with derive macros, `clap_complete` for shell completions
+- **GUI framework:** `eframe` / `egui`
+- **Config:** YAML via `serde_yaml`, stored at `~/.config/presemd/config.yaml` (via `dirs`)
+- **Interactive prompts:** `inquire` for selections (e.g., AI provider picker)
+- **Terminal output:** `colored` for styled CLI output
+- **Error handling:** `anyhow` for ergonomic error propagation
+- **Rendering:** Scale factor `min(w/1920, h/1080)` applied to all pixel sizes for resolution independence
+- **PNG export:** Headless eframe window using `ViewportCommand::Screenshot` / `Event::Screenshot`
 - Slide transitions: fade and horizontal slide with easing
 - Keyboard navigation: arrow keys for forward/backward
 - FPS overlay in top-right corner
