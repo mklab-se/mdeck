@@ -53,6 +53,12 @@ KEYBOARD SHORTCUTS
   H              Show/hide HUD    Esc x2      Exit
   Ctrl+C x2      Exit             Q           Quit
 
+MOUSE CONTROLS
+  Left click     Next slide       Right click Previous slide
+  Left drag      Freehand pen     Right drag  Draw arrow
+  Scroll wheel   Scroll content
+  Drawings fade out after 8 seconds
+
 COLUMN SEPARATOR
   +++   Separates left and right columns in two-column layout
 "#

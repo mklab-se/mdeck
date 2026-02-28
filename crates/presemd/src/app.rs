@@ -2,6 +2,7 @@ use eframe::egui;
 use std::path::PathBuf;
 use std::time::Instant;
 
+use crate::config::Config;
 use crate::parser::{self, Presentation};
 use crate::render;
 use crate::render::image_cache::ImageCache;
@@ -11,6 +12,47 @@ use crate::render::transition::{
 use crate::theme::Theme;
 
 const OVERVIEW_TRANSITION_DURATION: f32 = 0.4;
+const DRAW_FADE_DURATION: f32 = 8.0;
+const DRAG_THRESHOLD: f32 = 5.0;
+
+/// A freehand pen stroke (left-drag)
+struct PenStroke {
+    points: Vec<egui::Pos2>,
+    start: Instant,
+    slide_index: usize,
+}
+
+/// An arrow annotation (right-drag)
+struct ArrowAnnotation {
+    from: egui::Pos2,
+    to: egui::Pos2,
+    start: Instant,
+    slide_index: usize,
+}
+
+/// Tracks an in-progress mouse interaction
+enum ActiveDraw {
+    None,
+    /// Left button held: collecting points, might still be a click
+    PenPending {
+        origin: egui::Pos2,
+        points: Vec<egui::Pos2>,
+    },
+    /// Left button held: drag threshold exceeded, definitely drawing
+    PenDrawing {
+        points: Vec<egui::Pos2>,
+    },
+    /// Right button held: collecting start/end, might still be a click
+    ArrowPending {
+        origin: egui::Pos2,
+        current: egui::Pos2,
+    },
+    /// Right button held: drag threshold exceeded, definitely an arrow
+    ArrowDrawing {
+        from: egui::Pos2,
+        current: egui::Pos2,
+    },
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum AppMode {
@@ -41,6 +83,21 @@ struct PresentationApp {
     fps: f32,
     fps_update: Instant,
     overview_transition_start: Option<Instant>,
+    pen_strokes: Vec<PenStroke>,
+    arrows: Vec<ArrowAnnotation>,
+    active_draw: ActiveDraw,
+    /// Cached slide rect from last frame, used for mouse coordinate conversion
+    last_slide_rect: egui::Rect,
+    /// Which grid cell the mouse is hovering over
+    hover_slide: Option<usize>,
+    /// Whether to show hover effect (false when keyboard took over)
+    use_hover: bool,
+    /// Last known hover position, used to detect actual mouse movement
+    last_hover_pos: Option<egui::Pos2>,
+    /// Current animated scroll position in grid
+    grid_scroll_offset: f32,
+    /// Target scroll position in grid
+    grid_scroll_target: f32,
 }
 
 struct Toast {
@@ -122,11 +179,30 @@ impl PresentationApp {
             fps: 0.0,
             fps_update: now,
             overview_transition_start: None,
+            pen_strokes: Vec::new(),
+            arrows: Vec::new(),
+            active_draw: ActiveDraw::None,
+            last_slide_rect: egui::Rect::ZERO,
+            hover_slide: None,
+            use_hover: false,
+            last_hover_pos: None,
+            grid_scroll_offset: 0.0,
+            grid_scroll_target: 0.0,
         }
     }
 
     fn slide_count(&self) -> usize {
         self.presentation.slides.len()
+    }
+
+    fn display_title(&self) -> String {
+        self.presentation.meta.title.clone().unwrap_or_else(|| {
+            self.file_path
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string()
+        })
     }
 
     fn navigate_forward(&mut self) {
@@ -256,7 +332,13 @@ impl PresentationApp {
         }
     }
 
-    fn grid_cell_rect(&self, index: usize, rect: egui::Rect, scale: f32) -> egui::Rect {
+    fn grid_cell_rect(
+        &self,
+        index: usize,
+        rect: egui::Rect,
+        scale: f32,
+        scroll_offset: f32,
+    ) -> egui::Rect {
         let cols = self.grid_columns();
         let count = self.slide_count();
         let rows = count.div_ceil(cols);
@@ -269,21 +351,170 @@ impl PresentationApp {
         let grid_height = rect.bottom() - grid_top - padding;
 
         let cell_width = (grid_width - gap * (cols as f32 - 1.0)) / cols as f32;
-        let cell_height_max = (grid_height - gap * (rows as f32 - 1.0)) / rows as f32;
-        let cell_height = cell_height_max.min(cell_width * 9.0 / 16.0);
+        let natural_height = cell_width * 9.0 / 16.0;
+        let total_natural = rows as f32 * natural_height + (rows as f32 - 1.0) * gap;
+
+        // If natural layout fits in the viewport, clamp to viewport; otherwise use natural size
+        let cell_height = if total_natural <= grid_height {
+            let cell_height_max = (grid_height - gap * (rows as f32 - 1.0)) / rows as f32;
+            cell_height_max.min(natural_height)
+        } else {
+            natural_height
+        };
 
         let col = index % cols;
         let row = index / cols;
         let x = rect.left() + padding + col as f32 * (cell_width + gap);
-        let y = grid_top + row as f32 * (cell_height + gap);
+        let y = grid_top + row as f32 * (cell_height + gap) - scroll_offset;
 
         egui::Rect::from_min_size(egui::pos2(x, y), egui::vec2(cell_width, cell_height))
+    }
+
+    /// Total content height of the grid (for scroll calculation)
+    fn grid_content_height(&self, rect: egui::Rect, scale: f32) -> f32 {
+        let cols = self.grid_columns();
+        let count = self.slide_count();
+        let rows = count.div_ceil(cols);
+
+        let padding = 24.0 * scale;
+        let gap = 12.0 * scale;
+        let grid_width = rect.width() - padding * 2.0;
+        let cell_width = (grid_width - gap * (cols as f32 - 1.0)) / cols as f32;
+        let cell_height = cell_width * 9.0 / 16.0;
+
+        rows as f32 * cell_height + (rows as f32 - 1.0) * gap
+    }
+
+    /// Available viewport height for grid content
+    fn grid_available_height(&self, rect: egui::Rect, scale: f32) -> f32 {
+        let padding = 24.0 * scale;
+        let grid_top = rect.top() + padding + 40.0 * scale;
+        rect.bottom() - grid_top - padding
     }
 
     fn compute_scale(rect: egui::Rect) -> f32 {
         let ref_w = 1920.0;
         let ref_h = 1080.0;
         (rect.width() / ref_w).min(rect.height() / ref_h)
+    }
+
+    /// Convert screen position to slide-local coordinates (accounting for scroll)
+    fn screen_to_local(&self, screen_pos: egui::Pos2) -> egui::Pos2 {
+        let rect = self.last_slide_rect;
+        let scroll = self.scroll_offsets[self.current_slide];
+        egui::pos2(
+            screen_pos.x - rect.left(),
+            screen_pos.y - rect.top() + scroll,
+        )
+    }
+
+    /// Convert slide-local coordinates back to screen position
+    fn local_to_screen(&self, local: egui::Pos2) -> egui::Pos2 {
+        let rect = self.last_slide_rect;
+        let scroll = self.scroll_offsets[self.current_slide];
+        egui::pos2(local.x + rect.left(), local.y + rect.top() - scroll)
+    }
+
+    fn handle_mouse_input(&mut self, ctx: &egui::Context) {
+        let (primary_pressed, primary_down, secondary_pressed, secondary_down, pointer_pos) = ctx
+            .input(|i| {
+                let pp = i.pointer.button_pressed(egui::PointerButton::Primary);
+                let pd = i.pointer.button_down(egui::PointerButton::Primary);
+                let sp = i.pointer.button_pressed(egui::PointerButton::Secondary);
+                let sd = i.pointer.button_down(egui::PointerButton::Secondary);
+                let pos = i.pointer.hover_pos();
+                (pp, pd, sp, sd, pos)
+            });
+
+        let Some(pos) = pointer_pos else { return };
+        let local = self.screen_to_local(pos);
+
+        // Left button press → start PenPending
+        if primary_pressed {
+            self.active_draw = ActiveDraw::PenPending {
+                origin: local,
+                points: vec![local],
+            };
+            return;
+        }
+
+        // Right button press → start ArrowPending
+        if secondary_pressed {
+            self.active_draw = ActiveDraw::ArrowPending {
+                origin: local,
+                current: local,
+            };
+            return;
+        }
+
+        // Left button held
+        if primary_down {
+            match &mut self.active_draw {
+                ActiveDraw::PenPending { origin, points } => {
+                    points.push(local);
+                    if origin.distance(local) > DRAG_THRESHOLD {
+                        let pts = std::mem::take(points);
+                        self.active_draw = ActiveDraw::PenDrawing { points: pts };
+                    }
+                }
+                ActiveDraw::PenDrawing { points } => {
+                    points.push(local);
+                }
+                _ => {}
+            }
+            ctx.request_repaint();
+            return;
+        }
+
+        // Right button held
+        if secondary_down {
+            match &mut self.active_draw {
+                ActiveDraw::ArrowPending { origin, current } => {
+                    *current = local;
+                    if origin.distance(local) > DRAG_THRESHOLD {
+                        let from = *origin;
+                        self.active_draw = ActiveDraw::ArrowDrawing {
+                            from,
+                            current: local,
+                        };
+                    }
+                }
+                ActiveDraw::ArrowDrawing { current, .. } => {
+                    *current = local;
+                }
+                _ => {}
+            }
+            ctx.request_repaint();
+            return;
+        }
+
+        // Button released — commit or navigate
+        match std::mem::replace(&mut self.active_draw, ActiveDraw::None) {
+            ActiveDraw::PenPending { .. } => {
+                self.navigate_forward();
+            }
+            ActiveDraw::PenDrawing { points } => {
+                if points.len() >= 2 {
+                    self.pen_strokes.push(PenStroke {
+                        points,
+                        start: Instant::now(),
+                        slide_index: self.current_slide,
+                    });
+                }
+            }
+            ActiveDraw::ArrowPending { .. } => {
+                self.navigate_backward();
+            }
+            ActiveDraw::ArrowDrawing { from, current } => {
+                self.arrows.push(ArrowAnnotation {
+                    from,
+                    to: current,
+                    start: Instant::now(),
+                    slide_index: self.current_slide,
+                });
+            }
+            ActiveDraw::None => {}
+        }
     }
 }
 
@@ -318,8 +549,21 @@ impl eframe::App for PresentationApp {
                 return;
             }
 
-            // ESC double-tap to quit (from any mode)
+            // ESC: clear drawings first (presentation mode), then double-tap to quit
             if i.key_pressed(egui::Key::Escape) {
+                // In presentation mode, first ESC clears annotations if any exist
+                if matches!(mode, AppMode::Presentation) {
+                    let idx = self.current_slide;
+                    let has_annotations = self.pen_strokes.iter().any(|s| s.slide_index == idx)
+                        || self.arrows.iter().any(|a| a.slide_index == idx);
+                    if has_annotations {
+                        self.pen_strokes.retain(|s| s.slide_index != idx);
+                        self.arrows.retain(|a| a.slide_index != idx);
+                        self.last_esc = None;
+                        return;
+                    }
+                }
+                // Double-tap to quit (from any mode)
                 if let Some(last) = self.last_esc {
                     if last.elapsed().as_secs_f32() < 1.0 {
                         viewport_cmds.push(egui::ViewportCommand::Close);
@@ -378,6 +622,12 @@ impl eframe::App for PresentationApp {
                         // Max will be clamped at render time when we know content height
                         self.scroll_targets[idx] += 120.0;
                     }
+                    // Mouse wheel scroll
+                    let scroll = i.smooth_scroll_delta;
+                    if scroll.y != 0.0 {
+                        let idx = self.current_slide;
+                        self.scroll_targets[idx] -= scroll.y;
+                    }
                     // Home/End
                     if i.key_pressed(egui::Key::Home) {
                         self.jump_to_slide(0);
@@ -393,6 +643,10 @@ impl eframe::App for PresentationApp {
                         };
                         self.overview_transition_start = Some(Instant::now());
                         self.show_hud = false;
+                        self.grid_scroll_offset = 0.0;
+                        self.grid_scroll_target = 0.0;
+                        self.hover_slide = None;
+                        self.use_hover = false;
                     }
                 }
                 AppMode::Grid { selected } => {
@@ -403,18 +657,22 @@ impl eframe::App for PresentationApp {
                     if i.key_pressed(egui::Key::ArrowRight) {
                         let next = (selected + 1).min(count.saturating_sub(1));
                         self.mode = AppMode::Grid { selected: next };
+                        self.use_hover = false;
                     }
                     if i.key_pressed(egui::Key::ArrowLeft) {
                         let prev = selected.saturating_sub(1);
                         self.mode = AppMode::Grid { selected: prev };
+                        self.use_hover = false;
                     }
                     if i.key_pressed(egui::Key::ArrowDown) {
                         let next = (selected + cols).min(count.saturating_sub(1));
                         self.mode = AppMode::Grid { selected: next };
+                        self.use_hover = false;
                     }
                     if i.key_pressed(egui::Key::ArrowUp) {
                         let prev = selected.saturating_sub(cols);
                         self.mode = AppMode::Grid { selected: prev };
+                        self.use_hover = false;
                     }
 
                     // Enter / Space / E: animate back to selected slide
@@ -422,6 +680,7 @@ impl eframe::App for PresentationApp {
                         || i.key_pressed(egui::Key::Space)
                         || i.key_pressed(egui::Key::E)
                     {
+                        self.use_hover = false;
                         self.mode = AppMode::OverviewTransition {
                             selected,
                             entering: false,
@@ -438,6 +697,20 @@ impl eframe::App for PresentationApp {
         // Send collected viewport commands outside the input closure
         for cmd in viewport_cmds {
             ctx.send_viewport_cmd(cmd);
+        }
+
+        // Mouse input handling (presentation mode only, outside ctx.input closure)
+        if matches!(mode, AppMode::Presentation) && self.transition.is_none() {
+            self.handle_mouse_input(ctx);
+        }
+
+        // Expire old annotations
+        self.pen_strokes
+            .retain(|s| s.start.elapsed().as_secs_f32() < DRAW_FADE_DURATION);
+        self.arrows
+            .retain(|a| a.start.elapsed().as_secs_f32() < DRAW_FADE_DURATION);
+        if !self.pen_strokes.is_empty() || !self.arrows.is_empty() {
+            ctx.request_repaint();
         }
 
         // Advance transition
@@ -484,7 +757,7 @@ impl eframe::App for PresentationApp {
                         self.draw_presentation_with_scroll(ui, ctx, rect, scale);
                     }
                     AppMode::Grid { selected } => {
-                        self.draw_grid(ui, rect, selected, scale);
+                        self.draw_grid(ui, ctx, rect, selected, scale);
                     }
                     AppMode::OverviewTransition { selected, entering } => {
                         self.draw_overview_transition(ui, ctx, rect, scale, selected, entering);
@@ -538,9 +811,13 @@ impl PresentationApp {
         rect: egui::Rect,
         scale: f32,
     ) {
+        // Cache slide rect for mouse coordinate conversion
+        self.last_slide_rect = rect;
+
         // During transitions, just render normally (no scroll)
         if self.transition.is_some() {
             self.draw_presentation(ui, ctx, rect, scale);
+            self.draw_annotations(ui, scale);
             return;
         }
 
@@ -555,6 +832,7 @@ impl PresentationApp {
             self.scroll_offsets[idx] = 0.0;
             self.scroll_targets[idx] = 0.0;
             self.draw_presentation(ui, ctx, rect, scale);
+            self.draw_annotations(ui, scale);
             return;
         }
 
@@ -626,6 +904,9 @@ impl PresentationApp {
             );
             ui.painter().galley(pos, galley, indicator_color);
         }
+
+        // Draw annotations on top of slide content
+        self.draw_annotations(ui, scale);
 
         // Footer, counter, FPS
         self.draw_presentation_chrome(ui, rect, scale);
@@ -730,30 +1011,141 @@ impl PresentationApp {
         ui.painter().galley(fps_pos, fps_galley, fps_color);
     }
 
-    fn draw_grid(&self, ui: &mut egui::Ui, rect: egui::Rect, selected: usize, scale: f32) {
+    fn draw_grid(
+        &mut self,
+        ui: &mut egui::Ui,
+        ctx: &egui::Context,
+        rect: egui::Rect,
+        selected: usize,
+        scale: f32,
+    ) {
         let count = self.slide_count();
         let padding = 24.0 * scale;
+
+        // --- Grid scrolling ---
+        let content_h = self.grid_content_height(rect, scale);
+        let available_h = self.grid_available_height(rect, scale);
+        let overflow = (content_h - available_h).max(0.0);
+
+        // Mouse wheel scrolling in grid
+        let scroll_delta = ctx.input(|i| i.smooth_scroll_delta.y);
+        if scroll_delta != 0.0 && overflow > 0.0 {
+            self.grid_scroll_target = (self.grid_scroll_target - scroll_delta).clamp(0.0, overflow);
+        }
+
+        // Clamp target
+        self.grid_scroll_target = self.grid_scroll_target.clamp(0.0, overflow);
+
+        // Animate scroll
+        let diff = self.grid_scroll_target - self.grid_scroll_offset;
+        if diff.abs() < 0.5 {
+            self.grid_scroll_offset = self.grid_scroll_target;
+        } else {
+            self.grid_scroll_offset += diff * 0.15;
+            ctx.request_repaint();
+        }
+
+        let scroll = self.grid_scroll_offset;
+
+        // --- Mouse hover detection ---
+        let hover_pos = ctx.input(|i| i.pointer.hover_pos());
+        let mut hovered: Option<usize> = None;
+        // Clip area for grid cells (below title, above hint)
+        let grid_top = rect.top() + padding + 40.0 * scale;
+        let grid_bottom = rect.bottom() - padding;
+        let clip_rect = egui::Rect::from_min_max(
+            egui::pos2(rect.left(), grid_top),
+            egui::pos2(rect.right(), grid_bottom),
+        );
+
+        // Detect whether the mouse has actually moved since last frame
+        let mouse_moved = match (hover_pos, self.last_hover_pos) {
+            (Some(cur), Some(prev)) => cur.distance(prev) > 1.0,
+            (Some(_), None) => true,
+            _ => false,
+        };
+        self.last_hover_pos = hover_pos;
+
+        if let Some(hp) = hover_pos {
+            for i in 0..count {
+                let cell_rect = self.grid_cell_rect(i, rect, scale, scroll);
+                let visible = cell_rect.intersects(clip_rect);
+                if visible && cell_rect.contains(hp) && clip_rect.contains(hp) {
+                    hovered = Some(i);
+                    break;
+                }
+            }
+        }
+        if hovered.is_some() {
+            self.hover_slide = hovered;
+            // Only re-enable hover when the mouse has actually moved
+            if mouse_moved {
+                self.use_hover = true;
+            }
+        } else if hover_pos.is_some() {
+            self.hover_slide = None;
+        }
+
+        // --- Mouse click detection ---
+        let clicked = ctx.input(|i| i.pointer.button_pressed(egui::PointerButton::Primary));
+        if clicked {
+            if let Some(hi) = self.hover_slide {
+                // Click on a grid cell → zoom into that slide
+                self.mode = AppMode::OverviewTransition {
+                    selected: hi,
+                    entering: false,
+                };
+                self.overview_transition_start = Some(Instant::now());
+                return;
+            }
+        }
+
+        // --- Ensure selected cell is visible when using keyboard ---
+        if !self.use_hover && overflow > 0.0 {
+            let sel_rect = self.grid_cell_rect(selected, rect, scale, scroll);
+            if sel_rect.top() < grid_top {
+                self.grid_scroll_target -= grid_top - sel_rect.top() + padding;
+                self.grid_scroll_target = self.grid_scroll_target.max(0.0);
+            } else if sel_rect.bottom() > grid_bottom {
+                self.grid_scroll_target += sel_rect.bottom() - grid_bottom + padding;
+                self.grid_scroll_target = self.grid_scroll_target.min(overflow);
+            }
+        }
 
         // Title
         let title_color = Theme::with_opacity(self.theme.heading_color, 0.9);
         let title_galley = ui.painter().layout_no_wrap(
-            "Slide Overview".to_string(),
+            self.display_title(),
             egui::FontId::proportional(24.0 * scale),
             title_color,
         );
         let title_pos = egui::pos2(rect.left() + padding, rect.top() + padding);
         ui.painter().galley(title_pos, title_galley, title_color);
 
+        // Render grid cells clipped to the grid area
+        let mut grid_child = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(clip_rect)
+                .id_salt("grid_clip"),
+        );
+
         for i in 0..count {
-            let cell_rect = self.grid_cell_rect(i, rect, scale);
+            let cell_rect = self.grid_cell_rect(i, rect, scale, scroll);
+
+            // Skip cells entirely outside the visible area
+            if !cell_rect.intersects(clip_rect) {
+                continue;
+            }
+
             let cell_scale = (cell_rect.width() / 1920.0).min(cell_rect.height() / 1080.0);
 
             // Fill cell with theme background
-            ui.painter()
+            grid_child
+                .painter()
                 .rect_filled(cell_rect, 4.0 * scale, self.theme.background);
 
             // Render actual slide content clipped to cell
-            let child_ui = ui.new_child(
+            let child_ui = grid_child.new_child(
                 egui::UiBuilder::new()
                     .max_rect(cell_rect)
                     .id_salt(("grid_cell", i)),
@@ -761,11 +1153,25 @@ impl PresentationApp {
             self.draw_slide(&child_ui, i, cell_rect, 1.0, cell_scale);
 
             // Slide number badge overlay
-            self.draw_slide_badge(ui, cell_rect, i, scale, 1.0);
+            self.draw_slide_badge(&grid_child, cell_rect, i, scale, 1.0);
+
+            // Hover highlight (subtle glow, distinct from selection)
+            if self.use_hover && self.hover_slide == Some(i) && i != selected {
+                let hover_color = Theme::with_opacity(self.theme.accent, 0.12);
+                grid_child
+                    .painter()
+                    .rect_filled(cell_rect, 4.0 * scale, hover_color);
+                grid_child.painter().rect_stroke(
+                    cell_rect.expand(2.0 * scale),
+                    4.0 * scale,
+                    egui::Stroke::new(2.0 * scale, Theme::with_opacity(self.theme.accent, 0.5)),
+                    egui::StrokeKind::Outside,
+                );
+            }
 
             // Selected border (drawn AFTER preview so it's on top)
             if i == selected {
-                ui.painter().rect_stroke(
+                grid_child.painter().rect_stroke(
                     cell_rect,
                     4.0 * scale,
                     egui::Stroke::new(3.0 * scale, self.theme.accent),
@@ -774,8 +1180,17 @@ impl PresentationApp {
             }
         }
 
+        // Fade gradients at screen edges when scrolled
+        let fade_h = 60.0 * scale;
+        if scroll > 0.5 {
+            draw_fade_gradient(ui, rect, fade_h, &self.theme, true);
+        }
+        if scroll < overflow - 0.5 {
+            draw_fade_gradient(ui, rect, fade_h, &self.theme, false);
+        }
+
         // Navigation hint at bottom
-        let hint = "Arrow keys: navigate  |  Enter/Space/E: select  |  Q: quit";
+        let hint = "Arrows/Mouse: navigate  |  Enter/Click: select  |  Q: quit";
         let hint_color = Theme::with_opacity(self.theme.foreground, 0.4);
         let hint_galley = ui.painter().layout_no_wrap(
             hint.to_string(),
@@ -844,7 +1259,7 @@ impl PresentationApp {
         } else {
             selected
         };
-        let hero_cell_rect = self.grid_cell_rect(hero_index, rect, scale);
+        let hero_cell_rect = self.grid_cell_rect(hero_index, rect, scale, 0.0);
         let hero_rect = lerp_rect(rect, hero_cell_rect, grid_amount);
         let hero_scale = (hero_rect.width() / 1920.0).min(hero_rect.height() / 1080.0);
 
@@ -855,7 +1270,7 @@ impl PresentationApp {
             if i == hero_index {
                 continue;
             }
-            let cell_rect = self.grid_cell_rect(i, rect, scale);
+            let cell_rect = self.grid_cell_rect(i, rect, scale, 0.0);
             let cell_scale = (cell_rect.width() / 1920.0).min(cell_rect.height() / 1080.0);
 
             ui.painter()
@@ -910,14 +1325,14 @@ impl PresentationApp {
 
             let title_color = Theme::with_opacity(self.theme.heading_color, 0.9 * grid_amount);
             let title_galley = ui.painter().layout_no_wrap(
-                "Slide Overview".to_string(),
+                self.display_title(),
                 egui::FontId::proportional(24.0 * scale),
                 title_color,
             );
             let title_pos = egui::pos2(rect.left() + padding, rect.top() + padding);
             ui.painter().galley(title_pos, title_galley, title_color);
 
-            let hint = "Arrow keys: navigate  |  Enter/Space/E: select  |  Q: quit";
+            let hint = "Arrows/Mouse: navigate  |  Enter/Click: select  |  Q: quit";
             let hint_color = Theme::with_opacity(self.theme.foreground, 0.4 * grid_amount);
             let hint_galley = ui.painter().layout_no_wrap(
                 hint.to_string(),
@@ -932,6 +1347,189 @@ impl PresentationApp {
         }
 
         ctx.request_repaint();
+    }
+
+    /// Pen color: cyan/blue tones
+    fn pen_color(&self, opacity: f32) -> egui::Color32 {
+        if self.theme.name == "dark" {
+            egui::Color32::from_rgba_unmultiplied(80, 200, 255, (opacity * 230.0) as u8)
+        } else {
+            egui::Color32::from_rgba_unmultiplied(30, 80, 200, (opacity * 230.0) as u8)
+        }
+    }
+
+    /// Pen outline color: darker cyan/blue
+    fn pen_outline_color(&self, opacity: f32) -> egui::Color32 {
+        if self.theme.name == "dark" {
+            egui::Color32::from_rgba_unmultiplied(30, 130, 180, (opacity * 140.0) as u8)
+        } else {
+            egui::Color32::from_rgba_unmultiplied(15, 40, 130, (opacity * 140.0) as u8)
+        }
+    }
+
+    /// Arrow color: yellow-orange / red tones
+    fn arrow_color(&self, opacity: f32) -> egui::Color32 {
+        if self.theme.name == "dark" {
+            egui::Color32::from_rgba_unmultiplied(255, 200, 50, (opacity * 230.0) as u8)
+        } else {
+            egui::Color32::from_rgba_unmultiplied(220, 40, 40, (opacity * 230.0) as u8)
+        }
+    }
+
+    /// Arrow outline color: darker orange / red
+    fn arrow_outline_color(&self, opacity: f32) -> egui::Color32 {
+        if self.theme.name == "dark" {
+            egui::Color32::from_rgba_unmultiplied(200, 140, 0, (opacity * 140.0) as u8)
+        } else {
+            egui::Color32::from_rgba_unmultiplied(150, 20, 20, (opacity * 140.0) as u8)
+        }
+    }
+
+    /// Compute fade opacity for an annotation (1.0 for most of its life, fading in last 2s)
+    fn annotation_opacity(start: Instant) -> f32 {
+        let elapsed = start.elapsed().as_secs_f32();
+        let fade_start = DRAW_FADE_DURATION - 2.0;
+        if elapsed < fade_start {
+            1.0
+        } else if elapsed < DRAW_FADE_DURATION {
+            1.0 - (elapsed - fade_start) / 2.0
+        } else {
+            0.0
+        }
+    }
+
+    /// Draw all pen strokes and arrow annotations for the current slide
+    fn draw_annotations(&self, ui: &egui::Ui, scale: f32) {
+        let idx = self.current_slide;
+        let pen_width = 6.0 * scale;
+        let pen_outline_width = pen_width + 2.0 * scale;
+        let arrow_width = 5.0 * scale;
+        let arrow_outline_width = arrow_width + 2.0 * scale;
+        let arrow_size = 22.0 * scale;
+        let arrow_outline_size = arrow_size + 3.0 * scale;
+
+        // Draw completed pen strokes
+        for stroke in &self.pen_strokes {
+            if stroke.slide_index != idx || stroke.points.len() < 2 {
+                continue;
+            }
+            let opacity = Self::annotation_opacity(stroke.start);
+            if opacity < 0.01 {
+                continue;
+            }
+            let outline_color = self.pen_outline_color(opacity);
+            let color = self.pen_color(opacity);
+            let screen_points: Vec<egui::Pos2> = stroke
+                .points
+                .iter()
+                .map(|p| self.local_to_screen(*p))
+                .collect();
+            // Outline pass
+            ui.painter().add(egui::Shape::line(
+                screen_points.clone(),
+                egui::Stroke::new(pen_outline_width, outline_color),
+            ));
+            // Main pass
+            ui.painter().add(egui::Shape::line(
+                screen_points,
+                egui::Stroke::new(pen_width, color),
+            ));
+        }
+
+        // Draw completed arrows
+        for arrow in &self.arrows {
+            if arrow.slide_index != idx {
+                continue;
+            }
+            let opacity = Self::annotation_opacity(arrow.start);
+            if opacity < 0.01 {
+                continue;
+            }
+            let outline_color = self.arrow_outline_color(opacity);
+            let color = self.arrow_color(opacity);
+            let from = self.local_to_screen(arrow.from);
+            let to = self.local_to_screen(arrow.to);
+            // Outline pass
+            self.draw_arrow_shape(
+                ui,
+                from,
+                to,
+                arrow_outline_width,
+                arrow_outline_size,
+                outline_color,
+            );
+            // Main pass
+            self.draw_arrow_shape(ui, from, to, arrow_width, arrow_size, color);
+        }
+
+        // Draw active drawing in progress
+        match &self.active_draw {
+            ActiveDraw::PenDrawing { points } if points.len() >= 2 => {
+                let outline_color = self.pen_outline_color(1.0);
+                let color = self.pen_color(1.0);
+                let screen_points: Vec<egui::Pos2> =
+                    points.iter().map(|p| self.local_to_screen(*p)).collect();
+                ui.painter().add(egui::Shape::line(
+                    screen_points.clone(),
+                    egui::Stroke::new(pen_outline_width, outline_color),
+                ));
+                ui.painter().add(egui::Shape::line(
+                    screen_points,
+                    egui::Stroke::new(pen_width, color),
+                ));
+            }
+            ActiveDraw::ArrowDrawing { from, current } => {
+                let outline_color = self.arrow_outline_color(1.0);
+                let color = self.arrow_color(1.0);
+                let screen_from = self.local_to_screen(*from);
+                let screen_to = self.local_to_screen(*current);
+                self.draw_arrow_shape(
+                    ui,
+                    screen_from,
+                    screen_to,
+                    arrow_outline_width,
+                    arrow_outline_size,
+                    outline_color,
+                );
+                self.draw_arrow_shape(ui, screen_from, screen_to, arrow_width, arrow_size, color);
+            }
+            _ => {}
+        }
+    }
+
+    /// Draw an arrow from `from` to `to` with a filled triangular arrowhead
+    fn draw_arrow_shape(
+        &self,
+        ui: &egui::Ui,
+        from: egui::Pos2,
+        to: egui::Pos2,
+        stroke_width: f32,
+        arrow_size: f32,
+        color: egui::Color32,
+    ) {
+        let delta = to - from;
+        let len = delta.length();
+        if len < 1.0 {
+            return;
+        }
+        let dir = delta / len;
+        let perp = egui::vec2(-dir.y, dir.x);
+
+        // Arrowhead triangle points (wider spread)
+        let p1 = to - dir * arrow_size + perp * arrow_size * 0.45;
+        let p2 = to - dir * arrow_size - perp * arrow_size * 0.45;
+
+        // Shaft (stop further back from head to avoid blunt overlap)
+        ui.painter().line_segment(
+            [from, to - dir * arrow_size * 0.7],
+            egui::Stroke::new(stroke_width, color),
+        );
+        // Arrowhead
+        ui.painter().add(egui::Shape::convex_polygon(
+            vec![to, p1, p2],
+            color,
+            egui::Stroke::NONE,
+        ));
     }
 }
 
@@ -989,13 +1587,17 @@ fn draw_hud(ui: &egui::Ui, theme: &Theme, rect: egui::Rect, scale: f32) {
     let shortcuts = [
         ("Space / N / \u{2192}", "Next slide / reveal"),
         ("P / \u{2190}", "Previous slide / hide"),
-        ("\u{2191} / \u{2193}", "Scroll slide content"),
+        ("\u{2191} / \u{2193} / Wheel", "Scroll slide content"),
+        ("Left click", "Next slide"),
+        ("Right click", "Previous slide"),
+        ("Left drag", "Freehand pen (blue)"),
+        ("Right drag", "Draw arrow (orange)"),
+        ("Esc", "Clear drawings / \u{00d7}2 exit"),
         ("G", "Grid view / overview"),
         ("T", "Cycle transition"),
         ("D", "Toggle theme"),
         ("F", "Toggle fullscreen"),
         ("H", "Toggle this HUD"),
-        ("Esc \u{00d7}2", "Exit"),
         ("Q", "Quit"),
         ("Home", "First slide"),
         ("End", "Last slide"),
@@ -1052,7 +1654,12 @@ fn draw_hud(ui: &egui::Ui, theme: &Theme, rect: egui::Rect, scale: f32) {
     }
 }
 
-pub fn run(file: PathBuf, windowed: bool) -> anyhow::Result<()> {
+pub fn run(
+    file: PathBuf,
+    windowed: bool,
+    start_slide: Option<usize>,
+    start_overview: bool,
+) -> anyhow::Result<()> {
     let content = std::fs::read_to_string(&file)?;
     let base_path = file.parent().unwrap_or(std::path::Path::new("."));
     let presentation = parser::parse(&content, base_path);
@@ -1067,6 +1674,38 @@ pub fn run(file: PathBuf, windowed: bool) -> anyhow::Result<()> {
             file.file_name().unwrap_or_default().to_string_lossy()
         )
     });
+
+    let slide_count = presentation.slides.len();
+
+    // Determine start mode: CLI flags override config
+    let config = Config::load_or_default();
+    let config_start = config
+        .defaults
+        .as_ref()
+        .and_then(|d| d.start_mode.as_deref());
+
+    let (initial_slide, initial_overview) = if start_overview {
+        // --overview flag: start in grid at current slide
+        (start_slide.map(|s| s.saturating_sub(1)).unwrap_or(0), true)
+    } else if let Some(s) = start_slide {
+        // --slide N flag: start on that slide (1-indexed)
+        (s.saturating_sub(1), false)
+    } else {
+        // Fall back to config
+        match config_start {
+            Some("overview") => (0, true),
+            Some("first") | None => (0, false),
+            Some(n) => {
+                if let Ok(num) = n.parse::<usize>() {
+                    (num.saturating_sub(1), false)
+                } else {
+                    (0, false)
+                }
+            }
+        }
+    };
+
+    let initial_slide = initial_slide.min(slide_count.saturating_sub(1));
 
     let viewport = if windowed {
         egui::ViewportBuilder::default()
@@ -1086,7 +1725,16 @@ pub fn run(file: PathBuf, windowed: bool) -> anyhow::Result<()> {
     eframe::run_native(
         &title,
         options,
-        Box::new(move |_cc| Ok(Box::new(PresentationApp::new(file, presentation, windowed)))),
+        Box::new(move |_cc| {
+            let mut app = PresentationApp::new(file, presentation, windowed);
+            app.current_slide = initial_slide;
+            if initial_overview {
+                app.mode = AppMode::Grid {
+                    selected: initial_slide,
+                };
+            }
+            Ok(Box::new(app))
+        }),
     )
     .map_err(|e| anyhow::anyhow!("{e}"))
 }

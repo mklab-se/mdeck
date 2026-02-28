@@ -38,6 +38,11 @@ fn show() -> Result<()> {
                 "aspect:".bold(),
                 defaults.aspect.as_deref().unwrap_or("(not set)")
             );
+            println!(
+                "  {} {}",
+                "start_mode:".bold(),
+                defaults.start_mode.as_deref().unwrap_or("(not set)")
+            );
         }
         None => {
             println!("{} (not set)", "defaults:".bold());

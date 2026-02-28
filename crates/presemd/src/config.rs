@@ -24,6 +24,9 @@ pub struct DefaultsConfig {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub aspect: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_mode: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -179,8 +182,18 @@ impl Config {
                     .get_or_insert_with(DefaultsConfig::default)
                     .aspect = Some(value.to_string());
             }
+            "defaults.start_mode" => {
+                if value != "first" && value != "overview" && value.parse::<usize>().is_err() {
+                    anyhow::bail!(
+                        "Invalid start_mode: {value}. Must be 'first', 'overview', or a slide number."
+                    );
+                }
+                self.defaults
+                    .get_or_insert_with(DefaultsConfig::default)
+                    .start_mode = Some(value.to_string());
+            }
             _ => anyhow::bail!(
-                "Unknown config key: {key}. Valid keys: defaults.theme, defaults.transition, defaults.aspect"
+                "Unknown config key: {key}. Valid keys: defaults.theme, defaults.transition, defaults.aspect, defaults.start_mode"
             ),
         }
         Ok(())

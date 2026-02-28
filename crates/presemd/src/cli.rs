@@ -24,6 +24,14 @@ pub struct Cli {
     #[arg(long, global = false)]
     pub windowed: bool,
 
+    /// Start on a specific slide (1-indexed)
+    #[arg(long, global = false)]
+    pub slide: Option<usize>,
+
+    /// Start in grid overview mode
+    #[arg(long, global = false)]
+    pub overview: bool,
+
     /// Increase output verbosity (-v for debug, -vv for trace)
     #[arg(short, long, action = ArgAction::Count, global = true)]
     pub verbose: u8,
@@ -150,7 +158,7 @@ impl Cli {
                     if !file.exists() {
                         anyhow::bail!("File not found: {}", file.display());
                     }
-                    crate::app::run(file, self.windowed)
+                    crate::app::run(file, self.windowed, self.slide, self.overview)
                 } else {
                     use clap::CommandFactory;
                     let mut cmd = Self::command();
