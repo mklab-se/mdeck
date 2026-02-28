@@ -21,7 +21,7 @@ SLIDE SEPARATION
 FRONTMATTER (YAML at top of file)
   title, author, date     Standard metadata
   @theme: dark|light      Global theme
-  @transition: slide|fade|none
+  @transition: slide|fade|spatial|none
   @aspect: 16:9|4:3|16:10
   @footer: "text"         Footer on every slide
 
@@ -47,9 +47,11 @@ IMAGE DIRECTIVES (in alt text)
 
 KEYBOARD SHORTCUTS
   Space/N/Right  Next slide       P/Left      Previous slide
-  T              Toggle theme     F           Toggle fullscreen
-  H              Show/hide HUD    ESC         Grid view / back
-  Ctrl+C x2      Exit
+  Up/Down        Scroll content   G           Grid view
+  Enter/E        Back to present. T           Cycle transition
+  D              Toggle theme     F           Toggle fullscreen
+  H              Show/hide HUD    Esc x2      Exit
+  Ctrl+C x2      Exit             Q           Quit
 
 COLUMN SEPARATOR
   +++   Separates left and right columns in two-column layout

@@ -100,16 +100,39 @@ pub fn split(body: &str) -> Vec<String> {
 
 /// Split a chunk by H1 heading inference: when `# ` appears at the start of a line
 /// and the current slide already has content, insert a break.
+/// Lines inside fenced code blocks are never treated as headings.
 fn split_by_heading_inference(chunk: &str, slides: &mut Vec<String>) {
     let mut current = String::new();
     let mut has_content = false;
+    let mut in_code_fence = false;
+    let mut fence_char: char = '`';
+    let mut fence_len: usize = 0;
 
     for line in chunk.lines() {
-        if line.starts_with("# ") && has_content {
+        let trimmed = line.trim();
+
+        // Track fenced code blocks
+        if in_code_fence {
+            let closing_count = trimmed.chars().take_while(|&c| c == fence_char).count();
+            if closing_count >= fence_len
+                && trimmed
+                    .chars()
+                    .skip(closing_count)
+                    .all(|c| c.is_whitespace())
+            {
+                in_code_fence = false;
+            }
+        } else if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            in_code_fence = true;
+            fence_char = trimmed.chars().next().unwrap();
+            fence_len = trimmed.chars().take_while(|&c| c == fence_char).count();
+        }
+
+        if !in_code_fence && line.starts_with("# ") && has_content {
             // This H1 starts a new slide
-            let trimmed = current.trim().to_string();
-            if !trimmed.is_empty() {
-                slides.push(trimmed);
+            let slide_text = current.trim().to_string();
+            if !slide_text.is_empty() {
+                slides.push(slide_text);
             }
             current = String::new();
             has_content = false;
@@ -121,15 +144,14 @@ fn split_by_heading_inference(chunk: &str, slides: &mut Vec<String>) {
         current.push_str(line);
 
         // Directives (@key: value) don't count as content for heading inference
-        let trimmed = line.trim();
         if !trimmed.is_empty() && !is_directive(trimmed) {
             has_content = true;
         }
     }
 
-    let trimmed = current.trim().to_string();
-    if !trimmed.is_empty() {
-        slides.push(trimmed);
+    let slide_text = current.trim().to_string();
+    if !slide_text.is_empty() {
+        slides.push(slide_text);
     }
 }
 
@@ -197,6 +219,17 @@ mod tests {
         let slides = split(body);
         // Should produce 2 slides, not 3 (overlapping separators = single break)
         assert_eq!(slides.len(), 2);
+    }
+
+    #[test]
+    fn test_heading_in_code_block_no_split() {
+        let body = "# Title\n\n```python\n# this is a comment\nprint('hi')\n```";
+        let slides = split(body);
+        assert_eq!(
+            slides.len(),
+            1,
+            "Hash comment in code block should not split"
+        );
     }
 
     #[test]

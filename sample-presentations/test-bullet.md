@@ -24,6 +24,17 @@ Focused tests for the bullet layout
 4. Submit a pull request
 
 
+# Nested Ordered List
+
+1. Set up the environment
+   1. Install Rust toolchain
+   2. Clone the repository
+2. Build the project
+   1. Run cargo build
+   2. Verify no errors
+3. Deploy
+
+
 # Nested List with Reveals
 
 + Top-level item one

@@ -2,6 +2,12 @@
 
 A markdown-based presentation tool.
 
+## Design Principles
+
+- **Visual appeal is paramount.** Every rendered element — text, code, transitions, scroll effects — must look polished and professional. Prefer smooth animations over instant state changes.
+- **Simplicity over complexity.** Fewer controls, fewer options, fewer edge cases. The tool should feel effortless to use. When in doubt, leave it out.
+- **Any markdown file should be presentable.** Overflow handling, layout inference, and sensible defaults mean users shouldn't need to tailor their markdown to the tool.
+
 ## Commands
 
 ```bash
@@ -34,8 +40,10 @@ crates/
         spec.rs      # Format specification printer
       parser/          # Markdown-to-slide parser (frontmatter, blocks, inlines, splitter)
       render/          # Slide rendering engine
-        mod.rs       # render_slide entry point
+        mod.rs       # render_slide entry point, content height measurement
         text.rs      # Block-level drawing (headings, lists, code, tables, diagrams, images)
+        syntax.rs    # Syntax highlighting via syntect (LazyLock-cached SyntaxSet/ThemeSet)
+        transition.rs # Slide transitions (fade, slide, spatial) with easing
         layouts/     # Layout strategies (title, section, bullet, code, content, two_column, quote, image_slide)
         image_cache.rs # Async image loading and caching
       theme.rs       # Theme definitions (light, dark, solarized, etc.)
@@ -72,9 +80,11 @@ presemd --help                 # Show help
 - **Terminal output:** `colored` for styled CLI output
 - **Error handling:** `anyhow` for ergonomic error propagation
 - **Rendering:** Scale factor `min(w/1920, h/1080)` applied to all pixel sizes for resolution independence
+- **Syntax highlighting:** `syntect` with `LazyLock`-cached `SyntaxSet` / `ThemeSet`; theme maps to syntect theme via `Theme::syntect_theme_name()`
 - **PNG export:** Headless eframe window using `ViewportCommand::Screenshot` / `Event::Screenshot`
-- Slide transitions: fade and horizontal slide with easing
-- Keyboard navigation: arrow keys for forward/backward
+- **Transitions:** fade, horizontal slide, spatial (directional pan), with smooth easing; animated overview zoom in/out
+- **Scroll/overflow:** Per-slide smooth animated scroll with fade gradients; Up/Down keys; `scroll_targets` + lerp for animation
+- **Keyboard:** Space/N/Right forward, P/Left back, Up/Down scroll, G grid, T transition, D theme, F fullscreen, H HUD, Esc×2 exit
 - FPS overlay in top-right corner
 
 ## Releasing
@@ -101,6 +111,15 @@ presemd --help                 # Show help
 - **Always run the full CI check before pushing:** `cargo fmt --all -- --check && cargo clippy --workspace -- -D warnings && cargo test --workspace`
 - Write unit tests for all new functionality
 - Test edge cases and error paths, not just the happy path
+
+### Visual Testing
+- **Always verify rendering changes visually before declaring work complete.** Use the export command to generate slide PNGs and inspect them:
+  ```bash
+  cargo run -p presemd -- export sample-presentations/test-code.md --output-dir /tmp/slides
+  ```
+  Then read the exported PNGs to check layout, syntax highlighting, spacing, and overall visual quality.
+- Test presentations in `sample-presentations/` cover specific layouts: `test-bullet.md`, `test-code.md`, `poker-night.md`, etc.
+- When fixing visual issues, export before and after to confirm the fix.
 
 ### Documentation
 - **Before pushing or releasing, review all documentation for accuracy:**

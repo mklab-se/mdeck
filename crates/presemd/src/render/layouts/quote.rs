@@ -1,4 +1,4 @@
-use eframe::egui::{self, FontId, Pos2};
+use eframe::egui::{self, Pos2};
 
 use crate::parser::{Block, Inline, Slide};
 use crate::render::text;
@@ -70,7 +70,7 @@ pub fn render(
         y += h + 40.0 * scale;
     }
 
-    // Draw quote - centered with larger text
+    // Draw quote - centered with larger text, quotation marks inline
     if let Some(inlines) = quote_inlines {
         let color = Theme::with_opacity(theme.foreground, opacity);
         let accent = Theme::with_opacity(theme.accent, opacity);
@@ -81,52 +81,23 @@ pub fn render(
         let bar_width = 4.0 * scale;
         let bar_x = quote_x - 16.0 * scale;
 
-        // Layout quote text to determine height
-        let job = text::inlines_to_job(inlines, quote_size, color, quote_width);
+        // Build inlines with quotation marks baked in (if not already present)
+        let quoted_inlines = wrap_with_quotes(inlines);
+        let job = text::inlines_to_job(&quoted_inlines, quote_size, color, quote_width);
         let galley = ui.painter().layout_job(job);
         let text_height = galley.rect.height();
         let text_width = galley.rect.width();
         let text_x = quote_x + (quote_width - text_width) / 2.0;
 
-        // Draw opening quote mark flush with left edge of text, above it
-        let quote_mark_size = quote_size * 2.0;
-        let quote_mark_color = Theme::with_opacity(theme.accent, opacity * 0.5);
-        let open_mark_galley = ui.painter().layout_no_wrap(
-            "\u{201C}".to_string(),
-            FontId::proportional(quote_mark_size),
-            quote_mark_color,
-        );
-        ui.painter().galley(
-            Pos2::new(text_x, y - quote_mark_size * 0.3),
-            open_mark_galley,
-            quote_mark_color,
-        );
-
-        // Draw the quote text
-        let text_y = y + quote_mark_size * 0.4;
-        ui.painter()
-            .galley(Pos2::new(text_x, text_y), galley, color);
+        // Draw the quote text (marks are part of the text flow)
+        ui.painter().galley(Pos2::new(text_x, y), galley, color);
 
         // Draw left accent bar spanning the quote text
         let bar_rect =
-            egui::Rect::from_min_size(Pos2::new(bar_x, text_y), egui::vec2(bar_width, text_height));
+            egui::Rect::from_min_size(Pos2::new(bar_x, y), egui::vec2(bar_width, text_height));
         ui.painter().rect_filled(bar_rect, 2.0, accent);
 
-        // Draw closing quote mark at end of quote text
-        let close_mark_galley = ui.painter().layout_no_wrap(
-            "\u{201D}".to_string(),
-            FontId::proportional(quote_mark_size),
-            quote_mark_color,
-        );
-        let close_x = text_x + text_width;
-        let close_y = text_y + text_height - quote_mark_size * 0.5;
-        ui.painter().galley(
-            Pos2::new(close_x, close_y),
-            close_mark_galley,
-            quote_mark_color,
-        );
-
-        y = text_y + text_height + 30.0 * scale;
+        y += text_height + 30.0 * scale;
     }
 
     // Draw attribution - right-aligned, italic
@@ -142,6 +113,40 @@ pub fn render(
         let x = content_rect.right() - galley.rect.width() - 40.0 * scale;
         ui.painter().galley(Pos2::new(x, y), galley, color);
     }
+}
+
+/// Wraps quote inlines with curly quotation marks if they don't already have them.
+fn wrap_with_quotes(inlines: &[Inline]) -> Vec<Inline> {
+    let starts_with_quote = inlines.first().is_some_and(|first| {
+        if let Inline::Text(s) = first {
+            let t = s.trim_start();
+            t.starts_with('\u{201C}') || t.starts_with('"')
+        } else {
+            false
+        }
+    });
+    let ends_with_quote = inlines.last().is_some_and(|last| {
+        if let Inline::Text(s) = last {
+            let t = s.trim_end();
+            t.ends_with('\u{201D}') || t.ends_with('"')
+        } else {
+            false
+        }
+    });
+
+    if starts_with_quote && ends_with_quote {
+        return inlines.to_vec();
+    }
+
+    let mut result = Vec::with_capacity(inlines.len() + 2);
+    if !starts_with_quote {
+        result.push(Inline::Text("\u{201C}".to_string()));
+    }
+    result.extend(inlines.iter().cloned());
+    if !ends_with_quote {
+        result.push(Inline::Text("\u{201D}".to_string()));
+    }
+    result
 }
 
 fn clean_attribution(inlines: &[Inline]) -> Vec<Inline> {

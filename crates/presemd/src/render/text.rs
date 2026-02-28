@@ -165,7 +165,7 @@ fn draw_list_inner(
 ) -> f32 {
     let color = Theme::with_opacity(theme.foreground, opacity);
     let indent = 30.0 * scale * indent_level as f32;
-    let marker_width = 25.0 * scale;
+    let marker_width = 45.0 * scale;
     let item_spacing = 8.0 * scale;
     let font_size = theme.body_size * scale;
     let mut y_offset = 0.0;
@@ -213,10 +213,14 @@ fn draw_list_inner(
 
         // Draw children
         if !item.children.is_empty() {
+            let children_ordered = item
+                .children
+                .first()
+                .is_some_and(|c| c.marker == ListMarker::Ordered);
             let child_height = draw_list_inner(
                 ui,
                 &item.children,
-                false,
+                children_ordered,
                 theme,
                 Pos2::new(pos.x, pos.y + y_offset),
                 max_width,
@@ -233,13 +237,13 @@ fn draw_list_inner(
     y_offset
 }
 
-/// Draw a code block. Returns height used.
+/// Draw a code block with syntax highlighting. Returns height used.
 #[allow(clippy::too_many_arguments)]
 pub fn draw_code_block(
     ui: &egui::Ui,
     code: &str,
-    _language: Option<&str>,
-    _highlight_lines: &[usize],
+    language: Option<&str>,
+    highlight_lines: &[usize],
     theme: &Theme,
     pos: Pos2,
     max_width: f32,
@@ -247,16 +251,18 @@ pub fn draw_code_block(
     scale: f32,
 ) -> f32 {
     let padding = 16.0 * scale;
-    let code_color = Theme::with_opacity(theme.code_foreground, opacity);
     let bg_color = Theme::with_opacity(theme.code_background, opacity);
 
-    // Layout the code text
-    let code_galley = ui.painter().layout(
-        code.to_string(),
-        FontId::monospace(theme.code_size * scale),
-        code_color,
+    // Build syntax-highlighted layout
+    let job = crate::render::syntax::highlight_code(
+        code,
+        language,
+        theme.code_size * scale,
+        opacity,
+        theme,
         max_width - padding * 2.0,
     );
+    let code_galley = ui.painter().layout_job(job);
 
     let total_height = code_galley.rect.height() + padding * 2.0;
 
@@ -264,9 +270,38 @@ pub fn draw_code_block(
     let bg_rect = egui::Rect::from_min_size(pos, egui::vec2(max_width, total_height));
     ui.painter().rect_filled(bg_rect, 8.0 * scale, bg_color);
 
+    // Draw line highlights using actual galley row positions
+    if !highlight_lines.is_empty() {
+        let accent = Theme::with_opacity(theme.accent, opacity * 0.15);
+        let code_top = pos.y + padding;
+
+        // Each row in the galley corresponds to a visual line.
+        // `ends_with_newline` tells us when a source line ends.
+        let mut source_line = 1usize;
+        for row in &code_galley.rows {
+            let row_rect = row.rect();
+
+            if highlight_lines.contains(&source_line) {
+                let hl_rect = egui::Rect::from_min_max(
+                    Pos2::new(pos.x + padding * 0.5, code_top + row_rect.top()),
+                    Pos2::new(
+                        pos.x + max_width - padding * 0.5,
+                        code_top + row_rect.bottom(),
+                    ),
+                );
+                ui.painter().rect_filled(hl_rect, 4.0 * scale, accent);
+            }
+
+            if row.ends_with_newline {
+                source_line += 1;
+            }
+        }
+    }
+
     // Draw code
     let code_pos = Pos2::new(pos.x + padding, pos.y + padding);
-    ui.painter().galley(code_pos, code_galley, code_color);
+    let fallback = Theme::with_opacity(theme.code_foreground, opacity);
+    ui.painter().galley(code_pos, code_galley, fallback);
 
     total_height
 }

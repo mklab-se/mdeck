@@ -79,4 +79,13 @@ impl Theme {
             _ => self.body_size,
         }
     }
+
+    /// Return the syntect theme name that matches this presentation theme.
+    pub fn syntect_theme_name(&self) -> &str {
+        if self.name == "dark" {
+            "base16-ocean.dark"
+        } else {
+            "InspiredGitHub"
+        }
+    }
 }

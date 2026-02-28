@@ -159,9 +159,9 @@ impl Config {
             }
             "defaults.transition" => {
                 match value {
-                    "fade" | "slide" | "none" => {}
+                    "fade" | "slide" | "spatial" | "none" => {}
                     _ => anyhow::bail!(
-                        "Invalid transition: {value}. Must be 'fade', 'slide', or 'none'."
+                        "Invalid transition: {value}. Must be 'fade', 'slide', 'spatial', or 'none'."
                     ),
                 }
                 self.defaults

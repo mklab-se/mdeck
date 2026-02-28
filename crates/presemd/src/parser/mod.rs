@@ -311,6 +311,7 @@ fn count_next_steps(items: &[ListItem]) -> usize {
 }
 
 /// Extract plain text from inline elements.
+#[allow(dead_code)]
 pub fn inlines_to_text(inlines: &[Inline]) -> String {
     let mut text = String::new();
     for inline in inlines {

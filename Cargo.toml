@@ -36,5 +36,8 @@ regex = "1.11"
 # Image loading
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 
+# Syntax highlighting
+syntect = { version = "5", default-features = false, features = ["default-syntaxes", "default-themes", "regex-onig"] }
+
 # Directories
 dirs = "6.0"

@@ -27,6 +27,7 @@ inquire.workspace = true
 dirs.workspace = true
 regex.workspace = true
 image.workspace = true
+syntect.workspace = true
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/presemd-v{ version }-{ target }.{ archive-format }"
