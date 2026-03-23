@@ -301,8 +301,8 @@ pub fn draw_gitgraph(
     let full_right = pos.x + max_width - right_margin;
     for lane in &lane_order {
         let y = lane_y(lane);
-        let color = lane_color(lane, opacity * 0.35);
-        // Dotted line using dashes — visible from the back of a room
+        // Gray dotted line — branch "lights up" with color when it becomes active
+        let color = Theme::with_opacity(theme.foreground, opacity * 0.15);
         let dash_len = 10.0 * scale;
         let gap_len = 10.0 * scale;
         let mut cx = full_left;
@@ -453,20 +453,24 @@ pub fn draw_gitgraph(
                     Stroke::new(2.5 * scale, outline),
                 );
 
-                // Check if this is a simultaneous event (same X as previous merge/branch)
-                // If so, draw a vertical line instead of an S-curve
+                // Draw connection from source branch to target at merge point.
+                // If source's last event is at the same X (simultaneous via * marker),
+                // draw a straight vertical line. Otherwise draw an S-curve.
                 let source_last_x = branch_events
                     .get(source)
                     .and_then(|positions| positions.iter().rfind(|&&px| px < x).copied())
-                    .unwrap_or(x - event_spacing * 0.3);
+                    .unwrap_or(x);
 
-                let is_vertical = (x - source_last_x).abs() < event_spacing * 0.5
-                    || source_last_x >= x - dot_radius * 2.0;
+                // Truly simultaneous = source's last event is within one dot of merge X
+                let is_simultaneous = (x - source_last_x).abs() < dot_radius * 3.0;
 
-                if is_vertical {
-                    // Vertical line — simultaneous event or very close
+                if is_simultaneous {
+                    // Straight vertical line
                     painter.line_segment(
-                        [Pos2::new(x, source_y), Pos2::new(x, target_y)],
+                        [
+                            Pos2::new(x, source_y + dot_radius),
+                            Pos2::new(x, target_y - dot_radius),
+                        ],
                         Stroke::new(curve_width, merge_color),
                     );
                 } else {
