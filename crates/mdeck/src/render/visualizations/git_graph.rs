@@ -347,20 +347,23 @@ pub fn draw_gitgraph(
         let color = branch_color(branch, opacity);
         let is_merged = merged_branches.contains(branch);
 
-        // Draw arrows between consecutive events on this branch
+        // Draw arrows between consecutive events on this branch.
+        // Leave a gap before the next dot so the arrowhead is clearly visible.
+        let arrow_gap = arrow_size + 4.0 * scale;
         for pair in positions.windows(2) {
             let x1 = pair[0] + dot_radius;
-            let x2 = pair[1] - dot_radius;
-            if x2 > x1 + arrow_size {
+            let x2 = pair[1] - dot_radius - arrow_gap;
+            if x2 > x1 {
                 painter.line_segment(
                     [Pos2::new(x1, y), Pos2::new(x2, y)],
                     Stroke::new(line_width, color),
                 );
-                draw_arrowhead(painter, Pos2::new(x2, y), arrow_size, 0.0, color);
-            } else if x2 > x1 {
-                painter.line_segment(
-                    [Pos2::new(x1, y), Pos2::new(x2, y)],
-                    Stroke::new(line_width, color),
+                draw_arrowhead(
+                    painter,
+                    Pos2::new(x2 + arrow_size, y),
+                    arrow_size,
+                    0.0,
+                    color,
                 );
             }
         }
@@ -419,9 +422,7 @@ pub fn draw_gitgraph(
                     // Find the parent's last event position before this fork
                     let parent_dot_x = branch_events
                         .get(parent)
-                        .and_then(|positions| {
-                            positions.iter().rfind(|&&px| px <= x).copied()
-                        })
+                        .and_then(|positions| positions.iter().rfind(|&&px| px <= x).copied())
                         .unwrap_or(pos.x + label_margin);
                     let start_x = parent_dot_x;
                     let mid_x = (start_x + x) / 2.0;
