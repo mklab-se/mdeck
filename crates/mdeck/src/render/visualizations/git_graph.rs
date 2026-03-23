@@ -417,14 +417,14 @@ pub fn draw_gitgraph(
                     Stroke::new(2.5 * scale, outline),
                 );
 
-                // S-curve from source to target — tight with small horizontal bow
-                let bow = 20.0 * scale; // small leftward bow for the S shape
+                // Proper S-curve from source dot to target dot
+                let curve_start_x = x + event_spacing * 0.3;
                 let bezier = CubicBezierShape::from_points_stroke(
                     [
-                        Pos2::new(x, source_y + dot_radius),
-                        Pos2::new(x - bow, (source_y + target_y) / 2.0),
-                        Pos2::new(x - bow, (source_y + target_y) / 2.0),
-                        Pos2::new(x, target_y - dot_radius),
+                        Pos2::new(x, source_y),
+                        Pos2::new(curve_start_x, source_y),
+                        Pos2::new(curve_start_x, target_y),
+                        Pos2::new(x, target_y),
                     ],
                     false,
                     egui::Color32::TRANSPARENT,
@@ -437,6 +437,7 @@ pub fn draw_gitgraph(
                 source,
                 target,
                 label,
+                reveal,
                 ..
             } => {
                 let source_y = lane_y(source);
@@ -453,27 +454,26 @@ pub fn draw_gitgraph(
                     Stroke::new(2.5 * scale, outline),
                 );
 
-                // Draw connection from source branch to target at merge point.
-                // If source's last event is at the same X (simultaneous via * marker),
-                // draw a straight vertical line. Otherwise draw an S-curve.
-                let source_last_x = branch_events
-                    .get(source)
-                    .and_then(|positions| positions.iter().rfind(|&&px| px < x).copied())
-                    .unwrap_or(x);
-
-                // Truly simultaneous = source's last event is within one dot of merge X
-                let is_simultaneous = (x - source_last_x).abs() < dot_radius * 3.0;
-
-                if is_simultaneous {
-                    // Straight vertical line
+                // * marker (WithPrev) = simultaneous event = vertical line
+                // + or - marker = normal merge = S-curve
+                if *reveal == VizReveal::WithPrev {
+                    // Straight vertical line for simultaneous operations
+                    let (y_top, y_bot) = if source_y < target_y {
+                        (source_y + dot_radius, target_y - dot_radius)
+                    } else {
+                        (target_y + dot_radius, source_y - dot_radius)
+                    };
                     painter.line_segment(
-                        [
-                            Pos2::new(x, source_y + dot_radius),
-                            Pos2::new(x, target_y - dot_radius),
-                        ],
+                        [Pos2::new(x, y_top), Pos2::new(x, y_bot)],
                         Stroke::new(curve_width, merge_color),
                     );
                 } else {
+                    // S-curve merge
+                    let source_last_x = branch_events
+                        .get(source)
+                        .and_then(|positions| positions.iter().rfind(|&&px| px < x).copied())
+                        .unwrap_or(x - event_spacing * 0.3);
+
                     // Horizontal line from source's last event to curve start
                     let curve_start_x = x - event_spacing * 0.3;
                     if source_last_x + dot_radius < curve_start_x {
