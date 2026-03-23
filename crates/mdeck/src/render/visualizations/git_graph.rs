@@ -397,42 +397,48 @@ pub fn draw_gitgraph(
                 let source_y = lane_y(source);
                 let target_y = lane_y(target);
                 let target_color = lane_color(target, opacity * 0.8);
+                let outline = Theme::with_opacity(theme.background, opacity * 0.6);
 
-                // Dot on source at the fork point
+                // Source dot at x, target dot offset RIGHT to give S-curve horizontal room
+                let offset = event_spacing * 0.5;
+                let target_x = x + offset;
+
                 let source_color = lane_color(source, opacity);
                 painter.circle_filled(Pos2::new(x, source_y), dot_radius, source_color);
-                let outline = Theme::with_opacity(theme.background, opacity * 0.6);
                 painter.circle_stroke(
                     Pos2::new(x, source_y),
                     dot_radius,
                     Stroke::new(2.5 * scale, outline),
                 );
 
-                // Dot on target at the fork point
                 let tc = lane_color(target, opacity);
-                painter.circle_filled(Pos2::new(x, target_y), dot_radius, tc);
+                painter.circle_filled(Pos2::new(target_x, target_y), dot_radius, tc);
                 painter.circle_stroke(
-                    Pos2::new(x, target_y),
+                    Pos2::new(target_x, target_y),
                     dot_radius,
                     Stroke::new(2.5 * scale, outline),
                 );
 
-                // S-curve from source dot to target dot.
-                // Starts going left from source, curves down, arrives going right to target.
-                // The horizontal bow creates the S shape.
-                let bow = 40.0 * scale;
+                // True S-curve: P1/P2 at midpoint X keep both ends horizontal
+                let mid_x = (x + target_x) / 2.0;
                 let bezier = CubicBezierShape::from_points_stroke(
                     [
-                        Pos2::new(x, source_y),       // start at source dot
-                        Pos2::new(x - bow, source_y), // go left horizontally
-                        Pos2::new(x - bow, target_y), // arrive at target Y on the left
-                        Pos2::new(x, target_y),       // end at target dot
+                        Pos2::new(x, source_y),        // P0: start at source
+                        Pos2::new(mid_x, source_y),    // P1: horizontal on source lane
+                        Pos2::new(mid_x, target_y),    // P2: horizontal on target lane
+                        Pos2::new(target_x, target_y), // P3: end at target
                     ],
                     false,
                     egui::Color32::TRANSPARENT,
                     Stroke::new(curve_width, target_color),
                 );
                 painter.add(bezier);
+
+                // Register target position for solid line tracking
+                branch_events
+                    .entry(target.clone())
+                    .or_default()
+                    .push(target_x);
             }
 
             GitGraphItem::Merge {
@@ -470,31 +476,42 @@ pub fn draw_gitgraph(
                         Stroke::new(curve_width, merge_color),
                     );
                 } else {
-                    // S-curve merge: from source's last event to target at merge X.
+                    // S-curve merge: short curve from source lane to target lane.
+                    // Mirror of fork: source dot offset LEFT, target dot at x.
+                    let offset = event_spacing * 0.5;
+                    let start_x = x - offset;
+
+                    // Dot on source lane at start of merge curve
+                    painter.circle_filled(Pos2::new(start_x, source_y), dot_radius, merge_color);
+                    painter.circle_stroke(
+                        Pos2::new(start_x, source_y),
+                        dot_radius,
+                        Stroke::new(2.5 * scale, outline),
+                    );
+
+                    // Horizontal line from source's last event to merge start
                     let source_last_x = branch_events
                         .get(source)
-                        .and_then(|positions| positions.iter().rfind(|&&px| px < x).copied())
-                        .unwrap_or(x - 40.0 * scale);
-
-                    // Horizontal line on source lane from last event to merge X
-                    if source_last_x + dot_radius < x {
+                        .and_then(|positions| positions.iter().rfind(|&&px| px < start_x).copied())
+                        .unwrap_or(start_x);
+                    if source_last_x + dot_radius < start_x - dot_radius {
                         painter.line_segment(
                             [
                                 Pos2::new(source_last_x + dot_radius, source_y),
-                                Pos2::new(x, source_y),
+                                Pos2::new(start_x - dot_radius, source_y),
                             ],
                             Stroke::new(line_width, merge_color),
                         );
                     }
 
-                    // S-curve from (x, source_y) to (x, target_y) bowing right
-                    let bow = 40.0 * scale;
+                    // S-curve from source to target
+                    let mid_x = (start_x + x) / 2.0;
                     let bezier = CubicBezierShape::from_points_stroke(
                         [
-                            Pos2::new(x, source_y),       // start on source lane
-                            Pos2::new(x + bow, source_y), // go right horizontally
-                            Pos2::new(x + bow, target_y), // arrive at target Y on the right
-                            Pos2::new(x, target_y),       // end at target dot
+                            Pos2::new(start_x, source_y), // P0: start on source lane
+                            Pos2::new(mid_x, source_y),   // P1: horizontal on source
+                            Pos2::new(mid_x, target_y),   // P2: horizontal on target
+                            Pos2::new(x, target_y),       // P3: end at target dot
                         ],
                         false,
                         egui::Color32::TRANSPARENT,
