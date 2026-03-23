@@ -124,6 +124,40 @@ fn parse_gitgraph(content: &str) -> Vec<GitGraphItem> {
     items
 }
 
+/// Find the X position of the next visible event on a given branch after index `after_idx`.
+/// Find the X position of the next visible event on a given branch after `after_idx`.
+#[allow(clippy::too_many_arguments)]
+fn find_next_event_on_branch(
+    items: &[GitGraphItem],
+    steps: &[usize],
+    reveal_step: usize,
+    branch: &str,
+    after_idx: usize,
+    timeline_positions: &[f32],
+    left_offset: f32,
+    event_spacing: f32,
+) -> Option<f32> {
+    for (j, item) in items.iter().enumerate().skip(after_idx + 1) {
+        let step = steps.get(j).copied().unwrap_or(0);
+        if step > reveal_step {
+            continue;
+        }
+        let is_on_branch = match item {
+            GitGraphItem::Commit { branch: b, .. } | GitGraphItem::Tag { branch: b, .. } => {
+                b == branch
+            }
+            GitGraphItem::Branch { source, .. } => source == branch,
+            GitGraphItem::Merge { target, .. } => target == branch,
+            _ => false,
+        };
+        if is_on_branch {
+            let tp = timeline_positions.get(j).copied().unwrap_or(0.0);
+            return Some(left_offset + event_spacing * tp);
+        }
+    }
+    None
+}
+
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
 #[allow(clippy::too_many_arguments)]
@@ -274,11 +308,28 @@ pub fn draw_gitgraph(
                 first_active_x.entry(branch.clone()).or_insert(x);
                 branch_events.entry(branch.clone()).or_default().push(x);
             }
-            GitGraphItem::Branch { source, .. } => {
-                // Source gets a dot at x. Target's first position is target_x
-                // (registered during rendering) — don't add x here to avoid double dots.
+            GitGraphItem::Branch { source, target, .. } => {
                 first_active_x.entry(source.clone()).or_insert(x);
                 branch_events.entry(source.clone()).or_default().push(x);
+                // Look ahead to find target's next event X position
+                let target_next_x = find_next_event_on_branch(
+                    &items,
+                    &steps,
+                    reveal_step,
+                    target,
+                    i,
+                    &timeline_positions,
+                    pos.x + label_margin,
+                    event_spacing,
+                )
+                .unwrap_or(x + event_spacing);
+                first_active_x
+                    .entry(target.clone())
+                    .or_insert(target_next_x);
+                branch_events
+                    .entry(target.clone())
+                    .or_default()
+                    .push(target_next_x);
             }
             GitGraphItem::Merge { source, target, .. } => {
                 first_active_x.entry(source.clone()).or_insert(x);
