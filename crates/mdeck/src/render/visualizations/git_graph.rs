@@ -274,12 +274,11 @@ pub fn draw_gitgraph(
                 first_active_x.entry(branch.clone()).or_insert(x);
                 branch_events.entry(branch.clone()).or_default().push(x);
             }
-            GitGraphItem::Branch { source, target, .. } => {
-                // Source gets a dot, target becomes active
+            GitGraphItem::Branch { source, .. } => {
+                // Source gets a dot at x. Target's first position is target_x
+                // (registered during rendering) — don't add x here to avoid double dots.
                 first_active_x.entry(source.clone()).or_insert(x);
-                first_active_x.entry(target.clone()).or_insert(x);
                 branch_events.entry(source.clone()).or_default().push(x);
-                branch_events.entry(target.clone()).or_default().push(x);
             }
             GitGraphItem::Merge { source, target, .. } => {
                 first_active_x.entry(source.clone()).or_insert(x);
@@ -396,14 +395,10 @@ pub fn draw_gitgraph(
             GitGraphItem::Branch { source, target, .. } => {
                 let source_y = lane_y(source);
                 let target_y = lane_y(target);
-                let target_color = lane_color(target, opacity * 0.8);
+                let target_color = lane_color(target, opacity);
                 let outline = Theme::with_opacity(theme.background, opacity * 0.6);
 
-                // Source dot at x, target dot offset RIGHT to give S-curve horizontal room.
-                // Use full event spacing for a wide, visible S-curve.
-                let offset = event_spacing * 0.8;
-                let target_x = x + offset;
-
+                // One dot on source lane at x (the fork point)
                 let source_color = lane_color(source, opacity);
                 painter.circle_filled(Pos2::new(x, source_y), dot_radius, source_color);
                 painter.circle_stroke(
@@ -412,22 +407,17 @@ pub fn draw_gitgraph(
                     Stroke::new(2.5 * scale, outline),
                 );
 
-                let tc = lane_color(target, opacity);
-                painter.circle_filled(Pos2::new(target_x, target_y), dot_radius, tc);
-                painter.circle_stroke(
-                    Pos2::new(target_x, target_y),
-                    dot_radius,
-                    Stroke::new(2.5 * scale, outline),
-                );
-
-                // True S-curve: P1/P2 at midpoint X keep both ends horizontal
+                // S-curve from source dot to target lane.
+                // Target end is offset RIGHT to give the S real horizontal room.
+                let offset = event_spacing * 0.8;
+                let target_x = x + offset;
                 let mid_x = (x + target_x) / 2.0;
                 let bezier = CubicBezierShape::from_points_stroke(
                     [
-                        Pos2::new(x, source_y),        // P0: start at source
+                        Pos2::new(x, source_y),        // P0: start at source dot
                         Pos2::new(mid_x, source_y),    // P1: horizontal on source lane
                         Pos2::new(mid_x, target_y),    // P2: horizontal on target lane
-                        Pos2::new(target_x, target_y), // P3: end at target
+                        Pos2::new(target_x, target_y), // P3: arrive at target lane
                     ],
                     false,
                     egui::Color32::TRANSPARENT,
@@ -435,7 +425,16 @@ pub fn draw_gitgraph(
                 );
                 painter.add(bezier);
 
-                // Register target position for solid line tracking
+                // One dot at the S-curve end on the target lane
+                painter.circle_filled(Pos2::new(target_x, target_y), dot_radius, target_color);
+                painter.circle_stroke(
+                    Pos2::new(target_x, target_y),
+                    dot_radius,
+                    Stroke::new(2.5 * scale, outline),
+                );
+
+                // Register target position for solid line tracking and label placement
+                first_active_x.entry(target.clone()).or_insert(target_x);
                 branch_events
                     .entry(target.clone())
                     .or_default()
@@ -477,34 +476,10 @@ pub fn draw_gitgraph(
                         Stroke::new(curve_width, merge_color),
                     );
                 } else {
-                    // S-curve merge: mirror of fork. Source dot offset LEFT.
+                    // S-curve merge: starts on source lane, curves to target dot.
+                    // Start is offset LEFT to give the S real horizontal room.
                     let offset = event_spacing * 0.8;
                     let start_x = x - offset;
-
-                    // Dot on source lane at start of merge curve
-                    painter.circle_filled(Pos2::new(start_x, source_y), dot_radius, merge_color);
-                    painter.circle_stroke(
-                        Pos2::new(start_x, source_y),
-                        dot_radius,
-                        Stroke::new(2.5 * scale, outline),
-                    );
-
-                    // Horizontal line from source's last event to merge start
-                    let source_last_x = branch_events
-                        .get(source)
-                        .and_then(|positions| positions.iter().rfind(|&&px| px < start_x).copied())
-                        .unwrap_or(start_x);
-                    if source_last_x + dot_radius < start_x - dot_radius {
-                        painter.line_segment(
-                            [
-                                Pos2::new(source_last_x + dot_radius, source_y),
-                                Pos2::new(start_x - dot_radius, source_y),
-                            ],
-                            Stroke::new(line_width, merge_color),
-                        );
-                    }
-
-                    // S-curve from source to target
                     let mid_x = (start_x + x) / 2.0;
                     let bezier = CubicBezierShape::from_points_stroke(
                         [
