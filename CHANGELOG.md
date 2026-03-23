@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.15.0] - 2026-03-23
+
+### Added
+
+- **Git graph visualization** (`@gitgraph`) — new visualization type rendering precise git branching diagrams from text. Branches as horizontal lanes, commits as dots, forks and merges as S-curves. Color-coded per branch with pill-shaped labels. Supports Git Flow and any branching strategy. Progressive reveal builds the graph step by step.
+- **AI-driven interactive presentation creation** — `mdeck ai create -i` now features a true AI conversation (not fixed questions) that gathers context naturally, suggests a descriptive filename, and shows a confirmation before generating.
+- **Visualization opportunity logging** — when AI identifies missing visualization types, detailed GitHub-issue-ready feature requests are logged to `visualization-opportunities.md` with data models, rendering specs, ASCII mockups, and proposed syntax.
+
+### Changed
+
+- **AI create improvements:** true AI chat for interactive mode, animated spinners during generation, no JSON output shown to user, smart filename suggestions, approval step before generation, auto-image generation as part of the pipeline.
+- **Speaker notes in AI-generated presentations** are now detailed enough for inexperienced presenters — include core message, talking points, delivery approach, background context, and transitions.
+- **AI image generation policy:** only decorative/mood images are generated. Precision diagrams (flowcharts, branch histories) are never AI-generated — visualization opportunities are logged instead.
+- Visualization opportunities file appends new entries instead of overwriting, with deduplication by name.
+
+### Fixed
+
+- Unicode arrows (→, ←, ⇒) and symbols (✓, ✗) rendering as □ — AI now avoids these characters.
+- `mdeck ai create` without arguments shows help (same as `--help`).
+- `mdeck ai create -i` without `--input` prompts for input instead of showing help.
+- `[READY]` marker no longer visible in AI chat output.
+- `mdeck ai generate` respects quiet flag and shows progress indicators.
+
 ## [0.14.0] - 2026-03-22
 
 ### Added
