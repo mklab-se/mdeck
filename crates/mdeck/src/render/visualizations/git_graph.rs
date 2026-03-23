@@ -417,15 +417,16 @@ pub fn draw_gitgraph(
                     Stroke::new(2.5 * scale, outline),
                 );
 
-                // Proper S-curve from source dot to target dot (bows left)
-                let bow_width = (event_spacing * 0.3).min(60.0 * scale).max(25.0 * scale);
-                let curve_offset_x = x - bow_width;
+                // S-curve from source dot to target dot.
+                // Starts going left from source, curves down, arrives going right to target.
+                // The horizontal bow creates the S shape.
+                let bow = 40.0 * scale;
                 let bezier = CubicBezierShape::from_points_stroke(
                     [
-                        Pos2::new(x, source_y),
-                        Pos2::new(curve_offset_x, source_y),
-                        Pos2::new(curve_offset_x, target_y),
-                        Pos2::new(x, target_y),
+                        Pos2::new(x, source_y),       // start at source dot
+                        Pos2::new(x - bow, source_y), // go left horizontally
+                        Pos2::new(x - bow, target_y), // arrive at target Y on the left
+                        Pos2::new(x, target_y),       // end at target dot
                     ],
                     false,
                     egui::Color32::TRANSPARENT,
@@ -469,32 +470,31 @@ pub fn draw_gitgraph(
                         Stroke::new(curve_width, merge_color),
                     );
                 } else {
-                    // S-curve merge
+                    // S-curve merge: from source's last event to target at merge X.
                     let source_last_x = branch_events
                         .get(source)
                         .and_then(|positions| positions.iter().rfind(|&&px| px < x).copied())
-                        .unwrap_or(x - event_spacing * 0.3);
+                        .unwrap_or(x - 40.0 * scale);
 
-                    // Horizontal line from source's last event to curve start
-                    let merge_bow = (event_spacing * 0.3).min(60.0 * scale).max(25.0 * scale);
-                    let curve_start_x = x - merge_bow;
-                    if source_last_x + dot_radius < curve_start_x {
+                    // Horizontal line on source lane from last event to merge X
+                    if source_last_x + dot_radius < x {
                         painter.line_segment(
                             [
                                 Pos2::new(source_last_x + dot_radius, source_y),
-                                Pos2::new(curve_start_x, source_y),
+                                Pos2::new(x, source_y),
                             ],
                             Stroke::new(line_width, merge_color),
                         );
                     }
 
-                    // S-curve
+                    // S-curve from (x, source_y) to (x, target_y) bowing right
+                    let bow = 40.0 * scale;
                     let bezier = CubicBezierShape::from_points_stroke(
                         [
-                            Pos2::new(curve_start_x, source_y),
-                            Pos2::new(x, source_y),
-                            Pos2::new(curve_start_x, target_y),
-                            Pos2::new(x, target_y),
+                            Pos2::new(x, source_y),       // start on source lane
+                            Pos2::new(x + bow, source_y), // go right horizontally
+                            Pos2::new(x + bow, target_y), // arrive at target Y on the right
+                            Pos2::new(x, target_y),       // end at target dot
                         ],
                         false,
                         egui::Color32::TRANSPARENT,
