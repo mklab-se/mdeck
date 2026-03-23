@@ -196,7 +196,7 @@ pub fn draw_gitgraph(
     let num_lanes = lane_order.len().max(1);
 
     // ── 2. Layout dimensions ────────────────────────────────────────────
-    let label_margin = 20.0 * scale; // small left margin (labels go inline)
+    let label_margin = 120.0 * scale; // room for branch names on the left
     let right_margin = 80.0 * scale;
     let top_margin = 50.0 * scale; // space for tags above
     let bottom_margin = 30.0 * scale;
@@ -467,6 +467,14 @@ pub fn draw_gitgraph(
                 // * marker (WithPrev) = simultaneous event = vertical line
                 // + or - marker = normal merge = S-curve
                 if *reveal == VizReveal::WithPrev {
+                    // Dot on source lane at the vertical line start
+                    painter.circle_filled(Pos2::new(x, source_y), dot_radius, merge_color);
+                    painter.circle_stroke(
+                        Pos2::new(x, source_y),
+                        dot_radius,
+                        Stroke::new(2.5 * scale, outline),
+                    );
+
                     // Straight vertical line for simultaneous operations
                     let (y_top, y_bot) = if source_y < target_y {
                         (source_y + dot_radius, target_y - dot_radius)
@@ -499,9 +507,13 @@ pub fn draw_gitgraph(
                     painter.add(bezier);
                 }
 
-                // Merge label
+                // Merge label — positioned on the S-curve midpoint
                 if !label.is_empty() {
-                    let label_mid_x = x + dot_radius + 8.0 * scale;
+                    let source_last_x = branch_events
+                        .get(source)
+                        .and_then(|positions| positions.last().copied())
+                        .unwrap_or(x - event_spacing);
+                    let label_mid_x = (source_last_x + x) / 2.0;
                     let label_mid_y = (source_y + target_y) / 2.0;
                     draw_pill_label(
                         painter,
@@ -566,18 +578,22 @@ pub fn draw_gitgraph(
         }
     }
 
-    // ── 8. Draw branch name labels (at first active position) ───────────
+    // ── 8. Draw branch name labels (left-aligned, shown when first active) ──
     for lane in &lane_order {
-        let Some(&first_x) = first_active_x.get(lane) else {
-            continue; // lane was declared but never used
-        };
+        if !first_active_x.contains_key(lane) {
+            continue; // lane was declared but never used — don't show label
+        }
         let y = lane_y(lane);
         let color = lane_color(lane, opacity);
         let galley = painter.layout_no_wrap(lane.clone(), label_font.clone(), color);
-        // Place label to the left of the first dot with generous gap
-        let text_x = first_x - galley.rect.width() - dot_radius - 16.0 * scale;
+        // All labels at the left margin, right-aligned to the label area
+        let text_x = pos.x + label_margin - galley.rect.width() - 8.0 * scale;
         let text_y = y - galley.rect.height() / 2.0;
-        painter.galley(Pos2::new(text_x, text_y), galley, color);
+        painter.galley(
+            Pos2::new(text_x.max(pos.x + 4.0 * scale), text_y),
+            galley,
+            color,
+        );
     }
 
     height
