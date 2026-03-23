@@ -399,8 +399,9 @@ pub fn draw_gitgraph(
                 let target_color = lane_color(target, opacity * 0.8);
                 let outline = Theme::with_opacity(theme.background, opacity * 0.6);
 
-                // Source dot at x, target dot offset RIGHT to give S-curve horizontal room
-                let offset = event_spacing * 0.5;
+                // Source dot at x, target dot offset RIGHT to give S-curve horizontal room.
+                // Use full event spacing for a wide, visible S-curve.
+                let offset = event_spacing * 0.8;
                 let target_x = x + offset;
 
                 let source_color = lane_color(source, opacity);
@@ -476,9 +477,8 @@ pub fn draw_gitgraph(
                         Stroke::new(curve_width, merge_color),
                     );
                 } else {
-                    // S-curve merge: short curve from source lane to target lane.
-                    // Mirror of fork: source dot offset LEFT, target dot at x.
-                    let offset = event_spacing * 0.5;
+                    // S-curve merge: mirror of fork. Source dot offset LEFT.
+                    let offset = event_spacing * 0.8;
                     let start_x = x - offset;
 
                     // Dot on source lane at start of merge curve

@@ -13,13 +13,15 @@ struct ExportApp {
     image_cache: ImageCache,
     output_dir: PathBuf,
     current_slide: usize,
+    current_step: usize,
     screenshot_requested: bool,
     max_steps: Vec<usize>,
+    debug: bool,
     done: bool,
 }
 
 impl ExportApp {
-    fn new(presentation: Presentation, base_path: &Path, output_dir: PathBuf) -> Self {
+    fn new(presentation: Presentation, base_path: &Path, output_dir: PathBuf, debug: bool) -> Self {
         let theme_name = presentation.meta.theme.as_deref().unwrap_or("light");
         let theme = Theme::from_name(theme_name);
         let image_cache = ImageCache::new(base_path.to_path_buf());
@@ -35,8 +37,10 @@ impl ExportApp {
             image_cache,
             output_dir,
             current_slide: 0,
+            current_step: 0,
             screenshot_requested: false,
             max_steps,
+            debug,
             done: false,
         }
     }
@@ -58,7 +62,15 @@ impl eframe::App for ExportApp {
         ctx.input(|i| {
             for event in &i.events {
                 if let egui::Event::Screenshot { image, .. } = event {
-                    let filename = format!("slide-{:02}.png", self.current_slide + 1);
+                    let filename = if self.debug {
+                        format!(
+                            "slide-{:02}-step-{:02}.png",
+                            self.current_slide + 1,
+                            self.current_step
+                        )
+                    } else {
+                        format!("slide-{:02}.png", self.current_slide + 1)
+                    };
                     let path = self.output_dir.join(&filename);
                     save_color_image(image, &path);
                     eprintln!("  Saved {filename}");
@@ -69,7 +81,20 @@ impl eframe::App for ExportApp {
 
         if got_screenshot {
             self.screenshot_requested = false;
-            self.current_slide += 1;
+
+            if self.debug {
+                // In debug mode, advance through each reveal step
+                let max = self.max_steps.get(self.current_slide).copied().unwrap_or(0);
+                if self.current_step < max {
+                    self.current_step += 1;
+                } else {
+                    self.current_step = 0;
+                    self.current_slide += 1;
+                }
+            } else {
+                self.current_slide += 1;
+            }
+
             if self.current_slide >= self.slide_count() {
                 self.done = true;
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -93,7 +118,11 @@ impl eframe::App for ExportApp {
 
                 let idx = self.current_slide;
                 if idx < self.presentation.slides.len() {
-                    let reveal = self.max_steps.get(idx).copied().unwrap_or(0);
+                    let reveal = if self.debug {
+                        self.current_step
+                    } else {
+                        self.max_steps.get(idx).copied().unwrap_or(0)
+                    };
                     render::render_slide(
                         ui,
                         &self.presentation.slides[idx],
@@ -131,7 +160,13 @@ fn save_color_image(image: &egui::ColorImage, path: &Path) {
         .unwrap_or_else(|e| eprintln!("Failed to save {}: {e}", path.display()));
 }
 
-pub fn run(file: PathBuf, output_dir: PathBuf, width: u32, height: u32) -> anyhow::Result<()> {
+pub fn run(
+    file: PathBuf,
+    output_dir: PathBuf,
+    width: u32,
+    height: u32,
+    debug: bool,
+) -> anyhow::Result<()> {
     let content = std::fs::read_to_string(&file)?;
     let base_path = file
         .parent()
@@ -146,13 +181,29 @@ pub fn run(file: PathBuf, output_dir: PathBuf, width: u32, height: u32) -> anyho
     std::fs::create_dir_all(&output_dir)?;
 
     let slide_count = presentation.slides.len();
-    eprintln!(
-        "Exporting {} slides to {} ({}x{})",
-        slide_count,
-        output_dir.display(),
-        width,
-        height,
-    );
+    if debug {
+        let total_steps: usize = presentation
+            .slides
+            .iter()
+            .map(|s| parser::compute_max_steps(&s.blocks) + 1)
+            .sum();
+        eprintln!(
+            "Debug export: {} slides, {} total steps to {} ({}x{})",
+            slide_count,
+            total_steps,
+            output_dir.display(),
+            width,
+            height,
+        );
+    } else {
+        eprintln!(
+            "Exporting {} slides to {} ({}x{})",
+            slide_count,
+            output_dir.display(),
+            width,
+            height,
+        );
+    }
 
     let title = presentation
         .meta
@@ -179,6 +230,7 @@ pub fn run(file: PathBuf, output_dir: PathBuf, width: u32, height: u32) -> anyho
                 presentation,
                 &base_path,
                 output_dir_clone,
+                debug,
             )))
         }),
     )

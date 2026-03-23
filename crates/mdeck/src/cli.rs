@@ -86,6 +86,10 @@ pub enum Commands {
         /// Export height in pixels
         #[arg(long, default_value = "1080")]
         height: u32,
+
+        /// Debug mode: export every reveal step of every slide
+        #[arg(long)]
+        debug: bool,
     },
 
     /// Print the mdeck markdown format specification
@@ -281,7 +285,8 @@ impl Cli {
                 output_dir,
                 width,
                 height,
-            }) => crate::commands::export::run(file, output_dir, width, height),
+                debug,
+            }) => crate::commands::export::run(file, output_dir, width, height, debug),
             Some(Commands::Spec { short }) => {
                 crate::commands::spec::run(short);
                 Ok(())
