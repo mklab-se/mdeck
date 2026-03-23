@@ -308,7 +308,6 @@ pub fn draw_gitgraph(
     let line_width = 7.0 * scale;
     let curve_width = 6.0 * scale;
     let dot_radius = 14.0 * scale;
-    let arrow_size = 16.0 * scale;
 
     // Collect commit positions per branch for drawing arrows between them
     let mut branch_events: std::collections::HashMap<String, Vec<f32>> =
@@ -454,14 +453,19 @@ pub fn draw_gitgraph(
                     Stroke::new(1.5 * scale, ring_color),
                 );
 
-                // Commit message label
+                // Commit message label — pill-shaped background in branch color
                 if !message.is_empty() {
-                    let msg_color = Theme::with_opacity(theme.foreground, opacity * 0.75);
-                    let galley =
-                        painter.layout_no_wrap(message.clone(), msg_font.clone(), msg_color);
-                    let text_x = x - galley.rect.width() / 2.0;
-                    let text_y = y - dot_radius - galley.rect.height() - 6.0 * scale;
-                    painter.galley(Pos2::new(text_x, text_y), galley, msg_color);
+                    let label_y = y - dot_radius - 14.0 * scale;
+                    draw_pill_label(
+                        painter,
+                        message,
+                        &msg_font,
+                        color,
+                        theme.foreground,
+                        opacity,
+                        Pos2::new(x, label_y),
+                        scale,
+                    );
                 }
             }
             GitGraphItem::Merge {
@@ -505,14 +509,20 @@ pub fn draw_gitgraph(
                 );
                 painter.add(bezier);
 
-                // Merge label
+                // Merge label — pill on the S-curve midpoint
                 if !label.is_empty() {
+                    let mid_x = (start_x + end_x) / 2.0;
                     let mid_y = (source_y + target_y) / 2.0;
-                    let lbl_color = Theme::with_opacity(theme.foreground, opacity * 0.65);
-                    let galley = painter.layout_no_wrap(label.clone(), msg_font.clone(), lbl_color);
-                    let text_x = x + dot_radius + 6.0 * scale;
-                    let text_y = mid_y - galley.rect.height() / 2.0;
-                    painter.galley(Pos2::new(text_x, text_y), galley, lbl_color);
+                    draw_pill_label(
+                        painter,
+                        label,
+                        &msg_font,
+                        merge_color,
+                        theme.foreground,
+                        opacity,
+                        Pos2::new(mid_x, mid_y),
+                        scale,
+                    );
                 }
             }
         }
@@ -521,22 +531,34 @@ pub fn draw_gitgraph(
     height
 }
 
-/// Draw a small arrowhead pointing in a direction.
-fn draw_arrowhead(
+/// Draw a label with a pill-shaped colored background centered at the given position.
+#[allow(clippy::too_many_arguments)]
+fn draw_pill_label(
     painter: &egui::Painter,
-    tip: Pos2,
-    size: f32,
-    _angle: f32,
-    color: egui::Color32,
+    text: &str,
+    font: &FontId,
+    bg_color: egui::Color32,
+    text_color: egui::Color32,
+    opacity: f32,
+    center: Pos2,
+    scale: f32,
 ) {
-    // Right-pointing arrowhead
-    let left_top = Pos2::new(tip.x - size, tip.y - size * 0.5);
-    let left_bot = Pos2::new(tip.x - size, tip.y + size * 0.5);
-    painter.add(egui::Shape::convex_polygon(
-        vec![tip, left_top, left_bot],
-        color,
-        Stroke::NONE,
-    ));
+    let pad_h = 8.0 * scale;
+    let pad_v = 4.0 * scale;
+    let label_text_color = Theme::with_opacity(text_color, opacity);
+    let label_bg = Theme::with_opacity(bg_color, opacity * 0.85);
+
+    let galley = painter.layout_no_wrap(text.to_string(), font.clone(), label_text_color);
+    let label_w = galley.rect.width() + pad_h * 2.0;
+    let label_h = galley.rect.height() + pad_v * 2.0;
+    let label_rect = egui::Rect::from_center_size(center, egui::vec2(label_w, label_h));
+
+    painter.rect_filled(label_rect, label_h / 2.0, label_bg);
+    painter.galley(
+        Pos2::new(label_rect.left() + pad_h, label_rect.top() + pad_v),
+        galley,
+        label_text_color,
+    );
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
