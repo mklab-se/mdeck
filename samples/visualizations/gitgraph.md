@@ -7,11 +7,16 @@ title: "Git Graph Visualization"
 # Git Graph — Basic
 
 ```@gitgraph
-- branch main
-- branch develop from main
-- branch feature/login from develop
-- merge feature/login -> develop
-- merge develop -> main: "v1.0"
+- lane main
+- lane develop
+- lane feature
+- commit main
+- branch main -> develop
+- branch develop -> feature
+- commit feature
+- commit feature
+- merge feature -> develop
+- merge develop -> main
 ```
 
 ---
@@ -19,13 +24,17 @@ title: "Git Graph Visualization"
 # Git Graph — Progressive Reveal
 
 ```@gitgraph
-- branch main
-+ branch develop from main
-+ branch feature/auth from develop
-+ commit feature/auth: "Add OAuth"
-+ commit feature/auth: "Add tests"
-+ merge feature/auth -> develop: "PR #12"
+- lane main
+- lane develop
+- lane feature
+- commit main
++ branch main -> develop
++ branch develop -> feature
++ commit feature
++ commit feature
++ merge feature -> develop: "PR #12"
 + merge develop -> main: "Release v2.0"
++ tag main: "v2.0"
 ```
 
 ---
@@ -33,18 +42,22 @@ title: "Git Graph Visualization"
 # Git Flow
 
 ```@gitgraph
-- branch main
-- branch develop from main
-+ branch feature/login from develop
-+ commit feature/login: "Login form"
-+ merge feature/login -> develop
-+ branch feature/api from develop
-+ commit feature/api: "REST endpoints"
-+ merge feature/api -> develop
-+ branch release/1.0 from develop
-+ commit release/1.0: "Bump version"
-+ merge release/1.0 -> main: "v1.0"
-* merge release/1.0 -> develop
+- lane main
+- lane hotfix
+- lane release
+- lane develop
+- lane feature
+- commit main
+- branch main -> develop
++ branch develop -> feature
++ commit feature
++ commit feature
++ merge feature -> develop
++ branch develop -> release
++ commit release
++ merge release -> main: "v1.0"
+* merge release -> develop
++ tag main: "v1.0"
 ```
 
 ---
@@ -52,13 +65,17 @@ title: "Git Graph Visualization"
 # Hotfix Flow
 
 ```@gitgraph
-- branch main
-- branch develop from main
-- commit main: "v1.0"
-+ branch hotfix/crash from main
-+ commit hotfix/crash: "Fix null pointer"
-+ merge hotfix/crash -> main: "v1.0.1"
-* merge hotfix/crash -> develop
+- lane main
+- lane hotfix
+- lane develop
+- commit main
+- branch main -> develop
+- commit develop
++ branch main -> hotfix
++ commit hotfix
++ merge hotfix -> main: "v1.0.1"
+* merge hotfix -> develop
++ tag main: "v1.0.1"
 ```
 
 ---
@@ -66,15 +83,21 @@ title: "Git Graph Visualization"
 # Multiple Features
 
 ```@gitgraph
-- branch main
-- branch develop from main
-+ branch feature/ui from develop
-* branch feature/api from develop
-+ commit feature/ui: "New dashboard"
-+ commit feature/api: "GraphQL layer"
+- lane main
+- lane release
+- lane develop
+- lane feature/ui
+- lane feature/api
+- commit main
+- branch main -> develop
++ branch develop -> feature/ui
+* branch develop -> feature/api
++ commit feature/ui
++ commit feature/api
 + merge feature/ui -> develop: "PR #1"
 + merge feature/api -> develop: "PR #2"
-+ branch release/2.0 from develop
-+ merge release/2.0 -> main: "v2.0"
-* merge release/2.0 -> develop
++ branch develop -> release
++ merge release -> main: "v2.0"
+* merge release -> develop
++ tag main: "v2.0"
 ```

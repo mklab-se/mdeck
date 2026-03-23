@@ -11,19 +11,30 @@ use super::{
 
 #[derive(Debug, Clone)]
 enum GitGraphItem {
-    Branch {
-        name: String,
-        from: Option<String>,
-        reveal: VizReveal,
-    },
+    /// Declare a branch lane (rendered as a dotted background line).
+    Lane { name: String },
+    /// A commit on a branch (dot on the lane).
     Commit {
         branch: String,
         message: String,
         reveal: VizReveal,
     },
+    /// Fork: source branch creates target branch (S-curve, target becomes active).
+    Branch {
+        source: String,
+        target: String,
+        reveal: VizReveal,
+    },
+    /// Merge: source branch merges into target (S-curve, source becomes inactive).
     Merge {
         source: String,
         target: String,
+        label: String,
+        reveal: VizReveal,
+    },
+    /// Tag on a branch's latest commit.
+    Tag {
+        branch: String,
         label: String,
         reveal: VizReveal,
     },
@@ -45,37 +56,37 @@ fn parse_gitgraph(content: &str) -> Vec<GitGraphItem> {
 
         let lower = text.to_lowercase();
 
-        if lower.starts_with("branch ") {
+        if lower.starts_with("lane ") {
+            let name = text["lane ".len()..].trim().to_string();
+            items.push(GitGraphItem::Lane { name });
+        } else if lower.starts_with("branch ") {
             let rest = &text["branch ".len()..];
-            if let Some(from_idx) = rest.to_lowercase().find(" from ") {
-                let name = rest[..from_idx].trim().to_string();
-                let from = rest[from_idx + " from ".len()..].trim().to_string();
+            if let Some(arrow) = rest.find(" -> ") {
+                let source = rest[..arrow].trim().to_string();
+                let target = rest[arrow + " -> ".len()..].trim().to_string();
                 items.push(GitGraphItem::Branch {
-                    name,
-                    from: Some(from),
-                    reveal,
-                });
-            } else {
-                items.push(GitGraphItem::Branch {
-                    name: rest.trim().to_string(),
-                    from: None,
+                    source,
+                    target,
                     reveal,
                 });
             }
         } else if lower.starts_with("commit ") {
             let rest = &text["commit ".len()..];
-            if let Some(colon) = rest.find(": ") {
-                let branch = rest[..colon].trim().to_string();
-                let message = rest[colon + 2..].trim().trim_matches('"').to_string();
-                items.push(GitGraphItem::Commit {
-                    branch,
-                    message,
-                    reveal,
-                });
-            }
+            let (branch, message) = if let Some(colon) = rest.find(": ") {
+                (
+                    rest[..colon].trim().to_string(),
+                    rest[colon + 2..].trim().trim_matches('"').to_string(),
+                )
+            } else {
+                (rest.trim().to_string(), String::new())
+            };
+            items.push(GitGraphItem::Commit {
+                branch,
+                message,
+                reveal,
+            });
         } else if lower.starts_with("merge ") {
             let rest = &text["merge ".len()..];
-            // Parse: source -> target: "label"
             if let Some(arrow) = rest.find(" -> ") {
                 let source = rest[..arrow].trim().to_string();
                 let after_arrow = &rest[arrow + " -> ".len()..];
@@ -93,6 +104,17 @@ fn parse_gitgraph(content: &str) -> Vec<GitGraphItem> {
                 items.push(GitGraphItem::Merge {
                     source,
                     target,
+                    label,
+                    reveal,
+                });
+            }
+        } else if lower.starts_with("tag ") {
+            let rest = &text["tag ".len()..];
+            if let Some(colon) = rest.find(": ") {
+                let branch = rest[..colon].trim().to_string();
+                let label = rest[colon + 2..].trim().trim_matches('"').to_string();
+                items.push(GitGraphItem::Tag {
+                    branch,
                     label,
                     reveal,
                 });
@@ -127,13 +149,15 @@ pub fn draw_gitgraph(
         500.0 * scale
     };
 
-    // Assign reveal steps
+    // Assign reveal steps (lanes are always static)
     let reveals: Vec<VizReveal> = items
         .iter()
         .map(|item| match item {
-            GitGraphItem::Branch { reveal, .. }
-            | GitGraphItem::Commit { reveal, .. }
-            | GitGraphItem::Merge { reveal, .. } => *reveal,
+            GitGraphItem::Lane { .. } => VizReveal::Static,
+            GitGraphItem::Commit { reveal, .. }
+            | GitGraphItem::Branch { reveal, .. }
+            | GitGraphItem::Merge { reveal, .. }
+            | GitGraphItem::Tag { reveal, .. } => *reveal,
         })
         .collect();
     let steps = assign_steps(&reveals);
@@ -141,127 +165,102 @@ pub fn draw_gitgraph(
     let palette = theme.edge_palette();
     let painter = ui.painter();
 
-    // Build branch order (order of first appearance) and assign colors
-    let mut branch_order: Vec<String> = Vec::new();
+    // ── 1. Collect lanes (declared order = vertical position) ───────────
+    let mut lane_order: Vec<String> = Vec::new();
     for item in &items {
-        let name = match item {
-            GitGraphItem::Branch { name, .. } => name.clone(),
-            GitGraphItem::Commit { branch, .. } => branch.clone(),
-            GitGraphItem::Merge { source, target, .. } => {
-                // Ensure both branches exist in order
-                if !branch_order.contains(source) {
-                    branch_order.push(source.clone());
-                }
-                if !branch_order.contains(target) {
-                    branch_order.push(target.clone());
-                }
-                continue;
+        if let GitGraphItem::Lane { name } = item {
+            if !lane_order.contains(name) {
+                lane_order.push(name.clone());
             }
+        }
+    }
+    // Also add any branch referenced in events but not declared as a lane
+    for item in &items {
+        let names: Vec<&str> = match item {
+            GitGraphItem::Commit { branch, .. } | GitGraphItem::Tag { branch, .. } => {
+                vec![branch.as_str()]
+            }
+            GitGraphItem::Branch { source, target, .. }
+            | GitGraphItem::Merge { source, target, .. } => {
+                vec![source.as_str(), target.as_str()]
+            }
+            _ => vec![],
         };
-        if !branch_order.contains(&name) {
-            branch_order.push(name);
+        for name in names {
+            if !lane_order.iter().any(|l| l == name) {
+                lane_order.push(name.to_string());
+            }
         }
     }
 
-    let num_branches = branch_order.len().max(1);
+    let num_lanes = lane_order.len().max(1);
 
-    // Layout dimensions
-    let label_margin = 130.0 * scale;
+    // ── 2. Layout dimensions ────────────────────────────────────────────
+    let label_margin = 20.0 * scale; // small left margin (labels go inline)
     let right_margin = 80.0 * scale;
-    let top_margin = 30.0 * scale;
+    let top_margin = 50.0 * scale; // space for tags above
     let bottom_margin = 30.0 * scale;
     let usable_width = max_width - label_margin - right_margin;
     let usable_height = height - top_margin - bottom_margin;
-    // Cap lane spacing so branches don't spread too far apart
-    let max_lane_spacing = 120.0 * scale;
-    let natural_spacing = if num_branches > 1 {
-        usable_height / (num_branches - 1) as f32
+    let max_lane_spacing = 100.0 * scale;
+    let natural_spacing = if num_lanes > 1 {
+        usable_height / (num_lanes - 1) as f32
     } else {
         0.0
     };
     let lane_spacing = natural_spacing.min(max_lane_spacing);
-    // Center the lanes vertically
-    let total_lane_height = if num_branches > 1 {
-        lane_spacing * (num_branches - 1) as f32
+    let total_lane_height = if num_lanes > 1 {
+        lane_spacing * (num_lanes - 1) as f32
     } else {
         0.0
     };
     let lane_top = pos.y + top_margin + (usable_height - total_lane_height) / 2.0;
 
-    // Y position for each branch lane
-    let branch_y = |name: &str| -> f32 {
-        let idx = branch_order.iter().position(|b| b == name).unwrap_or(0);
-        if num_branches == 1 {
+    let lane_y = |name: &str| -> f32 {
+        let idx = lane_order.iter().position(|l| l == name).unwrap_or(0);
+        if num_lanes == 1 {
             pos.y + top_margin + usable_height / 2.0
         } else {
             lane_top + idx as f32 * lane_spacing
         }
     };
 
-    // Color for each branch
-    let branch_color = |name: &str, op: f32| -> egui::Color32 {
-        let idx = branch_order.iter().position(|b| b == name).unwrap_or(0);
+    let lane_color = |name: &str, op: f32| -> egui::Color32 {
+        let idx = lane_order.iter().position(|l| l == name).unwrap_or(0);
         Theme::with_opacity(palette[idx % palette.len()], op)
     };
 
-    // Assign timeline positions using floating-point for fine control:
-    // - Root branches share position 0
-    // - Branch forks get a small offset (0.3) from the current position
-    // - Commits and merges advance by 1.0
-    // This keeps the spacing CONSISTENT regardless of how many items are revealed,
-    // by always using the TOTAL event count to calculate spacing.
+    // ── 3. Timeline positions ───────────────────────────────────────────
     let mut timeline_positions: Vec<f32> = Vec::new();
     let mut timeline_pos: f32 = 0.0;
-    let mut total_timeline_pos: f32 = 0.0;
     for item in &items {
         match item {
-            GitGraphItem::Branch { from: None, .. } => {
-                timeline_positions.push(0.0);
+            GitGraphItem::Lane { .. } => {
+                timeline_positions.push(0.0); // lanes don't advance
             }
-            GitGraphItem::Branch { from: Some(_), .. } => {
-                // Fork: small offset so the dot is near the parent
-                timeline_pos += 0.3;
-                total_timeline_pos += 0.3;
-                timeline_positions.push(timeline_pos);
-            }
-            GitGraphItem::Commit { .. } | GitGraphItem::Merge { .. } => {
+            _ => {
                 timeline_pos += 1.0;
-                total_timeline_pos += 1.0;
                 timeline_positions.push(timeline_pos);
             }
         }
     }
-    let max_timeline = total_timeline_pos.max(1.0);
+    let max_timeline = timeline_pos.max(1.0);
     let event_spacing = usable_width / max_timeline;
 
-    // Compute X position for each item based on its timeline position
     let item_x = |idx: usize| -> f32 {
         let tp = timeline_positions.get(idx).copied().unwrap_or(0.0);
         pos.x + label_margin + event_spacing * tp
     };
 
-    // Track where each branch starts and ends (X range) for drawing lane lines
-    let mut branch_start_x: std::collections::HashMap<String, f32> =
+    // ── 4. Track active state per branch ────────────────────────────────
+    // Collect X positions where each branch has events (for solid line segments)
+    let mut branch_events: std::collections::HashMap<String, Vec<f32>> =
         std::collections::HashMap::new();
-    let mut branch_end_x: std::collections::HashMap<String, f32> = std::collections::HashMap::new();
-
-    // Branch lines always extend to the full right edge of the available space.
-    // This ensures branches look like continuous timelines even during early reveal steps.
-    let right_edge = pos.x + max_width - right_margin;
-
-    // First pass: determine branch extents
-    // Branches that are "long-lived" (main, develop) extend to the right edge.
-    // Branches that get merged extend only to their merge point.
-    let mut merged_branches: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for (i, item) in items.iter().enumerate() {
-        let step = steps.get(i).copied().unwrap_or(0);
-        if step > reveal_step {
-            continue;
-        }
-        if let GitGraphItem::Merge { source, .. } = item {
-            merged_branches.insert(source.clone());
-        }
-    }
+    // Track which branches have been merged away (source of a merge)
+    let mut merged_away: std::collections::HashSet<String> = std::collections::HashSet::new();
+    // Track first active X per branch (for label placement)
+    let mut first_active_x: std::collections::HashMap<String, f32> =
+        std::collections::HashMap::new();
 
     for (i, item) in items.iter().enumerate() {
         let step = steps.get(i).copied().unwrap_or(0);
@@ -270,83 +269,61 @@ pub fn draw_gitgraph(
         }
         let x = item_x(i);
         match item {
-            GitGraphItem::Branch { name, .. } => {
-                branch_start_x.entry(name.clone()).or_insert(x);
-                // If branch hasn't been merged yet, extend to right edge
-                if merged_branches.contains(name) {
-                    branch_end_x
-                        .entry(name.clone())
-                        .and_modify(|e| *e = e.max(x))
-                        .or_insert(x);
-                } else {
-                    branch_end_x.insert(name.clone(), right_edge);
-                }
+            GitGraphItem::Lane { .. } => {}
+            GitGraphItem::Commit { branch, .. } | GitGraphItem::Tag { branch, .. } => {
+                first_active_x.entry(branch.clone()).or_insert(x);
+                branch_events.entry(branch.clone()).or_default().push(x);
             }
-            GitGraphItem::Commit { branch, .. } => {
-                branch_start_x.entry(branch.clone()).or_insert(x);
-                branch_end_x
-                    .entry(branch.clone())
-                    .and_modify(|e| *e = e.max(x))
-                    .or_insert(x);
-                // Keep extending to right edge if not merged
-                if !merged_branches.contains(branch) {
-                    branch_end_x.insert(branch.clone(), right_edge);
-                }
+            GitGraphItem::Branch { source, target, .. } => {
+                // Source gets a dot, target becomes active
+                first_active_x.entry(source.clone()).or_insert(x);
+                first_active_x.entry(target.clone()).or_insert(x);
+                branch_events.entry(source.clone()).or_default().push(x);
+                branch_events.entry(target.clone()).or_default().push(x);
             }
             GitGraphItem::Merge { source, target, .. } => {
-                // Source branch ends at the merge point
-                branch_end_x.insert(source.clone(), x);
-                // Target branch continues to right edge
-                branch_end_x
-                    .entry(target.clone())
-                    .and_modify(|e| *e = e.max(right_edge))
-                    .or_insert(right_edge);
+                first_active_x.entry(source.clone()).or_insert(x);
+                first_active_x.entry(target.clone()).or_insert(x);
+                branch_events.entry(target.clone()).or_default().push(x);
+                merged_away.insert(source.clone());
             }
         }
     }
 
+    // Sizing
     let line_width = 7.0 * scale;
     let curve_width = 6.0 * scale;
     let dot_radius = 14.0 * scale;
+    let dotted_width = 3.0 * scale;
 
-    // Collect commit positions per branch for drawing arrows between them
-    let mut branch_events: std::collections::HashMap<String, Vec<f32>> =
-        std::collections::HashMap::new();
-
-    // First pass: collect all event X positions per branch
-    for (i, item) in items.iter().enumerate() {
-        let step = steps.get(i).copied().unwrap_or(0);
-        if step > reveal_step {
-            continue;
-        }
-        let x = item_x(i);
-        match item {
-            GitGraphItem::Branch { name, .. } => {
-                branch_events.entry(name.clone()).or_default().push(x);
-            }
-            GitGraphItem::Commit { branch, .. } => {
-                branch_events.entry(branch.clone()).or_default().push(x);
-            }
-            GitGraphItem::Merge { target, .. } => {
-                // Only add to target — the merge S-curve handles the visual
-                // connection from the source branch. Source branch line should
-                // end at its last commit/branch event, not extend to the merge X.
-                branch_events.entry(target.clone()).or_default().push(x);
-            }
+    // ── 5. Draw dotted background lanes ─────────────────────────────────
+    let full_left = pos.x + label_margin;
+    let full_right = pos.x + max_width - right_margin;
+    for lane in &lane_order {
+        let y = lane_y(lane);
+        let color = lane_color(lane, opacity * 0.15);
+        // Dotted line using dashes
+        let dash_len = 8.0 * scale;
+        let gap_len = 8.0 * scale;
+        let mut cx = full_left;
+        while cx < full_right {
+            let end = (cx + dash_len).min(full_right);
+            painter.line_segment(
+                [Pos2::new(cx, y), Pos2::new(end, y)],
+                Stroke::new(dotted_width, color),
+            );
+            cx += dash_len + gap_len;
         }
     }
 
-    // Draw branch lines: arrows between consecutive events, plus a line
-    // extending from the last event to the right edge for active branches.
-    for branch in &branch_order {
-        let Some(positions) = branch_events.get(branch) else {
+    // ── 6. Draw solid segments between consecutive events per branch ────
+    for lane in &lane_order {
+        let Some(positions) = branch_events.get(lane) else {
             continue;
         };
-        let y = branch_y(branch);
-        let color = branch_color(branch, opacity);
-        let is_merged = merged_branches.contains(branch);
+        let y = lane_y(lane);
+        let color = lane_color(lane, opacity);
 
-        // Draw plain lines between consecutive events on this branch
         for pair in positions.windows(2) {
             let x1 = pair[0] + dot_radius;
             let x2 = pair[1] - dot_radius;
@@ -358,15 +335,13 @@ pub fn draw_gitgraph(
             }
         }
 
-        // Extend the branch line from the last event to the right edge
-        // (unless the branch has been merged away)
-        if !is_merged {
-            let last_x = positions.last().copied().unwrap_or(0.0);
-            let extend_to = right_edge;
-            if extend_to > last_x + dot_radius {
-                let faded = branch_color(branch, opacity * 0.5);
+        // Extend active (non-merged) branches past their last event
+        if !merged_away.contains(lane) && !positions.is_empty() {
+            let last_x = *positions.last().unwrap();
+            if full_right > last_x + dot_radius {
+                let faded = lane_color(lane, opacity * 0.4);
                 painter.line_segment(
-                    [Pos2::new(last_x + dot_radius, y), Pos2::new(extend_to, y)],
+                    [Pos2::new(last_x + dot_radius, y), Pos2::new(full_right, y)],
                     Stroke::new(line_width, faded),
                 );
             }
@@ -376,22 +351,7 @@ pub fn draw_gitgraph(
     let label_font = FontId::proportional(theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale);
     let msg_font = FontId::proportional(theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale);
 
-    // Draw branch labels near the first event on each branch
-    for branch in &branch_order {
-        let Some(positions) = branch_events.get(branch) else {
-            continue;
-        };
-        let y = branch_y(branch);
-        let bcolor = branch_color(branch, opacity);
-        let galley = painter.layout_no_wrap(branch.clone(), label_font.clone(), bcolor);
-        // Position label to the left of the first dot, or above/below if it's a child branch
-        let first_x = positions[0];
-        let text_x = first_x - galley.rect.width() - dot_radius - 8.0 * scale;
-        let text_y = y - galley.rect.height() / 2.0;
-        painter.galley(Pos2::new(text_x, text_y), galley, bcolor);
-    }
-
-    // Draw events (dots, fork curves, merge curves, labels)
+    // ── 7. Draw events (S-curves, dots, labels) ─────────────────────────
     for (i, item) in items.iter().enumerate() {
         let step = steps.get(i).copied().unwrap_or(0);
         if step > reveal_step {
@@ -400,60 +360,24 @@ pub fn draw_gitgraph(
         let x = item_x(i);
 
         match item {
-            GitGraphItem::Branch { name, from, .. } => {
-                let y = branch_y(name);
-                let color = branch_color(name, opacity);
+            GitGraphItem::Lane { .. } => {} // already drawn as dotted line
 
-                // Draw fork S-curve from parent branch's nearest event dot
-                if let Some(parent) = from {
-                    let parent_y = branch_y(parent);
-                    let parent_color = branch_color(name, opacity * 0.8);
-                    // Find the parent's last event position before this fork
-                    let parent_dot_x = branch_events
-                        .get(parent)
-                        .and_then(|positions| positions.iter().rfind(|&&px| px <= x).copied())
-                        .unwrap_or(pos.x + label_margin);
-                    let start_x = parent_dot_x;
-                    let mid_x = (start_x + x) / 2.0;
-                    let bezier = CubicBezierShape::from_points_stroke(
-                        [
-                            Pos2::new(start_x, parent_y),
-                            Pos2::new(mid_x, parent_y),
-                            Pos2::new(mid_x, y),
-                            Pos2::new(x, y),
-                        ],
-                        false,
-                        egui::Color32::TRANSPARENT,
-                        Stroke::new(curve_width, parent_color),
-                    );
-                    painter.add(bezier);
-                }
-
-                // Commit dot with ring
-                painter.circle_filled(Pos2::new(x, y), dot_radius, color);
-                let ring_color = Theme::with_opacity(color, opacity * 0.3);
-                painter.circle_stroke(
-                    Pos2::new(x, y),
-                    dot_radius + 2.0 * scale,
-                    Stroke::new(1.5 * scale, ring_color),
-                );
-            }
             GitGraphItem::Commit {
                 branch, message, ..
             } => {
-                let y = branch_y(branch);
-                let color = branch_color(branch, opacity);
+                let y = lane_y(branch);
+                let color = lane_color(branch, opacity);
 
-                // Commit dot with ring
+                // Commit dot with dark outline
                 painter.circle_filled(Pos2::new(x, y), dot_radius, color);
-                let ring_color = Theme::with_opacity(color, opacity * 0.3);
+                let outline = Theme::with_opacity(theme.background, opacity * 0.6);
                 painter.circle_stroke(
                     Pos2::new(x, y),
-                    dot_radius + 2.0 * scale,
-                    Stroke::new(1.5 * scale, ring_color),
+                    dot_radius,
+                    Stroke::new(2.5 * scale, outline),
                 );
 
-                // Commit message label — pill-shaped background in branch color
+                // Commit message label
                 if !message.is_empty() {
                     let label_y = y - dot_radius - 14.0 * scale;
                     draw_pill_label(
@@ -468,40 +392,92 @@ pub fn draw_gitgraph(
                     );
                 }
             }
+
+            GitGraphItem::Branch { source, target, .. } => {
+                let source_y = lane_y(source);
+                let target_y = lane_y(target);
+                let target_color = lane_color(target, opacity * 0.8);
+
+                // Dot on source at the fork point
+                let source_color = lane_color(source, opacity);
+                painter.circle_filled(Pos2::new(x, source_y), dot_radius, source_color);
+                let outline = Theme::with_opacity(theme.background, opacity * 0.6);
+                painter.circle_stroke(
+                    Pos2::new(x, source_y),
+                    dot_radius,
+                    Stroke::new(2.5 * scale, outline),
+                );
+
+                // Dot on target at the fork point
+                let tc = lane_color(target, opacity);
+                painter.circle_filled(Pos2::new(x, target_y), dot_radius, tc);
+                painter.circle_stroke(
+                    Pos2::new(x, target_y),
+                    dot_radius,
+                    Stroke::new(2.5 * scale, outline),
+                );
+
+                // S-curve from source to target
+                let curve_start_x = x - event_spacing * 0.3;
+                let bezier = CubicBezierShape::from_points_stroke(
+                    [
+                        Pos2::new(x, source_y),
+                        Pos2::new(curve_start_x, source_y),
+                        Pos2::new(curve_start_x, target_y),
+                        Pos2::new(x, target_y),
+                    ],
+                    false,
+                    egui::Color32::TRANSPARENT,
+                    Stroke::new(curve_width, target_color),
+                );
+                painter.add(bezier);
+            }
+
             GitGraphItem::Merge {
                 source,
                 target,
                 label,
                 ..
             } => {
-                let source_y = branch_y(source);
-                let target_y = branch_y(target);
-                let merge_color = branch_color(source, opacity * 0.8);
+                let source_y = lane_y(source);
+                let target_y = lane_y(target);
+                let merge_color = lane_color(source, opacity * 0.8);
 
-                // Dot on target branch at merge point
-                let target_color = branch_color(target, opacity);
-                painter.circle_filled(Pos2::new(x, target_y), dot_radius, target_color);
-                let ring_color = Theme::with_opacity(target_color, opacity * 0.3);
+                // Dot on target at merge point
+                let tc = lane_color(target, opacity);
+                let outline = Theme::with_opacity(theme.background, opacity * 0.6);
+                painter.circle_filled(Pos2::new(x, target_y), dot_radius, tc);
                 painter.circle_stroke(
                     Pos2::new(x, target_y),
-                    dot_radius + 2.0 * scale,
-                    Stroke::new(1.5 * scale, ring_color),
+                    dot_radius,
+                    Stroke::new(2.5 * scale, outline),
                 );
 
-                // S-curve from source branch's last event dot to the target dot
+                // S-curve from source's last position to target
                 let source_last_x = branch_events
                     .get(source)
-                    .and_then(|positions| positions.last().copied())
-                    .unwrap_or(pos.x + label_margin);
+                    .and_then(|positions| positions.iter().rfind(|&&px| px < x).copied())
+                    .unwrap_or(x - event_spacing * 0.5);
                 let start_x = source_last_x;
-                let end_x = x;
-                let mid_x = (start_x + end_x) / 2.0;
+                let mid_x = (start_x + x) / 2.0;
+
+                // Horizontal segment on source lane to the curve start
+                if start_x + dot_radius < mid_x {
+                    painter.line_segment(
+                        [
+                            Pos2::new(start_x + dot_radius, source_y),
+                            Pos2::new(mid_x, source_y),
+                        ],
+                        Stroke::new(line_width, merge_color),
+                    );
+                }
+
                 let bezier = CubicBezierShape::from_points_stroke(
                     [
-                        Pos2::new(start_x, source_y),
                         Pos2::new(mid_x, source_y),
-                        Pos2::new(mid_x, target_y),
-                        Pos2::new(end_x, target_y),
+                        Pos2::new(mid_x, source_y),
+                        Pos2::new(x, target_y),
+                        Pos2::new(x, target_y),
                     ],
                     false,
                     egui::Color32::TRANSPARENT,
@@ -509,10 +485,10 @@ pub fn draw_gitgraph(
                 );
                 painter.add(bezier);
 
-                // Merge label — pill on the S-curve midpoint
+                // Merge label
                 if !label.is_empty() {
-                    let mid_x = (start_x + end_x) / 2.0;
-                    let mid_y = (source_y + target_y) / 2.0;
+                    let label_mid_x = (mid_x + x) / 2.0;
+                    let label_mid_y = (source_y + target_y) / 2.0;
                     draw_pill_label(
                         painter,
                         label,
@@ -520,12 +496,74 @@ pub fn draw_gitgraph(
                         merge_color,
                         theme.foreground,
                         opacity,
-                        Pos2::new(mid_x, mid_y),
+                        Pos2::new(label_mid_x, label_mid_y),
                         scale,
                     );
                 }
             }
+
+            GitGraphItem::Tag { branch, label, .. } => {
+                let y = lane_y(branch);
+
+                // Find the latest commit X on this branch (for positioning)
+                let tag_x = branch_events
+                    .get(branch)
+                    .and_then(|positions| positions.last().copied())
+                    .unwrap_or(x);
+
+                let tag_color = lane_color(branch, opacity);
+
+                // Draw tag box above the commit
+                let tag_font =
+                    FontId::proportional(theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale);
+                let text_color = Theme::with_opacity(theme.foreground, opacity);
+                let galley = painter.layout_no_wrap(label.clone(), tag_font, text_color);
+                let pad_h = 8.0 * scale;
+                let pad_v = 5.0 * scale;
+                let box_w = galley.rect.width() + pad_h * 2.0;
+                let box_h = galley.rect.height() + pad_v * 2.0;
+                let box_y = y - dot_radius - box_h - 16.0 * scale;
+                let box_rect = egui::Rect::from_min_size(
+                    Pos2::new(tag_x - box_w / 2.0, box_y),
+                    egui::vec2(box_w, box_h),
+                );
+
+                // Box with border
+                let bg = Theme::with_opacity(tag_color, opacity * 0.2);
+                let border = Theme::with_opacity(tag_color, opacity * 0.6);
+                painter.rect_filled(box_rect, 4.0 * scale, bg);
+                painter.rect_stroke(
+                    box_rect,
+                    4.0 * scale,
+                    Stroke::new(2.0 * scale, border),
+                    egui::StrokeKind::Outside,
+                );
+                painter.galley(
+                    Pos2::new(box_rect.left() + pad_h, box_rect.top() + pad_v),
+                    galley,
+                    text_color,
+                );
+
+                // Arrow from box to commit dot
+                let arrow_start = Pos2::new(tag_x, box_rect.bottom());
+                let arrow_end = Pos2::new(tag_x, y - dot_radius);
+                painter.line_segment([arrow_start, arrow_end], Stroke::new(2.0 * scale, border));
+            }
         }
+    }
+
+    // ── 8. Draw branch name labels (at first active position) ───────────
+    for lane in &lane_order {
+        let Some(&first_x) = first_active_x.get(lane) else {
+            continue; // lane was declared but never used
+        };
+        let y = lane_y(lane);
+        let color = lane_color(lane, opacity);
+        let galley = painter.layout_no_wrap(lane.clone(), label_font.clone(), color);
+        // Place label to the left of the first dot
+        let text_x = first_x - galley.rect.width() - dot_radius - 8.0 * scale;
+        let text_y = y - galley.rect.height() / 2.0;
+        painter.galley(Pos2::new(text_x, text_y), galley, color);
     }
 
     height
@@ -568,28 +606,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_branch_simple() {
-        let content = "- branch main\n- branch develop from main";
+    fn test_parse_lane() {
+        let content = "- lane main\n- lane develop";
         let items = parse_gitgraph(content);
         assert_eq!(items.len(), 2);
+        assert!(matches!(&items[0], GitGraphItem::Lane { name } if name == "main"));
+        assert!(matches!(&items[1], GitGraphItem::Lane { name } if name == "develop"));
+    }
+
+    #[test]
+    fn test_parse_branch_arrow_syntax() {
+        let content = "- branch main -> develop";
+        let items = parse_gitgraph(content);
+        assert_eq!(items.len(), 1);
         match &items[0] {
-            GitGraphItem::Branch { name, from, .. } => {
-                assert_eq!(name, "main");
-                assert!(from.is_none());
-            }
-            _ => panic!("Expected Branch"),
-        }
-        match &items[1] {
-            GitGraphItem::Branch { name, from, .. } => {
-                assert_eq!(name, "develop");
-                assert_eq!(from.as_deref(), Some("main"));
+            GitGraphItem::Branch { source, target, .. } => {
+                assert_eq!(source, "main");
+                assert_eq!(target, "develop");
             }
             _ => panic!("Expected Branch"),
         }
     }
 
     #[test]
-    fn test_parse_commit() {
+    fn test_parse_commit_with_message() {
         let content = "- commit develop: \"Initial setup\"";
         let items = parse_gitgraph(content);
         assert_eq!(items.len(), 1);
@@ -605,8 +645,24 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_merge() {
-        let content = "- merge feature/login -> develop: \"PR #42\"";
+    fn test_parse_commit_without_message() {
+        let content = "- commit feature";
+        let items = parse_gitgraph(content);
+        assert_eq!(items.len(), 1);
+        match &items[0] {
+            GitGraphItem::Commit {
+                branch, message, ..
+            } => {
+                assert_eq!(branch, "feature");
+                assert!(message.is_empty());
+            }
+            _ => panic!("Expected Commit"),
+        }
+    }
+
+    #[test]
+    fn test_parse_merge_with_label() {
+        let content = "- merge feature -> develop: \"PR #42\"";
         let items = parse_gitgraph(content);
         assert_eq!(items.len(), 1);
         match &items[0] {
@@ -616,7 +672,7 @@ mod tests {
                 label,
                 ..
             } => {
-                assert_eq!(source, "feature/login");
+                assert_eq!(source, "feature");
                 assert_eq!(target, "develop");
                 assert_eq!(label, "PR #42");
             }
@@ -625,64 +681,62 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_merge_no_label() {
-        let content = "- merge feature/auth -> develop";
+    fn test_parse_tag() {
+        let content = "- tag main: \"v1.0\"";
         let items = parse_gitgraph(content);
         assert_eq!(items.len(), 1);
         match &items[0] {
-            GitGraphItem::Merge {
-                source,
-                target,
-                label,
-                ..
-            } => {
-                assert_eq!(source, "feature/auth");
-                assert_eq!(target, "develop");
-                assert!(label.is_empty());
+            GitGraphItem::Tag { branch, label, .. } => {
+                assert_eq!(branch, "main");
+                assert_eq!(label, "v1.0");
             }
-            _ => panic!("Expected Merge"),
+            _ => panic!("Expected Tag"),
         }
     }
 
     #[test]
     fn test_parse_reveal_markers() {
-        let content = "- branch main\n+ branch develop from main\n* commit develop: \"Init\"";
+        let content = "- lane main\n- commit main\n+ branch main -> develop\n* commit develop";
         let items = parse_gitgraph(content);
-        assert_eq!(items.len(), 3);
-        match &items[0] {
-            GitGraphItem::Branch { reveal, .. } => assert_eq!(*reveal, VizReveal::Static),
-            _ => panic!(),
-        }
-        match &items[1] {
+        assert_eq!(items.len(), 4);
+        // Lane is always static (override)
+        match &items[2] {
             GitGraphItem::Branch { reveal, .. } => assert_eq!(*reveal, VizReveal::NextStep),
             _ => panic!(),
         }
-        match &items[2] {
+        match &items[3] {
             GitGraphItem::Commit { reveal, .. } => assert_eq!(*reveal, VizReveal::WithPrev),
             _ => panic!(),
         }
     }
 
     #[test]
-    fn test_parse_ignores_comments_and_blanks() {
-        let content =
-            "# This is a comment\n\n- branch main\n# Another comment\n- branch develop from main";
+    fn test_parse_full_gitflow() {
+        let content = "\
+- lane main
+- lane hotfix
+- lane release
+- lane develop
+- lane feature
+- commit main
+- branch main -> develop
++ branch develop -> feature
++ commit feature
++ commit feature
++ merge feature -> develop
++ branch develop -> release
++ commit release
++ merge release -> main: \"v1.0\"
+* merge release -> develop
++ tag main: \"v1.0\"";
         let items = parse_gitgraph(content);
-        assert_eq!(items.len(), 2);
+        assert_eq!(items.len(), 16);
     }
 
     #[test]
-    fn test_parse_full_gitflow() {
-        let content = "\
-- branch main
-- branch develop from main
-+ branch feature/login from develop
-+ commit feature/login: \"Add form\"
-+ merge feature/login -> develop
-+ branch release/1.0 from develop
-+ merge release/1.0 -> main: \"v1.0\"
-* merge release/1.0 -> develop";
+    fn test_parse_ignores_comments_and_blanks() {
+        let content = "# Comment\n\n- lane main\n# Another\n- commit main";
         let items = parse_gitgraph(content);
-        assert_eq!(items.len(), 8);
+        assert_eq!(items.len(), 2);
     }
 }

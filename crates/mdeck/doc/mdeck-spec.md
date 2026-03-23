@@ -1341,24 +1341,29 @@ Visualizes git branching, committing, and merging as a horizontal lane diagram. 
 
 ```
 ```@gitgraph
-- branch main
-- branch develop from main
-+ branch feature/login from develop
+- lane main
+- lane develop
+- lane feature/login
+- commit main
++ commit main
++ branch main -> develop
++ commit develop
++ branch develop -> feature/login
 + commit feature/login: "Add login form"
 + merge feature/login -> develop: "PR #42"
-+ branch release/1.0 from develop
-+ merge release/1.0 -> main: "v1.0"
-* merge release/1.0 -> develop
++ tag main: "v1.0"
+* merge develop -> main
 ```
 ```
 
 **Line types:**
-- `branch <name>` — define a root branch (rendered as a horizontal lane)
-- `branch <name> from <parent>` — fork a new branch from an existing one
-- `commit <branch>: "message"` — add a commit to a branch (optional, for detail)
-- `merge <source> -> <target>` — merge one branch into another
+- `lane <name>` — declare a branch lane (order determines vertical position, rendered as a dotted background line)
+- `commit <branch>` — add a commit dot on the named branch (optional `: "message"`)
+- `branch <source> -> <target>` — fork a new branch (S-curve connector with arrow, same syntax as merge)
+- `merge <source> -> <target>` — merge one branch into another (curved connector with arrow)
 - `merge <source> -> <target>: "label"` — merge with a label
+- `tag <branch>: "label"` — tag box displayed above the most recent commit on the branch
 
-**Rendering:** Branches are stacked vertically as parallel horizontal lanes. Commits appear as dots on the lane. Forks and merges are shown as curved connections between lanes. Each branch gets a distinct color from the theme palette.
+**Rendering:** Lanes are stacked vertically as parallel horizontal tracks with dotted background lines. Commits appear as dots on the lane. Forks and merges are shown as S-curve connections with arrows between lanes. Each lane gets a distinct color from the theme palette.
 
 **Progressive reveal:** Use `+` and `*` markers to build the graph step by step — ideal for walking through a branching strategy one operation at a time.

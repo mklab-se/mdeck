@@ -819,8 +819,9 @@ Supported mdeck visualizations (use these when appropriate — set visualization
 - timeline, gantt (temporal)
 - orgchart, architecture (structural)
 - gitgraph (git branch diagrams — USE THIS for any branching strategy, Git Flow, \
-  merge workflows, etc. Syntax: `- branch main`, `- branch develop from main`, \
-  `- commit develop: \"msg\"`, `- merge feature -> develop: \"label\"`)
+  merge workflows, etc. Syntax: `- lane main`, `- commit main`, \
+  `- branch main -> develop`, `- merge feature -> develop: \"label\"`, \
+  `- tag main: \"v1.0\"`)
 - kpi, progress, funnel (metrics)
 - radar, venn (comparison)
 - wordcloud (text analysis)
