@@ -398,7 +398,7 @@ pub fn draw_gitgraph(
                 let target_color = lane_color(target, opacity);
                 let outline = Theme::with_opacity(theme.background, opacity * 0.6);
 
-                // One dot on source lane at x (the fork point)
+                // Dot on source lane
                 let source_color = lane_color(source, opacity);
                 painter.circle_filled(Pos2::new(x, source_y), dot_radius, source_color);
                 painter.circle_stroke(
@@ -407,17 +407,21 @@ pub fn draw_gitgraph(
                     Stroke::new(2.5 * scale, outline),
                 );
 
-                // S-curve from source dot to target lane.
-                // Target end is offset RIGHT to give the S real horizontal room.
-                let offset = event_spacing * 0.8;
-                let target_x = x + offset;
-                let mid_x = (x + target_x) / 2.0;
+                // Find the target branch's NEXT event X position for the S-curve end.
+                // This gives the S-curve real horizontal distance.
+                let target_next_x = branch_events
+                    .get(target)
+                    .and_then(|positions| positions.iter().find(|&&px| px > x).copied())
+                    .unwrap_or(x + event_spacing);
+
+                // S-curve from source dot to target's next event
+                let mid_x = (x + target_next_x) / 2.0;
                 let bezier = CubicBezierShape::from_points_stroke(
                     [
-                        Pos2::new(x, source_y),        // P0: start at source dot
-                        Pos2::new(mid_x, source_y),    // P1: horizontal on source lane
-                        Pos2::new(mid_x, target_y),    // P2: horizontal on target lane
-                        Pos2::new(target_x, target_y), // P3: arrive at target lane
+                        Pos2::new(x, source_y),             // P0: start at source dot
+                        Pos2::new(mid_x, source_y),         // P1: horizontal on source lane
+                        Pos2::new(mid_x, target_y),         // P2: horizontal on target lane
+                        Pos2::new(target_next_x, target_y), // P3: arrive at target's next event
                     ],
                     false,
                     egui::Color32::TRANSPARENT,
@@ -425,20 +429,18 @@ pub fn draw_gitgraph(
                 );
                 painter.add(bezier);
 
-                // One dot at the S-curve end on the target lane
-                painter.circle_filled(Pos2::new(target_x, target_y), dot_radius, target_color);
+                // Dot at the S-curve endpoint on the target lane
+                painter.circle_filled(Pos2::new(target_next_x, target_y), dot_radius, target_color);
                 painter.circle_stroke(
-                    Pos2::new(target_x, target_y),
+                    Pos2::new(target_next_x, target_y),
                     dot_radius,
                     Stroke::new(2.5 * scale, outline),
                 );
 
-                // Register target position for solid line tracking and label placement
-                first_active_x.entry(target.clone()).or_insert(target_x);
-                branch_events
+                // Set first active position for label placement
+                first_active_x
                     .entry(target.clone())
-                    .or_default()
-                    .push(target_x);
+                    .or_insert(target_next_x);
             }
 
             GitGraphItem::Merge {
@@ -476,17 +478,19 @@ pub fn draw_gitgraph(
                         Stroke::new(curve_width, merge_color),
                     );
                 } else {
-                    // S-curve merge: starts on source lane, curves to target dot.
-                    // Start is offset LEFT to give the S real horizontal room.
-                    let offset = event_spacing * 0.8;
-                    let start_x = x - offset;
-                    let mid_x = (start_x + x) / 2.0;
+                    // S-curve from source's last event to target dot.
+                    // Source's last event is naturally at a different X, giving real S shape.
+                    let source_last_x = branch_events
+                        .get(source)
+                        .and_then(|positions| positions.last().copied())
+                        .unwrap_or(x - event_spacing);
+                    let mid_x = (source_last_x + x) / 2.0;
                     let bezier = CubicBezierShape::from_points_stroke(
                         [
-                            Pos2::new(start_x, source_y), // P0: start on source lane
-                            Pos2::new(mid_x, source_y),   // P1: horizontal on source
-                            Pos2::new(mid_x, target_y),   // P2: horizontal on target
-                            Pos2::new(x, target_y),       // P3: end at target dot
+                            Pos2::new(source_last_x, source_y), // P0: source's last event
+                            Pos2::new(mid_x, source_y),         // P1: horizontal on source
+                            Pos2::new(mid_x, target_y),         // P2: horizontal on target
+                            Pos2::new(x, target_y),             // P3: target dot
                         ],
                         false,
                         egui::Color32::TRANSPARENT,
@@ -570,8 +574,8 @@ pub fn draw_gitgraph(
         let y = lane_y(lane);
         let color = lane_color(lane, opacity);
         let galley = painter.layout_no_wrap(lane.clone(), label_font.clone(), color);
-        // Place label to the left of the first dot
-        let text_x = first_x - galley.rect.width() - dot_radius - 8.0 * scale;
+        // Place label to the left of the first dot with generous gap
+        let text_x = first_x - galley.rect.width() - dot_radius - 16.0 * scale;
         let text_y = y - galley.rect.height() / 2.0;
         painter.galley(Pos2::new(text_x, text_y), galley, color);
     }
