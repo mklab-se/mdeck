@@ -413,15 +413,22 @@ pub fn draw_gitgraph(
                 let y = branch_y(name);
                 let color = branch_color(name, opacity);
 
-                // Draw fork S-curve from parent branch
+                // Draw fork S-curve from parent branch's nearest event dot
                 if let Some(parent) = from {
                     let parent_y = branch_y(parent);
                     let parent_color = branch_color(name, opacity * 0.8);
-                    // S-curve: horizontal out from parent, then vertical, then horizontal into child
-                    let mid_x = x - event_spacing * 0.35;
+                    // Find the parent's last event position before this fork
+                    let parent_dot_x = branch_events
+                        .get(parent)
+                        .and_then(|positions| {
+                            positions.iter().rfind(|&&px| px <= x).copied()
+                        })
+                        .unwrap_or(pos.x + label_margin);
+                    let start_x = parent_dot_x;
+                    let mid_x = (start_x + x) / 2.0;
                     let bezier = CubicBezierShape::from_points_stroke(
                         [
-                            Pos2::new(x - event_spacing * 0.5, parent_y),
+                            Pos2::new(start_x, parent_y),
                             Pos2::new(mid_x, parent_y),
                             Pos2::new(mid_x, y),
                             Pos2::new(x, y),
@@ -487,31 +494,20 @@ pub fn draw_gitgraph(
                     Stroke::new(1.5 * scale, ring_color),
                 );
 
-                // Draw a horizontal line on the source branch from its last event
-                // to the merge curve start point
+                // S-curve from source branch's last event dot to the target dot
                 let source_last_x = branch_events
                     .get(source)
                     .and_then(|positions| positions.last().copied())
                     .unwrap_or(pos.x + label_margin);
-                let curve_start_x = x - event_spacing * 0.4;
-                if curve_start_x > source_last_x + dot_radius {
-                    painter.line_segment(
-                        [
-                            Pos2::new(source_last_x + dot_radius, source_y),
-                            Pos2::new(curve_start_x, source_y),
-                        ],
-                        Stroke::new(line_width, merge_color),
-                    );
-                }
-
-                // S-curve merge line from source to target
-                let mid_x = x - event_spacing * 0.25;
+                let start_x = source_last_x;
+                let end_x = x;
+                let mid_x = (start_x + end_x) / 2.0;
                 let bezier = CubicBezierShape::from_points_stroke(
                     [
-                        Pos2::new(curve_start_x, source_y),
+                        Pos2::new(start_x, source_y),
                         Pos2::new(mid_x, source_y),
                         Pos2::new(mid_x, target_y),
-                        Pos2::new(x - dot_radius, target_y),
+                        Pos2::new(end_x, target_y),
                     ],
                     false,
                     egui::Color32::TRANSPARENT,
