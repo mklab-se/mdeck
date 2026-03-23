@@ -417,14 +417,14 @@ pub fn draw_gitgraph(
                     Stroke::new(2.5 * scale, outline),
                 );
 
-                // S-curve from source to target
-                let curve_start_x = x - event_spacing * 0.3;
+                // S-curve from source to target — tight with small horizontal bow
+                let bow = 20.0 * scale; // small leftward bow for the S shape
                 let bezier = CubicBezierShape::from_points_stroke(
                     [
-                        Pos2::new(x, source_y),
-                        Pos2::new(curve_start_x, source_y),
-                        Pos2::new(curve_start_x, target_y),
-                        Pos2::new(x, target_y),
+                        Pos2::new(x, source_y + dot_radius),
+                        Pos2::new(x - bow, (source_y + target_y) / 2.0),
+                        Pos2::new(x - bow, (source_y + target_y) / 2.0),
+                        Pos2::new(x, target_y - dot_radius),
                     ],
                     false,
                     egui::Color32::TRANSPARENT,
