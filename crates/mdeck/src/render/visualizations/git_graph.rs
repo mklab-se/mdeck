@@ -305,11 +305,10 @@ pub fn draw_gitgraph(
         }
     }
 
-    // Thick lines like the reference image
-    let line_width = 3.5 * scale;
-    let curve_width = 3.0 * scale;
-    let dot_radius = 10.0 * scale;
-    let arrow_size = 8.0 * scale;
+    let line_width = 7.0 * scale;
+    let curve_width = 6.0 * scale;
+    let dot_radius = 14.0 * scale;
+    let arrow_size = 16.0 * scale;
 
     // Collect commit positions per branch for drawing arrows between them
     let mut branch_events: std::collections::HashMap<String, Vec<f32>> =
