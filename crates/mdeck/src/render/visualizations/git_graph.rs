@@ -294,17 +294,17 @@ pub fn draw_gitgraph(
     let line_width = 7.0 * scale;
     let curve_width = 6.0 * scale;
     let dot_radius = 14.0 * scale;
-    let dotted_width = 3.0 * scale;
+    let dotted_width = 5.0 * scale;
 
     // ── 5. Draw dotted background lanes ─────────────────────────────────
     let full_left = pos.x + label_margin;
     let full_right = pos.x + max_width - right_margin;
     for lane in &lane_order {
         let y = lane_y(lane);
-        let color = lane_color(lane, opacity * 0.15);
-        // Dotted line using dashes
-        let dash_len = 8.0 * scale;
-        let gap_len = 8.0 * scale;
+        let color = lane_color(lane, opacity * 0.35);
+        // Dotted line using dashes — visible from the back of a room
+        let dash_len = 10.0 * scale;
+        let gap_len = 10.0 * scale;
         let mut cx = full_left;
         while cx < full_right {
             let end = (cx + dash_len).min(full_right);
@@ -453,41 +453,53 @@ pub fn draw_gitgraph(
                     Stroke::new(2.5 * scale, outline),
                 );
 
-                // S-curve from source's last position to target
+                // Check if this is a simultaneous event (same X as previous merge/branch)
+                // If so, draw a vertical line instead of an S-curve
                 let source_last_x = branch_events
                     .get(source)
                     .and_then(|positions| positions.iter().rfind(|&&px| px < x).copied())
-                    .unwrap_or(x - event_spacing * 0.5);
-                let start_x = source_last_x;
-                let mid_x = (start_x + x) / 2.0;
+                    .unwrap_or(x - event_spacing * 0.3);
 
-                // Horizontal segment on source lane to the curve start
-                if start_x + dot_radius < mid_x {
+                let is_vertical = (x - source_last_x).abs() < event_spacing * 0.5
+                    || source_last_x >= x - dot_radius * 2.0;
+
+                if is_vertical {
+                    // Vertical line — simultaneous event or very close
                     painter.line_segment(
-                        [
-                            Pos2::new(start_x + dot_radius, source_y),
-                            Pos2::new(mid_x, source_y),
-                        ],
-                        Stroke::new(line_width, merge_color),
+                        [Pos2::new(x, source_y), Pos2::new(x, target_y)],
+                        Stroke::new(curve_width, merge_color),
                     );
-                }
+                } else {
+                    // Horizontal line from source's last event to curve start
+                    let curve_start_x = x - event_spacing * 0.3;
+                    if source_last_x + dot_radius < curve_start_x {
+                        painter.line_segment(
+                            [
+                                Pos2::new(source_last_x + dot_radius, source_y),
+                                Pos2::new(curve_start_x, source_y),
+                            ],
+                            Stroke::new(line_width, merge_color),
+                        );
+                    }
 
-                let bezier = CubicBezierShape::from_points_stroke(
-                    [
-                        Pos2::new(mid_x, source_y),
-                        Pos2::new(mid_x, source_y),
-                        Pos2::new(x, target_y),
-                        Pos2::new(x, target_y),
-                    ],
-                    false,
-                    egui::Color32::TRANSPARENT,
-                    Stroke::new(curve_width, merge_color),
-                );
-                painter.add(bezier);
+                    // S-curve
+                    let bezier = CubicBezierShape::from_points_stroke(
+                        [
+                            Pos2::new(curve_start_x, source_y),
+                            Pos2::new(x, source_y),
+                            Pos2::new(curve_start_x, target_y),
+                            Pos2::new(x, target_y),
+                        ],
+                        false,
+                        egui::Color32::TRANSPARENT,
+                        Stroke::new(curve_width, merge_color),
+                    );
+                    painter.add(bezier);
+                }
 
                 // Merge label
                 if !label.is_empty() {
-                    let label_mid_x = (mid_x + x) / 2.0;
+                    let label_mid_x = x + dot_radius + 8.0 * scale;
                     let label_mid_y = (source_y + target_y) / 2.0;
                     draw_pill_label(
                         painter,
