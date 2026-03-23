@@ -275,3 +275,21 @@ A showcase of every visualization type in MDeck
 - QA: 10d, after Frontend
 - Release: 2d, after QA
 ```
+
+---
+
+## Git Graph
+
+```@gitgraph
+- lane main
+- lane develop
+- lane feature
+- commit main
+- branch main -> develop
+- branch develop -> feature
+- commit feature
+- commit feature
+- merge feature -> develop: "PR #1"
+- merge develop -> main: "v1.0"
+- tag main: "v1.0"
+```
