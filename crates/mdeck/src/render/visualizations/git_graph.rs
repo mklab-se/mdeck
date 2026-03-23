@@ -417,13 +417,14 @@ pub fn draw_gitgraph(
                     Stroke::new(2.5 * scale, outline),
                 );
 
-                // Proper S-curve from source dot to target dot
-                let curve_start_x = x + event_spacing * 0.3;
+                // Proper S-curve from source dot to target dot (bows left)
+                let bow_width = (event_spacing * 0.3).min(60.0 * scale).max(25.0 * scale);
+                let curve_offset_x = x - bow_width;
                 let bezier = CubicBezierShape::from_points_stroke(
                     [
                         Pos2::new(x, source_y),
-                        Pos2::new(curve_start_x, source_y),
-                        Pos2::new(curve_start_x, target_y),
+                        Pos2::new(curve_offset_x, source_y),
+                        Pos2::new(curve_offset_x, target_y),
                         Pos2::new(x, target_y),
                     ],
                     false,
@@ -475,7 +476,8 @@ pub fn draw_gitgraph(
                         .unwrap_or(x - event_spacing * 0.3);
 
                     // Horizontal line from source's last event to curve start
-                    let curve_start_x = x - event_spacing * 0.3;
+                    let merge_bow = (event_spacing * 0.3).min(60.0 * scale).max(25.0 * scale);
+                    let curve_start_x = x - merge_bow;
                     if source_last_x + dot_radius < curve_start_x {
                         painter.line_segment(
                             [
