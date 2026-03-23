@@ -347,23 +347,14 @@ pub fn draw_gitgraph(
         let color = branch_color(branch, opacity);
         let is_merged = merged_branches.contains(branch);
 
-        // Draw arrows between consecutive events on this branch.
-        // Leave a gap before the next dot so the arrowhead is clearly visible.
-        let arrow_gap = arrow_size + 4.0 * scale;
+        // Draw plain lines between consecutive events on this branch
         for pair in positions.windows(2) {
             let x1 = pair[0] + dot_radius;
-            let x2 = pair[1] - dot_radius - arrow_gap;
+            let x2 = pair[1] - dot_radius;
             if x2 > x1 {
                 painter.line_segment(
                     [Pos2::new(x1, y), Pos2::new(x2, y)],
                     Stroke::new(line_width, color),
-                );
-                draw_arrowhead(
-                    painter,
-                    Pos2::new(x2 + arrow_size, y),
-                    arrow_size,
-                    0.0,
-                    color,
                 );
             }
         }
@@ -373,13 +364,12 @@ pub fn draw_gitgraph(
         if !is_merged {
             let last_x = positions.last().copied().unwrap_or(0.0);
             let extend_to = right_edge;
-            if extend_to > last_x + dot_radius + arrow_size {
+            if extend_to > last_x + dot_radius {
                 let faded = branch_color(branch, opacity * 0.5);
                 painter.line_segment(
                     [Pos2::new(last_x + dot_radius, y), Pos2::new(extend_to, y)],
                     Stroke::new(line_width, faded),
                 );
-                draw_arrowhead(painter, Pos2::new(extend_to, y), arrow_size, 0.0, faded);
             }
         }
     }
