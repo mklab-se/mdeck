@@ -379,6 +379,7 @@ mdeck ai skill --reference   # Output full reference for AI agents
 | Shift+T | Cycle theme |
 | T | Cycle transition |
 | F | Toggle fullscreen |
+| M | Move to next monitor |
 | H | Toggle HUD |
 | `.` | Blackout screen |
 | Esc Esc | Quit |

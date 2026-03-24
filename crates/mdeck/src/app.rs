@@ -130,6 +130,8 @@ struct PresentationApp {
     on_end_slide: bool,
     /// Whether the screen is blacked out (toggled with `.` key).
     blackout: bool,
+    /// Pending re-enter fullscreen after monitor move (delayed one frame).
+    pending_fullscreen: bool,
     /// Cached texture for the embedded logo (loaded once on first draw).
     end_logo_texture: Option<egui::TextureHandle>,
     /// Shared slide position for recovery after display errors.
@@ -250,6 +252,7 @@ impl PresentationApp {
             quiet,
             on_end_slide: false,
             blackout: false,
+            pending_fullscreen: false,
             end_logo_texture: None,
             shared_slide: None,
             incident_log,
@@ -845,6 +848,13 @@ impl PresentationApp {
 
 impl eframe::App for PresentationApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Handle pending fullscreen after monitor move (delayed one frame
+        // to allow the window position to take effect first)
+        if self.pending_fullscreen {
+            self.pending_fullscreen = false;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(true));
+        }
+
         self.update_fps();
 
         // Detect power-state time jumps and shift animation timestamps forward.
@@ -969,6 +979,29 @@ impl eframe::App for PresentationApp {
                 viewport_cmds.push(egui::ViewportCommand::Fullscreen(
                     !i.viewport().fullscreen.unwrap_or(false),
                 ));
+                return;
+            }
+
+            // Move fullscreen to next monitor: M (from any mode when fullscreen)
+            if i.key_pressed(egui::Key::M) {
+                if i.viewport().fullscreen.unwrap_or(false) {
+                    if let Some(monitor_size) = i.viewport().monitor_size {
+                        // Exit fullscreen, move right by monitor width, re-enter fullscreen
+                        // This lands the window on the next monitor
+                        let current_pos = i
+                            .viewport()
+                            .outer_rect
+                            .map(|r| r.left_top())
+                            .unwrap_or(egui::pos2(0.0, 0.0));
+                        let next_pos =
+                            egui::pos2(current_pos.x + monitor_size.x + 100.0, current_pos.y);
+                        viewport_cmds.push(egui::ViewportCommand::Fullscreen(false));
+                        viewport_cmds.push(egui::ViewportCommand::OuterPosition(next_pos));
+                        // Store the move request — fullscreen will be re-enabled next frame
+                        self.pending_fullscreen = true;
+                        self.toast = Some(Toast::new("Moving to next monitor...".to_string()));
+                    }
+                }
                 return;
             }
 
@@ -2057,6 +2090,7 @@ fn draw_hud(ui: &egui::Ui, theme: &Theme, rect: egui::Rect, scale: f32) {
         ("T", "Cycle transition"),
         ("⇧T", "Cycle theme"),
         ("F", "Toggle fullscreen"),
+        ("M", "Move to next monitor"),
         ("H", "Toggle this HUD"),
         (".", "Blackout screen"),
         ("R", "Debug overlay (L/R/off)"),
