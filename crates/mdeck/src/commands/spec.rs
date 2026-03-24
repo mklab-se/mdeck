@@ -50,7 +50,8 @@ KEYBOARD SHORTCUTS
   Up/Down        Scroll content   G           Grid view
   Enter/E        Back to present. T           Cycle transition
   D              Toggle theme     F           Toggle fullscreen
-  H              Show/hide HUD    Esc x2      Exit
+  M              Next monitor     H           Show/hide HUD
+  Esc x2         Exit
   Ctrl+C x2      Exit             Q           Quit
 
 MOUSE CONTROLS

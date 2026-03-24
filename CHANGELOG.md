@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.0] - 2026-03-24
+
+### Added
+
+- **Grid view shows final reveal step** — pressing G now shows each slide fully revealed, making it easy to identify slides by their content. Fixes #5.
+- **Move fullscreen to next monitor** — press M to cycle the presentation between monitors. The last used monitor is remembered in config and used on next launch. Fixes #6.
+
 ## [0.16.0] - 2026-03-24
 
 ### Added
