@@ -518,6 +518,31 @@ impl PresentationApp {
         }
     }
 
+    /// Draw a slide at full reveal (all steps visible). Used by grid view.
+    fn draw_slide_fully_revealed(
+        &self,
+        ui: &egui::Ui,
+        index: usize,
+        rect: egui::Rect,
+        opacity: f32,
+        scale: f32,
+    ) {
+        if index < self.presentation.slides.len() {
+            let reveal = self.max_steps.get(index).copied().unwrap_or(0);
+            render::render_slide(
+                ui,
+                &self.presentation.slides[index],
+                &self.theme,
+                rect,
+                opacity,
+                &self.image_cache,
+                reveal,
+                None,
+                scale,
+            );
+        }
+    }
+
     fn draw_end_slide(&mut self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
         // Draw ESC hint at top like regular slides
         let hint_color = egui::Color32::from_gray(100);
@@ -1579,13 +1604,13 @@ impl PresentationApp {
                 .painter()
                 .rect_filled(cell_rect, 4.0 * scale, self.theme.background);
 
-            // Render actual slide content clipped to cell
+            // Render slide at full reveal (all steps visible) in grid
             let child_ui = grid_child.new_child(
                 egui::UiBuilder::new()
                     .max_rect(cell_rect)
                     .id_salt(("grid_cell", i)),
             );
-            self.draw_slide(&child_ui, i, cell_rect, 1.0, cell_scale);
+            self.draw_slide_fully_revealed(&child_ui, i, cell_rect, 1.0, cell_scale);
 
             // Slide number badge overlay
             self.draw_slide_badge(&grid_child, cell_rect, i, scale, 1.0);
@@ -1716,7 +1741,7 @@ impl PresentationApp {
                     .max_rect(cell_rect)
                     .id_salt(("overview_cell", i)),
             );
-            self.draw_slide(&child_ui, i, cell_rect, grid_amount, cell_scale);
+            self.draw_slide_fully_revealed(&child_ui, i, cell_rect, grid_amount, cell_scale);
 
             self.draw_slide_badge(ui, cell_rect, i, scale, grid_amount);
 
