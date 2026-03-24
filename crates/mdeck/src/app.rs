@@ -999,6 +999,12 @@ impl eframe::App for PresentationApp {
                         viewport_cmds.push(egui::ViewportCommand::OuterPosition(next_pos));
                         // Store the move request — fullscreen will be re-enabled next frame
                         self.pending_fullscreen = true;
+                        // Remember this monitor position in config
+                        if let Ok(mut config) = crate::config::Config::load() {
+                            let defaults = config.defaults.get_or_insert_with(Default::default);
+                            defaults.monitor_position = Some([next_pos.x, next_pos.y]);
+                            let _ = config.save();
+                        }
                         self.toast = Some(Toast::new("Moving to next monitor...".to_string()));
                     }
                 }
@@ -2412,14 +2418,26 @@ pub fn run(
             )
         };
 
+        // Check for remembered monitor position from config
+        let saved_monitor_pos = crate::config::Config::load()
+            .ok()
+            .and_then(|c| c.defaults.and_then(|d| d.monitor_position));
+
         let viewport = if windowed {
             egui::ViewportBuilder::default()
                 .with_inner_size([1280.0, 720.0])
                 .with_title(&title)
         } else {
-            egui::ViewportBuilder::default()
+            let vp = egui::ViewportBuilder::default()
                 .with_fullscreen(true)
-                .with_title(&title)
+                .with_title(&title);
+            // If we have a saved monitor position, set it so the window
+            // opens fullscreen on the remembered monitor
+            if let Some([x, y]) = saved_monitor_pos {
+                vp.with_position(egui::pos2(x, y))
+            } else {
+                vp
+            }
         };
 
         let viewport = if let Some(ref icon) = icon {

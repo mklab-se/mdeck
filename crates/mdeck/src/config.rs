@@ -80,6 +80,10 @@ pub struct DefaultsConfig {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon_style: Option<String>,
+
+    /// Remembered monitor position (x, y) for fullscreen placement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub monitor_position: Option<[f32; 2]>,
 }
 
 impl Config {
