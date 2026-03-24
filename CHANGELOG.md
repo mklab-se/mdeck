@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.0] - 2026-03-24
+
+### Added
+
+- **Atlassian-style `@gitgraph` visualization** — complete rewrite with new visual model: dotted gray lanes for declared branches, solid colored segments for active branches, proper S-curves for forks (bowing left) and merges (bowing right), vertical lines for simultaneous `*` events, tag boxes with arrows, and pill-shaped merge labels on S-curve midpoints. New syntax: `lane`, `branch A -> B`, `merge A -> B`, `tag`, `commit`.
+- **`--debug` flag for export** — `mdeck export --debug` exports every progressive reveal step as a separate PNG (e.g., `slide-01-step-00.png`), enabling systematic visual QA at full resolution.
+- **`test-visualization` skill** — reusable testing methodology for visual QA of any mdeck visualization, committed to `.claude/skills/`.
+
+### Changed
+
+- Branch labels now left-aligned at a consistent margin, appearing only when the branch first becomes active.
+- S-curves use proper cubic bezier control points with real horizontal distance — forks connect to the target's next event, merges connect from the source's last event.
+- Fork endpoint positions are stable across progressive reveal steps (computed from all events, not just visible ones).
+
+### Fixed
+
+- Solid lines now connect fork endpoint dots to subsequent events on the same branch.
+- No more double dots at branch/merge events.
+- Merge labels positioned on the S-curve midpoint instead of floating.
+- Vertical lines for `*` merges draw dots on both source and target lanes.
+
 ## [0.15.0] - 2026-03-23
 
 ### Added

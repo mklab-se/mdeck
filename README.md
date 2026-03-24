@@ -167,7 +167,7 @@ Write data visualizations directly in markdown using fenced code blocks:
 | Org chart | `@orgchart` | `- CEO -> CTO` |
 | Gantt chart | `@gantt` | `- Design: 8d, after Research` |
 | Architecture | `@architecture` | `- Client -> Server` |
-| Git graph | `@gitgraph` | `- branch develop from main` |
+| Git graph | `@gitgraph` | `- branch main -> develop` |
 
 All visualizations support progressive reveal with `+` markers.
 
@@ -343,6 +343,7 @@ mdeck <file.md>              # Launch presentation
 mdeck <file.md> --check      # Validate presentation (exit 1 if warnings)
 mdeck export <file.md>       # Export slides as PNG images (1920x1080)
 mdeck export <file.md> --width 3840 --height 2160  # Custom resolution
+mdeck export <file.md> --debug     # Export every reveal step
 mdeck spec                   # Print full format specification
 mdeck spec --short           # Print quick reference card
 mdeck completion <shell>     # Generate shell completions
