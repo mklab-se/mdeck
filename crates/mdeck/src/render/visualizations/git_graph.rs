@@ -125,12 +125,11 @@ fn parse_gitgraph(content: &str) -> Vec<GitGraphItem> {
 }
 
 /// Find the X position of the next visible event on a given branch after index `after_idx`.
-/// Find the X position of the next visible event on a given branch after `after_idx`.
-#[allow(clippy::too_many_arguments)]
+/// Find the X position of the next event on a given branch after `after_idx`.
+/// Searches ALL events (not just visible ones) to ensure stable positions
+/// across progressive reveal steps.
 fn find_next_event_on_branch(
     items: &[GitGraphItem],
-    steps: &[usize],
-    reveal_step: usize,
     branch: &str,
     after_idx: usize,
     timeline_positions: &[f32],
@@ -138,10 +137,6 @@ fn find_next_event_on_branch(
     event_spacing: f32,
 ) -> Option<f32> {
     for (j, item) in items.iter().enumerate().skip(after_idx + 1) {
-        let step = steps.get(j).copied().unwrap_or(0);
-        if step > reveal_step {
-            continue;
-        }
         let is_on_branch = match item {
             GitGraphItem::Commit { branch: b, .. } | GitGraphItem::Tag { branch: b, .. } => {
                 b == branch
@@ -314,8 +309,6 @@ pub fn draw_gitgraph(
                 // Look ahead to find target's next event X position
                 let target_next_x = find_next_event_on_branch(
                     &items,
-                    &steps,
-                    reveal_step,
                     target,
                     i,
                     &timeline_positions,
