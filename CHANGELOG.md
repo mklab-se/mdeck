@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.1] - 2026-03-29
+
+### Changed
+
+- **Improved AI presentation generation quality** — AI-created presentations now use varied layouts (two-column, quotes, section breaks, image splits, tables), include atmospheric images on title and product slides, apply visual rhythm (alternating dense/sparse), and follow presentation archetypes (product comparison, tutorial, pitch, etc.). The interactive chat also asks about visual mood to inform styling.
+- **Refactored large source files into modules** — Split `app.rs` (2,574 lines) into `app/` module (drawing, input, helpers), `commands/create.rs` (1,606 lines) into `create/` module (prompts, interactive, extractors, opportunities), and `render/diagram/mod.rs` (3,569 lines) into submodules (types, parsing, layout, edges, icons). No behavior changes.
+
 ## [0.17.0] - 2026-03-24
 
 ### Added

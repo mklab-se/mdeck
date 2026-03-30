@@ -37,13 +37,22 @@ crates/
     src/
       main.rs        # Entry point, CLI bootstrap
       cli.rs         # Clap argument definitions (Cli, Commands, subcommands)
-      app.rs         # GUI presentation app (eframe/egui rendering)
+      app/             # GUI presentation app (eframe/egui rendering)
+        mod.rs       # State, navigation, egui update loop, run() entry point
+        drawing.rs   # All rendering/drawing methods
+        input.rs     # Mouse input handling
+        helpers.rs   # Standalone utilities (lerp, hashing, file watcher)
       banner.rs      # Version banner display
       config.rs      # Config struct, load/save (~/.config/mdeck/config.yaml)
       commands/
         mod.rs       # Re-exports
         ai.rs        # AI provider init/status/remove/style management
-        create.rs    # AI presentation creation from any content (mdeck ai create)
+        create/        # AI presentation creation from any content (mdeck ai create)
+          mod.rs     # Entry point, pipeline orchestration, output resolution
+          prompts.rs # AI system prompts (interactive, analysis, generation)
+          interactive.rs # Chat loop, streaming, user input
+          opportunities.rs # Visualization opportunity parsing & reporting
+          extractors.rs # PDF/DOCX/text content extraction
         generate.rs  # AI image generation for presentations (mdeck ai generate)
         completion.rs # Shell completion generation
         config.rs    # Config show/set
@@ -57,6 +66,14 @@ crates/
         syntax.rs    # Syntax highlighting via syntect (LazyLock-cached SyntaxSet/ThemeSet)
         transition.rs # Slide transitions (fade, slide, spatial) with easing
         layouts/     # Layout strategies (title, section, bullet, code, content, two_column, quote, image_slide)
+        diagram/       # Architecture diagram renderer
+          mod.rs     # Public API, main renderer (draw_diagram_sized), route cache
+          types.rs   # Data structures (DiagramNode, DiagramEdge, GridInfo, etc.)
+          parsing.rs # Diagram content parser
+          layout.rs  # Grid and auto layout algorithms
+          edges.rs   # Edge rendering, coordinate conversion, polylines
+          icons.rs   # Geometric icon fallback renderer
+          routing/   # A* edge routing engine
         image_cache.rs # Async image loading and caching
       theme.rs       # Theme definitions (light, dark, nord)
       prompt.rs      # AI prompt construction helpers (image/icon style + orientation)
