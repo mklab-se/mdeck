@@ -23,10 +23,8 @@ pub fn render(
         match block {
             Block::Heading { level: 1, inlines } => heading_inlines = Some(inlines),
             Block::Heading { level: 2, inlines } => subtitle_inlines = Some(inlines),
-            Block::Paragraph { inlines } => {
-                if subtitle_inlines.is_none() {
-                    subtitle_inlines = Some(inlines);
-                }
+            Block::Paragraph { inlines } if subtitle_inlines.is_none() => {
+                subtitle_inlines = Some(inlines);
             }
             _ => {}
         }

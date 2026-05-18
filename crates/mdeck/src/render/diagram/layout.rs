@@ -129,7 +129,7 @@ fn layout_auto(
         } else {
             0.0
         };
-        let total_w = n as f32 * node_w + (n - 1).max(0) as f32 * gap;
+        let total_w = n as f32 * node_w + n.saturating_sub(1) as f32 * gap;
         let start_x = (area_width - total_w) / 2.0 + node_w / 2.0;
 
         let cell_w = if n > 1 {

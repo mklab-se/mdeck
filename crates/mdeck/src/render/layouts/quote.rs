@@ -95,10 +95,8 @@ fn render_quote_content(
         match block {
             Block::Heading { level, inlines } => heading = Some((*level, inlines)),
             Block::BlockQuote { inlines } => quote_inlines = Some(inlines),
-            Block::Paragraph { inlines } => {
-                if quote_inlines.is_some() {
-                    attribution = Some(inlines);
-                }
+            Block::Paragraph { inlines } if quote_inlines.is_some() => {
+                attribution = Some(inlines);
             }
             _ => {}
         }

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.2] - 2026-05-18
+
+### Fixed
+
+- **AI config parse error** — `mdeck ai` no longer fails with `Failed to parse config from ~/.config/ailloy/config.yaml` when the config contains embedding nodes (`capabilities: [embedding]`) or a `defaults.embedding:` key. Caused by ailloy's embedding capability being absent in the 0.6 line and re-added in 0.7; configs written by newer ailloy CLIs were unreadable.
+
+### Changed
+
+- **Bump `ailloy` 0.6 → 0.8** — adopts embedding support re-introduced in ailloy 0.7 and the auto-detected embedding dimensions in 0.7.3. No behavior changes for mdeck (mdeck does not use embeddings); chat and image APIs are unchanged.
+- **Refresh transitive dependencies** via `cargo update`.
+- **CI: bump `actions/checkout@v4` → `@v5`** across CI and release workflows; release workflow upload step bumped to `actions/upload-artifact@v5`.
+- **Internal: satisfy newer clippy lints** (`collapsible_match`, redundant `.max(0)` on unsigned arithmetic) surfaced by Rust 1.95. No behavior changes.
+
 ## [0.17.1] - 2026-03-29
 
 ### Changed
