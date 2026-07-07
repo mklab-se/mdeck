@@ -169,9 +169,9 @@ dependencies = [
 
 [[package]]
 name = "ailloy"
-version = "0.8.0"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e536741da6313dff3a732e65bacd69179082ac42497af33eb354560ff4a3270d"
+checksum = "64c1c3c9ea384c70be74485d7f82780569f923eb0b876f38aa9c97d3a595a932"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2624,7 +2624,7 @@ dependencies = [
 
 [[package]]
 name = "mdeck"
-version = "0.17.2"
+version = "0.17.3"
 dependencies = [
  "ailloy",
  "anyhow",
