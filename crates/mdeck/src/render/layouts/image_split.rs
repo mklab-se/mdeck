@@ -10,11 +10,11 @@ pub fn split_image(blocks: &[Block]) -> (Vec<&Block>, Option<&Block>) {
     let mut image = None;
 
     for block in blocks {
-        if image.is_none() {
-            if let Block::Image { .. } = block {
-                image = Some(block);
-                continue;
-            }
+        if image.is_none()
+            && let Block::Image { .. } = block
+        {
+            image = Some(block);
+            continue;
         }
         content.push(block);
     }

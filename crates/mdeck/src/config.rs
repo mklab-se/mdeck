@@ -141,10 +141,10 @@ impl Config {
             .unwrap_or(false);
         if removed {
             // Clear default if it referenced this style
-            if let Some(ref defaults) = self.defaults {
-                if defaults.image_style.as_deref() == Some(name) {
-                    self.defaults.as_mut().unwrap().image_style = None;
-                }
+            if let Some(ref defaults) = self.defaults
+                && defaults.image_style.as_deref() == Some(name)
+            {
+                self.defaults.as_mut().unwrap().image_style = None;
             }
             // Clean up empty map
             if self.styles.as_ref().is_some_and(|m| m.is_empty()) {
@@ -187,10 +187,10 @@ impl Config {
             .map(|m| m.remove(name).is_some())
             .unwrap_or(false);
         if removed {
-            if let Some(ref defaults) = self.defaults {
-                if defaults.icon_style.as_deref() == Some(name) {
-                    self.defaults.as_mut().unwrap().icon_style = None;
-                }
+            if let Some(ref defaults) = self.defaults
+                && defaults.icon_style.as_deref() == Some(name)
+            {
+                self.defaults.as_mut().unwrap().icon_style = None;
             }
             if self.icon_styles.as_ref().is_some_and(|m| m.is_empty()) {
                 self.icon_styles = None;
@@ -213,12 +213,11 @@ impl Config {
     /// Resolve the effective image style description.
     /// Priority: defaults.image_style name → hardcoded default.
     pub fn resolve_image_style(&self) -> &str {
-        if let Some(ref defaults) = self.defaults {
-            if let Some(ref name) = defaults.image_style {
-                if let Some(desc) = self.get_style(name) {
-                    return desc;
-                }
-            }
+        if let Some(ref defaults) = self.defaults
+            && let Some(ref name) = defaults.image_style
+            && let Some(desc) = self.get_style(name)
+        {
+            return desc;
         }
         crate::prompt::DEFAULT_IMAGE_STYLE
     }
@@ -226,12 +225,11 @@ impl Config {
     /// Resolve the effective icon style description.
     /// Priority: defaults.icon_style name → hardcoded default.
     pub fn resolve_icon_style(&self) -> &str {
-        if let Some(ref defaults) = self.defaults {
-            if let Some(ref name) = defaults.icon_style {
-                if let Some(desc) = self.get_icon_style(name) {
-                    return desc;
-                }
-            }
+        if let Some(ref defaults) = self.defaults
+            && let Some(ref name) = defaults.icon_style
+            && let Some(desc) = self.get_icon_style(name)
+        {
+            return desc;
         }
         crate::prompt::DEFAULT_ICON_STYLE
     }

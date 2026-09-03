@@ -47,10 +47,10 @@ pub(super) fn find_matching_slide(
     old_index: usize,
     new_slides: &[parser::Slide],
 ) -> usize {
-    if let Some(raw) = old_raw {
-        if let Some(pos) = new_slides.iter().position(|s| s.raw_source == raw) {
-            return pos;
-        }
+    if let Some(raw) = old_raw
+        && let Some(pos) = new_slides.iter().position(|s| s.raw_source == raw)
+    {
+        return pos;
     }
     old_index.min(new_slides.len().saturating_sub(1))
 }

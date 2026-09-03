@@ -10,10 +10,10 @@ edition = "2024"
 authors = ["Kristofer Liljeblad <kristofer@mklab.se>"]
 license = "MIT"
 repository = "https://github.com/mklab-se/mdeck"
-rust-version = "1.85"
+rust-version = "1.88"
 
 [workspace.dependencies]
-eframe = "0.33"
+eframe = { version = "0.36", default-features = false, features = ["glow", "default_fonts", "links", "wayland", "x11"] }
 
 # CLI
 clap = { version = "4.5", features = ["derive", "wrap_help"] }
@@ -27,8 +27,8 @@ serde_yaml = "0.9"
 anyhow = "1.0"
 
 # Terminal
-colored = "2.1"
-inquire = "0.7"
+colored = "3"
+inquire = "0.9"
 
 # Regex
 regex = "1.11"
@@ -49,7 +49,7 @@ ureq = { version = "3", features = ["json"] }
 serde_json = "1.0"
 
 # Base64 encoding/decoding
-base64 = "0.22"
+base64 = "0.23"
 
 # Parallelism
 rayon = "1.10"
@@ -58,10 +58,10 @@ rayon = "1.10"
 notify-debouncer-mini = "0.7"
 
 # AI integration
-ailloy = { version = "1.0", default-features = false, features = ["config-tui"] }
+ailloy = { version = "2.0", default-features = false, features = ["config-tui"] }
 futures = "0.3"
 tokio = { version = "1", features = ["rt", "macros"] }
 
 # Document extraction (for ai create)
-pdf-extract = "0.10"
+pdf-extract = "0.12"
 zip = "8.3"

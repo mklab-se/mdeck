@@ -198,10 +198,9 @@ fn parse_gantt(content: &str) -> GanttData {
             } else if let Some(rest) = trimmed
                 .strip_prefix("# labels:")
                 .or_else(|| trimmed.strip_prefix("#labels:"))
+                && rest.trim().eq_ignore_ascii_case("inside")
             {
-                if rest.trim().eq_ignore_ascii_case("inside") {
-                    labels = LabelMode::Inside;
-                }
+                labels = LabelMode::Inside;
             }
             continue;
         }
@@ -588,8 +587,8 @@ pub fn draw_gantt_chart(
 
     // Task bars
     let total_tasks = resolved.len();
-    let row_height = (chart_height / total_tasks as f32).min(50.0 * scale);
-    let bar_height = (row_height * 0.55).min(32.0 * scale).max(12.0 * scale);
+    let row_height = (chart_height / total_tasks as f32).min(64.0 * scale);
+    let bar_height = (row_height * 0.6).min(40.0 * scale).max(12.0 * scale);
     let bar_corner = VIZ_CORNER_BAR * scale;
 
     let task_name_font = FontId::proportional(theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale);

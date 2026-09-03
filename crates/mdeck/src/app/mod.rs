@@ -280,6 +280,24 @@ impl PresentationApp {
         })
     }
 
+    /// Start decoding images on the upcoming slides so they're ready to draw
+    /// by the time the presenter reaches them.
+    fn preload_upcoming_images(&self, ctx: &egui::Context) {
+        for offset in 1..=2 {
+            let Some(slide) = self.presentation.slides.get(self.current_slide + offset) else {
+                break;
+            };
+            for block in &slide.blocks {
+                if let parser::Block::Image { path, .. } = block
+                    && !path.is_empty()
+                    && path != "image-generation"
+                {
+                    self.image_cache.preload(ctx, path);
+                }
+            }
+        }
+    }
+
     fn navigate_forward(&mut self) {
         if self.transition.is_some() {
             return;
@@ -608,7 +626,8 @@ impl PresentationApp {
 use helpers::lerp_rect;
 
 impl eframe::App for PresentationApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, root_ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = &root_ui.ctx().clone();
         // Handle pending fullscreen after monitor move (delayed one frame
         // to allow the window position to take effect first)
         if self.pending_fullscreen {
@@ -617,6 +636,7 @@ impl eframe::App for PresentationApp {
         }
 
         self.update_fps();
+        self.preload_upcoming_images(ctx);
 
         // Detect power-state time jumps and shift animation timestamps forward.
         // Threshold must exceed the platform's repaint heartbeat interval:
@@ -672,14 +692,14 @@ impl eframe::App for PresentationApp {
         }
 
         // Poll for diagram precache report
-        if let Some(ref rx) = self.precache_report_rx {
-            if let Ok(report) = rx.try_recv() {
-                if report.has_warnings() && !self.quiet && !self.precache_report_printed {
-                    report.print_brief();
-                    self.precache_report_printed = true;
-                }
-                self.precache_report_rx = None;
+        if let Some(ref rx) = self.precache_report_rx
+            && let Ok(report) = rx.try_recv()
+        {
+            if report.has_warnings() && !self.quiet && !self.precache_report_printed {
+                report.print_brief();
+                self.precache_report_printed = true;
             }
+            self.precache_report_rx = None;
         }
 
         let mode = self.mode;
@@ -698,11 +718,11 @@ impl eframe::App for PresentationApp {
 
             // Ctrl+C double-tap to quit
             if i.modifiers.ctrl && i.key_pressed(egui::Key::C) {
-                if let Some(last) = self.last_ctrl_c {
-                    if last.elapsed().as_secs_f32() < 1.0 {
-                        viewport_cmds.push(egui::ViewportCommand::Close);
-                        return;
-                    }
+                if let Some(last) = self.last_ctrl_c
+                    && last.elapsed().as_secs_f32() < 1.0
+                {
+                    viewport_cmds.push(egui::ViewportCommand::Close);
+                    return;
                 }
                 self.last_ctrl_c = Some(Instant::now());
                 self.toast = Some(Toast::new("Press Ctrl+C again to quit".to_string()));
@@ -724,11 +744,11 @@ impl eframe::App for PresentationApp {
                     }
                 }
                 // Double-tap to quit (from any mode)
-                if let Some(last) = self.last_esc {
-                    if last.elapsed().as_secs_f32() < 1.0 {
-                        viewport_cmds.push(egui::ViewportCommand::Close);
-                        return;
-                    }
+                if let Some(last) = self.last_esc
+                    && last.elapsed().as_secs_f32() < 1.0
+                {
+                    viewport_cmds.push(egui::ViewportCommand::Close);
+                    return;
                 }
                 self.last_esc = Some(Instant::now());
                 self.toast = Some(Toast::new("Press Esc again to exit".to_string()));
@@ -745,29 +765,29 @@ impl eframe::App for PresentationApp {
 
             // Move fullscreen to next monitor: M (from any mode when fullscreen)
             if i.key_pressed(egui::Key::M) {
-                if i.viewport().fullscreen.unwrap_or(false) {
-                    if let Some(monitor_size) = i.viewport().monitor_size {
-                        // Exit fullscreen, move right by monitor width, re-enter fullscreen
-                        // This lands the window on the next monitor
-                        let current_pos = i
-                            .viewport()
-                            .outer_rect
-                            .map(|r| r.left_top())
-                            .unwrap_or(egui::pos2(0.0, 0.0));
-                        let next_pos =
-                            egui::pos2(current_pos.x + monitor_size.x + 100.0, current_pos.y);
-                        viewport_cmds.push(egui::ViewportCommand::Fullscreen(false));
-                        viewport_cmds.push(egui::ViewportCommand::OuterPosition(next_pos));
-                        // Store the move request — fullscreen will be re-enabled next frame
-                        self.pending_fullscreen = true;
-                        // Remember this monitor position in config
-                        if let Ok(mut config) = crate::config::Config::load() {
-                            let defaults = config.defaults.get_or_insert_with(Default::default);
-                            defaults.monitor_position = Some([next_pos.x, next_pos.y]);
-                            let _ = config.save();
-                        }
-                        self.toast = Some(Toast::new("Moving to next monitor...".to_string()));
+                if i.viewport().fullscreen.unwrap_or(false)
+                    && let Some(monitor_size) = i.viewport().monitor_size
+                {
+                    // Exit fullscreen, move right by monitor width, re-enter fullscreen
+                    // This lands the window on the next monitor
+                    let current_pos = i
+                        .viewport()
+                        .outer_rect
+                        .map(|r| r.left_top())
+                        .unwrap_or(egui::pos2(0.0, 0.0));
+                    let next_pos =
+                        egui::pos2(current_pos.x + monitor_size.x + 100.0, current_pos.y);
+                    viewport_cmds.push(egui::ViewportCommand::Fullscreen(false));
+                    viewport_cmds.push(egui::ViewportCommand::OuterPosition(next_pos));
+                    // Store the move request — fullscreen will be re-enabled next frame
+                    self.pending_fullscreen = true;
+                    // Remember this monitor position in config
+                    if let Ok(mut config) = crate::config::Config::load() {
+                        let defaults = config.defaults.get_or_insert_with(Default::default);
+                        defaults.monitor_position = Some([next_pos.x, next_pos.y]);
+                        let _ = config.save();
                     }
+                    self.toast = Some(Toast::new("Moving to next monitor...".to_string()));
                 }
                 return;
             }
@@ -923,27 +943,26 @@ impl eframe::App for PresentationApp {
         }
 
         // Advance transition
-        if let Some(ref t) = self.transition {
-            if t.is_complete() {
-                let to = t.to;
-                self.transition = None;
-                self.current_slide = to;
-            }
+        if let Some(ref t) = self.transition
+            && t.is_complete()
+        {
+            let to = t.to;
+            self.transition = None;
+            self.current_slide = to;
         }
 
         // Complete overview transition
-        if let AppMode::OverviewTransition { selected, entering } = self.mode {
-            if let Some(start) = self.overview_transition_start {
-                if start.elapsed().as_secs_f32() >= OVERVIEW_TRANSITION_DURATION {
-                    if entering {
-                        self.mode = AppMode::Grid { selected };
-                    } else {
-                        self.current_slide = selected;
-                        self.mode = AppMode::Presentation;
-                    }
-                    self.overview_transition_start = None;
-                }
+        if let AppMode::OverviewTransition { selected, entering } = self.mode
+            && let Some(start) = self.overview_transition_start
+            && start.elapsed().as_secs_f32() >= OVERVIEW_TRANSITION_DURATION
+        {
+            if entering {
+                self.mode = AppMode::Grid { selected };
+            } else {
+                self.current_slide = selected;
+                self.mode = AppMode::Presentation;
             }
+            self.overview_transition_start = None;
         }
 
         // Expire toast
@@ -959,7 +978,7 @@ impl eframe::App for PresentationApp {
 
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(bg).inner_margin(0.0))
-            .show(ctx, |ui| {
+            .show(root_ui, |ui| {
                 let rect = ui.max_rect();
                 ui.painter().rect_filled(rect, 0.0, bg);
 
@@ -1277,7 +1296,7 @@ mod tests {
 
     #[test]
     fn find_matching_slide_exact_match() {
-        let _slides = vec![slide("a"), slide("b"), slide("c")];
+        let _slides = [slide("a"), slide("b"), slide("c")];
         // Was at index 1 ("b"), new slides inserted "x" before it
         let new_slides = vec![slide("x"), slide("a"), slide("b"), slide("c")];
         assert_eq!(find_matching_slide(Some("b"), 1, &new_slides), 2);

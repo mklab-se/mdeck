@@ -1,6 +1,6 @@
 use crate::parser::{Block, ImageDirectives, Inline, ListItem, ListMarker};
 use crate::render::diagram::draw_diagram_sized;
-use crate::render::image_cache::ImageCache;
+use crate::render::image_cache::{ImageCache, ImageState};
 use crate::theme::Theme;
 use eframe::egui::{self, Color32, FontFamily, FontId, Pos2, Stroke};
 
@@ -49,8 +49,12 @@ fn append_inlines(
                 // Apply strikethrough to all sections
                 for section in &inner_job.sections {
                     let mut format = section.format.clone();
-                    format.strikethrough = Stroke::new(1.0, color);
-                    job.append(&inner_job.text[section.byte_range.clone()], 0.0, format);
+                    format.strikethrough = Stroke::new((font_size * 0.06).max(1.0), color);
+                    job.append(
+                        &inner_job.text[section.byte_range.start.0..section.byte_range.end.0],
+                        0.0,
+                        format,
+                    );
                 }
             }
             Inline::Code(s) => {
@@ -355,7 +359,7 @@ pub fn draw_table(
             Pos2::new(pos.x + cell_padding, line_y),
             Pos2::new(pos.x + max_width - cell_padding, line_y),
         ],
-        Stroke::new(1.0, accent),
+        Stroke::new(1.0 * scale, accent),
     );
     y += row_spacing;
 
@@ -821,7 +825,7 @@ pub fn draw_block(
             let y = pos.y + 10.0 * scale;
             ui.painter().line_segment(
                 [Pos2::new(pos.x, y), Pos2::new(pos.x + max_width, y)],
-                Stroke::new(1.0, color),
+                Stroke::new(1.0 * scale, color),
             );
             20.0 * scale
         }
@@ -843,18 +847,23 @@ pub fn draw_image(
     image_cache: &ImageCache,
     scale: f32,
 ) -> f32 {
-    if let Some(texture) = image_cache.get_or_load(ui, path) {
-        let tex_size = texture.size_vec2();
-        let max_height = 400.0 * scale;
-        let available = egui::Rect::from_min_size(pos, egui::vec2(max_width, max_height));
-        let draw_rect = compute_image_rect(directives, tex_size, available);
-        let alpha = (opacity * 255.0) as u8;
-        let tint = Color32::from_rgba_unmultiplied(255, 255, 255, alpha);
-        let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
-        ui.painter().image(texture.id(), draw_rect, uv, tint);
-        draw_rect.height()
-    } else {
-        draw_image_placeholder(ui, alt, directives, theme, pos, max_width, opacity, scale)
+    match image_cache.state(ui.ctx(), path) {
+        ImageState::Ready(texture) => {
+            let tex_size = texture.size_vec2();
+            let max_height = 400.0 * scale;
+            let available = egui::Rect::from_min_size(pos, egui::vec2(max_width, max_height));
+            let draw_rect = compute_image_rect(directives, tex_size, available);
+            let alpha = (opacity * 255.0) as u8;
+            let tint = Color32::from_rgba_unmultiplied(255, 255, 255, alpha);
+            let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+            ui.painter().image(texture.id(), draw_rect, uv, tint);
+            draw_rect.height()
+        }
+        // Reserve the space quietly; the decode thread repaints when done.
+        ImageState::Loading => 200.0 * scale,
+        ImageState::Missing => {
+            draw_image_placeholder(ui, alt, directives, theme, pos, max_width, opacity, scale)
+        }
     }
 }
 
@@ -871,26 +880,30 @@ pub fn draw_image_in_area(
     opacity: f32,
     image_cache: &ImageCache,
 ) -> egui::Rect {
-    if let Some(texture) = image_cache.get_or_load(ui, path) {
-        let tex_size = texture.size_vec2();
-        let draw_rect = compute_image_rect(directives, tex_size, available);
-        let alpha = (opacity * 255.0) as u8;
-        let tint = Color32::from_rgba_unmultiplied(255, 255, 255, alpha);
-        let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
-        ui.painter().image(texture.id(), draw_rect, uv, tint);
-        draw_rect
-    } else {
-        let height = draw_image_placeholder(
-            ui,
-            alt,
-            directives,
-            theme,
-            available.left_top(),
-            available.width(),
-            opacity,
-            1.0,
-        );
-        egui::Rect::from_min_size(available.left_top(), egui::vec2(available.width(), height))
+    match image_cache.state(ui.ctx(), path) {
+        ImageState::Ready(texture) => {
+            let tex_size = texture.size_vec2();
+            let draw_rect = compute_image_rect(directives, tex_size, available);
+            let alpha = (opacity * 255.0) as u8;
+            let tint = Color32::from_rgba_unmultiplied(255, 255, 255, alpha);
+            let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+            ui.painter().image(texture.id(), draw_rect, uv, tint);
+            draw_rect
+        }
+        ImageState::Loading => available,
+        ImageState::Missing => {
+            let height = draw_image_placeholder(
+                ui,
+                alt,
+                directives,
+                theme,
+                available.left_top(),
+                available.width(),
+                opacity,
+                1.0,
+            );
+            egui::Rect::from_min_size(available.left_top(), egui::vec2(available.width(), height))
+        }
     }
 }
 
@@ -947,15 +960,15 @@ fn compute_image_rect(
 }
 
 fn parse_size(s: &str, reference: f32) -> f32 {
-    if let Some(pct) = s.strip_suffix('%') {
-        if let Ok(v) = pct.trim().parse::<f32>() {
-            return reference * v / 100.0;
-        }
+    if let Some(pct) = s.strip_suffix('%')
+        && let Ok(v) = pct.trim().parse::<f32>()
+    {
+        return reference * v / 100.0;
     }
-    if let Some(px) = s.strip_suffix("px") {
-        if let Ok(v) = px.trim().parse::<f32>() {
-            return v;
-        }
+    if let Some(px) = s.strip_suffix("px")
+        && let Ok(v) = px.trim().parse::<f32>()
+    {
+        return v;
     }
     s.parse::<f32>().unwrap_or(reference * 0.8)
 }
@@ -980,7 +993,7 @@ pub fn draw_image_placeholder(
     ui.painter().rect_stroke(
         rect,
         8.0 * scale,
-        Stroke::new(1.0, color),
+        Stroke::new(1.0 * scale, color),
         egui::StrokeKind::Outside,
     );
 

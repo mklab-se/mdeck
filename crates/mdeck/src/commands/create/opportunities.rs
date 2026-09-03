@@ -63,12 +63,12 @@ pub fn extract_opportunities(outline: &str) -> Vec<VisualizationOpportunity> {
             }
             '}' => {
                 obj_depth -= 1;
-                if obj_depth == 0 {
-                    if let Some(start) = obj_start {
-                        let obj = &arr_str[start..i + c.len_utf8()];
-                        if let Some(opp) = parse_opportunity(obj) {
-                            opportunities.push(opp);
-                        }
+                if obj_depth == 0
+                    && let Some(start) = obj_start
+                {
+                    let obj = &arr_str[start..i + c.len_utf8()];
+                    if let Some(opp) = parse_opportunity(obj) {
+                        opportunities.push(opp);
                     }
                 }
             }

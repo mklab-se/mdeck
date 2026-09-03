@@ -41,7 +41,11 @@ pub async fn run(args: CreateArgs, quiet: bool) -> Result<()> {
     }
 
     // Step 1: Resolve input content
-    let (source_label, content) = resolve_input(&args, quiet)?;
+    let Some((source_label, content)) = resolve_input(&args, quiet)? else {
+        // No input provided at all — show the subcommand help and exit
+        print_create_help()?;
+        return Ok(());
+    };
     let word_count = content.split_whitespace().count();
 
     if content.trim().is_empty() {
@@ -224,29 +228,64 @@ pub async fn run(args: CreateArgs, quiet: bool) -> Result<()> {
 
 // ── Input resolution ────────────────────────────────────────────────────────
 
+/// Print the help text of `mdeck ai create`.
+fn print_create_help() -> Result<()> {
+    use clap::CommandFactory;
+    let mut cmd = crate::cli::Cli::command();
+    for sub in cmd.get_subcommands_mut() {
+        if sub.get_name() == "ai" {
+            for sub2 in sub.get_subcommands_mut() {
+                if sub2.get_name() == "create" {
+                    sub2.clone().name("mdeck ai create").print_help()?;
+                    println!();
+                    return Ok(());
+                }
+            }
+        }
+    }
+    anyhow::bail!("No input provided. Run `mdeck ai create --help` for usage.");
+}
+
 /// Resolve the input source and extract text content.
-/// Returns (source_label, extracted_text).
-fn resolve_input(args: &CreateArgs, quiet: bool) -> Result<(String, String)> {
+/// Returns `Some((source_label, extracted_text))`, or `None` when no input
+/// was given at all (the caller shows help in that case).
+fn resolve_input(args: &CreateArgs, quiet: bool) -> Result<Option<(String, String)>> {
+    let stdin = io::stdin();
+    let piped: Option<Box<dyn Read>> = if stdin.is_terminal() {
+        None
+    } else {
+        Some(Box::new(stdin.lock()))
+    };
+    resolve_input_with(args, quiet, piped)
+}
+
+/// Like [`resolve_input`], but with the piped stdin (if any) passed in so the
+/// logic can be tested without touching the process's real stdin.
+fn resolve_input_with(
+    args: &CreateArgs,
+    quiet: bool,
+    piped_stdin: Option<Box<dyn Read>>,
+) -> Result<Option<(String, String)>> {
     if let Some(ref input) = args.input {
         let path = Path::new(input);
         if path.exists() && path.is_file() {
             let label = format!("{}", path.display());
             let content = extract_from_file(path)?;
-            return Ok((label, content));
+            return Ok(Some((label, content)));
         }
-        return Ok(("(text input)".to_string(), input.clone()));
+        return Ok(Some(("(text input)".to_string(), input.clone())));
     }
 
     // Try stdin if it's piped
-    if !io::stdin().is_terminal() {
+    if let Some(mut stdin) = piped_stdin {
         let mut content = String::new();
-        io::stdin()
+        stdin
             .read_to_string(&mut content)
             .context("Failed to read from stdin")?;
         if content.trim().is_empty() {
             anyhow::bail!("No content received from stdin.");
         }
-        return Ok(("(stdin)".to_string(), content));
+        return Ok(Some(("(stdin)".to_string(), content)));
     }
 
     // Interactive mode — ask for input
@@ -271,26 +310,13 @@ fn resolve_input(args: &CreateArgs, quiet: bool) -> Result<(String, String)> {
         if path.exists() && path.is_file() {
             let label = format!("{}", path.display());
             let content = extract_from_file(path)?;
-            return Ok((label, content));
+            return Ok(Some((label, content)));
         }
-        return Ok(("(text input)".to_string(), input));
+        return Ok(Some(("(text input)".to_string(), input)));
     }
 
-    // No input provided — show help
-    use clap::CommandFactory;
-    let mut cmd = crate::cli::Cli::command();
-    for sub in cmd.get_subcommands_mut() {
-        if sub.get_name() == "ai" {
-            for sub2 in sub.get_subcommands_mut() {
-                if sub2.get_name() == "create" {
-                    sub2.clone().name("mdeck ai create").print_help()?;
-                    println!();
-                    std::process::exit(0);
-                }
-            }
-        }
-    }
-    anyhow::bail!("No input provided. Run `mdeck ai create --help` for usage.");
+    // No input provided at all
+    Ok(None)
 }
 
 // ── Spinner ─────────────────────────────────────────────────────────────────
@@ -484,22 +510,22 @@ async fn run_generation(
 /// Strip markdown code fences if the AI wrapped the response.
 fn strip_markdown_fences(text: &str) -> String {
     let trimmed = text.trim();
-    if let Some(rest) = trimmed.strip_prefix("```markdown") {
-        if let Some(content) = rest.strip_suffix("```") {
-            return content.trim().to_string();
-        }
+    if let Some(rest) = trimmed.strip_prefix("```markdown")
+        && let Some(content) = rest.strip_suffix("```")
+    {
+        return content.trim().to_string();
     }
-    if let Some(rest) = trimmed.strip_prefix("```md") {
-        if let Some(content) = rest.strip_suffix("```") {
-            return content.trim().to_string();
-        }
+    if let Some(rest) = trimmed.strip_prefix("```md")
+        && let Some(content) = rest.strip_suffix("```")
+    {
+        return content.trim().to_string();
     }
-    if let Some(rest) = trimmed.strip_prefix("```") {
-        if let Some(content) = rest.strip_suffix("```") {
-            let first_line = content.lines().next().unwrap_or("");
-            if first_line.trim().is_empty() || first_line.trim() == "---" {
-                return content.trim().to_string();
-            }
+    if let Some(rest) = trimmed.strip_prefix("```")
+        && let Some(content) = rest.strip_suffix("```")
+    {
+        let first_line = content.lines().next().unwrap_or("");
+        if first_line.trim().is_empty() || first_line.trim() == "---" {
+            return content.trim().to_string();
         }
     }
     trimmed.to_string()
@@ -700,7 +726,7 @@ mod tests {
             interactive: false,
             style: None,
         };
-        let (label, content) = resolve_input(&args, true).unwrap();
+        let (label, content) = resolve_input_with(&args, true, None).unwrap().unwrap();
         assert_eq!(label, "(text input)");
         assert_eq!(content, "A presentation about Rust programming");
     }
@@ -716,9 +742,29 @@ mod tests {
             interactive: false,
             style: None,
         };
-        let (label, content) = resolve_input(&args, true).unwrap();
+        let (label, content) = resolve_input_with(&args, true, None).unwrap().unwrap();
         assert!(label.contains("Cargo.toml"));
         assert!(content.contains("mdeck"));
+    }
+
+    #[test]
+    fn test_resolve_input_reads_piped_stdin() {
+        let args = CreateArgs {
+            input: None,
+            output: PathBuf::from("out.md"),
+            prompt: None,
+            interactive: false,
+            style: None,
+        };
+        let piped: Box<dyn Read> = Box::new(std::io::Cursor::new("piped notes"));
+        let (label, content) = resolve_input_with(&args, true, Some(piped))
+            .unwrap()
+            .unwrap();
+        assert_eq!(label, "(stdin)");
+        assert_eq!(content, "piped notes");
+
+        let empty: Box<dyn Read> = Box::new(std::io::Cursor::new("  \n"));
+        assert!(resolve_input_with(&args, true, Some(empty)).is_err());
     }
 
     #[test]
@@ -730,8 +776,11 @@ mod tests {
             interactive: false,
             style: None,
         };
-        let result = resolve_input(&args, true);
-        assert!(result.is_err());
+        let result = resolve_input_with(&args, true, None).unwrap();
+        assert!(
+            result.is_none(),
+            "no input and no stdin should ask for help"
+        );
     }
 
     #[test]
@@ -743,7 +792,7 @@ mod tests {
             interactive: true,
             style: None,
         };
-        let (label, content) = resolve_input(&args, true).unwrap();
+        let (label, content) = resolve_input_with(&args, true, None).unwrap().unwrap();
         assert_eq!(label, "(text input)");
         assert_eq!(content, "A talk about functional programming");
     }

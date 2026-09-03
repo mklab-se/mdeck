@@ -93,12 +93,12 @@ pub fn parse(content: &str) -> Vec<Block> {
         }
 
         // Image: ![alt](path)
-        if trimmed.starts_with("![") {
-            if let Some(img) = parse_image(trimmed) {
-                blocks.push(img);
-                i += 1;
-                continue;
-            }
+        if trimmed.starts_with("![")
+            && let Some(img) = parse_image(trimmed)
+        {
+            blocks.push(img);
+            i += 1;
+            continue;
         }
 
         // Blockquote: > ...

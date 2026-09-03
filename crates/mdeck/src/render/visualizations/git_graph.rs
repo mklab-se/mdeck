@@ -197,10 +197,10 @@ pub fn draw_gitgraph(
     // ── 1. Collect lanes (declared order = vertical position) ───────────
     let mut lane_order: Vec<String> = Vec::new();
     for item in &items {
-        if let GitGraphItem::Lane { name } = item {
-            if !lane_order.contains(name) {
-                lane_order.push(name.clone());
-            }
+        if let GitGraphItem::Lane { name } = item
+            && !lane_order.contains(name)
+        {
+            lane_order.push(name.clone());
         }
     }
     // Also add any branch referenced in events but not declared as a lane

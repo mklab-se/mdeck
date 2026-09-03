@@ -77,10 +77,10 @@ fn parse_size_meta(meta: &str) -> Option<f32> {
     let inner = meta.trim_start_matches('(').trim_end_matches(')');
     for part in inner.split(',') {
         let part = part.trim();
-        if let Some(val) = part.strip_prefix("size:") {
-            if let Ok(s) = val.trim().parse::<f32>() {
-                return Some(s);
-            }
+        if let Some(val) = part.strip_prefix("size:")
+            && let Ok(s) = val.trim().parse::<f32>()
+        {
+            return Some(s);
         }
     }
     None
@@ -354,7 +354,52 @@ fn compute_layout(
         // Words that can't fit are simply not placed (font_size stays 0)
     }
 
+    fit_layout_to_area(&mut result, area_width, area_height);
     result
+}
+
+/// Scale a finished layout about the area center so the cloud fills the
+/// available space. Text metrics are linear in font size, so scaling
+/// positions, sizes and fonts by the same factor keeps words from overlapping.
+fn fit_layout_to_area(layouts: &mut [WordLayout], area_width: f32, area_height: f32) {
+    let placed: Vec<&WordLayout> = layouts.iter().filter(|l| l.font_size > 0.0).collect();
+    if placed.is_empty() {
+        return;
+    }
+    let min_x = placed.iter().map(|l| l.x).fold(f32::MAX, f32::min);
+    let min_y = placed.iter().map(|l| l.y).fold(f32::MAX, f32::min);
+    let max_x = placed
+        .iter()
+        .map(|l| l.x + l.width)
+        .fold(f32::MIN, f32::max);
+    let max_y = placed
+        .iter()
+        .map(|l| l.y + l.height)
+        .fold(f32::MIN, f32::max);
+    let bbox_w = (max_x - min_x).max(1.0);
+    let bbox_h = (max_y - min_y).max(1.0);
+
+    // Leave a margin so the cloud doesn't touch the edges of its area.
+    let target_w = area_width * 0.94;
+    let target_h = area_height * 0.94;
+    let factor = (target_w / bbox_w).min(target_h / bbox_h).clamp(1.0, 2.5);
+    if factor <= 1.0 {
+        return;
+    }
+
+    let bbox_cx = (min_x + max_x) / 2.0;
+    let bbox_cy = (min_y + max_y) / 2.0;
+    let area_cx = area_width / 2.0;
+    let area_cy = area_height / 2.0;
+    for l in layouts.iter_mut().filter(|l| l.font_size > 0.0) {
+        let cx = l.x + l.width / 2.0;
+        let cy = l.y + l.height / 2.0;
+        l.width *= factor;
+        l.height *= factor;
+        l.font_size *= factor;
+        l.x = area_cx + (cx - bbox_cx) * factor - l.width / 2.0;
+        l.y = area_cy + (cy - bbox_cy) * factor - l.height / 2.0;
+    }
 }
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
@@ -444,6 +489,44 @@ pub fn draw_word_cloud(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn layout(x: f32, y: f32, w: f32, h: f32, fs: f32) -> WordLayout {
+        WordLayout {
+            x,
+            y,
+            width: w,
+            height: h,
+            font_size: fs,
+            rotated: false,
+        }
+    }
+
+    #[test]
+    fn test_fit_layout_scales_small_cloud_to_fill_area() {
+        // Two words clustered in the middle of a 1000x500 area
+        let mut layouts = vec![
+            layout(450.0, 240.0, 100.0, 20.0, 20.0),
+            layout(460.0, 260.0, 60.0, 10.0, 10.0),
+            layout(0.0, 0.0, 0.0, 0.0, 0.0), // unplaced word stays untouched
+        ];
+        fit_layout_to_area(&mut layouts, 1000.0, 500.0);
+        // bbox was 100x30 → limited by the 2.5x cap
+        assert!((layouts[0].font_size - 50.0).abs() < 1e-3);
+        assert!((layouts[0].width - 250.0).abs() < 1e-3);
+        assert_eq!(layouts[2].font_size, 0.0);
+        // Cloud stays inside the area and centered
+        let cx = layouts[0].x + layouts[0].width / 2.0;
+        assert!(cx > 400.0 && cx < 600.0);
+        assert!(layouts[0].x >= 0.0 && layouts[1].y >= 0.0);
+    }
+
+    #[test]
+    fn test_fit_layout_never_shrinks() {
+        let mut layouts = vec![layout(10.0, 10.0, 980.0, 480.0, 40.0)];
+        fit_layout_to_area(&mut layouts, 1000.0, 500.0);
+        assert_eq!(layouts[0].font_size, 40.0);
+        assert_eq!(layouts[0].x, 10.0);
+    }
 
     #[test]
     fn test_parse_word_cloud_basic() {

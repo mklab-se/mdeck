@@ -7,7 +7,7 @@ use crate::theme::Theme;
 use super::{
     VIZ_CORNER_SWATCH, VIZ_FONT_LEGEND, VIZ_OPACITY_BORDER_RING, VIZ_OPACITY_FILL,
     VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR, VIZ_SWATCH_SIZE, VizReveal, assign_steps,
-    parse_reveal_prefix, reveal_anim_progress,
+    parse_reveal_prefix, reveal_anim_progress, sector_mesh,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -92,7 +92,6 @@ pub fn draw_pie_chart(
     let pie_cy = pos.y + height / 2.0;
 
     // Draw pie slices
-    let segment_count = 360; // segments per full circle for smooth arcs
     let mut angle_offset = -std::f32::consts::FRAC_PI_2; // start at top
     let mut needs_repaint = false;
 
@@ -113,29 +112,15 @@ pub fn draw_pie_chart(
         let sweep = full_sweep * anim;
         let color = Theme::with_opacity(palette[i % palette.len()], opacity * VIZ_OPACITY_FILL);
 
-        // Draw filled arc as triangle fan with enough segments for smooth curves
-        let segments = ((segment_count as f32 * (entry.value / total) * anim) as usize).max(4);
-        let angle_step = sweep / segments as f32;
-
-        for s in 0..segments {
-            let a1 = angle_offset + s as f32 * angle_step;
-            let a2 = angle_offset + (s + 1) as f32 * angle_step;
-            let p1 = Pos2::new(
-                pie_cx + pie_radius * a1.cos(),
-                pie_cy + pie_radius * a1.sin(),
-            );
-            let p2 = Pos2::new(
-                pie_cx + pie_radius * a2.cos(),
-                pie_cy + pie_radius * a2.sin(),
-            );
-            let center = Pos2::new(pie_cx, pie_cy);
-
-            painter.add(egui::Shape::convex_polygon(
-                vec![center, p1, p2],
-                color,
-                Stroke::NONE,
-            ));
-        }
+        // Single mesh per slice: no anti-aliasing seams between segments
+        painter.add(sector_mesh(
+            Pos2::new(pie_cx, pie_cy),
+            0.0,
+            pie_radius,
+            angle_offset,
+            sweep,
+            color,
+        ));
 
         // Separator line between slices
         let end_angle = angle_offset + sweep;

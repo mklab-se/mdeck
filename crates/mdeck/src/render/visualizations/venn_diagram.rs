@@ -95,6 +95,34 @@ fn parse_venn_diagram(content: &str) -> (Vec<VennCircle>, Vec<VennIntersection>)
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
+/// Position for an intersection label: the mean of the member centers. When
+/// only some circles are involved, the point is pushed away from the overall
+/// diagram center so pairwise labels land in their lens rather than piling up
+/// near the middle where all lenses meet.
+fn intersection_label_pos(
+    centers: &[Pos2],
+    radii: &[f32],
+    members: &[usize],
+    cx: f32,
+    cy: f32,
+) -> (f32, f32) {
+    let n = members.len() as f32;
+    let mx = members.iter().map(|&i| centers[i].x).sum::<f32>() / n;
+    let my = members.iter().map(|&i| centers[i].y).sum::<f32>() / n;
+    if members.len() >= centers.len() || centers.len() < 3 {
+        return (mx, my);
+    }
+    let r = members.iter().map(|&i| radii[i]).fold(f32::MAX, f32::min);
+    let dx = mx - cx;
+    let dy = my - cy;
+    let len = (dx * dx + dy * dy).sqrt();
+    if len < 1e-3 {
+        return (mx, my);
+    }
+    let push = r * 0.5;
+    (mx + dx / len * push, my + dy / len * push)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn draw_venn_diagram(
     ui: &egui::Ui,
@@ -137,7 +165,10 @@ pub fn draw_venn_diagram(
     let max_radius = (max_width.min(height) / 2.0 - 60.0 * scale).max(40.0 * scale);
     let radii: Vec<f32> = circles
         .iter()
-        .map(|c| (c.size / max_size).sqrt() * max_radius * 0.7)
+        .map(|c| {
+            let ratio = if circles.len() >= 3 { 0.62 } else { 0.7 };
+            (c.size / max_size).sqrt() * max_radius * ratio
+        })
         .collect();
 
     // Compute circle centers based on count
@@ -152,8 +183,9 @@ pub fn draw_venn_diagram(
             ]
         }
         _ => {
-            // Triangular arrangement for 3+ circles
-            let base_dist = max_radius * 0.7;
+            // Triangular arrangement for 3+ circles. Centers sit close enough
+            // that every pair overlaps substantially (classic Venn layout).
+            let base_dist = radii.iter().cloned().fold(0.0f32, f32::max) * 0.62;
             let mut positions = Vec::new();
             let n = circles.len();
             for i in 0..n {
@@ -219,30 +251,27 @@ pub fn draw_venn_diagram(
             needs_repaint = true;
         }
 
-        // Find the center point of the intersection (average of matching circle centers)
-        let mut inter_x = 0.0;
-        let mut inter_y = 0.0;
-        let mut count = 0;
-        for set_name in &inter.sets {
-            for (i, circle) in circles.iter().enumerate() {
-                if &circle.label == set_name {
-                    inter_x += centers[i].x;
-                    inter_y += centers[i].y;
-                    count += 1;
-                }
-            }
+        let members: Vec<usize> = inter
+            .sets
+            .iter()
+            .filter_map(|name| circles.iter().position(|c| &c.label == name))
+            .collect();
+        if members.is_empty() {
+            continue;
         }
-        if count > 0 {
-            inter_x /= count as f32;
-            inter_y /= count as f32;
+        let (inter_x, inter_y) = intersection_label_pos(&centers, &radii, &members, cx, cy);
+        let wrap_width = members.iter().map(|&i| radii[i]).fold(f32::MAX, f32::min) * 1.3;
 
-            let label_color = Theme::with_opacity(theme.foreground, opacity * anim);
-            let galley =
-                painter.layout_no_wrap(inter.label.clone(), inter_font.clone(), label_color);
-            let lx = inter_x - galley.rect.width() / 2.0;
-            let ly = inter_y - galley.rect.height() / 2.0;
-            painter.galley(Pos2::new(lx, ly), galley, label_color);
-        }
+        let label_color = Theme::with_opacity(theme.foreground, opacity * anim);
+        let galley = painter.layout(
+            inter.label.clone(),
+            inter_font.clone(),
+            label_color,
+            wrap_width.max(80.0 * scale),
+        );
+        let lx = inter_x - galley.rect.width() / 2.0;
+        let ly = inter_y - galley.rect.height() / 2.0;
+        painter.galley(Pos2::new(lx, ly), galley, label_color);
     }
 
     if needs_repaint {
@@ -257,6 +286,26 @@ pub fn draw_venn_diagram(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_intersection_label_pairwise_pushed_outward() {
+        // Three circles in a triangle around (0, 0)
+        let centers = vec![
+            Pos2::new(0.0, -100.0),
+            Pos2::new(87.0, 50.0),
+            Pos2::new(-87.0, 50.0),
+        ];
+        let radii = vec![100.0, 100.0, 100.0];
+        // Pair (0, 2) lies up-left of the center; the label must move further that way
+        let (x, y) = intersection_label_pos(&centers, &radii, &[0, 2], 0.0, 0.0);
+        assert!(x < -43.5 && y < -25.0);
+        // All three sets → exactly the centroid, no push
+        let (x, y) = intersection_label_pos(&centers, &radii, &[0, 1, 2], 0.0, 0.0);
+        assert!(x.abs() < 1e-3 && y.abs() < 1e-3);
+        // Two-set diagrams keep the plain midpoint
+        let (x, y) = intersection_label_pos(&centers[..2], &radii[..2], &[0, 1], 43.5, -25.0);
+        assert!((x - 43.5).abs() < 1e-3 && (y + 25.0).abs() < 1e-3);
+    }
 
     #[test]
     fn test_parse_venn_two_circles() {

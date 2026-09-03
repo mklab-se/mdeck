@@ -454,16 +454,14 @@ impl PresentationApp {
 
         // --- Mouse click detection ---
         let clicked = ctx.input(|i| i.pointer.button_pressed(egui::PointerButton::Primary));
-        if clicked {
-            if let Some(hi) = self.hover_slide {
-                // Click on a grid cell → zoom into that slide
-                self.mode = super::AppMode::OverviewTransition {
-                    selected: hi,
-                    entering: false,
-                };
-                self.overview_transition_start = Some(Instant::now());
-                return;
-            }
+        if clicked && let Some(hi) = self.hover_slide {
+            // Click on a grid cell → zoom into that slide
+            self.mode = super::AppMode::OverviewTransition {
+                selected: hi,
+                entering: false,
+            };
+            self.overview_transition_start = Some(Instant::now());
+            return;
         }
 
         // --- Ensure selected cell is visible when using keyboard ---

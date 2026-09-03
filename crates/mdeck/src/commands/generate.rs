@@ -385,14 +385,15 @@ fn scan_markers(
         }
 
         // Check for icon markers inside diagrams
-        if in_diagram && trimmed.contains("icon: generate-image") {
-            if let Some(prompt_text) = extract_icon_prompt(trimmed) {
-                icon_markers.push(IconMarker {
-                    line_index: line_idx,
-                    prompt_text,
-                    slide_number: current_slide,
-                });
-            }
+        if in_diagram
+            && trimmed.contains("icon: generate-image")
+            && let Some(prompt_text) = extract_icon_prompt(trimmed)
+        {
+            icon_markers.push(IconMarker {
+                line_index: line_idx,
+                prompt_text,
+                slide_number: current_slide,
+            });
         }
     }
 
@@ -433,10 +434,9 @@ fn extract_icon_prompt(line: &str) -> Option<String> {
 
     let (quote, rest) = if let Some(stripped) = after.strip_prefix('"') {
         ('"', stripped)
-    } else if let Some(stripped) = after.strip_prefix('\'') {
-        ('\'', stripped)
     } else {
-        return None;
+        let stripped = after.strip_prefix('\'')?;
+        ('\'', stripped)
     };
 
     let end = rest.find(quote)?;
@@ -519,10 +519,10 @@ fn resolve_style<'a>(
         return s.to_string();
     }
     // defaults.image_style config
-    if let Some(name) = config_default_name {
-        if let Some(desc) = lookup(name) {
-            return desc.to_string();
-        }
+    if let Some(name) = config_default_name
+        && let Some(desc) = lookup(name)
+    {
+        return desc.to_string();
     }
     hardcoded.to_string()
 }
