@@ -345,13 +345,13 @@ fn main() {
 - Home to 54 countries — more than any other continent
 - Africa has more languages than any other continent (~2,000)
 
-![African savanna at golden hour](images/golden-savanna-acacias.png)
+![African savanna at golden hour](../media/gallery/africa.png)
 
 ---
 
 ## Image Slide
 
-![A vast Antarctic ice shelf meeting deep blue ocean](images/antarctic-aurora-icebergs.png)
+![A vast Antarctic ice shelf meeting deep blue ocean](../media/gallery/antarctica.png)
 
 ---
 

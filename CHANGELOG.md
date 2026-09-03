@@ -2,12 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.18.0] - 2026-09-03
 
 ### Added
 
+- **Clicker-friendly keys** — PageDown and Enter advance, PageUp and Backspace go back, so presentation remotes work out of the box. `B` is an alias for `.` (blackout). Keys pressed during a transition are queued instead of dropped.
+- **Shared shortcut table** — the HUD and `mdeck spec --short` are generated from one table in `app/keys.rs`; the quick reference no longer lists a stale `D` theme key and now includes Home/End, PageUp/PageDown, blackout, and the debug overlay.
+- **`mdeck <file> --check -v`** prints one line per slide (layout, block count, reveal steps, title).
+- **Config defaults are honoured** — `mdeck config set defaults.theme|transition` now applies when the frontmatter does not set them (frontmatter > config > built-in). `mdeck config show` prints every key, including image and icon styles and the remembered monitor position.
 - **Git graph in the gallery** — `samples/gallery.md` and `GALLERY.md` now include the `@gitgraph` visualization.
 - **`BACKLOG.md`** — a roadmap of larger ideas and open decisions collected during a full review of the product.
+- **Edge-case sample slides** in `samples/layouts/` and `samples/visualizations/` (wrapped titles, long quotes, overflowing lists, wide tables, long labels, star-shaped radar, thousands separators, legend overflow) for visual regression checks.
 
 ### Changed
 
@@ -15,7 +20,7 @@ All notable changes to this project will be documented in this file.
 - **Images load in the background** — decoding happens on a worker thread, and the next two slides' images are preloaded, so large photos no longer stall a transition.
 - **Pie and donut charts** are drawn as single meshes instead of hundreds of thin polygons, removing the visible striping inside slices.
 - **Charts pick round axis limits** — bar, line and stacked-bar axes now end on a round number above the data (the tallest bar no longer touches the top of the chart), and axis labels never print `-0`.
-- **Word clouds fill the slide** — the layout is scaled up to use the available area instead of floating small in the centre.
+- **Word clouds fill the slide** — the layout is scaled up to use the available area instead of floating small in the centre, and no word is drawn below the readable floor (half the body size); words that cannot fit are dropped rather than shrunk to illegibility.
 - **KPI cards** are sized to their content with centred text; **Gantt** rows get more room when there are few tasks; **bar charts** use gaps proportional to bar width.
 - **Venn diagrams** with three sets overlap properly and place pairwise labels inside their lens instead of on top of each other; labels wrap.
 - **Charts accept decorated numbers** — `$4,200`, `12%`, `1_000`, `40 users` all parse; `inf`/`nan` are rejected instead of hanging the renderer. Comma-separated series such as `1,000, 2,000` are read correctly.
@@ -35,6 +40,17 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **`Q` no longer quits on a single stray keypress** — it needs a double tap within a second, like Esc and Ctrl+C.
+- **Hot reload survives atomic saves** (vim, emacs, JetBrains) on Linux by watching the directory instead of the file's inode; reloading keeps the current slide's reveal state and can no longer panic mid overview animation.
+- **Overflowed slides no longer jump to the top before a transition**; the scroll position is reset when the transition completes. Revealing an item below the fold scrolls it into view.
+- **Grid overview animation** honours the grid's scroll offset for slides in lower rows.
+- **Mouse release outside the window** no longer fires a stray "next slide" or commits a half-drawn stroke.
+- **Spurious "time_jump" incidents** after Cmd-Tab or display sleep are gone; a jump is only recorded when an animation was actually in flight.
+- **`M` gives feedback** with a toast when the window is not fullscreen instead of silently doing nothing.
+- **FPS overlay** is only shown together with the HUD, never to the audience.
+- **Export** pads file names to the deck size (three digits from 100 slides) and exits non-zero when a PNG cannot be written.
+- **`mdeck ai create -i` and `ai style add -i`** end cleanly on EOF (Ctrl-D or piped input) instead of looping forever; long prompts with non-ASCII text (Swedish, em dashes, emoji) no longer panic; temp files use the platform temp directory (fixes Windows); an explicit `--output` path is respected instead of being replaced by an AI-suggested name; `--style` no longer applies an image style name to icons.
+- **Removed a dead retry loop** that printed five bogus "Restarting presentation" messages after a display error.
 - **Parser hangs and panics** — a line such as `#hashtag` or `#include <stdio.h>`, or a malformed image like `![alt] text`, made the parser loop forever; a line consisting of a single emoji or accented character panicked; a highlight range such as `{1-99999999999}` allocated unbounded memory. All fixed with regression tests.
 - **CRLF files** (Windows line endings) corrupted the frontmatter and leaked the closing `---` into the first slide.
 - **Separators inside code blocks** — a `---` line or three blank lines inside a fenced code block no longer splits the slide (`samples/introducing-mdeck.md` renders its "How Slides Work" example on one slide again).

@@ -25,6 +25,10 @@ fn layout_cache() -> std::sync::MutexGuard<'static, std::collections::HashMap<u6
     LAYOUT_CACHE.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+/// Smallest font (reference pixels) a word may be drawn at: half the body
+/// size, the readability floor used by every visualization.
+const WORD_CLOUD_MIN_FONT: f32 = 22.0;
+
 pub fn clear_cache() {
     layout_cache().clear();
 }
@@ -165,7 +169,8 @@ fn compute_font_sizes(
     // Max font sized so the biggest word is prominent but not overwhelming.
     // At 1920x1080 with ~75 words: roughly 8-10% of area height.
     let max_font = (area_height * 0.28 * count_factor).min(area_width * 0.14 * count_factor);
-    let min_font = max_font * 0.14; // smallest word is ~14% of largest
+    // Smallest word is ~14% of the largest, but never below the readable floor
+    let min_font = (max_font * 0.14).max(WORD_CLOUD_MIN_FONT * scale);
 
     entries
         .iter()
@@ -268,8 +273,8 @@ fn try_place_word(
         // Try progressively smaller sizes
         for shrink in 0..6 {
             let try_fs = base_fs * (1.0 - shrink as f32 * 0.10);
-            if try_fs < 2.0 * ctx.scale {
-                break; // don't go below minimum legible size
+            if try_fs < (WORD_CLOUD_MIN_FONT * ctx.scale).min(base_fs) {
+                break; // don't go below the readable floor; drop the word instead
             }
             let font_id = FontId::proportional(try_fs);
             let galley = ui

@@ -52,19 +52,19 @@ Standard markdown tables render with clean formatting.
 
 Add a single image to a bullet slide and it automatically renders as a split layout — content on the left, image on the right.
 
-<img src="media/gallery/slide-26.png" width="720">
+<img src="media/gallery/slide-27.png" width="720">
 
 ### Full-Screen Image
 
 A slide with just an image fills the entire slide area.
 
-<img src="media/gallery/slide-27.png" width="720">
+<img src="media/gallery/slide-28.png" width="720">
 
 ### Two-Column Layout
 
 Split content into two columns using the `+++` separator.
 
-<img src="media/gallery/slide-28.png" width="720">
+<img src="media/gallery/slide-29.png" width="720">
 
 ---
 

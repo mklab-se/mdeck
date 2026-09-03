@@ -1396,3 +1396,41 @@ Visualizes git branching, committing, and merging as a horizontal lane diagram. 
 **Rendering:** Lanes are stacked vertically as parallel horizontal tracks with dotted background lines. Commits appear as dots on the lane. Forks and merges are shown as S-curve connections with arrows between lanes. Each lane gets a distinct color from the theme palette.
 
 **Progressive reveal:** Use `+` and `*` markers to build the graph step by step — ideal for walking through a branching strategy one operation at a time.
+
+---
+
+## 15. Presenting: Keyboard and Mouse
+
+The presentation window is driven by the keyboard, the mouse, or a presentation
+clicker (which sends PageUp/PageDown or Enter). `mdeck spec --short` and the
+in-app HUD (`H`) show the same table.
+
+| Key | Action |
+|-----|--------|
+| Space, N, Right, PageDown, Enter | Next slide or next reveal step |
+| P, Left, PageUp, Backspace | Previous slide (previous slides are shown fully revealed) |
+| Up, Down, mouse wheel | Scroll a slide that overflows |
+| Home, End | First / last slide |
+| G | Grid overview; arrows move the selection, Enter / E / click opens it |
+| T | Cycle transition (slide, fade, spatial, none) |
+| Shift+T | Cycle theme (light, dark, nord) |
+| F | Toggle fullscreen |
+| M | Move the fullscreen window to the next monitor (remembered in config) |
+| H | Toggle the presenter HUD |
+| `.` or B | Blackout |
+| R | Debug overlay (left, right, off) |
+| Esc | Clear drawings on the current slide; twice within a second quits |
+| Q twice, Ctrl+C twice | Quit |
+
+| Mouse | Action |
+|-------|--------|
+| Left click | Next slide |
+| Right click | Previous slide |
+| Left drag | Freehand pen (blue) |
+| Right drag | Arrow (orange) |
+
+Drawings fade out after about eight seconds. Keys pressed during a transition
+are queued and applied when it finishes, so fast presses never lose a step.
+
+While presenting, the file is watched: saving it reloads the deck in place and
+keeps the current slide and reveal state.

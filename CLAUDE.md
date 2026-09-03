@@ -137,12 +137,13 @@ mdeck --help                 # Show help
 - **PNG export:** eframe (glow renderer) window with `pixels_per_point` forced to 1; the slide is rendered in window-sized tiles via `ViewportCommand::Screenshot` / `Event::Screenshot` and stitched, so output is exactly `--width`×`--height` on any display. The glow renderer is required: wgpu's screenshot readback is asynchronous and never completes in this loop
 - **Transitions:** fade, horizontal slide, spatial (directional pan), with smooth easing; animated overview zoom in/out
 - **Scroll/overflow:** Per-slide smooth animated scroll with fade gradients; Up/Down keys; `scroll_targets` + lerp for animation
-- **Keyboard:** Space/N/Right forward, P/Left back, Up/Down scroll, G grid, T transition, Shift+T theme, F fullscreen, M move to next monitor, H HUD, `.` blackout, Esc×2 exit
+- **Keyboard:** one shared table in `app/keys.rs` (`SHORTCUTS`, `map_key`) drives key handling, the HUD and `mdeck spec --short`; add new bindings there. Space/N/Right/PageDown/Enter forward, P/Left/PageUp/Backspace back, Up/Down scroll, Home/End, G grid, T transition, Shift+T theme, F fullscreen, M next monitor, H HUD, `.`/B blackout, R debug overlay, Esc×2 / Q×2 / Ctrl+C×2 quit
 - **End slide:** Virtual "The End" slide with MDeck logo shown when navigating past the last slide
 - **Visualization helpers:** shared axis/value helpers live in `render/visualizations/mod.rs` (`nice_grid_step`, `nice_axis_max`, `format_value`, `sector_mesh`, `parse_value`); reuse them instead of re-implementing per chart
 - **Diagrams:** Grid layout (when `pos:` specified) or auto-layout; geometric fallback icons; AI-generated icon images from `media/diagram-icons/`; 5 arrow types (`->`, `<-`, `<->`, `--`, `-->`)
 - **AI integration:** `ailloy` crate for unified AI access (chat + image generation); config via `~/.config/ailloy/config.yaml`; async via `tokio`
-- FPS overlay in top-right corner
+- FPS overlay in the top-right corner while the HUD (`H`) is shown
+- **Config precedence:** frontmatter > `~/.config/mdeck/config.yaml` defaults > built-in (theme, transition, start mode)
 
 ## Releasing
 

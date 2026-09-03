@@ -138,7 +138,7 @@ current slide.
 | M | Move to the next monitor |
 | `.` or B | Blackout |
 | H | Presenter HUD with shortcuts |
-| Esc | Clear drawings; press twice to quit |
+| Esc | Clear drawings; press twice to quit (Q twice and Ctrl+C twice also quit) |
 
 | Mouse | Action |
 |-------|--------|
@@ -148,7 +148,8 @@ current slide.
 | Right drag | Arrow |
 
 Drawings fade away after a few seconds. Presentation clickers that send
-PageUp/PageDown or Enter work out of the box.
+PageUp/PageDown or Enter work out of the box, and keys pressed during a
+transition are queued rather than lost.
 
 Start options:
 
