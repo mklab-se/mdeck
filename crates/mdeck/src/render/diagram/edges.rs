@@ -237,10 +237,10 @@ pub(super) fn waypoints_to_pixels(
             Pos2::new(px + out_ox, py + out_oy)
         };
 
-        if let Some(prev) = pixels.last() {
-            if (*prev - pt).length() < 1.0 {
-                continue;
-            }
+        if let Some(prev) = pixels.last()
+            && (*prev - pt).length() < 1.0
+        {
+            continue;
         }
         pixels.push(pt);
     }

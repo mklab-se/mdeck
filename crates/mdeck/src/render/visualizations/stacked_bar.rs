@@ -9,28 +9,11 @@ use super::{
     VIZ_FONT_GRID_LABEL, VIZ_FONT_LEGEND, VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD,
     VIZ_OPACITY_AXIS, VIZ_OPACITY_FILL, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL,
     VIZ_OPACITY_LABEL, VIZ_STROKE_AXIS, VIZ_STROKE_GRID, VIZ_SWATCH_SIZE, VizReveal, assign_steps,
-    draw_x_axis_label, draw_y_axis_label, parse_axis_label_directive, parse_reveal_prefix,
-    reveal_anim_progress,
+    draw_x_axis_label, draw_y_axis_label, format_axis_value, format_value, nice_axis_max,
+    nice_grid_step, parse_axis_label_directive, parse_reveal_prefix, reveal_anim_progress,
 };
 
 // ─── Utilities ──────────────────────────────────────────────────────────────
-
-/// Compute a "nice" grid step for axis labels (1, 2, 5, 10, 20, 25, 50, 100, ...).
-fn nice_grid_step(max_value: f32, target_lines: u32) -> f32 {
-    let rough = max_value / target_lines as f32;
-    let magnitude = 10.0f32.powf(rough.log10().floor());
-    let residual = rough / magnitude;
-    let nice = if residual <= 1.0 {
-        1.0
-    } else if residual <= 2.0 {
-        2.0
-    } else if residual <= 5.0 {
-        5.0
-    } else {
-        10.0
-    };
-    (nice * magnitude).max(1.0)
-}
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
 
@@ -153,6 +136,8 @@ pub fn draw_stacked_bar(
     if max_stack <= 0.0 {
         return height;
     }
+    // Scale the axis to a round number so the tallest stack never touches the top
+    let max_stack = nice_axis_max(max_stack, 5);
 
     // Layout
     let padding = 60.0 * scale;
@@ -190,7 +175,7 @@ pub fn draw_stacked_bar(
     let grid_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
     let grid_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
     let mut grid_val = grid_step;
-    while grid_val <= max_stack {
+    while grid_val <= max_stack * 1.001 {
         let frac = grid_val / max_stack;
         let gy = chart_bottom - frac * chart_height;
         painter.line_segment(
@@ -200,11 +185,7 @@ pub fn draw_stacked_bar(
             ],
             Stroke::new(VIZ_STROKE_GRID * scale, grid_color),
         );
-        let label = if grid_val == grid_val.floor() {
-            format!("{:.0}", grid_val)
-        } else {
-            format!("{:.1}", grid_val)
-        };
+        let label = format_axis_value(grid_val, grid_step);
         let grid_label_color =
             Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
         let galley = painter.layout_no_wrap(label, grid_font.clone(), grid_label_color);
@@ -284,11 +265,7 @@ pub fn draw_stacked_bar(
                 let val_opacity = ((anim - VIZ_LABEL_REVEAL_THRESHOLD)
                     / (1.0 - VIZ_LABEL_REVEAL_THRESHOLD))
                     .min(1.0);
-                let val_text = if val == val.floor() {
-                    format!("{:.0}", val)
-                } else {
-                    format!("{:.1}", val)
-                };
+                let val_text = format_value(val);
                 let val_color = Theme::with_opacity(theme.foreground, opacity * 0.7 * val_opacity);
                 let val_galley = painter.layout_no_wrap(val_text, value_font.clone(), val_color);
                 if val_galley.rect.width() < bar_width {
@@ -428,12 +405,5 @@ mod tests {
         let data = parse_stacked_bar(content);
         assert!(data.categories.is_empty());
         assert_eq!(data.series.len(), 1);
-    }
-
-    #[test]
-    fn test_nice_grid_step() {
-        assert_eq!(nice_grid_step(100.0, 5), 20.0);
-        assert_eq!(nice_grid_step(50.0, 5), 10.0);
-        assert_eq!(nice_grid_step(420.0, 5), 100.0);
     }
 }

@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use eframe::egui::{self, FontId, Pos2};
+use eframe::egui::{self, Color32, FontId, Pos2};
 
 use crate::theme::Theme;
 
@@ -98,14 +98,30 @@ pub fn draw_kpi_cards(
     let card_gap = 24.0 * scale;
     let total_gaps = (n as f32 - 1.0).max(0.0) * card_gap;
     let card_width = ((max_width - total_gaps) / n as f32).min(320.0 * scale);
-    let card_height = height * 0.6;
     let total_width = n as f32 * card_width + total_gaps;
     let start_x = pos.x + (max_width - total_width) / 2.0;
-    let card_y = pos.y + (height - card_height) / 2.0;
 
     let value_font = FontId::proportional(theme.body_size * 2.0 * scale);
     let label_font = FontId::proportional(theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale);
     let trend_font = FontId::proportional(theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale);
+
+    // Size cards to their content (value, label, optional trend) so the text
+    // sits centered with even padding instead of floating in a tall box.
+    let row_gap = 8.0 * scale;
+    let measure = |text: &str, font: &FontId| {
+        painter
+            .layout_no_wrap(text.to_string(), font.clone(), Color32::WHITE)
+            .rect
+            .height()
+    };
+    let has_trend = entries.iter().any(|e| e.trend.is_some());
+    let mut content_height = measure("0", &value_font) + row_gap + measure("Ag", &label_font);
+    if has_trend {
+        content_height += row_gap + measure("Ag", &trend_font);
+    }
+    let card_padding = 56.0 * scale;
+    let card_height = (content_height + card_padding * 2.0).min(height);
+    let card_y = pos.y + (height - card_height) / 2.0;
 
     let mut needs_repaint = false;
 
@@ -136,7 +152,7 @@ pub fn draw_kpi_cards(
         let value_galley =
             painter.layout_no_wrap(entry.value.clone(), value_font.clone(), text_color);
         let value_x = card_x + (card_width - value_galley.rect.width()) / 2.0;
-        let value_y = card_y + card_height * 0.2;
+        let value_y = card_y + (card_height - content_height) / 2.0;
         painter.galley(
             Pos2::new(value_x, value_y),
             value_galley.clone(),

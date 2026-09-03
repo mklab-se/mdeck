@@ -169,10 +169,10 @@ fn astar_single_direction(
         let current_key = current.key();
 
         // Skip if we've found a better path to this state.
-        if let Some(&best) = best_g.get(&current_key) {
-            if current.g_cost > best {
-                continue;
-            }
+        if let Some(&best) = best_g.get(&current_key)
+            && current.g_cost > best
+        {
+            continue;
         }
 
         // Check if we reached the target cell center.
@@ -253,10 +253,10 @@ fn astar_single_direction(
                 };
 
                 // Only expand if this is a better path.
-                if let Some(&best) = best_g.get(&new_key) {
-                    if new_g >= best {
-                        continue;
-                    }
+                if let Some(&best) = best_g.get(&new_key)
+                    && new_g >= best
+                {
+                    continue;
                 }
 
                 best_g.insert(new_key, new_g);

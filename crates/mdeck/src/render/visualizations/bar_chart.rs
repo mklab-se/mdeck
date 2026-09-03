@@ -8,28 +8,12 @@ use super::{
     VIZ_CORNER_BAR, VIZ_FONT_AXIS_LABEL, VIZ_FONT_CATEGORY_LABEL, VIZ_FONT_GRID_LABEL,
     VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_AXIS, VIZ_OPACITY_FILL,
     VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL, VIZ_STROKE_AXIS, VIZ_STROKE_GRID,
-    VizReveal, assign_steps, draw_x_axis_label, draw_y_axis_label, parse_axis_label_directive,
-    parse_reveal_prefix, reveal_anim_progress,
+    VizReveal, assign_steps, draw_x_axis_label, draw_y_axis_label, format_axis_value, format_value,
+    nice_axis_max, nice_grid_step, parse_axis_label_directive, parse_reveal_prefix,
+    reveal_anim_progress,
 };
 
 // ─── Utilities ──────────────────────────────────────────────────────────────
-
-/// Compute a "nice" grid step for axis labels (1, 2, 5, 10, 20, 25, 50, 100, ...).
-fn nice_grid_step(max_value: f32, target_lines: u32) -> f32 {
-    let rough = max_value / target_lines as f32;
-    let magnitude = 10.0f32.powf(rough.log10().floor());
-    let residual = rough / magnitude;
-    let nice = if residual <= 1.0 {
-        1.0
-    } else if residual <= 2.0 {
-        2.0
-    } else if residual <= 5.0 {
-        5.0
-    } else {
-        10.0
-    };
-    (nice * magnitude).max(1.0)
-}
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
 
@@ -149,6 +133,8 @@ pub fn draw_bar_chart(
     if max_value <= 0.0 {
         return height;
     }
+    // Scale the axis to a round number so the tallest bar never touches the top
+    let max_value = nice_axis_max(max_value, 5);
 
     let needs_repaint = match data.orientation {
         Orientation::Vertical => draw_vertical(
@@ -239,7 +225,7 @@ fn draw_vertical(
     let grid_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
     let grid_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
     let mut grid_val = grid_step;
-    while grid_val <= max_value {
+    while grid_val <= max_value * 1.001 {
         let frac = grid_val / max_value;
         let gy = chart_bottom - frac * chart_height;
         painter.line_segment(
@@ -249,11 +235,7 @@ fn draw_vertical(
             ],
             Stroke::new(VIZ_STROKE_GRID * scale, grid_color),
         );
-        let label = if grid_val == grid_val.floor() {
-            format!("{:.0}", grid_val)
-        } else {
-            format!("{:.1}", grid_val)
-        };
+        let label = format_axis_value(grid_val, grid_step);
         let grid_label_color =
             Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
         let galley = painter.layout_no_wrap(label, grid_font.clone(), grid_label_color);
@@ -269,7 +251,8 @@ fn draw_vertical(
     }
 
     // Bars
-    let bar_gap = 12.0 * scale;
+    // Gap grows with bar width so bars read as distinct columns
+    let bar_gap = (chart_width / n as f32 * 0.22).clamp(10.0 * scale, 48.0 * scale);
     let total_gaps = (n + 1) as f32 * bar_gap;
     let bar_width = ((chart_width - total_gaps) / n as f32).max(8.0 * scale);
     let label_font = FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale);
@@ -299,11 +282,7 @@ fn draw_vertical(
 
         // Value label above bar (only show when animation is near-complete)
         if anim > VIZ_LABEL_REVEAL_THRESHOLD {
-            let val_text = if entry.value == entry.value.floor() {
-                format!("{:.0}", entry.value)
-            } else {
-                format!("{:.1}", entry.value)
-            };
+            let val_text = format_value(entry.value);
             let val_opacity =
                 ((anim - VIZ_LABEL_REVEAL_THRESHOLD) / (1.0 - VIZ_LABEL_REVEAL_THRESHOLD)).min(1.0); // fade in during last portion
             let val_color = Theme::with_opacity(theme.foreground, opacity * 0.7 * val_opacity);
@@ -438,11 +417,7 @@ fn draw_horizontal(
 
         // Value label to the right of bar (fade in near end of animation)
         if anim > VIZ_LABEL_REVEAL_THRESHOLD {
-            let val_text = if entry.value == entry.value.floor() {
-                format!("{:.0}", entry.value)
-            } else {
-                format!("{:.1}", entry.value)
-            };
+            let val_text = format_value(entry.value);
             let val_opacity =
                 ((anim - VIZ_LABEL_REVEAL_THRESHOLD) / (1.0 - VIZ_LABEL_REVEAL_THRESHOLD)).min(1.0);
             let val_color = Theme::with_opacity(theme.foreground, opacity * 0.7 * val_opacity);
@@ -532,9 +507,9 @@ mod tests {
 
     #[test]
     fn test_parse_bar_chart_decimal_values() {
-        let content = "- A: 3.14\n- B: 2.71";
+        let content = "- A: 3.25\n- B: 2.71";
         let data = parse_bar_chart(content);
-        assert!((data.entries[0].value - 3.14).abs() < 0.001);
+        assert!((data.entries[0].value - 3.25).abs() < 0.001);
         assert!((data.entries[1].value - 2.71).abs() < 0.001);
     }
 
@@ -545,15 +520,5 @@ mod tests {
         assert_eq!(data.x_label, Some("Categories".to_string()));
         assert_eq!(data.y_label, Some("Revenue ($M)".to_string()));
         assert_eq!(data.entries.len(), 2);
-    }
-
-    #[test]
-    fn test_nice_grid_step() {
-        assert_eq!(nice_grid_step(100.0, 5), 20.0);
-        assert_eq!(nice_grid_step(65.0, 5), 20.0);
-        assert_eq!(nice_grid_step(95.0, 5), 20.0);
-        assert_eq!(nice_grid_step(50.0, 5), 10.0);
-        assert_eq!(nice_grid_step(420.0, 5), 100.0);
-        assert_eq!(nice_grid_step(10.0, 5), 2.0);
     }
 }

@@ -78,18 +78,19 @@ pub fn reveal_anim_progress(
     reveal_timestamp: Option<Instant>,
 ) -> (f32, bool) {
     // Only animate items that just appeared on the current step
-    if item_step == reveal_step && item_step > 0 {
-        if let Some(ts) = reveal_timestamp {
-            let elapsed = ts.elapsed().as_secs_f32();
-            let t = (elapsed / REVEAL_ANIMATION_DURATION).min(1.0);
-            // Ease-in-out quadratic
-            let eased = if t < 0.5 {
-                2.0 * t * t
-            } else {
-                1.0 - (-2.0_f32 * t + 2.0).powi(2) / 2.0
-            };
-            return (eased, t < 1.0);
-        }
+    if item_step == reveal_step
+        && item_step > 0
+        && let Some(ts) = reveal_timestamp
+    {
+        let elapsed = ts.elapsed().as_secs_f32();
+        let t = (elapsed / REVEAL_ANIMATION_DURATION).min(1.0);
+        // Ease-in-out quadratic
+        let eased = if t < 0.5 {
+            2.0 * t * t
+        } else {
+            1.0 - (-2.0_f32 * t + 2.0).powi(2) / 2.0
+        };
+        return (eased, t < 1.0);
     }
     (1.0, false)
 }
@@ -199,6 +200,101 @@ pub fn parse_axis_label_directive(trimmed: &str) -> Option<(&str, String)> {
     None
 }
 
+// ─── Axis helpers ───────────────────────────────────────────────────────────
+
+/// Compute a "nice" grid step for axis labels (1, 2, 5, 10, 20, 50, 100, ...)
+/// so that roughly `target_lines` grid lines cover `max_value`.
+pub fn nice_grid_step(max_value: f32, target_lines: u32) -> f32 {
+    if max_value <= 0.0 || !max_value.is_finite() {
+        return 1.0;
+    }
+    let rough = max_value / target_lines.max(1) as f32;
+    let magnitude = 10.0f32.powf(rough.log10().floor());
+    let residual = rough / magnitude;
+    let nice = if residual <= 1.0 {
+        1.0
+    } else if residual <= 2.0 {
+        2.0
+    } else if residual <= 5.0 {
+        5.0
+    } else {
+        10.0
+    };
+    nice * magnitude
+}
+
+/// Round `max_value` up to the next multiple of the nice grid step so the
+/// topmost grid line sits at or above the largest data value.
+pub fn nice_axis_max(max_value: f32, target_lines: u32) -> f32 {
+    let step = nice_grid_step(max_value, target_lines);
+    let rounded = (max_value / step).ceil() * step;
+    if rounded <= 0.0 { step } else { rounded }
+}
+
+/// Format an axis or value label: integers without decimals, everything else
+/// with the precision implied by `step` (at most 2 decimals). Never prints "-0".
+pub fn format_axis_value(value: f32, step: f32) -> String {
+    let decimals = if step >= 1.0 || step <= 0.0 {
+        0
+    } else if step >= 0.1 {
+        1
+    } else {
+        2
+    };
+    let text = format!("{value:.decimals$}");
+    if text.starts_with('-') && text.trim_start_matches(['-', '0', '.']).is_empty() {
+        text[1..].to_string()
+    } else {
+        text
+    }
+}
+
+/// Format a data value for display: integers without decimals, otherwise one
+/// decimal. Never prints "-0".
+pub fn format_value(value: f32) -> String {
+    format_axis_value(value, if value == value.floor() { 1.0 } else { 0.1 })
+}
+
+// ─── Shape helpers ──────────────────────────────────────────────────────────
+
+/// Build a filled annular sector (pie slice when `inner_radius` is 0) as a
+/// single mesh. Drawing one mesh instead of many thin polygons avoids the
+/// anti-aliasing seams that show up as striping inside the slice.
+pub fn sector_mesh(
+    center: Pos2,
+    inner_radius: f32,
+    outer_radius: f32,
+    start_angle: f32,
+    sweep: f32,
+    color: Color32,
+) -> egui::Shape {
+    use eframe::epaint::{Mesh, Vertex, WHITE_UV};
+
+    let segments = ((sweep.abs() / (2.0 * std::f32::consts::PI)) * 180.0).ceil() as usize;
+    let segments = segments.clamp(2, 180);
+    let inner_radius = inner_radius.max(0.0);
+    let mut mesh = Mesh::default();
+    let vertex = |r: f32, a: f32| Vertex {
+        pos: Pos2::new(center.x + r * a.cos(), center.y + r * a.sin()),
+        uv: WHITE_UV,
+        color,
+    };
+    for i in 0..=segments {
+        let a = start_angle + sweep * (i as f32 / segments as f32);
+        mesh.vertices.push(vertex(outer_radius, a));
+        mesh.vertices.push(vertex(inner_radius, a));
+    }
+    for i in 0..segments as u32 {
+        let o0 = i * 2;
+        let i0 = o0 + 1;
+        let o1 = o0 + 2;
+        let i1 = o0 + 3;
+        mesh.add_triangle(o0, o1, i0);
+        mesh.add_triangle(i0, o1, i1);
+    }
+    egui::Shape::mesh(mesh)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -233,5 +329,60 @@ mod tests {
             VizReveal::NextStep,
         ];
         assert_eq!(assign_steps(&reveals), vec![0, 1, 2, 2, 3]);
+    }
+
+    #[test]
+    fn test_nice_grid_step() {
+        assert_eq!(nice_grid_step(100.0, 5), 20.0);
+        assert_eq!(nice_grid_step(65.0, 5), 20.0);
+        assert_eq!(nice_grid_step(95.0, 5), 20.0);
+        assert_eq!(nice_grid_step(50.0, 5), 10.0);
+        assert_eq!(nice_grid_step(420.0, 5), 100.0);
+        assert_eq!(nice_grid_step(10.0, 5), 2.0);
+        assert!((nice_grid_step(0.8, 5) - 0.2).abs() < 1e-6);
+        assert_eq!(nice_grid_step(0.0, 5), 1.0);
+    }
+
+    #[test]
+    fn test_nice_axis_max_covers_data() {
+        assert_eq!(nice_axis_max(28.0, 5), 30.0);
+        assert_eq!(nice_axis_max(100.0, 5), 100.0);
+        assert_eq!(nice_axis_max(65.0, 5), 80.0);
+        assert_eq!(nice_axis_max(130.0, 5), 150.0);
+        assert!(nice_axis_max(0.83, 5) >= 0.83);
+    }
+
+    #[test]
+    fn test_format_axis_value_never_negative_zero() {
+        assert_eq!(format_axis_value(-0.0, 10.0), "0");
+        assert_eq!(format_axis_value(-0.04, 1.0), "0");
+        assert_eq!(format_axis_value(20.0, 10.0), "20");
+        assert_eq!(format_axis_value(2.5, 0.5), "2.5");
+        assert_eq!(format_axis_value(0.25, 0.05), "0.25");
+        assert_eq!(format_value(3.0), "3");
+        assert_eq!(format_value(3.25), "3.2");
+        assert_eq!(format_value(-0.0), "0");
+    }
+
+    #[test]
+    fn test_sector_mesh_geometry() {
+        let shape = sector_mesh(
+            Pos2::new(0.0, 0.0),
+            0.0,
+            10.0,
+            0.0,
+            std::f32::consts::PI,
+            Color32::RED,
+        );
+        let egui::Shape::Mesh(mesh) = shape else {
+            panic!("expected a mesh");
+        };
+        assert!(!mesh.indices.is_empty());
+        assert_eq!(mesh.indices.len() % 3, 0);
+        assert!(
+            mesh.vertices
+                .iter()
+                .all(|v| v.pos.x.abs() <= 10.001 && v.pos.y >= -0.001)
+        );
     }
 }

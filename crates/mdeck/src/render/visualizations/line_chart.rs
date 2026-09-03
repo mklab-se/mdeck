@@ -8,28 +8,11 @@ use super::{
     VIZ_DOT_RADIUS, VIZ_FONT_AXIS_LABEL, VIZ_FONT_GRID_LABEL, VIZ_FONT_LEGEND, VIZ_OPACITY_AXIS,
     VIZ_OPACITY_FILL, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_STROKE_AXIS,
     VIZ_STROKE_DATA_LINE, VIZ_STROKE_GRID, VIZ_SWATCH_SIZE, VizReveal, assign_steps,
-    draw_x_axis_label, draw_y_axis_label, parse_axis_label_directive, parse_reveal_prefix,
-    reveal_anim_progress,
+    draw_x_axis_label, draw_y_axis_label, format_axis_value, nice_axis_max, nice_grid_step,
+    parse_axis_label_directive, parse_reveal_prefix, reveal_anim_progress,
 };
 
 // ─── Utilities ──────────────────────────────────────────────────────────────
-
-/// Compute a "nice" grid step for axis labels (1, 2, 5, 10, 20, 25, 50, 100, ...).
-fn nice_grid_step(max_value: f32, target_lines: u32) -> f32 {
-    let rough = max_value / target_lines as f32;
-    let magnitude = 10.0f32.powf(rough.log10().floor());
-    let residual = rough / magnitude;
-    let nice = if residual <= 1.0 {
-        1.0
-    } else if residual <= 2.0 {
-        2.0
-    } else if residual <= 5.0 {
-        5.0
-    } else {
-        10.0
-    };
-    (nice * magnitude).max(1.0)
-}
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
 
@@ -149,6 +132,8 @@ pub fn draw_line_chart(
     if max_value <= 0.0 {
         return height;
     }
+    // Scale the axis to a round number so the top grid line sits above the data
+    let max_value = nice_axis_max(max_value, 5);
 
     // Find max number of data points
     let max_points = series.iter().map(|s| s.values.len()).max().unwrap_or(0);
@@ -196,11 +181,7 @@ pub fn draw_line_chart(
                 Stroke::new(VIZ_STROKE_GRID * scale, grid_color),
             );
         }
-        let label = if grid_val == grid_val.floor() {
-            format!("{:.0}", grid_val)
-        } else {
-            format!("{:.1}", grid_val)
-        };
+        let label = format_axis_value(grid_val, grid_step);
         let galley = painter.layout_no_wrap(label, grid_font.clone(), grid_label_color);
         painter.galley(
             Pos2::new(

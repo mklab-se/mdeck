@@ -9,27 +9,10 @@ use super::{
     VIZ_FONT_AXIS_LABEL, VIZ_FONT_GRID_LABEL, VIZ_FONT_SECONDARY_LABEL, VIZ_LABEL_REVEAL_THRESHOLD,
     VIZ_OPACITY_AXIS, VIZ_OPACITY_FILL, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL,
     VIZ_OPACITY_LABEL, VIZ_SCATTER_RADIUS, VIZ_STROKE_AXIS, VIZ_STROKE_GRID, VizReveal,
-    assign_steps, parse_reveal_prefix, reveal_anim_progress,
+    assign_steps, format_axis_value, nice_grid_step, parse_reveal_prefix, reveal_anim_progress,
 };
 
 // ─── Utilities ──────────────────────────────────────────────────────────────
-
-/// Compute a "nice" grid step for axis labels (1, 2, 5, 10, 20, 25, 50, 100, ...).
-fn nice_grid_step(max_value: f32, target_lines: u32) -> f32 {
-    let rough = max_value / target_lines as f32;
-    let magnitude = 10.0f32.powf(rough.log10().floor());
-    let residual = rough / magnitude;
-    let nice = if residual <= 1.0 {
-        1.0
-    } else if residual <= 2.0 {
-        2.0
-    } else if residual <= 5.0 {
-        5.0
-    } else {
-        10.0
-    };
-    (nice * magnitude).max(1.0)
-}
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
 
@@ -101,19 +84,19 @@ fn parse_scatter_plot(content: &str) -> ScatterData {
 
             // Parse "X, Y"
             let parts: Vec<&str> = coords_str.split(',').collect();
-            if parts.len() == 2 {
-                if let (Ok(x), Ok(y)) = (
+            if parts.len() == 2
+                && let (Ok(x), Ok(y)) = (
                     parts[0].trim().parse::<f32>(),
                     parts[1].trim().parse::<f32>(),
-                ) {
-                    points.push(ScatterPoint {
-                        label,
-                        x,
-                        y,
-                        size,
-                        reveal,
-                    });
-                }
+                )
+            {
+                points.push(ScatterPoint {
+                    label,
+                    x,
+                    y,
+                    size,
+                    reveal,
+                });
             }
         }
     }
@@ -212,11 +195,7 @@ pub fn draw_scatter_plot(
             [Pos2::new(px, chart_top), Pos2::new(px, chart_bottom)],
             Stroke::new(VIZ_STROKE_GRID * scale, grid_color),
         );
-        let label = if gx == gx.floor() {
-            format!("{:.0}", gx)
-        } else {
-            format!("{:.1}", gx)
-        };
+        let label = format_axis_value(gx, x_step);
         let galley = painter.layout_no_wrap(label, grid_font.clone(), grid_label_color);
         painter.galley(
             Pos2::new(px - galley.rect.width() / 2.0, chart_bottom + 6.0 * scale),
@@ -236,11 +215,7 @@ pub fn draw_scatter_plot(
             [Pos2::new(chart_left, py), Pos2::new(chart_right, py)],
             Stroke::new(VIZ_STROKE_GRID * scale, grid_color),
         );
-        let label = if gy == gy.floor() {
-            format!("{:.0}", gy)
-        } else {
-            format!("{:.1}", gy)
-        };
+        let label = format_axis_value(gy, y_step);
         let galley = painter.layout_no_wrap(label, grid_font.clone(), grid_label_color);
         painter.galley(
             Pos2::new(
@@ -383,11 +358,5 @@ mod tests {
         assert_eq!(data.x_label, Some("Hours Studied".to_string()));
         assert_eq!(data.y_label, Some("Test Score".to_string()));
         assert_eq!(data.points.len(), 1);
-    }
-
-    #[test]
-    fn test_nice_grid_step_scatter() {
-        assert_eq!(nice_grid_step(100.0, 5), 20.0);
-        assert_eq!(nice_grid_step(50.0, 5), 10.0);
     }
 }
