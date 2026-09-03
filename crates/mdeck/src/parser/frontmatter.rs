@@ -2,58 +2,50 @@ use super::PresentationMeta;
 use std::collections::HashMap;
 
 pub fn extract(content: &str) -> (PresentationMeta, String) {
-    let trimmed = content.trim_start_matches('\u{feff}'); // strip BOM
+    // Normalise line endings up front so byte offsets below are exact for
+    // CRLF files, then strip a leading BOM.
+    let normalized = content.replace("\r\n", "\n");
+    let trimmed = normalized.trim_start_matches('\u{feff}');
 
-    if !trimmed.starts_with("---\n") && !trimmed.starts_with("---\r\n") {
-        return (PresentationMeta::default(), trimmed.to_string());
-    }
-
-    // Skip the opening "---\n" or "---\r\n"
-    let after_opening = if let Some(rest) = trimmed.strip_prefix("---\r\n") {
-        rest
-    } else if let Some(rest) = trimmed.strip_prefix("---\n") {
-        rest
-    } else {
+    let Some(after_opening) = trimmed.strip_prefix("---\n") else {
         return (PresentationMeta::default(), trimmed.to_string());
     };
 
     // Find closing ---
-    let closing = find_closing_delimiter(after_opening);
-    let Some(end_pos) = closing else {
+    let Some((yaml_end, body_start)) = find_closing_delimiter(after_opening) else {
         return (PresentationMeta::default(), trimmed.to_string());
     };
 
-    let yaml_str = &after_opening[..end_pos];
-    let rest_start = end_pos
-        + after_opening[end_pos..]
-            .find('\n')
-            .unwrap_or(after_opening.len() - end_pos)
-        + 1;
-    let body = if rest_start < after_opening.len() {
-        &after_opening[rest_start..]
-    } else {
-        ""
-    };
+    let yaml_str = &after_opening[..yaml_end];
+    let body = after_opening.get(body_start..).unwrap_or("");
 
     let meta = parse_frontmatter(yaml_str);
     (meta, body.to_string())
 }
 
-fn find_closing_delimiter(s: &str) -> Option<usize> {
-    for (i, line) in s.lines().enumerate() {
-        let trimmed = line.trim();
-        if trimmed == "---" && i > 0 {
-            // Calculate byte offset
-            let mut offset = 0;
-            for (j, l) in s.lines().enumerate() {
-                if j == i {
-                    return Some(offset);
-                }
-                offset += l.len() + 1; // +1 for newline
-            }
+/// Locate the closing `---` line. Returns `(yaml_end, body_start)` byte
+/// offsets into `s`: the YAML text is `s[..yaml_end]` and the document body
+/// starts at `body_start` (just after the delimiter line).
+fn find_closing_delimiter(s: &str) -> Option<(usize, usize)> {
+    let mut offset = 0;
+    for line in s.split_inclusive('\n') {
+        if line.trim() == "---" {
+            return Some((offset, offset + line.len()));
         }
+        offset += line.len();
     }
     None
+}
+
+/// Render a YAML scalar as the string a user would expect to see:
+/// `title: 2026` → "2026", `draft: true` → "true". Non-scalars are ignored.
+fn value_to_string(value: &serde_yaml::Value) -> Option<String> {
+    match value {
+        serde_yaml::Value::String(s) => Some(s.clone()),
+        serde_yaml::Value::Number(n) => Some(n.to_string()),
+        serde_yaml::Value::Bool(b) => Some(b.to_string()),
+        _ => None,
+    }
 }
 
 fn parse_frontmatter(yaml_str: &str) -> PresentationMeta {
@@ -66,10 +58,7 @@ fn parse_frontmatter(yaml_str: &str) -> PresentationMeta {
     PresentationMeta {
         title: get_string(&map, "title"),
         author: get_string(&map, "author"),
-        date: map.get("date").map(|v| match v {
-            serde_yaml::Value::String(s) => s.clone(),
-            other => format!("{other:?}"),
-        }),
+        date: get_string(&map, "date"),
         theme: get_string(&map, "@theme"),
         transition: get_string(&map, "@transition"),
         aspect: get_string(&map, "@aspect"),
@@ -82,10 +71,7 @@ fn parse_frontmatter(yaml_str: &str) -> PresentationMeta {
 }
 
 fn get_string(map: &HashMap<String, serde_yaml::Value>, key: &str) -> Option<String> {
-    map.get(key).and_then(|v| match v {
-        serde_yaml::Value::String(s) => Some(s.clone()),
-        _ => None,
-    })
+    map.get(key).and_then(value_to_string)
 }
 
 fn get_u8(map: &HashMap<String, serde_yaml::Value>, key: &str) -> Option<u8> {
@@ -171,6 +157,65 @@ mod tests {
     fn test_frontmatter_date_not_string() {
         let content = "---\ntitle: \"Test\"\ndate: 2026-02-28\n---\nBody";
         let (meta, _body) = extract(content);
-        assert!(meta.date.is_some());
+        assert_eq!(meta.date.as_deref(), Some("2026-02-28"));
+    }
+
+    #[test]
+    fn test_frontmatter_numeric_scalars() {
+        // `date: 2026` is a YAML number; it must show as "2026", not
+        // `Number(2026)`, and a numeric title must not be dropped.
+        let content = "---\ntitle: 2026\ndate: 2026\nauthor: 3.5\n@footer: true\n---\nBody";
+        let (meta, _body) = extract(content);
+        assert_eq!(meta.title.as_deref(), Some("2026"));
+        assert_eq!(meta.date.as_deref(), Some("2026"));
+        assert_eq!(meta.author.as_deref(), Some("3.5"));
+        assert_eq!(meta.footer.as_deref(), Some("true"));
+    }
+
+    #[test]
+    fn test_frontmatter_crlf() {
+        let content = "---\r\ntitle: \"Hello\"\r\nauthor: \"Me\"\r\n@theme: nord\r\n---\r\n\r\n# Slide\r\n\r\nText\r\n";
+        let (meta, body) = extract(content);
+        assert_eq!(meta.title.as_deref(), Some("Hello"));
+        assert_eq!(meta.author.as_deref(), Some("Me"));
+        assert_eq!(meta.theme.as_deref(), Some("nord"));
+        assert_eq!(body.trim(), "# Slide\n\nText");
+        assert!(
+            !body.contains("---"),
+            "delimiter leaked into body: {body:?}"
+        );
+        assert!(!body.contains('\r'));
+    }
+
+    #[test]
+    fn test_frontmatter_bom_crlf() {
+        let content = "\u{feff}---\r\ntitle: \"BOM\"\r\n---\r\n# Slide\r\n";
+        let (meta, body) = extract(content);
+        assert_eq!(meta.title.as_deref(), Some("BOM"));
+        assert_eq!(body.trim(), "# Slide");
+    }
+
+    #[test]
+    fn test_frontmatter_bom_no_frontmatter() {
+        let content = "\u{feff}# Slide\r\nText";
+        let (meta, body) = extract(content);
+        assert!(meta.title.is_none());
+        assert_eq!(body, "# Slide\nText");
+    }
+
+    #[test]
+    fn test_frontmatter_unclosed() {
+        let content = "---\ntitle: x\n# Slide";
+        let (meta, body) = extract(content);
+        assert!(meta.title.is_none());
+        assert_eq!(body, content);
+    }
+
+    #[test]
+    fn test_frontmatter_closing_at_end_of_file() {
+        let content = "---\ntitle: x\n---";
+        let (meta, body) = extract(content);
+        assert_eq!(meta.title.as_deref(), Some("x"));
+        assert_eq!(body, "");
     }
 }
