@@ -15,9 +15,10 @@ use crate::theme::Theme;
 
 use image_cache::ImageCache;
 
-/// Estimate the total content height of a slide (for scroll/overflow detection).
-/// Returns (content_height, available_height) where available_height is the usable
-/// area within the slide rect after padding.
+/// Measure the content height of a slide (for scroll/overflow detection),
+/// laying blocks out at the same column width the slide's layout draws them.
+/// Returns (content_height, available_height) where available_height is the
+/// usable area within the slide rect after padding.
 pub fn measure_slide_content_height(
     ui: &egui::Ui,
     slide: &Slide,
@@ -25,17 +26,22 @@ pub fn measure_slide_content_height(
     rect: egui::Rect,
     scale: f32,
 ) -> (f32, f32) {
-    let padding = 80.0 * scale;
+    let padding = layouts::SLIDE_PADDING * scale;
     let available_height = rect.height() - padding * 2.0;
 
-    // Use a content width consistent with most layouts (~75% for code/content, full for bullet)
-    let content_width = match slide.layout {
-        Layout::Code => rect.width() * 0.75,
-        _ => rect.width() - padding * 2.0,
+    let content_height = match slide.layout {
+        Layout::Bullet | Layout::Content | Layout::Code => {
+            layouts::stacked::measure_content_height(ui, slide, theme, rect, scale)
+        }
+        Layout::TwoColumn => {
+            layouts::two_column::measure_content_height(ui, slide, theme, rect, scale)
+        }
+        layout => {
+            let width = layouts::content_width(layout, rect, scale);
+            text::measure_blocks_height(ui, &slide.blocks, theme, width, scale)
+        }
     };
 
-    let content_height =
-        text::measure_blocks_height(ui, &slide.blocks, theme, content_width, scale);
     (content_height, available_height)
 }
 
@@ -140,5 +146,92 @@ pub fn render_slide(
             reveal_timestamp,
             scale,
         ),
+    }
+}
+
+/// Helpers for tests that need a live `egui::Ui` to lay out text.
+#[cfg(test)]
+pub(crate) mod test_support {
+    use eframe::egui;
+
+    /// Run `f` with a `Ui` inside a headless egui frame sized like a 1080p slide.
+    pub fn with_ui(mut f: impl FnMut(&egui::Ui)) {
+        let ctx = egui::Context::default();
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(1920.0, 1080.0),
+            )),
+            ..Default::default()
+        };
+        let _ = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| f(ui));
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::{Block, Inline, ListItem, ListMarker};
+    use test_support::with_ui;
+
+    fn slide(layout: Layout, blocks: Vec<Block>) -> Slide {
+        Slide {
+            directives: vec![],
+            blocks,
+            layout,
+            raw_source: String::new(),
+            notes: None,
+        }
+    }
+
+    #[test]
+    fn long_bullet_slide_reports_overflow() {
+        with_ui(|ui| {
+            let theme = Theme::dark();
+            let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1920.0, 1080.0));
+            let items = (0..10)
+                .map(|i| ListItem {
+                    marker: ListMarker::Static,
+                    inlines: vec![Inline::Text(format!(
+                        "Bullet {i} is long enough to wrap onto a second row at seventy percent width of the slide"
+                    ))],
+                    children: vec![],
+                })
+                .collect();
+            let s = slide(
+                Layout::Bullet,
+                vec![
+                    Block::Heading {
+                        level: 1,
+                        inlines: vec![Inline::Text("Overflowing".into())],
+                    },
+                    Block::List {
+                        ordered: false,
+                        items,
+                    },
+                ],
+            );
+            let (content, available) = measure_slide_content_height(ui, &s, &theme, rect, 1.0);
+            assert_eq!(available, 1080.0 - 160.0);
+            assert!(content > available, "{content} should overflow {available}");
+        });
+    }
+
+    #[test]
+    fn short_slide_does_not_overflow() {
+        with_ui(|ui| {
+            let theme = Theme::dark();
+            let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1920.0, 1080.0));
+            let s = slide(
+                Layout::Content,
+                vec![Block::Paragraph {
+                    inlines: vec![Inline::Text("Hello".into())],
+                }],
+            );
+            let (content, available) = measure_slide_content_height(ui, &s, &theme, rect, 1.0);
+            assert!(content < available);
+        });
     }
 }

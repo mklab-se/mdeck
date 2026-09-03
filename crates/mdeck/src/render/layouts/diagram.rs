@@ -54,7 +54,7 @@ pub fn render(
             opacity,
             scale,
         );
-        y += h + 30.0 * scale;
+        y += h + text::heading_spacing(theme, *level, scale);
     }
 
     // Draw diagram filling the remaining vertical space

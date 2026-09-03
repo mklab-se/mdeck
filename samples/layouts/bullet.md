@@ -45,3 +45,24 @@ Focused tests for the bullet layout
     - Deep nested item
 + Top-level item three
 * Also part of item three
+
+
+# Deeply Nested
+
+- Level one
+  - Level two
+    - Level three
+      - Level four
+        - Level five
+          - Level six keeps a readable width even this deep, so long text still wraps sensibly
+
+
+# Long List That Overflows
+
+- The first point is long enough to wrap onto a second row at the bullet column width
+- The second point is also long enough to wrap onto a second row at the bullet column width
+- A third point, likewise long enough to wrap onto a second row at the bullet column width
+- A fourth point that continues the pattern and wraps onto a second row as well
+- A fifth point to make sure the slide clearly overflows the available height
+- A sixth point so the scroll indicator has something to reveal below the fold
+- And a seventh point that lives entirely below the fold until scrolled into view

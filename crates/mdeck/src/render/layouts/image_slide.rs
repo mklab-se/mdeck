@@ -2,8 +2,20 @@ use eframe::egui::{self, Pos2};
 
 use crate::parser::{Block, Slide};
 use crate::render::image_cache::ImageCache;
+use crate::render::layouts::MEDIA_PADDING;
 use crate::render::text;
 use crate::theme::Theme;
+
+/// Vertical padding inside the heading band drawn over a fill image.
+const BAND_PADDING: f32 = 16.0;
+/// Distance from the slide bottom to the heading band.
+const BAND_BOTTOM_MARGIN: f32 = 40.0;
+
+/// Height of the heading band over a fill image: the wrapped heading height
+/// plus padding, so any heading level fits.
+fn fill_band_height(heading_height: f32, scale: f32) -> f32 {
+    heading_height + BAND_PADDING * 2.0 * scale
+}
 
 /// Image slide layout: prominent image with optional heading and caption.
 #[allow(clippy::too_many_arguments)]
@@ -17,7 +29,7 @@ pub fn render(
     reveal_step: usize,
     scale: f32,
 ) {
-    let padding = 60.0 * scale;
+    let padding = MEDIA_PADDING * scale;
 
     // Find the image block and optional heading/caption
     let mut heading: Option<&Block> = None;
@@ -60,19 +72,37 @@ pub fn render(
         return;
     };
 
+    let content_width = rect.width() - padding * 2.0;
+
     // Check if this is a fill image (covers entire slide)
     if directives.fill {
-        text::draw_image_in_area(ui, path, alt, directives, theme, rect, opacity, image_cache);
+        text::draw_image_in_area(
+            ui,
+            path,
+            alt,
+            directives,
+            theme,
+            rect,
+            opacity,
+            image_cache,
+            scale,
+        );
 
-        // Draw heading on top of the image with a semi-transparent overlay
-        if let Some(Block::Heading { level, inlines }) = heading {
-            let overlay_height = 80.0 * scale;
-            let overlay_rect = egui::Rect::from_min_size(
-                egui::pos2(rect.left(), rect.bottom() - overlay_height - 40.0 * scale),
-                egui::vec2(rect.width(), overlay_height),
+        // Draw heading on top of the image in a semi-transparent band sized
+        // from the heading's real (possibly wrapped) height.
+        if let Some(heading_block @ Block::Heading { level, inlines }) = heading {
+            let heading_h =
+                text::measure_single_block_height(ui, heading_block, theme, content_width, scale);
+            let band_h = fill_band_height(heading_h, scale);
+            let band_rect = egui::Rect::from_min_size(
+                egui::pos2(
+                    rect.left(),
+                    rect.bottom() - band_h - BAND_BOTTOM_MARGIN * scale,
+                ),
+                egui::vec2(rect.width(), band_h),
             );
-            let overlay_bg = Theme::with_opacity(theme.background, opacity * 0.6);
-            ui.painter().rect_filled(overlay_rect, 0.0, overlay_bg);
+            let band_bg = Theme::with_opacity(theme.background, opacity * 0.6);
+            ui.painter().rect_filled(band_rect, 0.0, band_bg);
 
             text::draw_heading(
                 ui,
@@ -80,10 +110,10 @@ pub fn render(
                 *level,
                 theme,
                 Pos2::new(
-                    overlay_rect.left() + padding,
-                    overlay_rect.top() + 16.0 * scale,
+                    band_rect.left() + padding,
+                    band_rect.top() + BAND_PADDING * scale,
                 ),
-                rect.width() - padding * 2.0,
+                content_width,
                 opacity,
                 scale,
             );
@@ -92,7 +122,6 @@ pub fn render(
     }
 
     // Non-fill: heading at top, image centered, optional caption below
-    let content_width = rect.width() - padding * 2.0;
     let mut y = rect.top() + padding;
 
     if let Some(Block::Heading { level, inlines }) = heading {
@@ -126,6 +155,7 @@ pub fn render(
         image_available,
         opacity,
         image_cache,
+        scale,
     );
 
     if let Some(Block::Paragraph { inlines }) = caption {
@@ -139,11 +169,36 @@ pub fn render(
             caption_size,
             caption_color,
             image_drawn_rect.width(),
+            theme,
         );
         let galley = ui.painter().layout_job(job);
         let caption_x =
             image_drawn_rect.left() + (image_drawn_rect.width() - galley.rect.width()) / 2.0;
         ui.painter()
             .galley(Pos2::new(caption_x, caption_y), galley, caption_color);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::Inline;
+    use crate::render::test_support::with_ui;
+
+    #[test]
+    fn fill_band_is_taller_than_the_heading_it_holds() {
+        with_ui(|ui| {
+            let theme = Theme::dark();
+            let h1 = Block::Heading {
+                level: 1,
+                inlines: vec![Inline::Text("A fill image heading".into())],
+            };
+            let heading_h = text::measure_single_block_height(ui, &h1, &theme, 1800.0, 1.0);
+            let band = fill_band_height(heading_h, 1.0);
+            assert!(heading_h >= theme.h1_size, "{heading_h}");
+            assert!(band > heading_h);
+            // The previous fixed band (80px) could not hold an H1.
+            assert!(band > 80.0);
+        });
     }
 }

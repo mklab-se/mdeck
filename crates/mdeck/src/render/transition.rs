@@ -1,4 +1,3 @@
-use eframe::egui;
 use std::time::Instant;
 
 const TRANSITION_DURATION: f32 = 0.3;
@@ -74,64 +73,15 @@ impl TransitionKind {
             _ => Self::SlideHorizontal,
         }
     }
-
-    /// Render a transition between two slides.
-    /// Calls `draw_fn` with (slide_index, rect, opacity) for each visible slide.
-    #[allow(dead_code)]
-    pub fn render(
-        &self,
-        transition: &ActiveTransition,
-        rect: egui::Rect,
-        draw_fn: &mut dyn FnMut(usize, egui::Rect, f32),
-    ) {
-        let progress = transition.progress();
-
-        match self {
-            TransitionKind::Fade => {
-                draw_fn(transition.from, rect, 1.0 - progress);
-                draw_fn(transition.to, rect, progress);
-            }
-            TransitionKind::SlideHorizontal => {
-                let w = rect.width();
-                let sign = match transition.direction {
-                    TransitionDirection::Forward => -1.0,
-                    TransitionDirection::Backward => 1.0,
-                };
-                let from_offset = sign * progress * w;
-                let to_offset = from_offset - sign * w;
-
-                let from_rect = rect.translate(egui::vec2(from_offset, 0.0));
-                let to_rect = rect.translate(egui::vec2(to_offset, 0.0));
-
-                draw_fn(transition.from, from_rect, 1.0);
-                draw_fn(transition.to, to_rect, 1.0);
-            }
-            TransitionKind::Spatial => {
-                let (dx, dy) = transition.spatial_direction(4);
-                let w = rect.width();
-                let h = rect.height();
-
-                let from_rect = rect.translate(egui::vec2(-dx * progress * w, -dy * progress * h));
-                let to_rect = rect.translate(egui::vec2(
-                    dx * (1.0 - progress) * w,
-                    dy * (1.0 - progress) * h,
-                ));
-
-                draw_fn(transition.from, from_rect, 1.0);
-                draw_fn(transition.to, to_rect, 1.0);
-            }
-            TransitionKind::None => {
-                draw_fn(transition.to, rect, 1.0);
-            }
-        }
-    }
 }
 
+/// Cubic ease-in-out: gentle start, brisk middle, soft landing.
 pub fn ease_in_out(t: f32) -> f32 {
+    let t = t.clamp(0.0, 1.0);
     if t < 0.5 {
-        2.0 * t * t
+        4.0 * t * t * t
     } else {
-        1.0 - (-2.0 * t + 2.0).powi(2) / 2.0
+        1.0 - (-2.0 * t + 2.0).powi(3) / 2.0
     }
 }
 
@@ -203,5 +153,22 @@ mod tests {
         // Midpoint
         let mid = ease_in_out(0.5);
         assert!((mid - 0.5).abs() < 0.01);
+        // Out-of-range input is clamped
+        assert_eq!(ease_in_out(-1.0), 0.0);
+        assert_eq!(ease_in_out(2.0), 1.0);
+    }
+
+    #[test]
+    fn ease_in_out_is_cubic_and_symmetric() {
+        // Cubic: 4 * 0.25^3 = 0.0625 (quadratic would give 0.125)
+        assert!((ease_in_out(0.25) - 0.0625).abs() < 1e-6);
+        assert!((ease_in_out(0.75) - 0.9375).abs() < 1e-6);
+        // Monotonic
+        let mut prev = 0.0;
+        for i in 1..=100 {
+            let v = ease_in_out(i as f32 / 100.0);
+            assert!(v >= prev);
+            prev = v;
+        }
     }
 }

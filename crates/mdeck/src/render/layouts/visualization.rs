@@ -85,11 +85,10 @@ pub fn render(
             opacity,
             scale,
         );
-        y += h + 30.0 * scale;
+        y += h + text::heading_spacing(theme, *level, scale);
     }
 
     // Draw any text blocks (paragraphs, lists, etc.) between heading and visualization
-    let block_spacing = 16.0 * scale;
     for block in &text_blocks {
         let h = text::draw_block(
             ui,
@@ -102,7 +101,7 @@ pub fn render(
             reveal_step,
             scale,
         );
-        y += h + block_spacing;
+        y += h + text::block_spacing(block, theme, scale);
     }
 
     // Draw visualization filling the remaining vertical space

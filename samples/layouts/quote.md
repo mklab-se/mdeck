@@ -23,3 +23,8 @@ Focused tests for the quote layout
 > Programs must be written for people to read, and only incidentally for machines to execute.
 
 -- Harold Abelson
+
+
+> Any fool can write code that a computer can understand. Good programmers write code that humans can understand, and this quote is deliberately long so that it wraps onto four or five lines and exercises the vertical centring of the quote layout.
+
+-- Martin Fowler
