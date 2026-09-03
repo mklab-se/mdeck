@@ -1,22 +1,25 @@
 mod drawing;
 mod helpers;
 mod input;
+pub mod keys;
 
 use drawing::{draw_hud, draw_raw_markdown_overlay};
 use helpers::{
-    find_matching_slide, hash_content, load_app_icon, print_incident_summary, spawn_file_watcher,
+    find_matching_slide, hash_content, load_app_icon, print_incident_summary, resolve_setting,
+    spawn_file_watcher,
 };
+use keys::{Action, DoubleTap, KeyMode, MonitorMoveOutcome, evaluate_monitor_move, map_key};
 
 use eframe::egui;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, mpsc};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use notify_debouncer_mini::{Debouncer, notify};
 
 use crate::check::CheckReport;
-use crate::config::Config;
+use crate::config::{Config, DefaultsConfig};
 use crate::incident_log::IncidentLog;
 use crate::parser::{self, Presentation};
 use crate::render;
@@ -27,6 +30,45 @@ use crate::theme::Theme;
 const OVERVIEW_TRANSITION_DURATION: f32 = 0.4;
 const DRAW_FADE_DURATION: f32 = 8.0;
 const DRAG_THRESHOLD: f32 = 5.0;
+/// Window for double-tap quit gestures (Esc, Q, Ctrl+C).
+const DOUBLE_TAP_WINDOW: Duration = Duration::from_secs(1);
+/// A reveal animation counts as "in flight" for this long after it started.
+const REVEAL_IN_FLIGHT_WINDOW: Duration = Duration::from_secs(3);
+/// How long to wait for the window to settle after a monitor move.
+const MONITOR_MOVE_SETTLE: Duration = Duration::from_millis(1000);
+
+/// A navigation request made while a transition was running; applied when
+/// the transition completes so quick key presses are not dropped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PendingNav {
+    Forward,
+    Backward,
+}
+
+/// State machine for hopping a fullscreen window to the next monitor.
+struct MonitorMove {
+    /// Requested window position.
+    target: egui::Pos2,
+    monitor_width: f32,
+    /// Whether we already wrapped around to the origin.
+    wrapped: bool,
+    phase: MonitorMovePhase,
+}
+
+enum MonitorMovePhase {
+    /// Fullscreen was dropped and the window repositioned; re-enter fullscreen next frame.
+    Reposition,
+    /// Fullscreen re-entered at this instant; verify where the window landed after settling.
+    Verify(Instant),
+}
+
+/// Viewport facts captured inside `ctx.input` for use outside the closure.
+#[derive(Debug, Clone, Copy, Default)]
+struct ViewportSnapshot {
+    fullscreen: bool,
+    monitor_size: Option<egui::Vec2>,
+    outer_pos: Option<egui::Pos2>,
+}
 
 /// A freehand pen stroke (left-drag)
 struct PenStroke {
@@ -86,7 +128,7 @@ struct PresentationApp {
     file_path: PathBuf,
     current_slide: usize,
     watcher_rx: mpsc::Receiver<()>,
-    _watcher: Debouncer<notify::RecommendedWatcher>,
+    _watcher: Option<Debouncer<notify::RecommendedWatcher>>,
     mode: AppMode,
     theme: Theme,
     default_transition: TransitionKind,
@@ -95,8 +137,9 @@ struct PresentationApp {
     show_hud: bool,
     raw_overlay_side: RawOverlaySide,
     toast: Option<Toast>,
-    last_ctrl_c: Option<Instant>,
-    last_esc: Option<Instant>,
+    ctrl_c_tap: DoubleTap,
+    esc_tap: DoubleTap,
+    quit_tap: DoubleTap,
     reveal_steps: Vec<usize>,
     max_steps: Vec<usize>,
     /// Timestamp of when each slide's reveal_step was last incremented (for animation)
@@ -134,10 +177,16 @@ struct PresentationApp {
     quiet: bool,
     /// Whether the virtual "The End" slide is being displayed.
     on_end_slide: bool,
-    /// Whether the screen is blacked out (toggled with `.` key).
+    /// Whether the screen is blacked out (toggled with `.` or `B`).
     blackout: bool,
-    /// Pending re-enter fullscreen after monitor move (delayed one frame).
-    pending_fullscreen: bool,
+    /// In-progress monitor hop (M key).
+    monitor_move: Option<MonitorMove>,
+    /// Navigation requested during a transition, applied when it completes.
+    pending_nav: Option<PendingNav>,
+    /// A reveal step was just added; scroll to show it once content is measured.
+    pending_reveal_scroll: bool,
+    /// Seed the grid scroll so the selected cell is visible before the zoom-out.
+    grid_seed_scroll: bool,
     /// Cached texture for the embedded logo (loaded once on first draw).
     end_logo_texture: Option<egui::TextureHandle>,
     /// Shared slide position for recovery after display errors.
@@ -184,20 +233,27 @@ impl PresentationApp {
     fn new(
         file: PathBuf,
         presentation: Presentation,
-        windowed: bool,
         watcher_rx: mpsc::Receiver<()>,
-        watcher: Debouncer<notify::RecommendedWatcher>,
+        watcher: Option<Debouncer<notify::RecommendedWatcher>>,
         content_hash: u64,
         quiet: bool,
         incident_log: Arc<IncidentLog>,
+        defaults: &DefaultsConfig,
     ) -> Self {
-        let _ = windowed; // used at window creation time
+        // Precedence: frontmatter > config defaults > built-in
+        let theme_name = resolve_setting(
+            presentation.meta.theme.as_deref(),
+            defaults.theme.as_deref(),
+            "light",
+        );
+        let theme = Theme::from_name(&theme_name);
 
-        let theme_name = presentation.meta.theme.as_deref().unwrap_or("light");
-        let theme = Theme::from_name(theme_name);
-
-        let transition_name = presentation.meta.transition.as_deref().unwrap_or("slide");
-        let default_transition = TransitionKind::from_name(transition_name);
+        let transition_name = resolve_setting(
+            presentation.meta.transition.as_deref(),
+            defaults.transition.as_deref(),
+            "slide",
+        );
+        let default_transition = TransitionKind::from_name(&transition_name);
 
         let base_path = file
             .parent()
@@ -231,8 +287,9 @@ impl PresentationApp {
             show_hud: false,
             raw_overlay_side: RawOverlaySide::Off,
             toast: None,
-            last_ctrl_c: None,
-            last_esc: None,
+            ctrl_c_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
+            esc_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
+            quit_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
             reveal_steps,
             max_steps,
             reveal_timestamps,
@@ -258,7 +315,10 @@ impl PresentationApp {
             quiet,
             on_end_slide: false,
             blackout: false,
-            pending_fullscreen: false,
+            monitor_move: None,
+            pending_nav: None,
+            pending_reveal_scroll: false,
+            grid_seed_scroll: false,
             end_logo_texture: None,
             shared_slide: None,
             incident_log,
@@ -300,6 +360,7 @@ impl PresentationApp {
 
     fn navigate_forward(&mut self) {
         if self.transition.is_some() {
+            self.pending_nav = Some(PendingNav::Forward);
             return;
         }
 
@@ -314,6 +375,7 @@ impl PresentationApp {
         if self.reveal_steps[idx] < self.max_steps[idx] {
             self.reveal_steps[idx] += 1;
             self.reveal_timestamps[idx] = Some(Instant::now());
+            self.pending_reveal_scroll = true;
             return;
         }
 
@@ -325,8 +387,8 @@ impl PresentationApp {
             return;
         }
 
-        self.scroll_offsets[idx] = 0.0;
-        self.scroll_targets[idx] = 0.0;
+        // Scroll offsets are reset when the transition completes so the
+        // outgoing slide keeps its scroll position while sliding out.
         self.transition = Some(ActiveTransition::new(
             idx,
             idx + 1,
@@ -337,6 +399,7 @@ impl PresentationApp {
 
     fn navigate_backward(&mut self) {
         if self.transition.is_some() {
+            self.pending_nav = Some(PendingNav::Backward);
             return;
         }
 
@@ -359,8 +422,6 @@ impl PresentationApp {
             return;
         }
 
-        self.scroll_offsets[idx] = 0.0;
-        self.scroll_targets[idx] = 0.0;
         let prev = idx - 1;
         // Show previous slide fully revealed
         self.reveal_steps[prev] = self.max_steps[prev];
@@ -373,13 +434,124 @@ impl PresentationApp {
         ));
     }
 
+    /// Jump directly to a slide (Home/End). The target is shown fully
+    /// revealed and scrolled to the top, like `navigate_backward`.
     fn jump_to_slide(&mut self, index: usize) {
-        if index < self.slide_count() && self.transition.is_none() {
+        if index >= self.slide_count() || self.transition.is_some() {
+            return;
+        }
+        self.on_end_slide = false;
+        self.reveal_steps[index] = self.max_steps[index];
+        let cur = self.current_slide;
+        if index == cur {
+            return;
+        }
+        self.scroll_offsets[index] = 0.0;
+        self.scroll_targets[index] = 0.0;
+        let direction = if index > cur {
+            TransitionDirection::Forward
+        } else {
+            TransitionDirection::Backward
+        };
+        self.transition = Some(ActiveTransition::new(
+            cur,
+            index,
+            self.default_transition,
+            direction,
+        ));
+    }
+
+    /// Finish a completed slide transition: land on the target slide, reset
+    /// the outgoing slide's scroll, and apply any navigation queued meanwhile.
+    fn advance_transition(&mut self) {
+        let Some(t) = self.transition.as_ref() else {
+            return;
+        };
+        if !t.is_complete() {
+            return;
+        }
+        let (from, to) = (t.from, t.to);
+        self.transition = None;
+        self.current_slide = to;
+        if let Some(o) = self.scroll_offsets.get_mut(from) {
+            *o = 0.0;
+        }
+        if let Some(t) = self.scroll_targets.get_mut(from) {
+            *t = 0.0;
+        }
+        if let Some(nav) = self.pending_nav.take() {
+            match nav {
+                PendingNav::Forward => self.navigate_forward(),
+                PendingNav::Backward => self.navigate_backward(),
+            }
+        }
+    }
+
+    /// Finish a completed grid zoom animation.
+    fn advance_overview_transition(&mut self) {
+        let AppMode::OverviewTransition { selected, entering } = self.mode else {
+            return;
+        };
+        let Some(start) = self.overview_transition_start else {
+            return;
+        };
+        if start.elapsed().as_secs_f32() < OVERVIEW_TRANSITION_DURATION {
+            return;
+        }
+        let selected = selected.min(self.slide_count().saturating_sub(1));
+        if entering {
+            self.mode = AppMode::Grid { selected };
+            // The hero slide zoomed out to its unscrolled cell; forget its scroll.
             let cur = self.current_slide;
             self.scroll_offsets[cur] = 0.0;
             self.scroll_targets[cur] = 0.0;
-            self.current_slide = index;
-            self.on_end_slide = false;
+        } else {
+            self.current_slide = selected;
+            // Leaving the grid behaves like navigating back: fully revealed, top.
+            self.reveal_steps[selected] = self.max_steps[selected];
+            self.scroll_offsets[selected] = 0.0;
+            self.scroll_targets[selected] = 0.0;
+            self.mode = AppMode::Presentation;
+        }
+        self.overview_transition_start = None;
+    }
+
+    /// Whether any time-based animation is currently running. Used to decide
+    /// whether a long frame gap (sleep, occlusion) is worth an incident entry.
+    fn animation_in_flight(&self, reference: Instant) -> bool {
+        self.transition.is_some()
+            || self.overview_transition_start.is_some()
+            || self.toast.is_some()
+            || !self.pen_strokes.is_empty()
+            || !self.arrows.is_empty()
+            || !matches!(self.active_draw, ActiveDraw::None)
+            || self.monitor_move.is_some()
+            || self
+                .reveal_timestamps
+                .iter()
+                .any(|t| keys::reveal_in_flight(*t, reference, REVEAL_IN_FLIGHT_WINDOW))
+    }
+
+    /// Shift every animation timestamp forward by `jump` so animations resume
+    /// smoothly after a frame gap instead of snapping to completion.
+    fn shift_timestamps(&mut self, jump: Duration, now: Instant) {
+        if let Some(ref mut t) = self.transition {
+            t.start = (t.start + jump).min(now);
+        }
+        if let Some(ref mut t) = self.overview_transition_start {
+            *t = (*t + jump).min(now);
+        }
+        for stroke in &mut self.pen_strokes {
+            stroke.start = (stroke.start + jump).min(now);
+        }
+        for arrow in &mut self.arrows {
+            arrow.start = (arrow.start + jump).min(now);
+        }
+        if let Some(ref mut t) = self.toast {
+            t.start = (t.start + jump).min(now);
+        }
+        for t in self.reveal_timestamps.iter_mut().flatten() {
+            *t = (*t + jump).min(now);
         }
     }
 
@@ -444,18 +616,27 @@ impl PresentationApp {
             return;
         }
 
+        self.apply_reloaded(new_presentation);
+    }
+
+    /// Swap in a re-parsed presentation, preserving as much per-slide state
+    /// (position, reveal progress, scroll) as still makes sense.
+    fn apply_reloaded(&mut self, new_presentation: Presentation) {
         // Preserve slide position
+        let old_current = self.current_slide;
         let old_raw = self
             .presentation
             .slides
-            .get(self.current_slide)
+            .get(old_current)
             .map(|s| s.raw_source.as_str());
-        self.current_slide =
-            find_matching_slide(old_raw, self.current_slide, &new_presentation.slides);
+        let old_reveal = self.reveal_steps.get(old_current).copied().unwrap_or(0);
+        let old_scroll = self.scroll_targets.get(old_current).copied().unwrap_or(0.0);
+        self.current_slide = find_matching_slide(old_raw, old_current, &new_presentation.slides);
 
         let slide_count = new_presentation.slides.len();
 
-        // Recompute per-slide vectors
+        // Recompute per-slide vectors, keeping the current slide's reveal
+        // progress (clamped to the new step count) and scroll position.
         self.max_steps = new_presentation
             .slides
             .iter()
@@ -465,6 +646,10 @@ impl PresentationApp {
         self.reveal_timestamps = vec![None; slide_count];
         self.scroll_offsets = vec![0.0; slide_count];
         self.scroll_targets = vec![0.0; slide_count];
+        let cur = self.current_slide;
+        self.reveal_steps[cur] = old_reveal.min(self.max_steps[cur]);
+        self.scroll_targets[cur] = old_scroll;
+        self.scroll_offsets[cur] = old_scroll;
 
         // Update theme/transition from new frontmatter
         if let Some(name) = &new_presentation.meta.theme {
@@ -481,14 +666,21 @@ impl PresentationApp {
         render::visualizations::word_cloud::clear_cache();
         self.precache_cancel = Arc::new(AtomicBool::new(false));
         self.transition = None;
+        self.pending_nav = None;
         self.on_end_slide = false;
         self.pen_strokes.clear();
         self.arrows.clear();
         self.active_draw = ActiveDraw::None;
 
-        // Clamp grid selection if in overview mode
-        if let AppMode::Grid { ref mut selected } = self.mode {
-            *selected = (*selected).min(slide_count.saturating_sub(1));
+        // Clamp grid selection (both the grid and its zoom animation carry one)
+        match self.mode {
+            AppMode::Grid { ref mut selected }
+            | AppMode::OverviewTransition {
+                ref mut selected, ..
+            } => {
+                *selected = (*selected).min(slide_count.saturating_sub(1));
+            }
+            AppMode::Presentation => {}
         }
 
         self.toast = Some(Toast::new("Presentation Change Detected".to_string()));
@@ -598,6 +790,28 @@ impl PresentationApp {
         rect.bottom() - grid_top - padding
     }
 
+    /// Grid scroll target that brings `index` into view, starting from `current`.
+    fn grid_scroll_to_show(&self, index: usize, rect: egui::Rect, scale: f32, current: f32) -> f32 {
+        let content_h = self.grid_content_height(rect, scale);
+        let available_h = self.grid_available_height(rect, scale);
+        let overflow = (content_h - available_h).max(0.0);
+        if overflow <= 0.0 {
+            return 0.0;
+        }
+        let padding = 24.0 * scale;
+        let grid_top = rect.top() + padding + 40.0 * scale;
+        let grid_bottom = rect.bottom() - padding;
+        let cell = self.grid_cell_rect(index, rect, scale, current);
+        let target = if cell.top() < grid_top {
+            current - (grid_top - cell.top() + padding)
+        } else if cell.bottom() > grid_bottom {
+            current + (cell.bottom() - grid_bottom + padding)
+        } else {
+            current
+        };
+        target.clamp(0.0, overflow)
+    }
+
     fn compute_scale(rect: egui::Rect) -> f32 {
         let ref_w = 1920.0;
         let ref_h = 1080.0;
@@ -625,61 +839,230 @@ impl PresentationApp {
 /// Re-export `lerp_rect` so the drawing module can use it.
 use helpers::lerp_rect;
 
+impl PresentationApp {
+    /// Drive the monitor-hop state machine one frame. Returns viewport
+    /// commands to send after input handling.
+    fn tick_monitor_move(&mut self, vp: &ViewportSnapshot) -> Vec<egui::ViewportCommand> {
+        let mut cmds = Vec::new();
+        let Some(mv) = self.monitor_move.as_mut() else {
+            return cmds;
+        };
+        match mv.phase {
+            MonitorMovePhase::Reposition => {
+                cmds.push(egui::ViewportCommand::Fullscreen(true));
+                mv.phase = MonitorMovePhase::Verify(Instant::now());
+            }
+            MonitorMovePhase::Verify(since) => {
+                if since.elapsed() < MONITOR_MOVE_SETTLE {
+                    return cmds;
+                }
+                let Some(actual) = vp.outer_pos else {
+                    self.monitor_move = None;
+                    return cmds;
+                };
+                match evaluate_monitor_move(mv.target.x, actual.x, mv.monitor_width, mv.wrapped) {
+                    MonitorMoveOutcome::Landed => {
+                        // Remember the real monitor origin for the next launch
+                        if let Ok(mut config) = Config::load() {
+                            let defaults = config.defaults.get_or_insert_with(Default::default);
+                            defaults.monitor_position = Some([actual.x, actual.y]);
+                            let _ = config.save();
+                        }
+                        self.monitor_move = None;
+                    }
+                    MonitorMoveOutcome::Wrap => {
+                        mv.target = egui::pos2(0.0, 0.0);
+                        mv.wrapped = true;
+                        mv.phase = MonitorMovePhase::Reposition;
+                        cmds.push(egui::ViewportCommand::Fullscreen(false));
+                        cmds.push(egui::ViewportCommand::OuterPosition(mv.target));
+                        self.toast = Some(Toast::new("Wrapping to first monitor...".to_string()));
+                    }
+                    MonitorMoveOutcome::Failed => {
+                        self.toast = Some(Toast::new("No other monitor found".to_string()));
+                        self.monitor_move = None;
+                    }
+                }
+            }
+        }
+        cmds
+    }
+
+    /// Apply a keyboard action. Viewport commands are collected in `cmds` and
+    /// sent by the caller (sending inside `ctx.input` would deadlock).
+    fn handle_action(
+        &mut self,
+        action: Action,
+        vp: &ViewportSnapshot,
+        cmds: &mut Vec<egui::ViewportCommand>,
+    ) {
+        let now = Instant::now();
+        match action {
+            Action::Quit => {
+                if self.quit_tap.tap(now) {
+                    cmds.push(egui::ViewportCommand::Close);
+                } else {
+                    self.toast = Some(Toast::new("Press Q again to quit".to_string()));
+                }
+            }
+            Action::CtrlC => {
+                if self.ctrl_c_tap.tap(now) {
+                    cmds.push(egui::ViewportCommand::Close);
+                } else {
+                    self.toast = Some(Toast::new("Press Ctrl+C again to quit".to_string()));
+                }
+            }
+            Action::Escape => {
+                // In presentation mode, first ESC clears annotations if any exist
+                if matches!(self.mode, AppMode::Presentation) {
+                    let idx = self.current_slide;
+                    let has_annotations = self.pen_strokes.iter().any(|s| s.slide_index == idx)
+                        || self.arrows.iter().any(|a| a.slide_index == idx);
+                    if has_annotations {
+                        self.pen_strokes.retain(|s| s.slide_index != idx);
+                        self.arrows.retain(|a| a.slide_index != idx);
+                        self.esc_tap.reset();
+                        return;
+                    }
+                }
+                if self.esc_tap.tap(now) {
+                    cmds.push(egui::ViewportCommand::Close);
+                } else {
+                    self.toast = Some(Toast::new("Press Esc again to exit".to_string()));
+                }
+            }
+            Action::ToggleFullscreen => {
+                cmds.push(egui::ViewportCommand::Fullscreen(!vp.fullscreen));
+            }
+            Action::MoveMonitor => {
+                if self.monitor_move.is_some() {
+                    return;
+                }
+                if !vp.fullscreen {
+                    self.toast = Some(Toast::new(
+                        "Press F for fullscreen before moving monitors".to_string(),
+                    ));
+                    return;
+                }
+                let Some(monitor_size) = vp.monitor_size else {
+                    self.toast = Some(Toast::new("Monitor layout unknown".to_string()));
+                    return;
+                };
+                // Exit fullscreen, move right by one monitor width, re-enter
+                // fullscreen next frame, then verify where we landed.
+                let current_pos = vp.outer_pos.unwrap_or(egui::pos2(0.0, 0.0));
+                let target = keys::next_monitor_position(current_pos, monitor_size.x);
+                cmds.push(egui::ViewportCommand::Fullscreen(false));
+                cmds.push(egui::ViewportCommand::OuterPosition(target));
+                self.monitor_move = Some(MonitorMove {
+                    target,
+                    monitor_width: monitor_size.x,
+                    wrapped: false,
+                    phase: MonitorMovePhase::Reposition,
+                });
+                self.toast = Some(Toast::new("Moving to next monitor...".to_string()));
+            }
+            Action::CycleTheme => self.toggle_theme(),
+            Action::CycleTransition => self.cycle_transition(),
+            Action::ToggleBlackout => self.blackout = !self.blackout,
+            Action::Next => self.navigate_forward(),
+            Action::Previous => self.navigate_backward(),
+            Action::ScrollUp => {
+                let idx = self.current_slide;
+                self.scroll_targets[idx] = (self.scroll_targets[idx] - 120.0).max(0.0);
+            }
+            Action::ScrollDown => {
+                let idx = self.current_slide;
+                // Max will be clamped at render time when we know content height
+                self.scroll_targets[idx] += 120.0;
+            }
+            Action::FirstSlide => self.jump_to_slide(0),
+            Action::LastSlide => self.jump_to_slide(self.slide_count().saturating_sub(1)),
+            Action::EnterGrid => {
+                if self.transition.is_none() {
+                    self.on_end_slide = false;
+                    self.mode = AppMode::OverviewTransition {
+                        selected: self.current_slide,
+                        entering: true,
+                    };
+                    self.overview_transition_start = Some(Instant::now());
+                    self.show_hud = false;
+                    // Grid scroll is seeded at draw time (needs the viewport rect)
+                    self.grid_seed_scroll = true;
+                    self.hover_slide = None;
+                    self.use_hover = false;
+                }
+            }
+            Action::ToggleHud => self.show_hud = !self.show_hud,
+            Action::CycleRawOverlay => {
+                self.raw_overlay_side = match self.raw_overlay_side {
+                    RawOverlaySide::Off => RawOverlaySide::Left,
+                    RawOverlaySide::Left => RawOverlaySide::Right,
+                    RawOverlaySide::Right => RawOverlaySide::Off,
+                };
+            }
+            Action::GridRight | Action::GridLeft | Action::GridDown | Action::GridUp => {
+                let AppMode::Grid { selected } = self.mode else {
+                    return;
+                };
+                let cols = self.grid_columns();
+                let last = self.slide_count().saturating_sub(1);
+                let next = match action {
+                    Action::GridRight => (selected + 1).min(last),
+                    Action::GridLeft => selected.saturating_sub(1),
+                    Action::GridDown => (selected + cols).min(last),
+                    _ => selected.saturating_sub(cols),
+                };
+                self.mode = AppMode::Grid { selected: next };
+                self.use_hover = false;
+            }
+            Action::GridSelect => {
+                let AppMode::Grid { selected } = self.mode else {
+                    return;
+                };
+                self.use_hover = false;
+                self.mode = AppMode::OverviewTransition {
+                    selected,
+                    entering: false,
+                };
+                self.overview_transition_start = Some(Instant::now());
+            }
+        }
+    }
+}
+
 impl eframe::App for PresentationApp {
     fn ui(&mut self, root_ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = &root_ui.ctx().clone();
-        // Handle pending fullscreen after monitor move (delayed one frame
-        // to allow the window position to take effect first)
-        if self.pending_fullscreen {
-            self.pending_fullscreen = false;
-            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(true));
-        }
-
         self.update_fps();
         self.preload_upcoming_images(ctx);
 
-        // Detect power-state time jumps and shift animation timestamps forward.
-        // Threshold must exceed the platform's repaint heartbeat interval:
+        // Detect frame gaps (sleep, occlusion, scheduling) and shift animation
+        // timestamps forward. Threshold must exceed the repaint heartbeat:
         //   Linux: 500ms heartbeat → 2s threshold
         //   macOS/Windows: 4s heartbeat → 6s threshold
+        // macOS also stops redrawing occluded windows, so a gap is only worth
+        // an incident entry when an animation was actually interrupted.
         let now = Instant::now();
-        let frame_delta = now.duration_since(self.last_frame);
+        let prev_frame = self.last_frame;
+        let frame_delta = now.duration_since(prev_frame);
         self.last_frame = now;
         #[cfg(target_os = "linux")]
         let time_jump_threshold_ms = 2000;
         #[cfg(not(target_os = "linux"))]
         let time_jump_threshold_ms = 6000;
         if frame_delta.as_millis() > time_jump_threshold_ms {
-            let jump = frame_delta;
-            self.incident_log.record(
-                "time_jump",
-                &format!("frame delta {}ms", jump.as_millis()),
-                "Power-state or scheduling gap detected; shifting animation timestamps",
-            );
-
-            // Shift all in-flight animation timestamps forward by the jump amount
-            // so they resume smoothly instead of snapping to completion.
-            if let Some(ref mut t) = self.transition {
-                t.start = (t.start + jump).min(now);
+            if self.animation_in_flight(prev_frame) {
+                self.incident_log.record(
+                    "time_jump",
+                    &format!("frame delta {}ms", frame_delta.as_millis()),
+                    "Power-state or scheduling gap interrupted an animation; shifting timestamps",
+                );
             }
-            if let Some(ref mut t) = self.overview_transition_start {
-                *t = (*t + jump).min(now);
-            }
-            for stroke in &mut self.pen_strokes {
-                stroke.start = (stroke.start + jump).min(now);
-            }
-            for arrow in &mut self.arrows {
-                arrow.start = (arrow.start + jump).min(now);
-            }
-            if let Some(ref mut t) = self.toast {
-                t.start = (t.start + jump).min(now);
-            }
-            for t in self.reveal_timestamps.iter_mut().flatten() {
-                *t = (*t + jump).min(now);
-            }
+            self.shift_timestamps(frame_delta, now);
         }
 
-        // Publish current slide position for recovery after display errors
+        // Publish current slide position for the incident log
         if let Some(shared) = &self.shared_slide {
             shared.store(self.current_slide, Ordering::Relaxed);
         }
@@ -703,232 +1086,63 @@ impl eframe::App for PresentationApp {
         }
 
         let mode = self.mode;
+        let key_mode = match mode {
+            AppMode::Presentation => KeyMode::Presentation,
+            AppMode::Grid { .. } => KeyMode::Grid,
+            AppMode::OverviewTransition { .. } => KeyMode::Blocked,
+        };
 
-        // Collect viewport commands to send AFTER the input closure
-        // (sending inside ctx.input() causes RwLock deadlock)
-        let mut viewport_cmds: Vec<egui::ViewportCommand> = Vec::new();
-
-        // Handle keyboard input
-        ctx.input(|i| {
-            // Quit: Q from any mode
-            if i.key_pressed(egui::Key::Q) {
-                viewport_cmds.push(egui::ViewportCommand::Close);
-                return;
-            }
-
-            // Ctrl+C double-tap to quit
-            if i.modifiers.ctrl && i.key_pressed(egui::Key::C) {
-                if let Some(last) = self.last_ctrl_c
-                    && last.elapsed().as_secs_f32() < 1.0
-                {
-                    viewport_cmds.push(egui::ViewportCommand::Close);
-                    return;
-                }
-                self.last_ctrl_c = Some(Instant::now());
-                self.toast = Some(Toast::new("Press Ctrl+C again to quit".to_string()));
-                return;
-            }
-
-            // ESC: clear drawings first (presentation mode), then double-tap to quit
-            if i.key_pressed(egui::Key::Escape) {
-                // In presentation mode, first ESC clears annotations if any exist
-                if matches!(mode, AppMode::Presentation) {
-                    let idx = self.current_slide;
-                    let has_annotations = self.pen_strokes.iter().any(|s| s.slide_index == idx)
-                        || self.arrows.iter().any(|a| a.slide_index == idx);
-                    if has_annotations {
-                        self.pen_strokes.retain(|s| s.slide_index != idx);
-                        self.arrows.retain(|a| a.slide_index != idx);
-                        self.last_esc = None;
-                        return;
-                    }
-                }
-                // Double-tap to quit (from any mode)
-                if let Some(last) = self.last_esc
-                    && last.elapsed().as_secs_f32() < 1.0
-                {
-                    viewport_cmds.push(egui::ViewportCommand::Close);
-                    return;
-                }
-                self.last_esc = Some(Instant::now());
-                self.toast = Some(Toast::new("Press Esc again to exit".to_string()));
-                return;
-            }
-
-            // Fullscreen toggle: F (from any mode)
-            if i.key_pressed(egui::Key::F) {
-                viewport_cmds.push(egui::ViewportCommand::Fullscreen(
-                    !i.viewport().fullscreen.unwrap_or(false),
-                ));
-                return;
-            }
-
-            // Move fullscreen to next monitor: M (from any mode when fullscreen)
-            if i.key_pressed(egui::Key::M) {
-                if i.viewport().fullscreen.unwrap_or(false)
-                    && let Some(monitor_size) = i.viewport().monitor_size
-                {
-                    // Exit fullscreen, move right by monitor width, re-enter fullscreen
-                    // This lands the window on the next monitor
-                    let current_pos = i
-                        .viewport()
-                        .outer_rect
-                        .map(|r| r.left_top())
-                        .unwrap_or(egui::pos2(0.0, 0.0));
-                    let next_pos =
-                        egui::pos2(current_pos.x + monitor_size.x + 100.0, current_pos.y);
-                    viewport_cmds.push(egui::ViewportCommand::Fullscreen(false));
-                    viewport_cmds.push(egui::ViewportCommand::OuterPosition(next_pos));
-                    // Store the move request — fullscreen will be re-enabled next frame
-                    self.pending_fullscreen = true;
-                    // Remember this monitor position in config
-                    if let Ok(mut config) = crate::config::Config::load() {
-                        let defaults = config.defaults.get_or_insert_with(Default::default);
-                        defaults.monitor_position = Some([next_pos.x, next_pos.y]);
-                        let _ = config.save();
-                    }
-                    self.toast = Some(Toast::new("Moving to next monitor...".to_string()));
-                }
-                return;
-            }
-
-            // Cycle theme: Shift+T (from any mode)
-            if i.modifiers.shift && i.key_pressed(egui::Key::T) {
-                self.toggle_theme();
-                return;
-            }
-
-            // Cycle transition: T (from any mode)
-            if !i.modifiers.shift && i.key_pressed(egui::Key::T) {
-                self.cycle_transition();
-                return;
-            }
-
-            // Blackout toggle: . (period)
-            if i.key_pressed(egui::Key::Period) {
-                self.blackout = !self.blackout;
-                return;
-            }
-
-            // Block all other input while blacked out
-            if self.blackout {
-                return;
-            }
-
-            match mode {
-                AppMode::Presentation => {
-                    // Forward: Right, N, Space
-                    if i.key_pressed(egui::Key::ArrowRight)
-                        || i.key_pressed(egui::Key::N)
-                        || i.key_pressed(egui::Key::Space)
-                    {
-                        self.navigate_forward();
-                    }
-                    // Backward: Left, P
-                    if i.key_pressed(egui::Key::ArrowLeft) || i.key_pressed(egui::Key::P) {
-                        self.navigate_backward();
-                    }
-                    // Toggle HUD: H
-                    if i.key_pressed(egui::Key::H) {
-                        self.show_hud = !self.show_hud;
-                    }
-                    // Cycle debug overlay: R (Off → Left → Right → Off)
-                    if i.key_pressed(egui::Key::R) {
-                        self.raw_overlay_side = match self.raw_overlay_side {
-                            RawOverlaySide::Off => RawOverlaySide::Left,
-                            RawOverlaySide::Left => RawOverlaySide::Right,
-                            RawOverlaySide::Right => RawOverlaySide::Off,
-                        };
-                    }
-                    // Scroll: Up/Down (animate toward target)
-                    if i.key_pressed(egui::Key::ArrowUp) {
-                        let idx = self.current_slide;
-                        self.scroll_targets[idx] = (self.scroll_targets[idx] - 120.0).max(0.0);
-                    }
-                    if i.key_pressed(egui::Key::ArrowDown) {
-                        let idx = self.current_slide;
-                        // Max will be clamped at render time when we know content height
-                        self.scroll_targets[idx] += 120.0;
-                    }
-                    // Mouse wheel scroll
-                    let scroll = i.smooth_scroll_delta;
-                    if scroll.y != 0.0 {
-                        let idx = self.current_slide;
-                        self.scroll_targets[idx] -= scroll.y;
-                    }
-                    // Home/End
-                    if i.key_pressed(egui::Key::Home) {
-                        self.jump_to_slide(0);
-                    }
-                    if i.key_pressed(egui::Key::End) {
-                        self.jump_to_slide(self.slide_count().saturating_sub(1));
-                    }
-                    // G: animate into grid overview
-                    if i.key_pressed(egui::Key::G) && self.transition.is_none() {
-                        self.on_end_slide = false;
-                        self.mode = AppMode::OverviewTransition {
-                            selected: self.current_slide,
-                            entering: true,
-                        };
-                        self.overview_transition_start = Some(Instant::now());
-                        self.show_hud = false;
-                        self.grid_scroll_offset = 0.0;
-                        self.grid_scroll_target = 0.0;
-                        self.hover_slide = None;
-                        self.use_hover = false;
-                    }
-                }
-                AppMode::Grid { selected } => {
-                    let cols = self.grid_columns();
-                    let count = self.slide_count();
-
-                    // Arrow navigation in grid
-                    if i.key_pressed(egui::Key::ArrowRight) {
-                        let next = (selected + 1).min(count.saturating_sub(1));
-                        self.mode = AppMode::Grid { selected: next };
-                        self.use_hover = false;
-                    }
-                    if i.key_pressed(egui::Key::ArrowLeft) {
-                        let prev = selected.saturating_sub(1);
-                        self.mode = AppMode::Grid { selected: prev };
-                        self.use_hover = false;
-                    }
-                    if i.key_pressed(egui::Key::ArrowDown) {
-                        let next = (selected + cols).min(count.saturating_sub(1));
-                        self.mode = AppMode::Grid { selected: next };
-                        self.use_hover = false;
-                    }
-                    if i.key_pressed(egui::Key::ArrowUp) {
-                        let prev = selected.saturating_sub(cols);
-                        self.mode = AppMode::Grid { selected: prev };
-                        self.use_hover = false;
-                    }
-
-                    // Enter / Space / E: animate back to selected slide
-                    if i.key_pressed(egui::Key::Enter)
-                        || i.key_pressed(egui::Key::Space)
-                        || i.key_pressed(egui::Key::E)
-                    {
-                        self.use_hover = false;
-                        self.mode = AppMode::OverviewTransition {
-                            selected,
-                            entering: false,
-                        };
-                        self.overview_transition_start = Some(Instant::now());
-                    }
-                }
-                AppMode::OverviewTransition { .. } => {
-                    // Block input during overview animation
-                }
-            }
+        // Snapshot input inside the closure; act on it outside (sending
+        // viewport commands inside ctx.input() deadlocks).
+        let (pressed, wheel_y, vp) = ctx.input(|i| {
+            let pressed: Vec<(egui::Key, egui::Modifiers)> = i
+                .events
+                .iter()
+                .filter_map(|e| match e {
+                    egui::Event::Key {
+                        key,
+                        pressed: true,
+                        modifiers,
+                        ..
+                    } => Some((*key, *modifiers)),
+                    _ => None,
+                })
+                .collect();
+            let vp = ViewportSnapshot {
+                fullscreen: i.viewport().fullscreen.unwrap_or(false),
+                monitor_size: i.viewport().monitor_size,
+                outer_pos: i.viewport().outer_rect.map(|r| r.left_top()),
+            };
+            (pressed, i.smooth_scroll_delta.y, vp)
         });
 
-        // Send collected viewport commands outside the input closure
+        let mut viewport_cmds = self.tick_monitor_move(&vp);
+        if self.monitor_move.is_some() {
+            ctx.request_repaint_after(Duration::from_millis(100));
+        }
+
+        for (key, modifiers) in pressed {
+            let Some(action) = map_key(key, modifiers, key_mode) else {
+                continue;
+            };
+            // Block everything but global actions while blacked out
+            if self.blackout && !action.is_global() {
+                continue;
+            }
+            self.handle_action(action, &vp, &mut viewport_cmds);
+        }
+
+        // Mouse wheel scroll (presentation mode only)
+        if wheel_y != 0.0 && matches!(mode, AppMode::Presentation) && !self.blackout {
+            let idx = self.current_slide;
+            self.scroll_targets[idx] -= wheel_y;
+        }
+
         for cmd in viewport_cmds {
             ctx.send_viewport_cmd(cmd);
         }
 
-        // Mouse input handling (presentation mode only, outside ctx.input closure)
+        // Mouse input handling (presentation mode only)
         if matches!(mode, AppMode::Presentation) && self.transition.is_none() && !self.blackout {
             self.handle_mouse_input(ctx);
         }
@@ -942,28 +1156,8 @@ impl eframe::App for PresentationApp {
             ctx.request_repaint();
         }
 
-        // Advance transition
-        if let Some(ref t) = self.transition
-            && t.is_complete()
-        {
-            let to = t.to;
-            self.transition = None;
-            self.current_slide = to;
-        }
-
-        // Complete overview transition
-        if let AppMode::OverviewTransition { selected, entering } = self.mode
-            && let Some(start) = self.overview_transition_start
-            && start.elapsed().as_secs_f32() >= OVERVIEW_TRANSITION_DURATION
-        {
-            if entering {
-                self.mode = AppMode::Grid { selected };
-            } else {
-                self.current_slide = selected;
-                self.mode = AppMode::Presentation;
-            }
-            self.overview_transition_start = None;
-        }
+        self.advance_transition();
+        self.advance_overview_transition();
 
         // Expire toast
         if self.toast.as_ref().is_some_and(|t| t.is_expired()) {
@@ -993,6 +1187,17 @@ impl eframe::App for PresentationApp {
                 if self.on_end_slide {
                     self.draw_end_slide(ui, rect, scale);
                     return;
+                }
+
+                // Entering the grid: start with the selected cell in view so the
+                // zoom-out lands on a visible cell instead of one below the fold.
+                if self.grid_seed_scroll {
+                    self.grid_seed_scroll = false;
+                    if let AppMode::OverviewTransition { selected, .. } = self.mode {
+                        let seed = self.grid_scroll_to_show(selected, rect, scale, 0.0);
+                        self.grid_scroll_offset = seed;
+                        self.grid_scroll_target = seed;
+                    }
                 }
 
                 match self.mode {
@@ -1080,6 +1285,29 @@ impl eframe::App for PresentationApp {
     }
 }
 
+/// Resolve the initial slide (0-indexed) and overview flag from CLI flags and
+/// the configured `defaults.start_mode`. CLI flags win.
+fn resolve_start(
+    start_slide: Option<usize>,
+    start_overview: bool,
+    config_start: Option<&str>,
+) -> (usize, bool) {
+    if start_overview {
+        return (start_slide.map(|s| s.saturating_sub(1)).unwrap_or(0), true);
+    }
+    if let Some(s) = start_slide {
+        return (s.saturating_sub(1), false);
+    }
+    match config_start {
+        Some("overview") => (0, true),
+        Some("first") | None => (0, false),
+        Some(n) => match n.parse::<usize>() {
+            Ok(num) => (num.saturating_sub(1), false),
+            Err(_) => (0, false),
+        },
+    }
+}
+
 pub fn run(
     file: PathBuf,
     windowed: bool,
@@ -1089,194 +1317,140 @@ pub fn run(
 ) -> anyhow::Result<()> {
     let file = file.canonicalize().unwrap_or(file);
 
-    // Determine start mode: CLI flags override config
+    // Config defaults: start mode, theme/transition fallbacks, monitor position
     let config = Config::load_or_default();
-    let config_start = config
-        .defaults
-        .as_ref()
-        .and_then(|d| d.start_mode.as_deref())
-        .map(String::from);
-
-    let (cli_initial_slide, cli_initial_overview) = if start_overview {
-        (start_slide.map(|s| s.saturating_sub(1)).unwrap_or(0), true)
-    } else if let Some(s) = start_slide {
-        (s.saturating_sub(1), false)
-    } else {
-        match config_start.as_deref() {
-            Some("overview") => (0, true),
-            Some("first") | None => (0, false),
-            Some(n) => {
-                if let Ok(num) = n.parse::<usize>() {
-                    (num.saturating_sub(1), false)
-                } else {
-                    (0, false)
-                }
-            }
-        }
-    };
+    let defaults = config.defaults.clone().unwrap_or_default();
+    let (cli_initial_slide, cli_initial_overview) =
+        resolve_start(start_slide, start_overview, defaults.start_mode.as_deref());
 
     let icon = load_app_icon().map(std::sync::Arc::new);
-
-    // Shared slide position survives display errors so we can resume
-    let shared_slide = Arc::new(AtomicUsize::new(cli_initial_slide));
-
     let incident_log = Arc::new(IncidentLog::new(&file.display().to_string()));
 
-    const MAX_RETRIES: usize = 5;
-    for attempt in 0..=MAX_RETRIES {
-        let content = std::fs::read_to_string(&file)?;
-        let base_path = file.parent().unwrap_or(std::path::Path::new("."));
-        let presentation = parser::parse(&content, base_path);
+    let content = std::fs::read_to_string(&file)?;
+    let base_path = file.parent().unwrap_or(std::path::Path::new("."));
+    let presentation = parser::parse(&content, base_path);
 
-        if presentation.slides.is_empty() {
-            anyhow::bail!("No slides found in {}", file.display());
-        }
+    if presentation.slides.is_empty() {
+        anyhow::bail!("No slides found in {}", file.display());
+    }
 
-        // Warn about ungenerated AI images (first attempt only, not on hot-reload)
-        if attempt == 0 && !quiet {
-            let ungenerated = presentation
-                .slides
-                .iter()
-                .flat_map(|s| s.blocks.iter())
-                .filter(|b| matches!(b, parser::Block::Image { path, .. } if path == "image-generation"))
-                .count();
-            if ungenerated > 0 {
-                use colored::Colorize;
-                eprintln!(
-                    "{} This presentation contains {} ungenerated image(s).",
-                    "Warning:".yellow().bold(),
-                    ungenerated
-                );
-                eprintln!(
-                    "  Run `mdeck ai generate {}` to generate them first.\n",
-                    file.display()
-                );
-            }
-        }
-
-        let title = presentation.meta.title.clone().unwrap_or_else(|| {
-            format!(
-                "mdeck \u{2014} {}",
-                file.file_name().unwrap_or_default().to_string_lossy()
+    // Warn about ungenerated AI images
+    if !quiet {
+        let ungenerated = presentation
+            .slides
+            .iter()
+            .flat_map(|s| s.blocks.iter())
+            .filter(
+                |b| matches!(b, parser::Block::Image { path, .. } if path == "image-generation"),
             )
-        });
-
-        let slide_count = presentation.slides.len();
-
-        // On first attempt use CLI args; on retry resume from last known slide
-        let (initial_slide, initial_overview) = if attempt == 0 {
-            (
-                cli_initial_slide.min(slide_count.saturating_sub(1)),
-                cli_initial_overview,
-            )
-        } else {
-            (
-                shared_slide
-                    .load(Ordering::Relaxed)
-                    .min(slide_count.saturating_sub(1)),
-                false,
-            )
-        };
-
-        // Check for remembered monitor position from config
-        let saved_monitor_pos = crate::config::Config::load()
-            .ok()
-            .and_then(|c| c.defaults.and_then(|d| d.monitor_position));
-
-        let viewport = if windowed {
-            egui::ViewportBuilder::default()
-                .with_inner_size([1280.0, 720.0])
-                .with_title(&title)
-        } else {
-            let vp = egui::ViewportBuilder::default()
-                .with_fullscreen(true)
-                .with_title(&title);
-            // If we have a saved monitor position, set it so the window
-            // opens fullscreen on the remembered monitor
-            if let Some([x, y]) = saved_monitor_pos {
-                vp.with_position(egui::pos2(x, y))
-            } else {
-                vp
-            }
-        };
-
-        let viewport = if let Some(ref icon) = icon {
-            viewport.with_icon(icon.clone())
-        } else {
-            viewport
-        };
-
-        let options = eframe::NativeOptions {
-            viewport,
-            ..Default::default()
-        };
-
-        let shared = shared_slide.clone();
-        let file_clone = file.clone();
-        let log_clone = incident_log.clone();
-        let result = eframe::run_native(
-            &title,
-            options,
-            Box::new(move |cc| {
-                let content_hash = hash_content(&content);
-                let (watcher_rx, watcher) =
-                    spawn_file_watcher(&file_clone, cc.egui_ctx.clone(), log_clone.clone())?;
-                let mut app = PresentationApp::new(
-                    file_clone,
-                    presentation,
-                    windowed,
-                    watcher_rx,
-                    watcher,
-                    content_hash,
-                    quiet,
-                    log_clone,
-                );
-                app.current_slide = initial_slide;
-                app.shared_slide = Some(shared);
-                if initial_overview {
-                    app.mode = AppMode::Grid {
-                        selected: initial_slide,
-                    };
-                }
-                app.spawn_diagram_precache();
-                Ok(Box::new(app))
-            }),
-        );
-
-        match result {
-            Ok(()) => {
-                print_incident_summary(&incident_log);
-                return Ok(());
-            }
-            Err(e) if attempt < MAX_RETRIES => {
-                let slide = shared_slide.load(Ordering::Relaxed);
-                let summary = format!(
-                    "eframe display error, restarting (attempt {}/{})",
-                    attempt + 1,
-                    MAX_RETRIES,
-                );
-                incident_log.record("display_error", &summary, &format!("{e}\nslide: {slide}"));
-                eprintln!(
-                    "Display error: {e}. Restarting presentation (attempt {}/{MAX_RETRIES})...",
-                    attempt + 1,
-                );
-                continue;
-            }
-            Err(e) => {
-                let slide = shared_slide.load(Ordering::Relaxed);
-                incident_log.record(
-                    "display_error_fatal",
-                    "all display error retries exhausted",
-                    &format!("{e}\nslide: {slide}"),
-                );
-                print_incident_summary(&incident_log);
-                return Err(anyhow::anyhow!("{e}"));
-            }
+            .count();
+        if ungenerated > 0 {
+            use colored::Colorize;
+            eprintln!(
+                "{} This presentation contains {} ungenerated image(s).",
+                "Warning:".yellow().bold(),
+                ungenerated
+            );
+            eprintln!(
+                "  Run `mdeck ai generate {}` to generate them first.\n",
+                file.display()
+            );
         }
     }
 
-    print_incident_summary(&incident_log);
-    Ok(())
+    let title = presentation.meta.title.clone().unwrap_or_else(|| {
+        format!(
+            "mdeck \u{2014} {}",
+            file.file_name().unwrap_or_default().to_string_lossy()
+        )
+    });
+
+    let slide_count = presentation.slides.len();
+    let initial_slide = cli_initial_slide.min(slide_count.saturating_sub(1));
+    let initial_overview = cli_initial_overview;
+
+    // The slide position is shared with the window so a display error can be
+    // logged together with where the presentation was.
+    let shared_slide = Arc::new(AtomicUsize::new(initial_slide));
+
+    let viewport = if windowed {
+        egui::ViewportBuilder::default()
+            .with_inner_size([1280.0, 720.0])
+            .with_title(&title)
+    } else {
+        let vp = egui::ViewportBuilder::default()
+            .with_fullscreen(true)
+            .with_title(&title);
+        // If we have a saved monitor position, set it so the window
+        // opens fullscreen on the remembered monitor
+        if let Some([x, y]) = defaults.monitor_position {
+            vp.with_position(egui::pos2(x, y))
+        } else {
+            vp
+        }
+    };
+
+    let viewport = if let Some(ref icon) = icon {
+        viewport.with_icon(icon.clone())
+    } else {
+        viewport
+    };
+
+    let options = eframe::NativeOptions {
+        viewport,
+        ..Default::default()
+    };
+
+    let shared = shared_slide.clone();
+    let file_clone = file.clone();
+    let log_clone = incident_log.clone();
+    // winit allows exactly one event loop per process, so there is no point
+    // retrying `run_native` after a display error: run once, log, and bail.
+    let result = eframe::run_native(
+        &title,
+        options,
+        Box::new(move |cc| {
+            let content_hash = hash_content(&content);
+            let (watcher_rx, watcher) =
+                spawn_file_watcher(&file_clone, cc.egui_ctx.clone(), log_clone.clone())?;
+            let mut app = PresentationApp::new(
+                file_clone,
+                presentation,
+                watcher_rx,
+                Some(watcher),
+                content_hash,
+                quiet,
+                log_clone,
+                &defaults,
+            );
+            app.current_slide = initial_slide;
+            app.shared_slide = Some(shared);
+            if initial_overview {
+                app.mode = AppMode::Grid {
+                    selected: initial_slide,
+                };
+            }
+            app.spawn_diagram_precache();
+            Ok(Box::new(app))
+        }),
+    );
+
+    match result {
+        Ok(()) => {
+            print_incident_summary(&incident_log);
+            Ok(())
+        }
+        Err(e) => {
+            let slide = shared_slide.load(Ordering::Relaxed);
+            incident_log.record(
+                "display_error",
+                "eframe display error",
+                &format!("{e}\nslide: {slide}"),
+            );
+            print_incident_summary(&incident_log);
+            Err(anyhow::anyhow!("{e}"))
+        }
+    }
 }
 
 #[cfg(test)]

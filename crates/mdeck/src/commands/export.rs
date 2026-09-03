@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use eframe::egui;
 
+use crate::commands::util::slide_number_width;
 use crate::parser::{self, Presentation};
 use crate::render;
 use crate::render::image_cache::ImageCache;
@@ -53,7 +55,7 @@ impl TileCanvas {
         }
     }
 
-    fn save(&self, path: &Path) {
+    fn save(&self, path: &Path) -> Result<(), String> {
         image::save_buffer(
             path,
             &self.pixels,
@@ -61,7 +63,31 @@ impl TileCanvas {
             self.height,
             image::ColorType::Rgba8,
         )
-        .unwrap_or_else(|e| eprintln!("Failed to save {}: {e}", path.display()));
+        .map_err(|e| format!("Failed to save {}: {e}", path.display()))
+    }
+}
+
+/// Build `slide-NN.png` / `slide-NN-step-MM.png`, padding both numbers so
+/// files sort correctly for decks with 100+ slides or steps.
+fn export_filename(
+    slide_index: usize,
+    slide_count: usize,
+    step: Option<usize>,
+    max_step: usize,
+) -> String {
+    let sw = slide_number_width(slide_count);
+    match step {
+        Some(step) => {
+            let stw = slide_number_width(max_step);
+            format!(
+                "slide-{:0sw$}-step-{:0stw$}.png",
+                slide_index + 1,
+                step,
+                sw = sw,
+                stw = stw
+            )
+        }
+        None => format!("slide-{:0sw$}.png", slide_index + 1, sw = sw),
     }
 }
 
@@ -92,6 +118,8 @@ struct ExportApp {
     max_steps: Vec<usize>,
     debug: bool,
     done: bool,
+    /// First save error, shared with `run()` so the exit code reflects it.
+    error: Arc<Mutex<Option<String>>>,
 }
 
 impl ExportApp {
@@ -102,6 +130,7 @@ impl ExportApp {
         width: u32,
         height: u32,
         debug: bool,
+        error: Arc<Mutex<Option<String>>>,
     ) -> Self {
         let theme_name = presentation.meta.theme.as_deref().unwrap_or("light");
         let theme = Theme::from_name(theme_name);
@@ -129,6 +158,7 @@ impl ExportApp {
             max_steps,
             debug,
             done: false,
+            error,
         }
     }
 
@@ -136,16 +166,14 @@ impl ExportApp {
         self.presentation.slides.len()
     }
 
+    /// File name for the current slide/step, zero-padded to the deck size.
     fn output_filename(&self) -> String {
-        if self.debug {
-            format!(
-                "slide-{:02}-step-{:02}.png",
-                self.current_slide + 1,
-                self.current_step
-            )
-        } else {
-            format!("slide-{:02}.png", self.current_slide + 1)
-        }
+        export_filename(
+            self.current_slide,
+            self.slide_count(),
+            self.debug.then_some(self.current_step),
+            self.max_steps.iter().copied().max().unwrap_or(0),
+        )
     }
 
     /// Advance to the next reveal step or slide. Returns false when finished.
@@ -215,7 +243,14 @@ impl eframe::App for ExportApp {
                 self.tile = (0, ty + 1);
             } else {
                 let filename = self.output_filename();
-                self.canvas.save(&self.output_dir.join(&filename));
+                if let Err(e) = self.canvas.save(&self.output_dir.join(&filename)) {
+                    // Stop at the first failure so it cannot be mistaken for success
+                    eprintln!("  {e}");
+                    *self.error.lock().unwrap_or_else(|p| p.into_inner()) = Some(e);
+                    self.done = true;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    return;
+                }
                 eprintln!("  Saved {filename}");
                 self.canvas.clear();
                 self.tile = (0, 0);
@@ -343,6 +378,8 @@ pub fn run(
     };
 
     let output_dir_clone = output_dir.clone();
+    let error: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let error_clone = error.clone();
     eframe::run_native(
         &title,
         options,
@@ -354,10 +391,17 @@ pub fn run(
                 width,
                 height,
                 debug,
+                error_clone,
             )))
         }),
     )
     .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    // A failed save must not look like success: propagate it as an error
+    let failed = error.lock().unwrap_or_else(|p| p.into_inner()).take();
+    if let Some(e) = failed {
+        anyhow::bail!("Export failed: {e}");
+    }
 
     eprintln!("Export complete.");
     Ok(())
@@ -369,6 +413,28 @@ mod tests {
 
     fn solid_image(w: usize, h: usize, c: egui::Color32) -> egui::ColorImage {
         egui::ColorImage::new([w, h], vec![c; w * h])
+    }
+
+    #[test]
+    fn filenames_pad_to_two_digits_for_small_decks() {
+        assert_eq!(export_filename(0, 5, None, 0), "slide-01.png");
+        assert_eq!(export_filename(98, 99, None, 0), "slide-99.png");
+    }
+
+    #[test]
+    fn filenames_pad_to_three_digits_for_large_decks() {
+        assert_eq!(export_filename(0, 100, None, 0), "slide-001.png");
+        assert_eq!(export_filename(119, 120, None, 0), "slide-120.png");
+    }
+
+    #[test]
+    fn debug_filenames_include_padded_step() {
+        assert_eq!(export_filename(2, 10, Some(0), 4), "slide-03-step-00.png");
+        assert_eq!(export_filename(2, 10, Some(3), 4), "slide-03-step-03.png");
+        assert_eq!(
+            export_filename(2, 150, Some(7), 120),
+            "slide-003-step-007.png"
+        );
     }
 
     #[test]

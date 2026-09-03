@@ -36,7 +36,7 @@ pub struct Cli {
     #[arg(long, global = false)]
     pub check: bool,
 
-    /// Increase output verbosity (-v for debug, -vv for trace)
+    /// Increase output verbosity (with --check: print per-slide details)
     #[arg(short, long, action = ArgAction::Count, global = true)]
     pub verbose: u8,
 
@@ -172,9 +172,10 @@ pub struct CreateArgs {
     #[arg(long)]
     pub input: Option<String>,
 
-    /// Output path: .md file or directory (creates presentation.md inside)
-    #[arg(short, long, default_value = "presentation.md")]
-    pub output: PathBuf,
+    /// Output path: .md file or directory (creates presentation.md inside).
+    /// Defaults to an AI-suggested name (presentation.md with --quiet).
+    #[arg(short, long)]
+    pub output: Option<PathBuf>,
 
     /// Custom prompt: audience, purpose, tone guidance for the presentation
     #[arg(long)]
@@ -250,7 +251,9 @@ pub enum ConfigCommands {
 
     /// Set a configuration value
     Set {
-        /// Configuration key (e.g. defaults.theme, defaults.transition, defaults.aspect)
+        /// Configuration key: defaults.theme (light|dark|nord), defaults.transition
+        /// (slide|fade|spatial|none), defaults.aspect (16:9|4:3|16:10),
+        /// defaults.start_mode (first|overview|<slide number>)
         key: String,
 
         /// Value to set

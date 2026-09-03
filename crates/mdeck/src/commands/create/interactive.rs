@@ -86,8 +86,14 @@ pub async fn run_interactive_chat(
     // Chat loop
     loop {
         let input = match read_user_input()? {
+            // Ctrl-D / piped EOF: there will never be more input, so stop
+            // instead of re-prompting forever.
+            None => {
+                eprintln!();
+                anyhow::bail!("Cancelled (end of input).");
+            }
+            Some(s) if s.is_empty() => continue,
             Some(s) => s,
-            None => continue,
         };
 
         match input.as_str() {
@@ -216,6 +222,10 @@ async fn stream_chat(client: &ailloy::Client, history: &[ailloy::Message]) -> Re
 }
 
 /// Read a line of user input with a `> ` prompt.
+/// Read a line of user input with a `> ` prompt.
+///
+/// Returns `Ok(None)` only at end of input (Ctrl-D / piped EOF); an empty
+/// line is returned as `Some("")` so callers can tell the two apart.
 fn read_user_input() -> Result<Option<String>> {
     eprint!("{} ", ">".bold());
     io::stderr().flush()?;
@@ -223,14 +233,7 @@ fn read_user_input() -> Result<Option<String>> {
     let mut input = String::new();
     match io::stdin().read_line(&mut input) {
         Ok(0) => Ok(None),
-        Ok(_) => {
-            let trimmed = input.trim().to_string();
-            if trimmed.is_empty() {
-                Ok(None)
-            } else {
-                Ok(Some(trimmed))
-            }
-        }
+        Ok(_) => Ok(Some(input.trim().to_string())),
         Err(e) => Err(e.into()),
     }
 }

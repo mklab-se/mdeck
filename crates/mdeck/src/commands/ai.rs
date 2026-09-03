@@ -48,12 +48,6 @@ pub async fn run(cmd: Option<AiCommands>, quiet: bool) -> Result<()> {
     }
 }
 
-/// Check if AI features are active (configured via ailloy + enabled for this tool).
-#[allow(dead_code)]
-pub fn is_ai_active() -> bool {
-    config_tui::is_ai_active(APP_NAME)
-}
-
 /// Check if ailloy has a default node for a capability.
 pub fn has_capability(cap: &str) -> bool {
     if config_tui::is_ai_disabled(APP_NAME) {
@@ -159,7 +153,7 @@ async fn test(message: Option<String>) -> Result<()> {
         match result {
             Ok(response) => {
                 let ext = image_ext(&response.format);
-                let path = std::path::PathBuf::from(format!("/tmp/mdeck-ai-test.{ext}"));
+                let path = std::env::temp_dir().join(format!("mdeck-ai-test.{ext}"));
                 std::fs::write(&path, &response.data)?;
 
                 println!("  {}", "✓ PASS".green().bold());
@@ -490,6 +484,9 @@ async fn stream_chat_response(
 }
 
 /// Read a line of user input with a `> ` prompt.
+///
+/// Returns `Ok(None)` only at end of input (Ctrl-D / piped EOF); an empty
+/// line is returned as `Some("")` so callers can tell the two apart.
 fn read_user_input() -> Result<Option<String>> {
     eprint!("{} ", ">".bold());
     io::stderr().flush()?;
@@ -497,14 +494,7 @@ fn read_user_input() -> Result<Option<String>> {
     let mut input = String::new();
     match io::stdin().read_line(&mut input) {
         Ok(0) => Ok(None), // EOF
-        Ok(_) => {
-            let trimmed = input.trim().to_string();
-            if trimmed.is_empty() {
-                Ok(None)
-            } else {
-                Ok(Some(trimmed))
-            }
-        }
+        Ok(_) => Ok(Some(input.trim().to_string())),
         Err(e) => Err(e.into()),
     }
 }
@@ -554,8 +544,13 @@ async fn run_interactive_style(name: Option<String>, icon: bool) -> Result<()> {
     // REPL loop
     loop {
         let input = match read_user_input()? {
+            // Ctrl-D / piped EOF: no more input will ever come — quit
+            None => {
+                eprintln!();
+                break;
+            }
+            Some(s) if s.is_empty() => continue,
             Some(s) => s,
-            None => continue,
         };
 
         match input.as_str() {
@@ -694,7 +689,7 @@ async fn generate_image_cmd(args: crate::cli::GenerateImageArgs) -> Result<()> {
     let path = if let Some(ref output) = args.output {
         output.clone()
     } else {
-        std::path::PathBuf::from(format!("/tmp/mdeck-generated.{ext}"))
+        std::env::temp_dir().join(format!("mdeck-generated.{ext}"))
     };
 
     if let Some(parent) = path.parent() {
