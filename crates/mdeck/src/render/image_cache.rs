@@ -4,6 +4,32 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
+/// Images whose longest side exceeds this are downscaled before upload. A
+/// slide is never shown above 4K, so larger textures only cost VRAM and
+/// upload time.
+pub const MAX_TEXTURE_SIDE: u32 = 4096;
+
+/// Texture options for photos: trilinear filtering with mipmaps so images
+/// stay smooth when drawn far below their native size (grid overview).
+fn texture_options() -> egui::TextureOptions {
+    egui::TextureOptions {
+        magnification: egui::TextureFilter::Linear,
+        minification: egui::TextureFilter::Linear,
+        wrap_mode: egui::TextureWrapMode::ClampToEdge,
+        mipmap_mode: Some(egui::TextureFilter::Linear),
+    }
+}
+
+/// Shrink an image so its longest side is at most [`MAX_TEXTURE_SIDE`],
+/// preserving aspect ratio. Smaller images are returned untouched.
+fn downscale_if_needed(img: image::DynamicImage) -> image::DynamicImage {
+    if img.width() > MAX_TEXTURE_SIDE || img.height() > MAX_TEXTURE_SIDE {
+        img.thumbnail(MAX_TEXTURE_SIDE, MAX_TEXTURE_SIDE)
+    } else {
+        img
+    }
+}
+
 /// A decoded RGBA image produced on a background thread.
 struct DecodedImage {
     size: [usize; 2],
@@ -95,7 +121,7 @@ impl ImageCache {
         self.pending.borrow_mut().remove(path);
         let texture = received.map(|decoded| {
             let color_image = egui::ColorImage::from_rgba_unmultiplied(decoded.size, &decoded.rgba);
-            ctx.load_texture(path, color_image, egui::TextureOptions::LINEAR)
+            ctx.load_texture(path, color_image, texture_options())
         });
         self.textures
             .borrow_mut()
@@ -132,7 +158,7 @@ impl ImageCache {
 fn decode_image(path: &Path) -> Option<DecodedImage> {
     let bytes = std::fs::read(path).ok()?;
     let img = image::load_from_memory(&bytes).ok()?;
-    let rgba = img.to_rgba8();
+    let rgba = downscale_if_needed(img).to_rgba8();
     let size = [rgba.width() as usize, rgba.height() as usize];
     Some(DecodedImage {
         size,
@@ -161,6 +187,28 @@ mod tests {
         assert_eq!(decoded.rgba.len(), 4 * 3 * 4);
         assert_eq!(&decoded.rgba[..4], &[10, 20, 30, 255]);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn oversized_images_are_downscaled_preserving_aspect() {
+        let img = image::DynamicImage::new_rgba8(8192, 2048);
+        let out = downscale_if_needed(img);
+        assert_eq!(out.width(), MAX_TEXTURE_SIDE);
+        assert_eq!(out.height(), 1024);
+    }
+
+    #[test]
+    fn small_images_are_left_alone() {
+        let img = image::DynamicImage::new_rgba8(640, 480);
+        let out = downscale_if_needed(img);
+        assert_eq!((out.width(), out.height()), (640, 480));
+    }
+
+    #[test]
+    fn textures_use_mipmaps() {
+        let opts = texture_options();
+        assert_eq!(opts.mipmap_mode, Some(egui::TextureFilter::Linear));
+        assert_eq!(opts.minification, egui::TextureFilter::Linear);
     }
 
     #[test]

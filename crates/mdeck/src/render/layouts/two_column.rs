@@ -2,8 +2,115 @@ use eframe::egui::{self, Pos2};
 
 use crate::parser::{Block, Slide};
 use crate::render::image_cache::ImageCache;
+use crate::render::layouts::{SLIDE_PADDING, centered_left, centered_top, content_width};
 use crate::render::text;
 use crate::theme::Theme;
+
+const COLUMN_GAP: f32 = 40.0;
+
+/// Blocks of a two-column slide split into their regions.
+struct Columns<'a> {
+    heading: Vec<&'a Block>,
+    left: Vec<&'a Block>,
+    right: Vec<&'a Block>,
+}
+
+/// Split blocks at the `ColumnSeparator`. A leading H1/H2 spans both columns.
+fn split_columns(blocks: &[Block]) -> Columns<'_> {
+    let mut columns = Columns {
+        heading: Vec::new(),
+        left: Vec::new(),
+        right: Vec::new(),
+    };
+    let mut in_right = false;
+
+    for block in blocks {
+        if matches!(block, Block::ColumnSeparator) {
+            in_right = true;
+            continue;
+        }
+        if !in_right
+            && columns.left.is_empty()
+            && matches!(
+                block,
+                Block::Heading { level: 1, .. } | Block::Heading { level: 2, .. }
+            )
+        {
+            columns.heading.push(block);
+            continue;
+        }
+        if in_right {
+            columns.right.push(block);
+        } else {
+            columns.left.push(block);
+        }
+    }
+
+    columns
+}
+
+struct Geometry {
+    content_rect: egui::Rect,
+    col_width: f32,
+    gap: f32,
+}
+
+fn geometry(rect: egui::Rect, scale: f32) -> Geometry {
+    let v_padding = SLIDE_PADDING * scale;
+    let width = content_width(crate::parser::Layout::TwoColumn, rect, scale);
+    let left = centered_left(rect, width);
+    let content_rect = egui::Rect::from_min_max(
+        egui::pos2(left, rect.top() + v_padding),
+        egui::pos2(left + width, rect.bottom() - v_padding),
+    );
+    let gap = COLUMN_GAP * scale;
+    Geometry {
+        content_rect,
+        col_width: (width - gap) / 2.0,
+        gap,
+    }
+}
+
+/// Heading height including the spacing that follows it.
+fn heading_height(ui: &egui::Ui, columns: &Columns, theme: &Theme, width: f32, scale: f32) -> f32 {
+    columns
+        .heading
+        .iter()
+        .map(|b| {
+            text::measure_single_block_height(ui, b, theme, width, scale)
+                + text::block_spacing(b, theme, scale)
+        })
+        .sum()
+}
+
+/// Content height of a two-column slide: heading plus the taller column, each
+/// laid out at the width it is drawn with.
+pub fn measure_content_height(
+    ui: &egui::Ui,
+    slide: &Slide,
+    theme: &Theme,
+    rect: egui::Rect,
+    scale: f32,
+) -> f32 {
+    let geo = geometry(rect, scale);
+    let columns = split_columns(&slide.blocks);
+    let heading = heading_height(ui, &columns, theme, geo.content_rect.width(), scale);
+    let left = text::measure_blocks_height(
+        ui,
+        columns.left.iter().copied(),
+        theme,
+        geo.col_width,
+        scale,
+    );
+    let right = text::measure_blocks_height(
+        ui,
+        columns.right.iter().copied(),
+        theme,
+        geo.col_width,
+        scale,
+    );
+    heading + left.max(right)
+}
 
 #[allow(clippy::too_many_arguments)]
 pub fn render(
@@ -16,75 +123,15 @@ pub fn render(
     reveal_step: usize,
     scale: f32,
 ) {
-    let v_padding = 80.0 * scale;
-    let content_width = rect.width() * 0.80;
-    let h_offset = (rect.width() - content_width) / 2.0;
-    let content_rect = egui::Rect::from_min_max(
-        egui::pos2(rect.left() + h_offset, rect.top() + v_padding),
-        egui::pos2(rect.right() - h_offset, rect.bottom() - v_padding),
-    );
-    let gap = 40.0 * scale;
-    let col_width = (content_rect.width() - gap) / 2.0;
+    let geo = geometry(rect, scale);
+    let content_rect = geo.content_rect;
+    let columns = split_columns(&slide.blocks);
 
-    // Split blocks at ColumnSeparator
-    let mut left_blocks: Vec<&Block> = Vec::new();
-    let mut right_blocks: Vec<&Block> = Vec::new();
-    let mut heading_blocks: Vec<&Block> = Vec::new();
-    let mut in_right = false;
-    let mut found_separator = false;
-
-    for block in &slide.blocks {
-        if matches!(block, Block::ColumnSeparator) {
-            in_right = true;
-            found_separator = true;
-            continue;
-        }
-        if !found_separator
-            && matches!(
-                block,
-                Block::Heading { level: 1, .. } | Block::Heading { level: 2, .. }
-            )
-            && left_blocks.is_empty()
-        {
-            heading_blocks.push(block);
-            continue;
-        }
-        if in_right {
-            right_blocks.push(block);
-        } else {
-            left_blocks.push(block);
-        }
-    }
-
-    // Measure heading height
-    let mut heading_height = 0.0;
-    for block in &heading_blocks {
-        if let Block::Heading { level, inlines } = *block {
-            let size = theme.heading_size(*level) * scale;
-            let job =
-                text::inlines_to_job(inlines, size, theme.heading_color, content_rect.width());
-            heading_height += ui.painter().layout_job(job).rect.height() + 30.0 * scale;
-        }
-    }
-
-    // Measure column content heights
-    let left_height = measure_column_height(ui, &left_blocks, theme, col_width, scale);
-    let right_height = measure_column_height(ui, &right_blocks, theme, col_width, scale);
-    let col_height = left_height.max(right_height);
-    let total_height = heading_height + col_height;
-
-    // Vertically center
-    let available_height = content_rect.height();
-    let start_y = if total_height < available_height {
-        content_rect.top() + (available_height - total_height) / 2.0
-    } else {
-        content_rect.top()
-    };
-
-    let mut y = start_y;
+    let total_height = measure_content_height(ui, slide, theme, rect, scale);
+    let mut y = centered_top(content_rect.top(), content_rect.height(), total_height);
 
     // Draw heading spanning full width
-    for block in &heading_blocks {
+    for block in &columns.heading {
         if let Block::Heading { level, inlines } = block {
             let h = text::draw_heading(
                 ui,
@@ -96,30 +143,28 @@ pub fn render(
                 opacity,
                 scale,
             );
-            y += h + 30.0 * scale;
+            y += h + text::block_spacing(block, theme, scale);
         }
     }
 
-    // Draw left column
-    draw_column_blocks(
+    // Draw both columns
+    text::draw_blocks(
         ui,
-        &left_blocks,
+        columns.left.iter().copied(),
         theme,
         Pos2::new(content_rect.left(), y),
-        col_width,
+        geo.col_width,
         opacity,
         image_cache,
         reveal_step,
         scale,
     );
-
-    // Draw right column
-    draw_column_blocks(
+    text::draw_blocks(
         ui,
-        &right_blocks,
+        columns.right.iter().copied(),
         theme,
-        Pos2::new(content_rect.left() + col_width + gap, y),
-        col_width,
+        Pos2::new(content_rect.left() + geo.col_width + geo.gap, y),
+        geo.col_width,
         opacity,
         image_cache,
         reveal_step,
@@ -127,52 +172,71 @@ pub fn render(
     );
 }
 
-fn measure_column_height(
-    ui: &egui::Ui,
-    blocks: &[&Block],
-    theme: &Theme,
-    max_width: f32,
-    scale: f32,
-) -> f32 {
-    let block_spacing = 16.0 * scale;
-    let mut total = 0.0;
-    for (i, block) in blocks.iter().enumerate() {
-        total += text::measure_single_block_height(ui, block, theme, max_width, scale);
-        if i < blocks.len() - 1 {
-            total += block_spacing;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::{Inline, Layout};
+    use crate::render::test_support::with_ui;
+
+    fn para(s: &str) -> Block {
+        Block::Paragraph {
+            inlines: vec![Inline::Text(s.to_string())],
         }
     }
-    total
-}
 
-#[allow(clippy::too_many_arguments)]
-fn draw_column_blocks(
-    ui: &egui::Ui,
-    blocks: &[&Block],
-    theme: &Theme,
-    pos: Pos2,
-    max_width: f32,
-    opacity: f32,
-    image_cache: &ImageCache,
-    reveal_step: usize,
-    scale: f32,
-) {
-    let block_spacing = 16.0 * scale;
-    let mut y_offset = 0.0;
+    #[test]
+    fn measures_heading_plus_tallest_column_not_the_sum() {
+        with_ui(|ui| {
+            let theme = Theme::dark();
+            let rect = egui::Rect::from_min_size(Pos2::ZERO, egui::vec2(1920.0, 1080.0));
+            let long = "A long paragraph that wraps over a few rows in a narrow column, so its \
+                        height is clearly larger than a single short line of text.";
+            let slide = Slide {
+                directives: vec![],
+                blocks: vec![
+                    Block::Heading {
+                        level: 1,
+                        inlines: vec![Inline::Text("Title".into())],
+                    },
+                    para(long),
+                    para(long),
+                    Block::ColumnSeparator,
+                    para("short"),
+                ],
+                layout: Layout::TwoColumn,
+                raw_source: String::new(),
+                notes: None,
+            };
 
-    for block in blocks {
-        let block_pos = Pos2::new(pos.x, pos.y + y_offset);
-        let height = text::draw_block(
-            ui,
-            block,
-            theme,
-            block_pos,
-            max_width,
-            opacity,
-            image_cache,
-            reveal_step,
-            scale,
-        );
-        y_offset += height + block_spacing;
+            let geo = geometry(rect, 1.0);
+            let columns = split_columns(&slide.blocks);
+            assert_eq!(columns.heading.len(), 1);
+            assert_eq!(columns.left.len(), 2);
+            assert_eq!(columns.right.len(), 1);
+
+            let heading = heading_height(ui, &columns, &theme, geo.content_rect.width(), 1.0);
+            let left = text::measure_blocks_height(
+                ui,
+                columns.left.iter().copied(),
+                &theme,
+                geo.col_width,
+                1.0,
+            );
+            let right = text::measure_blocks_height(
+                ui,
+                columns.right.iter().copied(),
+                &theme,
+                geo.col_width,
+                1.0,
+            );
+            assert!(left > right);
+
+            let measured = measure_content_height(ui, &slide, &theme, rect, 1.0);
+            assert!((measured - (heading + left)).abs() < 0.01);
+            // Stacking everything would be taller than the real layout.
+            let stacked =
+                text::measure_blocks_height(ui, &slide.blocks, &theme, geo.col_width, 1.0);
+            assert!(stacked > measured);
+        });
     }
 }

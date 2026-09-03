@@ -94,6 +94,7 @@ pub fn render(
                 cell_rect,
                 opacity,
                 image_cache,
+                scale,
             );
         }
     }
@@ -140,7 +141,7 @@ fn compute_grid(count: usize, width: f32, height: f32, gap: f32) -> Vec<Cell> {
             // Top row: 2 images, bottom row: 1 centered
             let row_h = (height - gap) / 2.0;
             let top_w = (width - gap) / 2.0;
-            let bot_w = width * 0.5; // centered, half width
+            let bot_w = top_w; // centered, same width as the top cells
             let bot_x = (width - bot_w) / 2.0;
             vec![
                 Cell {
@@ -224,5 +225,31 @@ fn compute_grid(count: usize, width: f32, height: f32, gap: f32) -> Vec<Cell> {
                 })
                 .collect()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn three_image_grid_uses_equal_cell_widths() {
+        let cells = compute_grid(3, 1000.0, 600.0, 20.0);
+        assert_eq!(cells.len(), 3);
+        assert_eq!(cells[0].w, cells[1].w);
+        assert_eq!(cells[2].w, cells[0].w);
+        // Bottom cell is centred
+        assert!((cells[2].x + cells[2].w / 2.0 - 500.0).abs() < 0.01);
+        assert_eq!(cells[2].y, cells[0].h + 20.0);
+    }
+
+    #[test]
+    fn generic_grid_centres_short_last_row() {
+        let cells = compute_grid(5, 1000.0, 600.0, 10.0);
+        assert_eq!(cells.len(), 5);
+        let cell_w = (1000.0 - 20.0) / 3.0;
+        // Last row has 2 cells, centred as a group
+        let row_w = 2.0 * cell_w + 10.0;
+        assert!((cells[3].x - (1000.0 - row_w) / 2.0).abs() < 0.01);
     }
 }

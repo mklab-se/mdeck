@@ -2,7 +2,7 @@ use eframe::egui::{self, Pos2};
 
 use crate::parser::{Block, Inline, Slide};
 use crate::render::image_cache::ImageCache;
-use crate::render::layouts::image_split;
+use crate::render::layouts::{SLIDE_PADDING, image_split};
 use crate::render::text;
 use crate::theme::Theme;
 
@@ -16,65 +16,39 @@ pub fn render(
     image_cache: &ImageCache,
     scale: f32,
 ) {
-    if image_split::has_image(&slide.blocks) {
-        let padding = 80.0 * scale;
-        let padded_rect = egui::Rect::from_min_max(
-            egui::pos2(rect.left() + padding, rect.top() + padding),
-            egui::pos2(rect.right() - padding, rect.bottom() - padding),
-        );
-        render_with_image(ui, slide, theme, padded_rect, opacity, image_cache, scale);
-    } else {
-        render_text_only(ui, slide, theme, rect, opacity, scale);
-    }
-}
-
-fn render_text_only(
-    ui: &egui::Ui,
-    slide: &Slide,
-    theme: &Theme,
-    rect: egui::Rect,
-    opacity: f32,
-    scale: f32,
-) {
-    let padding = 80.0 * scale;
+    let padding = SLIDE_PADDING * scale;
     let content_rect = rect.shrink(padding);
 
-    render_quote_content(ui, slide, theme, content_rect, opacity, scale);
-}
+    if image_split::has_image(&slide.blocks) {
+        let (left_rect, right_rect) = image_split::image_split_rects(content_rect);
 
-#[allow(clippy::too_many_arguments)]
-fn render_with_image(
-    ui: &egui::Ui,
-    slide: &Slide,
-    theme: &Theme,
-    padded_rect: egui::Rect,
-    opacity: f32,
-    image_cache: &ImageCache,
-    scale: f32,
-) {
-    let (_, image_block) = image_split::split_image(&slide.blocks);
-    let (left_rect, right_rect) = image_split::image_split_rects(padded_rect);
+        // Render quote content in the left area
+        render_quote_content(ui, slide, theme, left_rect, opacity, scale);
 
-    // Render quote content in the left area
-    render_quote_content(ui, slide, theme, left_rect, opacity, scale);
-
-    // Render image in the right area
-    if let Some(Block::Image {
-        alt,
-        path,
-        directives,
-    }) = image_block
-    {
-        text::draw_image_in_area(
-            ui,
-            path,
-            alt,
-            directives,
-            theme,
-            right_rect,
-            opacity,
-            image_cache,
-        );
+        // Render image in the right area
+        if let (
+            _,
+            Some(Block::Image {
+                alt,
+                path,
+                directives,
+            }),
+        ) = image_split::split_image(&slide.blocks)
+        {
+            text::draw_image_in_area(
+                ui,
+                path,
+                alt,
+                directives,
+                theme,
+                right_rect,
+                opacity,
+                image_cache,
+                scale,
+            );
+        }
+    } else {
+        render_quote_content(ui, slide, theme, content_rect, opacity, scale);
     }
 }
 
@@ -103,80 +77,85 @@ fn render_quote_content(
     }
 
     let quote_size = theme.body_size * 1.3 * scale;
+    let quote_gap = 30.0 * scale;
+    let quote_width = content_rect.width() * 0.8;
+    let quote_x = content_rect.left() + (content_rect.width() - quote_width) / 2.0;
 
-    // Estimate total height for vertical centering
+    // Lay everything out first so vertical centring uses real wrapped heights
+    let heading_color = Theme::with_opacity(theme.heading_color, opacity);
+    let heading_galley = heading.map(|(level, inlines)| {
+        let size = theme.heading_size(level) * scale;
+        let job = text::inlines_to_job(inlines, size, heading_color, content_rect.width(), theme);
+        (level, ui.painter().layout_job(job))
+    });
+
+    let quote_color = Theme::with_opacity(theme.foreground, opacity);
+    let quote_galley = quote_inlines.map(|inlines| {
+        // Build inlines with quotation marks baked in (if not already present)
+        let quoted = wrap_with_quotes(inlines);
+        let job = text::inlines_to_job(&quoted, quote_size, quote_color, quote_width, theme);
+        ui.painter().layout_job(job)
+    });
+
+    let attr_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
+    let attr_galley = attribution.map(|inlines| {
+        let attr_size = theme.body_size * 0.9 * scale;
+        // Strip leading -- or --- from attribution
+        let cleaned = clean_attribution(inlines);
+        let job = text::inlines_to_job(&cleaned, attr_size, attr_color, quote_width, theme);
+        ui.painter().layout_job(job)
+    });
+
     let mut total_height = 0.0;
-    if heading.is_some() {
-        total_height += theme.h2_size * scale + 40.0 * scale;
+    if let Some((level, galley)) = &heading_galley {
+        total_height += galley.rect.height() + text::heading_spacing(theme, *level, scale);
     }
-    if quote_inlines.is_some() {
-        total_height += quote_size * 3.0; // rough estimate
+    if let Some(galley) = &quote_galley {
+        total_height += galley.rect.height();
     }
-    if attribution.is_some() {
-        total_height += theme.body_size * scale + 20.0 * scale;
+    if let Some(galley) = &attr_galley {
+        total_height += quote_gap + galley.rect.height();
     }
 
-    let start_y =
-        (content_rect.center().y - total_height / 2.0).max(content_rect.top() + 20.0 * scale);
+    let start_y = (content_rect.center().y - total_height / 2.0).max(content_rect.top());
     let mut y = start_y;
 
     // Draw heading if present
-    if let Some((level, inlines)) = heading {
-        let h = text::draw_heading(
-            ui,
-            inlines,
-            level,
-            theme,
-            Pos2::new(content_rect.left(), y),
-            content_rect.width(),
-            opacity,
-            scale,
-        );
-        y += h + 40.0 * scale;
+    if let Some((level, galley)) = heading_galley {
+        let h = galley.rect.height();
+        ui.painter()
+            .galley(Pos2::new(content_rect.left(), y), galley, heading_color);
+        y += h + text::heading_spacing(theme, level, scale);
     }
 
-    // Draw quote - centered with larger text, quotation marks inline
-    if let Some(inlines) = quote_inlines {
-        let color = Theme::with_opacity(theme.foreground, opacity);
+    // Draw quote - centred with larger text, quotation marks inline.
+    // Remember its right edge so the attribution can align to it.
+    let mut quote_right = content_rect.right();
+    if let Some(galley) = quote_galley {
         let accent = Theme::with_opacity(theme.accent, opacity);
-        let quote_width = content_rect.width() * 0.8;
-        let quote_x = content_rect.left() + (content_rect.width() - quote_width) / 2.0;
-
-        // Draw left accent bar
-        let bar_width = 4.0 * scale;
-        let bar_x = quote_x - 16.0 * scale;
-
-        // Build inlines with quotation marks baked in (if not already present)
-        let quoted_inlines = wrap_with_quotes(inlines);
-        let job = text::inlines_to_job(&quoted_inlines, quote_size, color, quote_width);
-        let galley = ui.painter().layout_job(job);
         let text_height = galley.rect.height();
         let text_width = galley.rect.width();
         let text_x = quote_x + (quote_width - text_width) / 2.0;
+        quote_right = text_x + text_width;
 
-        // Draw the quote text (marks are part of the text flow)
-        ui.painter().galley(Pos2::new(text_x, y), galley, color);
+        ui.painter()
+            .galley(Pos2::new(text_x, y), galley, quote_color);
 
-        // Draw left accent bar spanning the quote text
+        // Left accent bar spanning the quote text
+        let bar_width = 4.0 * scale;
+        let bar_x = quote_x - 16.0 * scale;
         let bar_rect =
             egui::Rect::from_min_size(Pos2::new(bar_x, y), egui::vec2(bar_width, text_height));
         ui.painter().rect_filled(bar_rect, 2.0, accent);
 
-        y += text_height + 30.0 * scale;
+        y += text_height;
     }
 
-    // Draw attribution - right-aligned, italic
-    if let Some(inlines) = attribution {
-        let color = Theme::with_opacity(theme.foreground, opacity * 0.7);
-        let attr_size = theme.body_size * 0.9 * scale;
-
-        // Strip leading -- or --- from attribution
-        let cleaned = clean_attribution(inlines);
-        let job = text::inlines_to_job(&cleaned, attr_size, color, content_rect.width());
-
-        let galley = ui.painter().layout_job(job);
-        let x = content_rect.right() - galley.rect.width() - 40.0 * scale;
-        ui.painter().galley(Pos2::new(x, y), galley, color);
+    // Draw attribution - right-aligned to the quote text
+    if let Some(galley) = attr_galley {
+        y += quote_gap;
+        let x = quote_right - galley.rect.width();
+        ui.painter().galley(Pos2::new(x, y), galley, attr_color);
     }
 }
 
@@ -225,4 +204,31 @@ fn clean_attribution(inlines: &[Inline]) -> Vec<Inline> {
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wraps_with_curly_quotes_when_missing() {
+        let out = wrap_with_quotes(&[Inline::Text("hello".into())]);
+        assert_eq!(out.len(), 3);
+        assert!(matches!(&out[0], Inline::Text(s) if s == "\u{201C}"));
+        assert!(matches!(&out[2], Inline::Text(s) if s == "\u{201D}"));
+    }
+
+    #[test]
+    fn keeps_existing_quotes() {
+        let out = wrap_with_quotes(&[Inline::Text("\"hello\"".into())]);
+        assert_eq!(out.len(), 1);
+    }
+
+    #[test]
+    fn attribution_dashes_become_em_dash() {
+        let out = clean_attribution(&[Inline::Text("-- Alan Kay".into())]);
+        assert!(matches!(&out[0], Inline::Text(s) if s == "\u{2014} Alan Kay"));
+        let out = clean_attribution(&[Inline::Text("--- Ada".into())]);
+        assert!(matches!(&out[0], Inline::Text(s) if s == "\u{2014} Ada"));
+    }
 }
