@@ -1,7 +1,12 @@
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, MutexGuard};
 use std::time::{Instant, SystemTime};
+
+/// Per-process sequence number so several logs created within the same
+/// second (e.g. a crash loop, or tests) never share a filename.
+static LOG_SEQ: AtomicUsize = AtomicUsize::new(0);
 
 struct Inner {
     path: PathBuf,
@@ -17,10 +22,7 @@ pub struct IncidentLog {
 
 impl IncidentLog {
     pub fn new(presentation_file: &str) -> Self {
-        let path = log_dir().join(format!(
-            "incident-{}.log",
-            format_timestamp(SystemTime::now())
-        ));
+        let path = log_dir().join(unique_log_filename(SystemTime::now()));
         Self {
             inner: Mutex::new(Inner {
                 path,
@@ -32,8 +34,15 @@ impl IncidentLog {
         }
     }
 
+    /// Lock the inner state, tolerating a poisoned mutex: this log is written
+    /// from panic paths, and a panic while holding the lock must not stop
+    /// later incidents from being recorded.
+    fn lock(&self) -> MutexGuard<'_, Inner> {
+        self.inner.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     pub fn record(&self, category: &str, summary: &str, detail: &str) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock();
 
         // Lazy file creation on first incident
         if inner.file.is_none() {
@@ -72,7 +81,7 @@ impl IncidentLog {
     }
 
     pub fn summary(&self) -> Option<(PathBuf, usize)> {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.lock();
         if inner.count > 0 {
             Some((inner.path.clone(), inner.count))
         } else {
@@ -82,8 +91,19 @@ impl IncidentLog {
 
     #[cfg(test)]
     pub fn count(&self) -> usize {
-        self.inner.lock().unwrap().count
+        self.lock().count
     }
+}
+
+/// Build a log filename that is unique even when several logs are created
+/// within the same second: `incident-<timestamp>-<pid>-<seq>.log`.
+fn unique_log_filename(now: SystemTime) -> String {
+    let seq = LOG_SEQ.fetch_add(1, Ordering::Relaxed) + 1;
+    format!(
+        "incident-{}-{}-{seq}.log",
+        format_timestamp(now),
+        std::process::id()
+    )
 }
 
 fn write_header(f: &mut std::fs::File, presentation_file: &str) -> std::io::Result<()> {
@@ -164,8 +184,50 @@ mod tests {
         assert_eq!(log.count(), 0);
         assert!(log.summary().is_none());
         // The log file path should not exist
-        let path = log.inner.lock().unwrap().path.clone();
+        let path = log.lock().path.clone();
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn log_filenames_unique_within_same_second() {
+        // Two logs created back-to-back (same timestamp second) must not
+        // resolve to the same file, or the second crash overwrites the first.
+        let a = IncidentLog::new("/tmp/a.md");
+        let b = IncidentLog::new("/tmp/b.md");
+        let pa = a.lock().path.clone();
+        let pb = b.lock().path.clone();
+        assert_ne!(pa, pb);
+        let now = SystemTime::now();
+        assert_ne!(unique_log_filename(now), unique_log_filename(now));
+        let name = unique_log_filename(now);
+        assert!(name.starts_with("incident-"));
+        assert!(name.ends_with(".log"));
+    }
+
+    #[test]
+    fn poisoned_lock_still_records() {
+        let dir = std::env::temp_dir().join(format!("mdeck-test-poison-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+
+        let log = std::sync::Arc::new(IncidentLog::new("/tmp/test.md"));
+        log.lock().path = dir.join("test-incident.log");
+
+        // Poison the mutex by panicking while holding the guard.
+        let poisoner = std::sync::Arc::clone(&log);
+        let result = std::thread::spawn(move || {
+            let _guard = poisoner.inner.lock().unwrap();
+            panic!("poison");
+        })
+        .join();
+        assert!(result.is_err());
+        assert!(log.inner.is_poisoned());
+
+        // Recording must still work instead of panicking on the poisoned lock.
+        log.record("cat", "after poison", "");
+        assert_eq!(log.count(), 1);
+        assert!(log.summary().is_some());
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -175,11 +237,11 @@ mod tests {
 
         let log = IncidentLog::new("/tmp/test.md");
         // Override the path to use our temp dir
-        log.inner.lock().unwrap().path = dir.join("test-incident.log");
+        log.lock().path = dir.join("test-incident.log");
 
         log.record("test_category", "test summary", "test detail");
 
-        let path = log.inner.lock().unwrap().path.clone();
+        let path = log.lock().path.clone();
         assert!(path.exists());
         assert_eq!(log.count(), 1);
 
@@ -202,7 +264,7 @@ mod tests {
         let _ = std::fs::create_dir_all(&dir);
 
         let log = IncidentLog::new("/tmp/test.md");
-        log.inner.lock().unwrap().path = dir.join("test-incident.log");
+        log.lock().path = dir.join("test-incident.log");
 
         log.record("cat_a", "first", "");
         log.record("cat_b", "second", "some detail");
@@ -230,11 +292,11 @@ mod tests {
         let _ = std::fs::create_dir_all(&dir);
 
         let log = IncidentLog::new("/home/user/talks/demo.md");
-        log.inner.lock().unwrap().path = dir.join("test-incident.log");
+        log.lock().path = dir.join("test-incident.log");
 
         log.record("test", "trigger header", "");
 
-        let path = log.inner.lock().unwrap().path.clone();
+        let path = log.lock().path.clone();
         let mut content = String::new();
         std::fs::File::open(&path)
             .unwrap()

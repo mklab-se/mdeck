@@ -131,39 +131,81 @@ impl Theme {
 
     /// Return a palette of distinct colors for diagram edges and visualizations.
     /// Colors are chosen to be visually distinct and readable against the theme background.
-    pub fn edge_palette(&self) -> Vec<Color32> {
+    ///
+    /// Returns a copy of a `const` array (a few bytes on the stack): this is
+    /// called from hot render paths every frame, so it must not allocate.
+    pub fn edge_palette(&self) -> [Color32; EDGE_PALETTE_LEN] {
         match self.name.as_str() {
-            "light" => vec![
-                Color32::from_rgb(0x1A, 0x6B, 0xB5), // deep blue
-                Color32::from_rgb(0xC7, 0x3E, 0x1D), // brick red
-                Color32::from_rgb(0x1E, 0x8A, 0x5A), // forest green
-                Color32::from_rgb(0xB8, 0x7B, 0x0A), // dark amber
-                Color32::from_rgb(0x7B, 0x3F, 0xA0), // purple
-                Color32::from_rgb(0x18, 0x8A, 0x8D), // teal
-                Color32::from_rgb(0xC4, 0x3B, 0x7A), // magenta
-                Color32::from_rgb(0x5A, 0x7A, 0x2B), // olive
-            ],
-            "nord" => vec![
-                Color32::from_rgb(0x88, 0xC0, 0xD0), // frost teal
-                Color32::from_rgb(0xBF, 0x61, 0x6A), // aurora red
-                Color32::from_rgb(0xA3, 0xBE, 0x8C), // aurora green
-                Color32::from_rgb(0xEB, 0xCB, 0x8B), // aurora yellow
-                Color32::from_rgb(0xB4, 0x8E, 0xAD), // aurora purple
-                Color32::from_rgb(0x5E, 0x81, 0xAC), // frost blue
-                Color32::from_rgb(0xD0, 0x87, 0x70), // aurora orange
-                Color32::from_rgb(0x8F, 0xBC, 0xBB), // frost light teal
-            ],
-            _ => vec![
-                // dark
-                Color32::from_rgb(0x5C, 0xB8, 0xFF), // bright blue
-                Color32::from_rgb(0xFF, 0x7E, 0x67), // coral
-                Color32::from_rgb(0x5C, 0xDB, 0x95), // mint green
-                Color32::from_rgb(0xE8, 0xA8, 0x38), // amber
-                Color32::from_rgb(0xC0, 0x7E, 0xF1), // purple
-                Color32::from_rgb(0x4E, 0xD4, 0xD4), // teal
-                Color32::from_rgb(0xF0, 0x6E, 0xAA), // pink
-                Color32::from_rgb(0xA3, 0xBE, 0x58), // olive green
-            ],
+            "light" => LIGHT_EDGE_PALETTE,
+            "nord" => NORD_EDGE_PALETTE,
+            _ => DARK_EDGE_PALETTE,
         }
+    }
+}
+
+/// Number of colors in every edge palette.
+pub const EDGE_PALETTE_LEN: usize = 8;
+
+const LIGHT_EDGE_PALETTE: [Color32; EDGE_PALETTE_LEN] = [
+    Color32::from_rgb(0x1A, 0x6B, 0xB5), // deep blue
+    Color32::from_rgb(0xC7, 0x3E, 0x1D), // brick red
+    Color32::from_rgb(0x1E, 0x8A, 0x5A), // forest green
+    Color32::from_rgb(0xB8, 0x7B, 0x0A), // dark amber
+    Color32::from_rgb(0x7B, 0x3F, 0xA0), // purple
+    Color32::from_rgb(0x18, 0x8A, 0x8D), // teal
+    Color32::from_rgb(0xC4, 0x3B, 0x7A), // magenta
+    Color32::from_rgb(0x5A, 0x7A, 0x2B), // olive
+];
+
+const NORD_EDGE_PALETTE: [Color32; EDGE_PALETTE_LEN] = [
+    Color32::from_rgb(0x88, 0xC0, 0xD0), // frost teal
+    Color32::from_rgb(0xBF, 0x61, 0x6A), // aurora red
+    Color32::from_rgb(0xA3, 0xBE, 0x8C), // aurora green
+    Color32::from_rgb(0xEB, 0xCB, 0x8B), // aurora yellow
+    Color32::from_rgb(0xB4, 0x8E, 0xAD), // aurora purple
+    Color32::from_rgb(0x5E, 0x81, 0xAC), // frost blue
+    Color32::from_rgb(0xD0, 0x87, 0x70), // aurora orange
+    Color32::from_rgb(0x8F, 0xBC, 0xBB), // frost light teal
+];
+
+const DARK_EDGE_PALETTE: [Color32; EDGE_PALETTE_LEN] = [
+    Color32::from_rgb(0x5C, 0xB8, 0xFF), // bright blue
+    Color32::from_rgb(0xFF, 0x7E, 0x67), // coral
+    Color32::from_rgb(0x5C, 0xDB, 0x95), // mint green
+    Color32::from_rgb(0xE8, 0xA8, 0x38), // amber
+    Color32::from_rgb(0xC0, 0x7E, 0xF1), // purple
+    Color32::from_rgb(0x4E, 0xD4, 0xD4), // teal
+    Color32::from_rgb(0xF0, 0x6E, 0xAA), // pink
+    Color32::from_rgb(0xA3, 0xBE, 0x58), // olive green
+];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn edge_palette_is_distinct_per_theme_and_stable() {
+        let dark = Theme::dark().edge_palette();
+        let light = Theme::light().edge_palette();
+        let nord = Theme::nord().edge_palette();
+        assert_eq!(dark.len(), EDGE_PALETTE_LEN);
+        assert_eq!(light.len(), EDGE_PALETTE_LEN);
+        assert_eq!(nord.len(), EDGE_PALETTE_LEN);
+        assert_ne!(dark[0], light[0]);
+        assert_ne!(dark[0], nord[0]);
+        // Unknown theme names fall back to the dark palette; repeated calls
+        // return identical colors (the palette is a const, not rebuilt).
+        let custom = Theme {
+            name: "custom".to_string(),
+            ..Theme::light()
+        };
+        assert_eq!(custom.edge_palette(), dark);
+        assert_eq!(Theme::dark().edge_palette(), dark);
+        // Slices coerce for callers that pass `&palette` to `&[Color32]` params
+        fn takes_slice(p: &[Color32]) -> usize {
+            p.len()
+        }
+        let palette = Theme::nord().edge_palette();
+        assert_eq!(takes_slice(&palette), EDGE_PALETTE_LEN);
     }
 }

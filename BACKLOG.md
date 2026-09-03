@@ -150,18 +150,24 @@ already-drawn edges can jump lanes when a new one appears, and A* runs on the
 UI thread per step. Routing all edges once and hiding unrevealed ones is
 simpler and faster but changes layouts of existing decks slightly.
 
-### 4.7 Legend placement below the chart when the column is narrow — S
+### 4.7 Diagram edge labels avoid each other — M
+In dense diagrams (see "Large System" in `samples/visualizations/architecture.md`)
+edge labels overlap ("serves pages"/"routes", the two "observes") and lines run
+under labels. Place labels along the longest free segment of each route and
+nudge them apart with a simple repulsion pass.
+
+### 4.8 Legend placement below the chart when the column is narrow — S
 Pie/donut/line legends live in a fixed right column that breaks in two-column
 layouts.
 
-### 4.8 Git graph: separate "simultaneous merge" syntax from the `*` reveal marker — S, needs a decision
+### 4.9 Git graph: separate "simultaneous merge" syntax from the `*` reveal marker — S, needs a decision
 `*` currently changes both reveal grouping and geometry (vertical line vs.
 S-curve).
 
-### 4.9 Reveal animation for timeline and git graph — S
+### 4.10 Reveal animation for timeline and git graph — S
 Both reveal instantly; every other visualization animates.
 
-### 4.10 Parse visualizations once at parse time — M (tech debt, performance)
+### 4.11 Parse visualizations once at parse time — M (tech debt, performance)
 Every `draw_*` re-parses the block text, rebuilds vectors, and lays out labels
 every frame. Parsing into typed data in the parser removes all of it and
 enables `--check` validation of chart data.

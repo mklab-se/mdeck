@@ -215,30 +215,12 @@ pub fn parse(content: &str, _base_path: &Path) -> Presentation {
 /// The `???` separator is ignored inside fenced code blocks.
 /// Returns `(content, Some(notes))` if a notes separator was found, or `(original, None)`.
 fn extract_notes(raw: &str) -> (String, Option<String>) {
-    let mut in_code_fence = false;
-    let mut fence_char: char = '`';
-    let mut fence_len: usize = 0;
+    let mut fences = splitter::FenceTracker::new();
 
     let lines: Vec<&str> = raw.lines().collect();
     for (i, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
-
-        // Track fenced code blocks
-        if in_code_fence {
-            let closing_count = trimmed.chars().take_while(|&c| c == fence_char).count();
-            if closing_count >= fence_len
-                && trimmed
-                    .chars()
-                    .skip(closing_count)
-                    .all(|c| c.is_whitespace())
-            {
-                in_code_fence = false;
-            }
-        } else if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
-            in_code_fence = true;
-            fence_char = trimmed.chars().next().unwrap();
-            fence_len = trimmed.chars().take_while(|&c| c == fence_char).count();
-        }
+        let in_code_fence = fences.observe(line);
 
         // Check for notes separator (??? with 3+ question marks, outside code blocks)
         if !in_code_fence && trimmed.len() >= 3 && trimmed.chars().all(|c| c == '?') {
@@ -283,7 +265,6 @@ fn classify_layout(directives: &[Directive], blocks: &[Block]) -> Layout {
     // Count element types
     let mut headings: Vec<u8> = Vec::new();
     let mut paragraphs = 0;
-    let mut short_paragraphs = 0;
     let mut lists = 0;
     let mut images = 0;
     let mut code_blocks = 0;
@@ -296,13 +277,7 @@ fn classify_layout(directives: &[Directive], blocks: &[Block]) -> Layout {
     for block in blocks {
         match block {
             Block::Heading { level, .. } => headings.push(*level),
-            Block::Paragraph { inlines } => {
-                paragraphs += 1;
-                let text_len: usize = inlines.iter().map(inline_text_len).sum();
-                if text_len < 120 {
-                    short_paragraphs += 1;
-                }
-            }
+            Block::Paragraph { .. } => paragraphs += 1,
             Block::List { .. } => lists += 1,
             Block::Image { .. } => images += 1,
             Block::CodeBlock { .. } => code_blocks += 1,
@@ -346,14 +321,15 @@ fn classify_layout(directives: &[Directive], blocks: &[Block]) -> Layout {
     }
 
     // 3. Title: H1 + optional (H2 or short P), nothing else
-    if headings.len() == 1 && headings[0] == 1 {
-        let non_heading = total - 1;
-        if non_heading == 0 {
+    let h1_count = headings.iter().filter(|&&h| h == 1).count();
+    if h1_count == 1 && headings.len() <= 2 {
+        let others = total - 1;
+        if others == 0 {
             // Just H1 — could be section or title
             // If it's a lone H1, it's a section divider
             return Layout::Section;
         }
-        if non_heading == 1 && (short_paragraphs == 1 || headings.len() == 1) {
+        if others == 1 {
             // Check if the other element is H2 or short paragraph
             for block in blocks {
                 match block {
@@ -479,13 +455,15 @@ pub fn inlines_to_text(inlines: &[Inline]) -> String {
     text
 }
 
+/// Visible length of an inline in characters (not bytes), so CJK and other
+/// multibyte text is measured the same way as ASCII.
 fn inline_text_len(inline: &Inline) -> usize {
     match inline {
-        Inline::Text(s) => s.len(),
+        Inline::Text(s) => s.chars().count(),
         Inline::Bold(children) | Inline::Italic(children) | Inline::Strikethrough(children) => {
             children.iter().map(inline_text_len).sum()
         }
-        Inline::Code(s) => s.len(),
+        Inline::Code(s) => s.chars().count(),
         Inline::Link { text, .. } => text.iter().map(inline_text_len).sum(),
     }
 }
@@ -792,6 +770,60 @@ mod tests {
             pres.slides[0].notes.as_deref(),
             Some("Explain that this is a minimal Rust program.")
         );
+    }
+
+    #[test]
+    fn test_inline_text_len_counts_chars_not_bytes() {
+        // 40 CJK characters are 120 bytes but only 40 characters — still a
+        // short subtitle, so H1 + short paragraph is a Title slide.
+        let subtitle = "漢".repeat(40);
+        let content = format!("# タイトル\n\n{subtitle}");
+        let pres = parse(&content, Path::new("."));
+        assert_eq!(pres.slides.len(), 1);
+        assert!(
+            matches!(pres.slides[0].layout, Layout::Title),
+            "got {:?}",
+            pres.slides[0].layout
+        );
+        let len: usize = match &pres.slides[0].blocks[1] {
+            Block::Paragraph { inlines } => inlines.iter().map(inline_text_len).sum(),
+            other => panic!("expected paragraph, got {other:?}"),
+        };
+        assert_eq!(len, 40);
+    }
+
+    #[test]
+    fn test_h1_h2_title_slide_end_to_end() {
+        let content = "# Big Title\n\n## Subtitle\n\n## Section\n\n- a\n- b";
+        let pres = parse(content, Path::new("."));
+        assert_eq!(pres.slides.len(), 2);
+        assert!(matches!(pres.slides[0].layout, Layout::Title));
+        assert!(matches!(pres.slides[1].layout, Layout::Bullet));
+    }
+
+    #[test]
+    fn test_h1_h2_blocks_classify_as_title() {
+        let blocks = blocks::parse("# Title\n\n## Subtitle");
+        assert!(matches!(classify_layout(&[], &blocks), Layout::Title));
+        // H1 + H3, or H1 + H2 + more content, are not title slides
+        let blocks = blocks::parse("# Title\n\n### Deep");
+        assert!(!matches!(classify_layout(&[], &blocks), Layout::Title));
+        let blocks = blocks::parse("# Title\n\n## Subtitle\n\nA paragraph");
+        assert!(!matches!(classify_layout(&[], &blocks), Layout::Title));
+        // Lone H1 remains a section
+        let blocks = blocks::parse("# Title");
+        assert!(matches!(classify_layout(&[], &blocks), Layout::Section));
+    }
+
+    #[test]
+    fn test_crlf_document_end_to_end() {
+        let content = "---\r\ntitle: \"CRLF\"\r\n@theme: dark\r\n---\r\n\r\n# One\r\n\r\n- a\r\n- b\r\n\r\n---\r\n\r\n# Two\r\n\r\nText\r\n";
+        let pres = parse(content, Path::new("."));
+        assert_eq!(pres.meta.title.as_deref(), Some("CRLF"));
+        assert_eq!(pres.meta.theme.as_deref(), Some("dark"));
+        assert_eq!(pres.slides.len(), 2, "{:?}", pres.slides);
+        assert!(matches!(pres.slides[0].layout, Layout::Bullet));
+        assert!(matches!(pres.slides[1].layout, Layout::Title));
     }
 
     #[test]
