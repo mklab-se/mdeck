@@ -38,3 +38,16 @@ title: "Progress Bar Tests"
 * Sprint 4: 40%
 + Sprint 5: 10%
 ```
+
+
+---
+
+# Progress Bars — Long Labels
+
+```@progress
+- Platform Migration to Kubernetes: 82%
+- Security Compliance Audit (SOC 2 Type II): 45%
+- Design: 100%
+- Customer Data Platform Integration Phase 2: 60 percent
+- QA: 25
+```

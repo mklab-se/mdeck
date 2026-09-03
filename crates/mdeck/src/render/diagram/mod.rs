@@ -32,9 +32,35 @@ use eframe::egui::{self, Color32, FontId, Pos2, Stroke};
 static ROUTE_CACHE: LazyLock<Mutex<HashMap<u64, routing::types::RoutingOutput>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+/// Every distinct (diagram, size, step) triple gets an entry, so resizes and
+/// reveals would grow the cache without bound. Past this it is simply reset.
+const ROUTE_CACHE_CAP: usize = 256;
+
+fn route_cache() -> std::sync::MutexGuard<'static, HashMap<u64, routing::types::RoutingOutput>> {
+    // A panic while holding the lock must not poison every later frame
+    ROUTE_CACHE.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 /// Clear all cached routes (call on file reload).
 pub fn clear_route_cache() {
-    ROUTE_CACHE.lock().unwrap().clear();
+    route_cache().clear();
+}
+
+/// Look up or compute the routing for `cache_key`, keeping the cache bounded.
+fn cached_routes(
+    cache_key: u64,
+    compute: impl FnOnce() -> routing::types::RoutingOutput,
+) -> routing::types::RoutingOutput {
+    let mut cache = route_cache();
+    if let Some(output) = cache.get(&cache_key) {
+        return output.clone();
+    }
+    let output = compute();
+    if cache.len() >= ROUTE_CACHE_CAP {
+        cache.clear();
+    }
+    cache.insert(cache_key, output.clone());
+    output
 }
 
 /// Check a single diagram's routes and return any failure warning strings.
@@ -103,13 +129,9 @@ pub fn check_diagram_routes(content: &str) -> Vec<String> {
     };
 
     let cache_key = route_cache_key(&routing_nodes, &routing_edges, &config);
-    let output = {
-        let mut cache = ROUTE_CACHE.lock().unwrap();
-        cache
-            .entry(cache_key)
-            .or_insert_with(|| routing::route_all_edges(&routing_nodes, &routing_edges, &config))
-            .clone()
-    };
+    let output = cached_routes(cache_key, || {
+        routing::route_all_edges(&routing_nodes, &routing_edges, &config)
+    });
 
     output
         .results
@@ -621,6 +643,7 @@ pub fn draw_diagram_sized(
                 icon_size,
                 icon_color,
                 2.0 * scale,
+                scale,
             );
         }
 
@@ -705,16 +728,9 @@ pub fn draw_diagram_sized(
 
     // Use cached routing output — only recompute when inputs change.
     let cache_key = route_cache_key(&routing_nodes, &routing_edges, &config);
-    let routing_output = {
-        let mut cache = ROUTE_CACHE.lock().unwrap();
-        if let Some(output) = cache.get(&cache_key) {
-            output.clone()
-        } else {
-            let output = routing::route_all_edges(&routing_nodes, &routing_edges, &config);
-            cache.insert(cache_key, output.clone());
-            output
-        }
-    };
+    let routing_output = cached_routes(cache_key, || {
+        routing::route_all_edges(&routing_nodes, &routing_edges, &config)
+    });
 
     // Track port usage per (node, face) to spread connections
     let mut port_counts: HashMap<(String, Face), usize> = HashMap::new();

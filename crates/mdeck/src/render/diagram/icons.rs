@@ -2,6 +2,7 @@ use eframe::egui::{self, Color32, FontFamily, FontId, Pos2, Stroke};
 
 // ─── Geometric icon fallbacks ────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn draw_icon_fallback(
     painter: &egui::Painter,
     icon: &str,
@@ -9,9 +10,14 @@ pub(super) fn draw_icon_fallback(
     size: f32,
     color: Color32,
     stroke_width: f32,
+    scale: f32,
 ) {
     let s = size * 0.4; // icon draws within this radius
     let stroke = Stroke::new(stroke_width, color);
+    // Corner radii and small gaps are in design pixels; scale them like everything else
+    let r2 = 2.0 * scale;
+    let r3 = 3.0 * scale;
+    let r4 = 4.0 * scale;
 
     match icon {
         "user" => {
@@ -38,12 +44,12 @@ pub(super) fn draw_icon_fallback(
             let w = s * 0.7;
             let h = s * 0.25;
             for i in 0..3 {
-                let y = center.y - s * 0.45 + i as f32 * (h + 2.0);
+                let y = center.y - s * 0.45 + i as f32 * (h + r2);
                 let rect = egui::Rect::from_center_size(
                     Pos2::new(center.x, y + h / 2.0),
                     egui::vec2(w * 2.0, h),
                 );
-                painter.rect_stroke(rect, 2.0, stroke, egui::StrokeKind::Outside);
+                painter.rect_stroke(rect, r2, stroke, egui::StrokeKind::Outside);
                 // Small indicator dot
                 painter.circle_filled(
                     Pos2::new(rect.right() - h * 0.4, rect.center().y),
@@ -117,7 +123,7 @@ pub(super) fn draw_icon_fallback(
                 Pos2::new(center.x - body_w, body_top),
                 egui::vec2(body_w * 2.0, body_h),
             );
-            painter.rect_stroke(body_rect, 3.0, stroke, egui::StrokeKind::Outside);
+            painter.rect_stroke(body_rect, r3, stroke, egui::StrokeKind::Outside);
 
             // Shackle arc
             let shackle_pts: Vec<Pos2> = (0..=10)
@@ -161,7 +167,7 @@ pub(super) fn draw_icon_fallback(
             let w = s * 0.65;
             let h = s * 0.45;
             let rect = egui::Rect::from_center_size(center, egui::vec2(w * 2.0, h * 2.0));
-            painter.rect_stroke(rect, 2.0, stroke, egui::StrokeKind::Outside);
+            painter.rect_stroke(rect, r2, stroke, egui::StrokeKind::Outside);
             // V flap
             painter.add(egui::Shape::line(
                 vec![
@@ -180,9 +186,9 @@ pub(super) fn draw_icon_fallback(
                 Pos2::new(center.x, center.y - s * 0.1),
                 egui::vec2(w * 2.0, h * 2.0),
             );
-            painter.rect_stroke(screen, 3.0, stroke, egui::StrokeKind::Outside);
+            painter.rect_stroke(screen, r3, stroke, egui::StrokeKind::Outside);
             // Stand
-            let stand_y = screen.bottom() + 2.0;
+            let stand_y = screen.bottom() + r2;
             painter.line_segment(
                 [
                     Pos2::new(center.x, stand_y),
@@ -203,7 +209,7 @@ pub(super) fn draw_icon_fallback(
             let w = s * 0.35;
             let h = s * 0.7;
             let rect = egui::Rect::from_center_size(center, egui::vec2(w * 2.0, h * 2.0));
-            painter.rect_stroke(rect, 4.0, stroke, egui::StrokeKind::Outside);
+            painter.rect_stroke(rect, r4, stroke, egui::StrokeKind::Outside);
             // Home button
             painter.circle_stroke(
                 Pos2::new(center.x, rect.bottom() - s * 0.15),
@@ -215,8 +221,8 @@ pub(super) fn draw_icon_fallback(
             // Nested rectangles
             let outer = egui::Rect::from_center_size(center, egui::vec2(s * 1.2, s * 1.0));
             let inner = egui::Rect::from_center_size(center, egui::vec2(s * 0.7, s * 0.55));
-            painter.rect_stroke(outer, 3.0, stroke, egui::StrokeKind::Outside);
-            painter.rect_stroke(inner, 2.0, stroke, egui::StrokeKind::Outside);
+            painter.rect_stroke(outer, r3, stroke, egui::StrokeKind::Outside);
+            painter.rect_stroke(inner, r2, stroke, egui::StrokeKind::Outside);
         }
         "function" => {
             // f(x) — lambda symbol
@@ -267,7 +273,7 @@ pub(super) fn draw_icon_fallback(
             // Stacked lines (like a document)
             let w = s * 0.55;
             let rect = egui::Rect::from_center_size(center, egui::vec2(w * 2.0, s * 1.2));
-            painter.rect_stroke(rect, 2.0, stroke, egui::StrokeKind::Outside);
+            painter.rect_stroke(rect, r2, stroke, egui::StrokeKind::Outside);
             for i in 0..4 {
                 let y = rect.top() + s * 0.2 + i as f32 * s * 0.25;
                 let line_w = if i == 2 { w * 1.2 } else { w * 1.6 };
@@ -283,7 +289,7 @@ pub(super) fn draw_icon_fallback(
         _ => {
             // Default: simple rounded rectangle
             let rect = egui::Rect::from_center_size(center, egui::vec2(s * 1.0, s * 0.8));
-            painter.rect_stroke(rect, 4.0, stroke, egui::StrokeKind::Outside);
+            painter.rect_stroke(rect, r4, stroke, egui::StrokeKind::Outside);
         }
     }
 }

@@ -1,7 +1,6 @@
 use std::time::Instant;
 
 use eframe::egui::{self, FontId, Pos2, Stroke};
-use eframe::epaint::TextShape;
 
 use crate::theme::Theme;
 
@@ -9,10 +8,10 @@ use super::{
     VIZ_FONT_AXIS_LABEL, VIZ_FONT_GRID_LABEL, VIZ_FONT_SECONDARY_LABEL, VIZ_LABEL_REVEAL_THRESHOLD,
     VIZ_OPACITY_AXIS, VIZ_OPACITY_FILL, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL,
     VIZ_OPACITY_LABEL, VIZ_SCATTER_RADIUS, VIZ_STROKE_AXIS, VIZ_STROKE_GRID, VizReveal,
-    assign_steps, format_axis_value, nice_grid_step, parse_reveal_prefix, reveal_anim_progress,
+    assign_steps, draw_x_axis_label, draw_y_axis_label, format_axis_value, grid_range_values,
+    label_fade, nice_grid_step, parse_axis_label_directive, parse_reveal_prefix, parse_value,
+    reveal_anim_progress, strip_thousands_separators,
 };
-
-// ─── Utilities ──────────────────────────────────────────────────────────────
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
 
@@ -43,16 +42,12 @@ fn parse_scatter_plot(content: &str) -> ScatterData {
         }
 
         if trimmed.starts_with('#') {
-            if let Some(rest) = trimmed
-                .strip_prefix("# x-label:")
-                .or_else(|| trimmed.strip_prefix("#x-label:"))
-            {
-                x_label = Some(rest.trim().to_string());
-            } else if let Some(rest) = trimmed
-                .strip_prefix("# y-label:")
-                .or_else(|| trimmed.strip_prefix("#y-label:"))
-            {
-                y_label = Some(rest.trim().to_string());
+            if let Some((key, val)) = parse_axis_label_directive(trimmed) {
+                match key {
+                    "x-label" => x_label = Some(val),
+                    "y-label" => y_label = Some(val),
+                    _ => {}
+                }
             }
             continue;
         }
@@ -72,23 +67,20 @@ fn parse_scatter_plot(content: &str) -> ScatterData {
                 let inner = rest[paren_start..]
                     .trim_start_matches('(')
                     .trim_end_matches(')');
-                let sz = if let Some(s) = inner.strip_prefix("size:") {
-                    s.trim().parse::<f32>().ok()
-                } else {
-                    None
-                };
+                let sz = inner
+                    .strip_prefix("size:")
+                    .and_then(parse_value)
+                    .filter(|s| *s > 0.0);
                 (coords, sz)
             } else {
                 (rest, None)
             };
 
             // Parse "X, Y"
-            let parts: Vec<&str> = coords_str.split(',').collect();
+            let coords = strip_thousands_separators(coords_str);
+            let parts: Vec<&str> = coords.split(',').collect();
             if parts.len() == 2
-                && let (Ok(x), Ok(y)) = (
-                    parts[0].trim().parse::<f32>(),
-                    parts[1].trim().parse::<f32>(),
-                )
+                && let (Some(x), Some(y)) = (parse_value(parts[0]), parse_value(parts[1]))
             {
                 points.push(ScatterPoint {
                     label,
@@ -187,8 +179,7 @@ pub fn draw_scatter_plot(
     // X-axis grid lines
     let x_step = nice_grid_step(data_x_max - data_x_min, 5);
     let grid_label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
-    let mut gx = (data_x_min / x_step).ceil() * x_step;
-    while gx <= data_x_max {
+    for gx in grid_range_values(data_x_min, data_x_max, x_step) {
         let frac = (gx - data_x_min) / (data_x_max - data_x_min);
         let px = chart_left + frac * chart_width;
         painter.line_segment(
@@ -202,13 +193,11 @@ pub fn draw_scatter_plot(
             galley,
             grid_label_color,
         );
-        gx += x_step;
     }
 
     // Y-axis grid lines
     let y_step = nice_grid_step(data_y_max - data_y_min, 5);
-    let mut gy = (data_y_min / y_step).ceil() * y_step;
-    while gy <= data_y_max {
+    for gy in grid_range_values(data_y_min, data_y_max, y_step) {
         let frac = (gy - data_y_min) / (data_y_max - data_y_min);
         let py = chart_bottom - frac * chart_height;
         painter.line_segment(
@@ -225,36 +214,33 @@ pub fn draw_scatter_plot(
             galley,
             grid_label_color,
         );
-        gy += y_step;
     }
 
     // Draw axis labels
     let axis_label_font = FontId::proportional(theme.body_size * VIZ_FONT_AXIS_LABEL * scale);
     let axis_label_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
 
-    if let Some(ref x_label_text) = data.x_label {
-        let galley = painter.layout_no_wrap(
-            x_label_text.clone(),
+    if let Some(ref text) = data.x_label {
+        draw_x_axis_label(
+            painter,
+            text,
             axis_label_font.clone(),
             axis_label_color,
+            chart_left,
+            chart_width,
+            chart_bottom + 28.0 * scale,
         );
-        let lx = chart_left + (chart_width - galley.rect.width()) / 2.0;
-        let ly = chart_bottom + 28.0 * scale;
-        painter.galley(Pos2::new(lx, ly), galley, axis_label_color);
     }
-    if let Some(ref y_label_text) = data.y_label {
-        let galley = painter.layout_no_wrap(
-            y_label_text.clone(),
-            axis_label_font.clone(),
+    if let Some(ref text) = data.y_label {
+        draw_y_axis_label(
+            painter,
+            text,
+            axis_label_font,
             axis_label_color,
+            pos.x + padding * 0.3,
+            chart_top,
+            chart_height,
         );
-        let text_width = galley.rect.width();
-        // Rotated 90° CCW, centered vertically along the chart axis
-        let anchor_x = pos.x + padding * 0.3;
-        let anchor_y = chart_top + (chart_height + text_width) / 2.0;
-        let text_shape = TextShape::new(Pos2::new(anchor_x, anchor_y), galley, axis_label_color)
-            .with_angle(-std::f32::consts::FRAC_PI_2);
-        painter.add(text_shape);
     }
 
     // Draw data points
@@ -284,11 +270,9 @@ pub fn draw_scatter_plot(
 
         // Label near the dot
         if anim > VIZ_LABEL_REVEAL_THRESHOLD {
-            let label_opacity =
-                ((anim - VIZ_LABEL_REVEAL_THRESHOLD) / (1.0 - VIZ_LABEL_REVEAL_THRESHOLD)).min(1.0);
             let label_color = Theme::with_opacity(
                 theme.foreground,
-                opacity * VIZ_OPACITY_LABEL * label_opacity,
+                opacity * VIZ_OPACITY_LABEL * label_fade(anim),
             );
             let galley =
                 painter.layout_no_wrap(point.label.clone(), label_font.clone(), label_color);
@@ -358,5 +342,29 @@ mod tests {
         assert_eq!(data.x_label, Some("Hours Studied".to_string()));
         assert_eq!(data.y_label, Some("Test Score".to_string()));
         assert_eq!(data.points.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_scatter_rejects_non_finite() {
+        let data = parse_scatter_plot("- A: inf, 1\n- B: 1, nan\n- C: 2, 3 (size: inf)\n- D: 4, 5");
+        assert_eq!(data.points.len(), 2);
+        assert_eq!(data.points[0].label, "C");
+        assert_eq!(data.points[0].size, None);
+        assert_eq!(data.points[1].label, "D");
+    }
+
+    #[test]
+    fn test_parse_scatter_decorated_values() {
+        let data = parse_scatter_plot("- A: $1,000, 2,500\n- B: 40%, 60%");
+        assert_eq!(data.points.len(), 2);
+        assert_eq!((data.points[0].x, data.points[0].y), (1000.0, 2500.0));
+        assert_eq!((data.points[1].x, data.points[1].y), (40.0, 60.0));
+    }
+
+    #[test]
+    fn test_parse_scatter_compact_axis_directives() {
+        let data = parse_scatter_plot("#x-label: Hours\n#y-label: Score\n- A: 1, 2");
+        assert_eq!(data.x_label.as_deref(), Some("Hours"));
+        assert_eq!(data.y_label.as_deref(), Some("Score"));
     }
 }

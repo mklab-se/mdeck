@@ -8,11 +8,10 @@ use super::{
     VIZ_DOT_RADIUS, VIZ_FONT_AXIS_LABEL, VIZ_FONT_GRID_LABEL, VIZ_FONT_LEGEND, VIZ_OPACITY_AXIS,
     VIZ_OPACITY_FILL, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_STROKE_AXIS,
     VIZ_STROKE_DATA_LINE, VIZ_STROKE_GRID, VIZ_SWATCH_SIZE, VizReveal, assign_steps,
-    draw_x_axis_label, draw_y_axis_label, format_axis_value, nice_axis_max, nice_grid_step,
-    parse_axis_label_directive, parse_reveal_prefix, reveal_anim_progress,
+    draw_x_axis_label, draw_y_axis_label, format_axis_value, grid_values, label_stride,
+    nice_axis_max, nice_grid_step, parse_axis_label_directive, parse_label_values,
+    parse_reveal_prefix, reveal_anim_progress,
 };
-
-// ─── Utilities ──────────────────────────────────────────────────────────────
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
 
@@ -65,20 +64,12 @@ fn parse_line_chart(content: &str) -> LineChartData {
         }
 
         // Parse "Label: 100, 150, 200, 280"
-        if let Some(colon_pos) = text.find(": ") {
-            let label = text[..colon_pos].trim().to_string();
-            let values_str = &text[colon_pos + 2..];
-            let values: Vec<f32> = values_str
-                .split(',')
-                .filter_map(|s| s.trim().parse::<f32>().ok())
-                .collect();
-            if !values.is_empty() {
-                series.push(LineSeries {
-                    label,
-                    values,
-                    reveal,
-                });
-            }
+        if let Some((label, values)) = parse_label_values(text) {
+            series.push(LineSeries {
+                label,
+                values,
+                reveal,
+            });
         }
     }
 
@@ -168,8 +159,7 @@ pub fn draw_line_chart(
     let grid_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
     let grid_label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
 
-    let mut grid_val = 0.0;
-    while grid_val <= max_value + grid_step * 0.5 {
+    for grid_val in std::iter::once(0.0).chain(grid_values(max_value, grid_step)) {
         let frac = grid_val / max_value;
         let gy = chart_bottom - frac * chart_height;
         if grid_val > 0.0 {
@@ -191,10 +181,6 @@ pub fn draw_line_chart(
             galley,
             grid_label_color,
         );
-        grid_val += grid_step;
-        if grid_val > max_value * 1.01 && grid_val - grid_step < max_value {
-            break;
-        }
     }
 
     // Draw axes
@@ -214,12 +200,25 @@ pub fn draw_line_chart(
         Stroke::new(VIZ_STROKE_AXIS * scale, axis_color),
     );
 
-    // Draw x-axis labels
+    // Draw x-axis labels, thinning them out when they would overlap
     let x_label_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
     let x_label_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
-    for (i, label) in x_labels.iter().enumerate().take(max_points) {
+    let x_galleys: Vec<_> = x_labels
+        .iter()
+        .take(max_points)
+        .map(|label| painter.layout_no_wrap(label.clone(), x_label_font.clone(), x_label_color))
+        .collect();
+    let widest = x_galleys
+        .iter()
+        .map(|g| g.rect.width())
+        .fold(0.0f32, f32::max);
+    let slot_width = chart_width / (max_points - 1).max(1) as f32;
+    let stride = label_stride(widest + 12.0 * scale, slot_width);
+    for (i, galley) in x_galleys.into_iter().enumerate() {
+        if i % stride != 0 {
+            continue;
+        }
         let x = chart_left + (i as f32 / (max_points - 1).max(1) as f32) * chart_width;
-        let galley = painter.layout_no_wrap(label.clone(), x_label_font.clone(), x_label_color);
         painter.galley(
             Pos2::new(x - galley.rect.width() / 2.0, chart_bottom + 8.0 * scale),
             galley,
@@ -255,7 +254,8 @@ pub fn draw_line_chart(
             .enumerate()
             .map(|(i, &v)| {
                 let x = chart_left + (i as f32 / (max_points - 1).max(1) as f32) * chart_width;
-                let y = chart_bottom - (v / max_value) * chart_height;
+                // Negative values sit on the axis rather than below the chart
+                let y = chart_bottom - (v.max(0.0) / max_value) * chart_height;
                 Pos2::new(x, y)
             })
             .collect();
@@ -331,7 +331,6 @@ pub fn draw_line_chart(
     let legend_item_height = 32.0 * scale;
     let legend_start_y = chart_top;
     let swatch_width = VIZ_SWATCH_SIZE * scale;
-    let swatch_height = 3.0 * scale;
 
     for (si, s) in series.iter().enumerate() {
         let step = steps.get(si).copied().unwrap_or(0);
@@ -369,8 +368,6 @@ pub fn draw_line_chart(
             text_color,
         );
     }
-
-    let _ = swatch_height; // suppress unused warning
 
     height
 }
@@ -428,5 +425,20 @@ mod tests {
         assert_eq!(data.x_label, Some("Quarter".to_string()));
         assert_eq!(data.y_label, Some("Revenue ($M)".to_string()));
         assert_eq!(data.series.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_line_chart_rejects_non_finite() {
+        let data = parse_line_chart("- A: inf, nan\n- B: 1, inf, 3");
+        assert_eq!(data.series.len(), 1);
+        assert_eq!(data.series[0].values, vec![1.0, 3.0]);
+    }
+
+    #[test]
+    fn test_parse_line_chart_thousands_separators() {
+        let data = parse_line_chart("- Revenue: 1,000, 2,000, 3,500");
+        assert_eq!(data.series[0].values, vec![1000.0, 2000.0, 3500.0]);
+        let data = parse_line_chart("- Costs: $80, $90, $120");
+        assert_eq!(data.series[0].values, vec![80.0, 90.0, 120.0]);
     }
 }

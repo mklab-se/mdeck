@@ -501,15 +501,14 @@ pub(super) fn draw_routed_edge(
     // Clip the effective drawing length by animation progress
     let effective_len = total_len * anim_progress;
 
-    // Shorten the polyline for arrowheads
+    // Shorten the polyline for arrowheads. While animating, the end arrowhead
+    // rides on the growing tip, so the line stops one arrow length before it.
     let draw_start_d = if has_start_arrow { arrow_size } else { 0.0 };
-    let draw_end_d_full = if has_end_arrow {
-        (total_len - arrow_size).max(0.0)
+    let draw_end_d = if has_end_arrow {
+        (effective_len - arrow_size).max(0.0)
     } else {
-        total_len
+        effective_len
     };
-    // Clip draw_end by animation progress
-    let draw_end_d = draw_end_d_full.min(effective_len);
 
     // Build shortened polyline for line drawing
     if draw_end_d > draw_start_d + 1.0 {
@@ -547,7 +546,7 @@ pub(super) fn draw_routed_edge(
         }
     }
 
-    // Draw arrowheads only when animation is complete
+    // Arrowheads: at the animated tip while growing, snapped to the true end once complete
     let draw_arrowhead = |tip: Pos2, direction: egui::Vec2| {
         let d = direction.normalized();
         let p = egui::vec2(-d.y, d.x);
@@ -560,7 +559,16 @@ pub(super) fn draw_routed_edge(
         ));
     };
 
-    if has_end_arrow && anim_progress >= 1.0 {
+    if has_end_arrow && anim_progress < 1.0 {
+        if effective_len > arrow_size * 1.2 {
+            let tip = polyline_point_at_distance(&smooth_points, effective_len);
+            let tail = polyline_point_at_distance(
+                &smooth_points,
+                (effective_len - arrow_size * 0.5).max(0.0),
+            );
+            draw_arrowhead(tip, tip - tail);
+        }
+    } else if has_end_arrow {
         let n = waypoints.len();
         let last_seg_len = if n >= 2 {
             (waypoints[n - 1] - waypoints[n - 2]).length()
@@ -584,7 +592,7 @@ pub(super) fn draw_routed_edge(
         }
     }
 
-    if has_start_arrow && anim_progress >= 1.0 {
+    if has_start_arrow && effective_len > arrow_size * 1.2 {
         let first_seg_len = if waypoints.len() >= 2 {
             (waypoints[1] - waypoints[0]).length()
         } else {

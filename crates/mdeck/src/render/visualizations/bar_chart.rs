@@ -6,14 +6,12 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_CORNER_BAR, VIZ_FONT_AXIS_LABEL, VIZ_FONT_CATEGORY_LABEL, VIZ_FONT_GRID_LABEL,
-    VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_AXIS, VIZ_OPACITY_FILL,
-    VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL, VIZ_STROKE_AXIS, VIZ_STROKE_GRID,
-    VizReveal, assign_steps, draw_x_axis_label, draw_y_axis_label, format_axis_value, format_value,
-    nice_axis_max, nice_grid_step, parse_axis_label_directive, parse_reveal_prefix,
-    reveal_anim_progress,
+    VIZ_FONT_MIN, VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_AXIS,
+    VIZ_OPACITY_FILL, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL, VIZ_STROKE_AXIS,
+    VIZ_STROKE_GRID, VizReveal, assign_steps, draw_x_axis_label, draw_y_axis_label, fit_text,
+    format_axis_value, format_value, grid_values, label_fade, nice_axis_max, nice_grid_step,
+    parse_axis_label_directive, parse_label_value, parse_reveal_prefix, reveal_anim_progress,
 };
-
-// ─── Utilities ──────────────────────────────────────────────────────────────
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
 
@@ -76,17 +74,13 @@ fn parse_bar_chart(content: &str) -> BarChartData {
             continue;
         }
 
-        // Parse "Label: 40" or "Label: 40%"
-        if let Some(colon_pos) = text.find(": ") {
-            let label = text[..colon_pos].trim().to_string();
-            let value_str = text[colon_pos + 2..].trim().trim_end_matches('%');
-            if let Ok(value) = value_str.parse::<f32>() {
-                entries.push(BarEntry {
-                    label,
-                    value,
-                    reveal,
-                });
-            }
+        // Parse "Label: 40", "Label: 40%", "Label: $1,000", ...
+        if let Some((label, value)) = parse_label_value(text) {
+            entries.push(BarEntry {
+                label,
+                value,
+                reveal,
+            });
         }
     }
 
@@ -224,8 +218,8 @@ fn draw_vertical(
     let grid_step = nice_grid_step(max_value, 5);
     let grid_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
     let grid_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
-    let mut grid_val = grid_step;
-    while grid_val <= max_value * 1.001 {
+    let grid_label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
+    for grid_val in grid_values(max_value, grid_step) {
         let frac = grid_val / max_value;
         let gy = chart_bottom - frac * chart_height;
         painter.line_segment(
@@ -236,8 +230,6 @@ fn draw_vertical(
             Stroke::new(VIZ_STROKE_GRID * scale, grid_color),
         );
         let label = format_axis_value(grid_val, grid_step);
-        let grid_label_color =
-            Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
         let galley = painter.layout_no_wrap(label, grid_font.clone(), grid_label_color);
         painter.galley(
             Pos2::new(
@@ -247,7 +239,6 @@ fn draw_vertical(
             galley,
             grid_label_color,
         );
-        grid_val += grid_step;
     }
 
     // Bars
@@ -257,6 +248,7 @@ fn draw_vertical(
     let bar_width = ((chart_width - total_gaps) / n as f32).max(8.0 * scale);
     let label_font = FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale);
     let value_font = FontId::proportional(theme.body_size * VIZ_FONT_VALUE_LABEL * scale);
+    let min_font = theme.body_size * VIZ_FONT_MIN * scale;
 
     for (i, entry) in entries.iter().enumerate() {
         let step = steps.get(i).copied().unwrap_or(0);
@@ -270,7 +262,8 @@ fn draw_vertical(
         }
 
         let color = Theme::with_opacity(palette[i % palette.len()], opacity * VIZ_OPACITY_FILL);
-        let full_bar_height = (entry.value / max_value) * chart_height;
+        // Negative values are clamped to the axis so nothing draws below the chart
+        let full_bar_height = (entry.value.max(0.0) / max_value) * chart_height;
         let bar_height = full_bar_height * anim;
         let bx = chart_left + bar_gap + i as f32 * (bar_width + bar_gap);
         let by = chart_bottom - bar_height;
@@ -283,9 +276,7 @@ fn draw_vertical(
         // Value label above bar (only show when animation is near-complete)
         if anim > VIZ_LABEL_REVEAL_THRESHOLD {
             let val_text = format_value(entry.value);
-            let val_opacity =
-                ((anim - VIZ_LABEL_REVEAL_THRESHOLD) / (1.0 - VIZ_LABEL_REVEAL_THRESHOLD)).min(1.0); // fade in during last portion
-            let val_color = Theme::with_opacity(theme.foreground, opacity * 0.7 * val_opacity);
+            let val_color = Theme::with_opacity(theme.foreground, opacity * 0.7 * label_fade(anim));
             let val_galley = painter.layout_no_wrap(val_text, value_font.clone(), val_color);
             let val_x = bx + (bar_width - val_galley.rect.width()) / 2.0;
             painter.galley(
@@ -295,13 +286,15 @@ fn draw_vertical(
             );
         }
 
-        // Category label below bar
+        // Category label below bar, shrunk/truncated to its slot
         let label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_LABEL);
-        let galley = painter.layout(
-            entry.label.clone(),
+        let galley = fit_text(
+            painter,
+            &entry.label,
             label_font.clone(),
             label_color,
             bar_width + bar_gap,
+            min_font,
         );
         let lx = bx + (bar_width - galley.rect.width()) / 2.0;
         painter.galley(
@@ -361,8 +354,32 @@ fn draw_horizontal(
     let mut needs_repaint = false;
     let n = entries.len();
     let padding = 40.0 * scale;
-    let label_area = 140.0 * scale; // space for labels on the left
     let value_area = 60.0 * scale; // space for value labels on the right
+    let label_gap = 10.0 * scale;
+    let label_font = FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale);
+    let label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_LABEL);
+    let min_font = theme.body_size * VIZ_FONT_MIN * scale;
+
+    // Size the label column to the longest label, fitted into at most a third of the width
+    let max_label_w = max_width * 0.33;
+    let label_galleys: Vec<_> = entries
+        .iter()
+        .map(|e| {
+            fit_text(
+                painter,
+                &e.label,
+                label_font.clone(),
+                label_color,
+                max_label_w,
+                min_font,
+            )
+        })
+        .collect();
+    let label_area = label_galleys
+        .iter()
+        .map(|g| g.rect.width())
+        .fold(0.0f32, f32::max)
+        + label_gap; // space for labels on the left
     let x_label_space = if x_label.is_some() { 30.0 * scale } else { 0.0 };
     let y_label_space = if y_label.is_some() { 30.0 * scale } else { 0.0 };
     let chart_left = pos.x + padding + label_area + y_label_space;
@@ -384,7 +401,6 @@ fn draw_horizontal(
     let bar_gap = 10.0 * scale;
     let total_gaps = (n + 1) as f32 * bar_gap;
     let bar_height = ((chart_height - total_gaps) / n as f32).max(8.0 * scale);
-    let label_font = FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale);
     let value_font = FontId::proportional(theme.body_size * VIZ_FONT_VALUE_LABEL * scale);
 
     for (i, entry) in entries.iter().enumerate() {
@@ -399,7 +415,8 @@ fn draw_horizontal(
         }
 
         let color = Theme::with_opacity(palette[i % palette.len()], opacity * VIZ_OPACITY_FILL);
-        let full_bar_w = (entry.value / max_value) * chart_width;
+        // Negative values are clamped to the axis so nothing draws left of it
+        let full_bar_w = (entry.value.max(0.0) / max_value) * chart_width;
         let bar_w = full_bar_w * anim;
         let by = chart_top + bar_gap + i as f32 * (bar_height + bar_gap);
 
@@ -409,18 +426,15 @@ fn draw_horizontal(
         painter.rect_filled(bar_rect, VIZ_CORNER_BAR * scale, color);
 
         // Category label on the left
-        let label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_LABEL);
-        let galley = painter.layout_no_wrap(entry.label.clone(), label_font.clone(), label_color);
-        let lx = chart_left - galley.rect.width() - 10.0 * scale;
+        let galley = label_galleys[i].clone();
+        let lx = chart_left - galley.rect.width() - label_gap;
         let ly = by + (bar_height - galley.rect.height()) / 2.0;
         painter.galley(Pos2::new(lx, ly), galley, label_color);
 
         // Value label to the right of bar (fade in near end of animation)
         if anim > VIZ_LABEL_REVEAL_THRESHOLD {
             let val_text = format_value(entry.value);
-            let val_opacity =
-                ((anim - VIZ_LABEL_REVEAL_THRESHOLD) / (1.0 - VIZ_LABEL_REVEAL_THRESHOLD)).min(1.0);
-            let val_color = Theme::with_opacity(theme.foreground, opacity * 0.7 * val_opacity);
+            let val_color = Theme::with_opacity(theme.foreground, opacity * 0.7 * label_fade(anim));
             let val_galley = painter.layout_no_wrap(val_text, value_font.clone(), val_color);
             let vx = chart_left + bar_w + 8.0 * scale;
             let vy = by + (bar_height - val_galley.rect.height()) / 2.0;
@@ -520,5 +534,28 @@ mod tests {
         assert_eq!(data.x_label, Some("Categories".to_string()));
         assert_eq!(data.y_label, Some("Revenue ($M)".to_string()));
         assert_eq!(data.entries.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_bar_chart_rejects_non_finite() {
+        let data = parse_bar_chart("- A: inf\n- B: nan\n- C: -infinity\n- D: 5");
+        assert_eq!(data.entries.len(), 1);
+        assert_eq!(data.entries[0].label, "D");
+    }
+
+    #[test]
+    fn test_parse_bar_chart_decorated_values() {
+        let data = parse_bar_chart("- A: 1,000\n- B: $40\n- C: 40 units\n- D: 12%");
+        let values: Vec<f32> = data.entries.iter().map(|e| e.value).collect();
+        assert_eq!(values, vec![1000.0, 40.0, 40.0, 12.0]);
+    }
+
+    #[test]
+    fn test_grid_lines_are_bounded() {
+        // Even a pathological max/step pair must terminate with a bounded number of lines
+        let lines = grid_values(1.0e30, 1.0);
+        assert!(lines.len() <= super::super::VIZ_MAX_GRID_LINES);
+        let lines = grid_values(100.0, 20.0);
+        assert_eq!(lines, vec![20.0, 40.0, 60.0, 80.0, 100.0]);
     }
 }

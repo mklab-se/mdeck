@@ -5,9 +5,14 @@ use eframe::egui::{self, Color32, FontId, Pos2};
 use crate::theme::Theme;
 
 use super::{
-    VIZ_CORNER_CARD, VIZ_FONT_PRIMARY_LABEL, VIZ_FONT_SECONDARY_LABEL, VIZ_OPACITY_SUBTLE_BG,
-    VizReveal, assign_steps, parse_reveal_prefix, reveal_anim_progress,
+    VIZ_CORNER_CARD, VIZ_FONT_MIN, VIZ_FONT_PRIMARY_LABEL, VIZ_FONT_SECONDARY_LABEL,
+    VIZ_OPACITY_SUBTLE_BG, VizReveal, assign_steps, fit_text, parse_reveal_prefix,
+    reveal_anim_progress,
 };
+
+/// Headline values shrink to fit the card, but never below this multiple of the
+/// body size — a KPI that is not readable from the back of the room is pointless.
+const KPI_VALUE_MIN_FONT: f32 = 1.0;
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
 
@@ -122,6 +127,7 @@ pub fn draw_kpi_cards(
     let card_padding = 56.0 * scale;
     let card_height = (content_height + card_padding * 2.0).min(height);
     let card_y = pos.y + (height - card_height) / 2.0;
+    let text_max_w = card_width - 24.0 * scale;
 
     let mut needs_repaint = false;
 
@@ -147,12 +153,20 @@ pub fn draw_kpi_cards(
         );
         painter.rect_filled(card_rect, VIZ_CORNER_CARD * scale, bg_color);
 
-        // Value text (centered, large)
+        // Value text (centered, large, shrunk to fit the card)
         let text_color = Theme::with_opacity(theme.foreground, item_opacity);
-        let value_galley =
-            painter.layout_no_wrap(entry.value.clone(), value_font.clone(), text_color);
+        let value_galley = fit_text(
+            painter,
+            &entry.value,
+            value_font.clone(),
+            text_color,
+            text_max_w,
+            theme.body_size * KPI_VALUE_MIN_FONT * scale,
+        );
         let value_x = card_x + (card_width - value_galley.rect.width()) / 2.0;
-        let value_y = card_y + (card_height - content_height) / 2.0;
+        let value_y = card_y
+            + (card_height - content_height) / 2.0
+            + (measure("0", &value_font) - value_galley.rect.height()) / 2.0;
         painter.galley(
             Pos2::new(value_x, value_y),
             value_galley.clone(),
@@ -161,8 +175,14 @@ pub fn draw_kpi_cards(
 
         // Label text (centered, below value)
         let label_color = Theme::with_opacity(theme.foreground, item_opacity * 0.7);
-        let label_galley =
-            painter.layout_no_wrap(entry.label.clone(), label_font.clone(), label_color);
+        let label_galley = fit_text(
+            painter,
+            &entry.label,
+            label_font.clone(),
+            label_color,
+            text_max_w,
+            theme.body_size * VIZ_FONT_MIN * scale,
+        );
         let label_x = card_x + (card_width - label_galley.rect.width()) / 2.0;
         let label_y = value_y + value_galley.rect.height() + 8.0 * scale;
         painter.galley(
@@ -285,5 +305,22 @@ mod tests {
         let content = "- Valid: $100\n- no_colon\n# comment\n- Also: $200";
         let entries = parse_kpi_cards(content);
         assert_eq!(entries.len(), 2);
+    }
+
+    #[test]
+    fn test_kpi_value_fits_card() {
+        super::super::tests::with_test_painter(|painter| {
+            let font = FontId::proportional(40.0);
+            let g = fit_text(
+                painter,
+                "$1,234,567,890.00",
+                font,
+                Color32::WHITE,
+                120.0,
+                20.0,
+            );
+            assert!(g.rect.width() <= 120.0 + 0.01);
+            assert!(g.text().ends_with('…'));
+        });
     }
 }

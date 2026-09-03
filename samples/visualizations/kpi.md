@@ -34,3 +34,15 @@ title: "KPI Card Tests"
 + Test Coverage: 87% (trend: +3%)
 * Incidents: 2 (trend: -60%)
 ```
+
+
+---
+
+# KPI Cards — Long Values and Labels
+
+```@kpi
+- Total Contract Value Signed This Quarter: $1,234,567,890.00 (trend: +12%)
+- Active Users: 48,200 (trend: +8%)
+- Median Time To First Meaningful Response: 1h 23m 45s (trend: -14%)
+- NPS: 72
+```

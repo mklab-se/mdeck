@@ -5,8 +5,9 @@ use eframe::egui::{self, FontId, Pos2, Stroke};
 use crate::theme::Theme;
 
 use super::{
-    VIZ_CORNER_NODE, VIZ_FONT_SECONDARY_LABEL, VIZ_FONT_TITLE, VIZ_LABEL_REVEAL_THRESHOLD,
-    VIZ_OPACITY_FILL, VizReveal, assign_steps, parse_reveal_prefix, reveal_anim_progress,
+    VIZ_CORNER_NODE, VIZ_FONT_MIN, VIZ_FONT_SECONDARY_LABEL, VIZ_FONT_TITLE,
+    VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_FILL, VizReveal, assign_steps, fit_text, format_value,
+    label_fade, parse_label_value, parse_reveal_prefix, reveal_anim_progress,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -30,17 +31,13 @@ fn parse_funnel_chart(content: &str) -> Vec<FunnelEntry> {
             continue;
         }
 
-        // Parse "Label: 10000"
-        if let Some(colon_pos) = text.find(": ") {
-            let label = text[..colon_pos].trim().to_string();
-            let value_str = text[colon_pos + 2..].trim().trim_end_matches('%');
-            if let Ok(value) = value_str.parse::<f32>() {
-                entries.push(FunnelEntry {
-                    label,
-                    value,
-                    reveal,
-                });
-            }
+        // Parse "Label: 10000"; a negative stage count is meaningless → 0
+        if let Some((label, value)) = parse_label_value(text) {
+            entries.push(FunnelEntry {
+                label,
+                value: value.max(0.0),
+                reveal,
+            });
         }
     }
     entries
@@ -160,14 +157,22 @@ pub fn draw_funnel_chart(
 
         // Label centered in trapezoid (only when sufficiently visible)
         if anim > VIZ_LABEL_REVEAL_THRESHOLD {
-            let label_opacity =
-                ((anim - VIZ_LABEL_REVEAL_THRESHOLD) / (1.0 - VIZ_LABEL_REVEAL_THRESHOLD)).min(1.0);
+            let label_opacity = label_fade(anim);
             let mid_y = top_y + h / 2.0;
+            // Width available at mid height, with a little inset
+            let text_max_w = (top_width + anim_bottom_width) / 2.0 - 16.0 * scale;
+            let min_font = theme.body_size * VIZ_FONT_MIN * scale;
 
             // Entry label
             let label_color = Theme::with_opacity(theme.foreground, opacity * label_opacity);
-            let galley =
-                painter.layout_no_wrap(entry.label.clone(), label_font.clone(), label_color);
+            let galley = fit_text(
+                painter,
+                &entry.label,
+                label_font.clone(),
+                label_color,
+                text_max_w,
+                min_font,
+            );
             let lx = center_x - galley.rect.width() / 2.0;
             painter.galley(
                 Pos2::new(lx, mid_y - galley.rect.height() - 1.0 * scale),
@@ -177,13 +182,16 @@ pub fn draw_funnel_chart(
 
             // Value and percentage
             let pct = entry.value / max_value * 100.0;
-            let val_text = if entry.value == entry.value.floor() {
-                format!("{:.0} ({:.0}%)", entry.value, pct)
-            } else {
-                format!("{:.1} ({:.0}%)", entry.value, pct)
-            };
+            let val_text = format!("{} ({:.0}%)", format_value(entry.value), pct);
             let val_color = Theme::with_opacity(theme.foreground, opacity * 0.7 * label_opacity);
-            let val_galley = painter.layout_no_wrap(val_text, value_font.clone(), val_color);
+            let val_galley = fit_text(
+                painter,
+                &val_text,
+                value_font.clone(),
+                val_color,
+                text_max_w,
+                min_font,
+            );
             let vx = center_x - val_galley.rect.width() / 2.0;
             painter.galley(Pos2::new(vx, mid_y + 1.0 * scale), val_galley, val_color);
         }
@@ -239,5 +247,14 @@ mod tests {
         let entries = parse_funnel_chart(content);
         assert_eq!(entries[0].value, 100.0);
         assert_eq!(entries[1].value, 50.0);
+    }
+
+    #[test]
+    fn test_parse_funnel_chart_rejects_non_finite_and_clamps_negative() {
+        let entries = parse_funnel_chart("- A: inf\n- B: -10\n- C: 10,000\n- D: $500");
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].value, 0.0);
+        assert_eq!(entries[1].value, 10000.0);
+        assert_eq!(entries[2].value, 500.0);
     }
 }

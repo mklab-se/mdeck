@@ -36,3 +36,15 @@ title: "Donut Chart Tests"
 * Latin America: 8
 + Africa: 4
 ```
+
+
+---
+
+# Donut Chart — Long Center Text
+
+```@donutchart
+# center: $4,250,000 Annual Recurring Revenue
+- Enterprise: 2,400,000
+- Mid-market: 1,150,000
+- Self-serve: 700,000
+```

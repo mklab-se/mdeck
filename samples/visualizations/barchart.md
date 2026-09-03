@@ -81,3 +81,30 @@ title: "Bar Chart Tests"
 - Italy: 2.0
 - Brazil: 1.9
 ```
+
+
+# Bar Chart — Long Labels and Decorated Values
+
+```@barchart
+# y-label: Revenue
+- Enterprise Software Licensing: $1,250,000
+- Professional Services and Consulting: $840,500
+- Cloud Infrastructure Subscriptions: $2,100,000
+- Training and Certification Programs: $310,000
+- Hardware Resale: $95,000
+- Support Contracts: $640,000
+- Marketplace Fees: $120,000
+- Other Income: $45,000
+```
+
+
+# Bar Chart — Horizontal with Long Labels
+
+```@barchart
+# orientation: horizontal
+- Customer Acquisition Cost per Enterprise Segment: 48 units
+- Net Revenue Retention: 112%
+- Gross Margin: 71%
+- Average Contract Value Growth Year over Year Compared to Plan: 24%
+- Churn: 3.5%
+```
