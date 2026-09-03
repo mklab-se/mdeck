@@ -119,8 +119,10 @@ Headings start new slides when the current slide already has content. Which head
 
 1. **Explicit:** Set `@slide-level: N` in frontmatter. Headings at level 1 through N all trigger splits.
 2. **Inferred:** If `@slide-level` is not set:
-   - **Single H1 (or no H1):** Infer slide level 2 — both `#` and `##` trigger splits. This handles "proper" markdown files where H1 is the title and H2s are sections.
+   - **Single H1 (or no H1):** Infer slide level 2 — both `#` and `##` trigger splits. This handles "proper" markdown files where H1 is the title and H2s are sections. An H2 that directly follows an H1 (nothing but blank lines between them) stays on the same slide and becomes its subtitle, giving a title slide.
    - **Multiple H1s:** Infer slide level 1 — only `#` triggers splits.
+
+Separators (`---`, blank-line gaps, headings) inside fenced code blocks never split a slide.
 
 ```markdown
 # Title Slide
@@ -324,17 +326,28 @@ Standard ATX headings. Levels 1-3 are meaningful for layout; levels 4-6 are rend
 ### Level 3 — Minor heading within slide
 ```
 
+Optional closing hashes (`## Heading ##`) are stripped. Setext headings are
+supported too: a one-line paragraph underlined with `===` is a level-1 heading
+and one underlined with `---` is a level-2 heading. A `#` that is not followed
+by a space (`#hashtag`, `#include`) is ordinary text, as in CommonMark.
+
 ### 5.2 Paragraphs and inline formatting
 
-| Syntax               | Result          |
-|----------------------|-----------------|
-| `**bold**`           | **bold**        |
-| `*italic*`           | *italic*        |
-| `~~strikethrough~~`  | ~~strikethrough~~|
-| `` `inline code` ``  | `inline code`   |
-| `[text](url)`        | hyperlink       |
+| Syntax                          | Result            |
+|---------------------------------|-------------------|
+| `**bold**` or `__bold__`        | **bold**          |
+| `*italic*` or `_italic_`        | *italic*          |
+| `***bold italic***`             | ***bold italic*** |
+| `~~strikethrough~~`             | ~~strikethrough~~ |
+| `` `inline code` ``             | `inline code`     |
+| ``` ``code with ` inside`` ```  | code span with a backtick |
+| `[text](url)`                   | hyperlink         |
+| `\*literal\*`                   | backslash escapes |
 
-Links are rendered visually but are not clickable during presentation. The URL is shown on hover.
+Emphasis follows CommonMark flanking rules: `snake_case_name` and `5 * 3 * 2`
+stay literal. Links are rendered visually but are not clickable during
+presentation. HTML comments (`<!-- ... -->`, single or multi-line) are skipped.
+Lines that continue a list item (indented or not) belong to that item.
 
 ### 5.3 Lists
 
@@ -452,7 +465,7 @@ Standard pipe-delimited tables:
 | Rendering | WIP     |
 ```
 
-Tables are rendered with theme-appropriate styling. They do not trigger a special layout; they are block elements within whatever layout the slide otherwise matches.
+Tables are rendered with theme-appropriate styling. They do not trigger a special layout; they are block elements within whatever layout the slide otherwise matches. The second line must be a separator row (`|---|`, alignment colons allowed). Escape a pipe inside a cell as `\|`; pipes inside inline code are kept as text. A lone `| text |` line without a separator row is a paragraph.
 
 ### 5.8 Horizontal rules within slides
 

@@ -23,6 +23,14 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Parser hangs and panics** — a line such as `#hashtag` or `#include <stdio.h>`, or a malformed image like `![alt] text`, made the parser loop forever; a line consisting of a single emoji or accented character panicked; a highlight range such as `{1-99999999999}` allocated unbounded memory. All fixed with regression tests.
+- **CRLF files** (Windows line endings) corrupted the frontmatter and leaked the closing `---` into the first slide.
+- **Separators inside code blocks** — a `---` line or three blank lines inside a fenced code block no longer splits the slide (`samples/introducing-mdeck.md` renders its "How Slides Work" example on one slide again).
+- **Wrapped list items** — continuation lines now stay in their bullet instead of breaking the list into list, paragraph, list.
+- **Title slides** — `# Title` directly followed by `## Subtitle` is one title slide, as the spec always said.
+- **Ordinary markdown that rendered literally** — setext headings (`Title` over `===`), closing hashes (`## Head ##`), HTML comments, `_italic_`/`__bold__`, `***bold italic***`, backslash escapes, double-backtick code spans, escaped pipes in tables, image titles (`![a](x.png "Title")`) and code info strings with extra words (` ```rust title=x`) are now handled. `5 * 3 * 2` is no longer italicised. A lone `| text |` line is text instead of vanishing.
+- **Frontmatter numbers** — `date: 2026` displays as `2026` instead of `Number(2026)`.
+- `mdeck config set` accepts `defaults.image_style` and `defaults.icon_style`; incident log files are unique per process and second.
 - `mdeck ai create` no longer exits the whole process to show help, and its tests no longer read the real stdin (which could hang in CI).
 
 ### Dependencies
