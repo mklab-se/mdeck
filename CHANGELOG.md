@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Git graph in the gallery** — `samples/gallery.md` and `GALLERY.md` now include the `@gitgraph` visualization.
+- **`BACKLOG.md`** — a roadmap of larger ideas and open decisions collected during a full review of the product.
+
+### Changed
+
+- **Pixel-exact export** — `mdeck export` now produces images of exactly the requested size (1920x1080 by default) on every display. Previously HiDPI screens doubled the output and windows were clamped to the screen, so `--width 3840` could yield neither 3840 nor 1920 pixels. Slides larger than the display are rendered in tiles and stitched. Export also waits for images to finish loading.
+- **Images load in the background** — decoding happens on a worker thread, and the next two slides' images are preloaded, so large photos no longer stall a transition.
+- **Pie and donut charts** are drawn as single meshes instead of hundreds of thin polygons, removing the visible striping inside slices.
+- **Charts pick round axis limits** — bar, line and stacked-bar axes now end on a round number above the data (the tallest bar no longer touches the top of the chart), and axis labels never print `-0`.
+- **Word clouds fill the slide** — the layout is scaled up to use the available area instead of floating small in the centre.
+- **KPI cards** are sized to their content with centred text; **Gantt** rows get more room when there are few tasks; **bar charts** use gaps proportional to bar width.
+- **Venn diagrams** with three sets overlap properly and place pairwise labels inside their lens instead of on top of each other; labels wrap.
+- **README** rewritten with a sharper introduction, a sixty-second start, and complete presenting and command references.
+- **Format spec** documents the nord theme, the spatial transition, and marks directives that are accepted but not yet applied (`@background`, `@footer`, `@class`, `@code-theme`, `@aspect`, per-slide `@theme`/`@transition`) as reserved instead of implemented.
+
+### Fixed
+
+- `mdeck ai create` no longer exits the whole process to show help, and its tests no longer read the real stdin (which could hang in CI).
+
+### Dependencies
+
+- Upgraded eframe/egui 0.33 → 0.36 (glow renderer), ailloy 1.0 → 2.0, colored 2 → 3, inquire 0.7 → 0.9, base64 0.22 → 0.23, pdf-extract 0.10 → 0.12, plus a full `cargo update`. `cargo audit` reports no known vulnerabilities (previously six advisories in lopdf, quick-xml, quinn-proto, webbrowser, crossbeam-epoch). MSRV is now Rust 1.88.
+
 ## [0.17.3] - 2026-07-07
 
 ### Changed

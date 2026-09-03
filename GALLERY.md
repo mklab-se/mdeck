@@ -184,6 +184,12 @@ Project timeline with task dependencies and automatic time scaling.
 
 <img src="media/gallery/slide-25.png" width="720">
 
+### Git Graph
+
+Branches as lanes, commits as dots, forks and merges as S-curves, with tags and progressive reveal.
+
+<img src="media/gallery/slide-26.png" width="720">
+
 ---
 
 ## AI-Generated Images

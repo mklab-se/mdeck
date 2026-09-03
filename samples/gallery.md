@@ -320,6 +320,24 @@ fn main() {
 
 ---
 
+## Git Graph
+
+```@gitgraph
+- lane main
+- lane develop
+- lane feature
+- commit main
++ branch main -> develop
++ branch develop -> feature
++ commit feature
++ commit feature
++ merge feature -> develop: "PR #12"
++ merge develop -> main: "Release v2.0"
++ tag main: "v2.0"
+```
+
+---
+
 ## Bullet Slide with Image
 
 - The Sahara Desert is roughly the size of the United States
