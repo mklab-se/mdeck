@@ -12,7 +12,7 @@ use super::{
 
 /// Headline values shrink to fit the card, but never below this multiple of the
 /// body size — a KPI that is not readable from the back of the room is pointless.
-const KPI_VALUE_MIN_FONT: f32 = 1.0;
+const KPI_VALUE_MIN_FONT: f32 = 0.75;
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
 

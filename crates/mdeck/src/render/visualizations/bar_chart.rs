@@ -8,9 +8,10 @@ use super::{
     VIZ_CORNER_BAR, VIZ_FONT_AXIS_LABEL, VIZ_FONT_CATEGORY_LABEL, VIZ_FONT_GRID_LABEL,
     VIZ_FONT_MIN, VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_AXIS,
     VIZ_OPACITY_FILL, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL, VIZ_STROKE_AXIS,
-    VIZ_STROKE_GRID, VizReveal, assign_steps, draw_x_axis_label, draw_y_axis_label, fit_text,
-    format_axis_value, format_value, grid_values, label_fade, nice_axis_max, nice_grid_step,
-    parse_axis_label_directive, parse_label_value, parse_reveal_prefix, reveal_anim_progress,
+    VIZ_STROKE_GRID, VizReveal, assign_steps, draw_x_axis_label, draw_y_axis_label, fit_font_size,
+    fit_text, format_axis_value, format_value, grid_values, label_fade, nice_axis_max,
+    nice_grid_step, parse_axis_label_directive, parse_label_value, parse_reveal_prefix,
+    reveal_anim_progress,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -201,8 +202,27 @@ fn draw_vertical(
     let x_label_space = if x_label.is_some() { 30.0 * scale } else { 0.0 };
     let chart_height = height - padding - label_area - value_area - x_label_space;
     let chart_bottom = pos.y + padding + value_area + chart_height;
-    let chart_left = pos.x + padding + y_label_space;
-    let chart_width = max_width - padding * 2.0 - y_label_space;
+
+    // Reserve room on the left for the widest grid label (plus the axis title)
+    let grid_step = nice_grid_step(max_value, 5);
+    let grid_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
+    let grid_label_w = grid_values(max_value, grid_step)
+        .into_iter()
+        .map(|v| {
+            painter
+                .layout_no_wrap(
+                    format_axis_value(v, grid_step),
+                    grid_font.clone(),
+                    Color32::WHITE,
+                )
+                .rect
+                .width()
+        })
+        .fold(0.0f32, f32::max);
+    let left_inset =
+        (padding * 0.3 + y_label_space + grid_label_w + 16.0 * scale).max(padding + y_label_space);
+    let chart_left = pos.x + left_inset;
+    let chart_width = max_width - left_inset - padding;
 
     // Axis line
     let axis_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_AXIS);
@@ -215,9 +235,7 @@ fn draw_vertical(
     );
 
     // Grid lines with nice round numbers
-    let grid_step = nice_grid_step(max_value, 5);
     let grid_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
-    let grid_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
     let grid_label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
     for grid_val in grid_values(max_value, grid_step) {
         let frac = grid_val / max_value;
@@ -246,9 +264,17 @@ fn draw_vertical(
     let bar_gap = (chart_width / n as f32 * 0.22).clamp(10.0 * scale, 48.0 * scale);
     let total_gaps = (n + 1) as f32 * bar_gap;
     let bar_width = ((chart_width - total_gaps) / n as f32).max(8.0 * scale);
-    let label_font = FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale);
     let value_font = FontId::proportional(theme.body_size * VIZ_FONT_VALUE_LABEL * scale);
     let min_font = theme.body_size * VIZ_FONT_MIN * scale;
+    // One label size for every category so the axis reads as a unit
+    let label_texts: Vec<&str> = entries.iter().map(|e| e.label.as_str()).collect();
+    let label_font = FontId::proportional(fit_font_size(
+        painter,
+        &label_texts,
+        &FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale),
+        bar_width + bar_gap,
+        min_font,
+    ));
 
     for (i, entry) in entries.iter().enumerate() {
         let step = steps.get(i).copied().unwrap_or(0);
@@ -294,7 +320,7 @@ fn draw_vertical(
             label_font.clone(),
             label_color,
             bar_width + bar_gap,
-            min_font,
+            label_font.size,
         );
         let lx = bx + (bar_width - galley.rect.width()) / 2.0;
         painter.galley(
@@ -356,12 +382,20 @@ fn draw_horizontal(
     let padding = 40.0 * scale;
     let value_area = 60.0 * scale; // space for value labels on the right
     let label_gap = 10.0 * scale;
-    let label_font = FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale);
     let label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_LABEL);
     let min_font = theme.body_size * VIZ_FONT_MIN * scale;
 
-    // Size the label column to the longest label, fitted into at most a third of the width
+    // Size the label column to the longest label, fitted into at most a third of the width.
+    // All labels share one font size.
     let max_label_w = max_width * 0.33;
+    let label_texts: Vec<&str> = entries.iter().map(|e| e.label.as_str()).collect();
+    let label_font = FontId::proportional(fit_font_size(
+        painter,
+        &label_texts,
+        &FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale),
+        max_label_w,
+        min_font,
+    ));
     let label_galleys: Vec<_> = entries
         .iter()
         .map(|e| {
@@ -371,7 +405,7 @@ fn draw_horizontal(
                 label_font.clone(),
                 label_color,
                 max_label_w,
-                min_font,
+                label_font.size,
             )
         })
         .collect();

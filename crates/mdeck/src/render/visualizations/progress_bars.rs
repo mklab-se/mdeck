@@ -6,8 +6,8 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_CORNER_TRACK, VIZ_FONT_MIN, VIZ_FONT_PRIMARY_LABEL, VIZ_FONT_TITLE, VIZ_OPACITY_FILL,
-    VIZ_OPACITY_GRID, VIZ_OPACITY_LABEL, VIZ_STROKE_BORDER, VizReveal, assign_steps, fit_text,
-    parse_label_value, parse_reveal_prefix, reveal_anim_progress,
+    VIZ_OPACITY_GRID, VIZ_OPACITY_LABEL, VIZ_STROKE_BORDER, VizReveal, assign_steps, fit_font_size,
+    fit_text, parse_label_value, parse_reveal_prefix, reveal_anim_progress,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -94,6 +94,16 @@ pub fn draw_progress_bars(
     let bar_left = pos.x + padding + label_width + 12.0 * scale;
     let bar_width = max_width - padding * 2.0 - label_width - 12.0 * scale - pct_width;
 
+    // All labels share one font size so rows read as a unit
+    let label_texts: Vec<&str> = entries.iter().map(|e| e.label.as_str()).collect();
+    let label_font = FontId::proportional(fit_font_size(
+        painter,
+        &label_texts,
+        &label_font,
+        label_width,
+        theme.body_size * VIZ_FONT_MIN * scale,
+    ));
+
     let mut needs_repaint = false;
 
     for (i, entry) in entries.iter().enumerate() {
@@ -117,7 +127,7 @@ pub fn draw_progress_bars(
             label_font.clone(),
             label_color,
             label_width,
-            theme.body_size * VIZ_FONT_MIN * scale,
+            label_font.size,
         );
         let label_y = row_y + (bar_height - galley.rect.height()) / 2.0;
         let label_x = bar_left - 12.0 * scale - galley.rect.width();

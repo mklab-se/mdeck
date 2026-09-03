@@ -340,6 +340,34 @@ pub fn parse_label_values(text: &str) -> Option<(String, Vec<f32>)> {
 
 // ─── Text fitting ───────────────────────────────────────────────────────────
 
+/// The largest font size (at most `font.size`, at least `min_font_size`) at
+/// which every one of `texts` fits within `max_width`. Use it to give a group
+/// of labels one shared size instead of shrinking each label independently.
+pub fn fit_font_size(
+    painter: &egui::Painter,
+    texts: &[&str],
+    font: &FontId,
+    max_width: f32,
+    min_font_size: f32,
+) -> f32 {
+    let min_font_size = min_font_size.min(font.size);
+    if max_width <= 0.0 {
+        return min_font_size;
+    }
+    let mut size = font.size;
+    for text in texts {
+        let probe = FontId::new(size, font.family.clone());
+        let width = painter
+            .layout_no_wrap(text.to_string(), probe, Color32::WHITE)
+            .rect
+            .width();
+        if width > max_width {
+            size = (size * max_width / width).max(min_font_size);
+        }
+    }
+    size
+}
+
 /// Lay out `text` so it fits within `max_width`: first shrink the font down to
 /// `min_font_size`, then truncate with an ellipsis if it still does not fit.
 pub fn fit_text(
@@ -402,6 +430,8 @@ pub fn label_stride(label_width: f32, slot_width: f32) -> usize {
 /// One row of a vertical legend.
 pub struct LegendItem {
     pub label: String,
+    /// Text that must survive truncation, e.g. `" (43%)"`; appended after the label.
+    pub suffix: String,
     pub color: Color32,
     /// Hidden rows keep their slot so earlier rows do not shift during a reveal.
     pub visible: bool,
@@ -441,10 +471,21 @@ pub fn draw_legend_column(
 
     let swatch = VIZ_SWATCH_SIZE * scale;
     let gap = 10.0 * scale;
-    let font = FontId::proportional(theme.body_size * VIZ_FONT_LEGEND * scale);
     let min_font = theme.body_size * VIZ_FONT_MIN * scale;
     let text_color = crate::theme::Theme::with_opacity(theme.foreground, opacity);
     let text_max_w = col_w - swatch - gap - 6.0 * scale;
+
+    // One font size for the whole legend, chosen so as many entries as
+    // possible fit; the rest are truncated (keeping their suffix).
+    let full_texts: Vec<String> = items
+        .iter()
+        .map(|item| format!("{}{}", item.label, item.suffix))
+        .collect();
+    let refs: Vec<&str> = full_texts.iter().map(String::as_str).collect();
+    let base_font = FontId::proportional(theme.body_size * VIZ_FONT_LEGEND * scale);
+    let font = FontId::proportional(fit_font_size(
+        painter, &refs, &base_font, text_max_w, min_font,
+    ));
 
     for (i, item) in items.iter().enumerate() {
         let col = i / rows_per_col;
@@ -464,14 +505,29 @@ pub fn draw_legend_column(
         );
         painter.rect_filled(swatch_rect, VIZ_CORNER_SWATCH * scale, item.color);
 
-        let galley = fit_text(
-            painter,
-            &item.label,
-            font.clone(),
-            text_color,
-            text_max_w,
-            min_font,
-        );
+        let full = painter.layout_no_wrap(full_texts[i].clone(), font.clone(), text_color);
+        let galley = if full.rect.width() <= text_max_w {
+            full
+        } else {
+            // Truncate only the label; the suffix (e.g. the percentage) stays.
+            let suffix_w = painter
+                .layout_no_wrap(item.suffix.clone(), font.clone(), text_color)
+                .rect
+                .width();
+            let label = fit_text(
+                painter,
+                &item.label,
+                font.clone(),
+                text_color,
+                (text_max_w - suffix_w).max(0.0),
+                font.size,
+            );
+            painter.layout_no_wrap(
+                format!("{}{}", label.text(), item.suffix),
+                font.clone(),
+                text_color,
+            )
+        };
         let text_y = y + (row_h - galley.rect.height()) / 2.0;
         painter.galley(Pos2::new(x + swatch + gap, text_y), galley, text_color);
     }

@@ -150,7 +150,8 @@ pub fn draw_pie_chart(
         .iter()
         .enumerate()
         .map(|(i, entry)| LegendItem {
-            label: format!("{} ({:.0}%)", entry.label, entry.value / total * 100.0),
+            label: entry.label.clone(),
+            suffix: format!(" ({:.0}%)", entry.value / total * 100.0),
             color: Theme::with_opacity(palette[i % palette.len()], opacity * VIZ_OPACITY_FILL),
             visible: steps.get(i).copied().unwrap_or(0) <= reveal_step,
         })
