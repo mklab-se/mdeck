@@ -43,11 +43,49 @@ fn show() -> Result<()> {
                 "start_mode:".bold(),
                 defaults.start_mode.as_deref().unwrap_or("(not set)")
             );
+            println!(
+                "  {} {}",
+                "image_style:".bold(),
+                defaults.image_style.as_deref().unwrap_or("(not set)")
+            );
+            println!(
+                "  {} {}",
+                "icon_style:".bold(),
+                defaults.icon_style.as_deref().unwrap_or("(not set)")
+            );
+            println!(
+                "  {} {}",
+                "monitor_position:".bold(),
+                format_monitor_position(defaults.monitor_position)
+            );
         }
         None => {
             println!("{} (not set)", "defaults:".bold());
         }
     }
+
+    println!();
+    match &config.routing {
+        Some(r) => {
+            println!("{}", "routing:".bold());
+            println!("  {} {}", "length:".bold(), r.length);
+            println!("  {} {}", "turn:".bold(), r.turn);
+            println!("  {} {}", "lane_change:".bold(), r.lane_change);
+            println!("  {} {}", "crossing:".bold(), r.crossing);
+        }
+        None => println!("{} (defaults)", "routing:".bold()),
+    }
+
+    println!();
+    let styles = config.list_styles();
+    let icon_styles = config.list_icon_styles();
+    println!(
+        "{} {} image, {} icon (see {})",
+        "styles:".bold(),
+        styles.len(),
+        icon_styles.len(),
+        "mdeck ai style list".cyan()
+    );
 
     println!();
 
@@ -80,6 +118,13 @@ fn show() -> Result<()> {
     Ok(())
 }
 
+fn format_monitor_position(pos: Option<[f32; 2]>) -> String {
+    match pos {
+        Some([x, y]) => format!("{x:.0}, {y:.0}"),
+        None => "(not set)".to_string(),
+    }
+}
+
 fn set(key: &str, value: &str) -> Result<()> {
     let mut config = Config::load_or_default();
     config.set(key, value)?;
@@ -94,4 +139,16 @@ fn set(key: &str, value: &str) -> Result<()> {
     println!("  Saved to {}", path.display().to_string().dimmed());
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn monitor_position_formatting() {
+        assert_eq!(format_monitor_position(None), "(not set)");
+        assert_eq!(format_monitor_position(Some([1920.0, 0.0])), "1920, 0");
+        assert_eq!(format_monitor_position(Some([-1440.5, 12.0])), "-1440, 12");
+    }
 }

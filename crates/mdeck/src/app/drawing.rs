@@ -4,25 +4,33 @@ use std::time::Instant;
 use crate::render;
 use crate::theme::Theme;
 
+use super::keys::{SCROLL_SMOOTH_RATE, SHORTCUTS, scroll_target_to_show, smooth_factor};
 use super::{
     ActiveDraw, DRAW_FADE_DURATION, OVERVIEW_TRANSITION_DURATION, PresentationApp, RawOverlaySide,
 };
 
 impl PresentationApp {
+    /// Draw a slide at its current reveal step, scrolled by `scroll` pixels
+    /// and clipped to `rect` when scrolled.
     pub(super) fn draw_slide(
         &self,
-        ui: &egui::Ui,
+        ui: &mut egui::Ui,
         index: usize,
         rect: egui::Rect,
         opacity: f32,
         scale: f32,
+        scroll: f32,
     ) {
-        if index < self.presentation.slides.len() {
-            let reveal = self.reveal_steps.get(index).copied().unwrap_or(0);
-            let timestamp = self.reveal_timestamps.get(index).copied().flatten();
+        if index >= self.presentation.slides.len() {
+            return;
+        }
+        let reveal = self.reveal_steps.get(index).copied().unwrap_or(0);
+        let timestamp = self.reveal_timestamps.get(index).copied().flatten();
+        let slide = &self.presentation.slides[index];
+        if scroll.abs() < 0.5 {
             render::render_slide(
                 ui,
-                &self.presentation.slides[index],
+                slide,
                 &self.theme,
                 rect,
                 opacity,
@@ -31,7 +39,56 @@ impl PresentationApp {
                 timestamp,
                 scale,
             );
+            return;
         }
+        // Scrolled: render into a child clipped to the slide rect so content
+        // above/below the viewport never bleeds into other elements.
+        // (`max_rect` only affects layout; clipping must be set explicitly.)
+        let mut child = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(rect)
+                .id_salt(("scrolled_slide", index)),
+        );
+        child.shrink_clip_rect(rect);
+        render::render_slide(
+            &child,
+            slide,
+            &self.theme,
+            rect.translate(egui::vec2(0.0, -scroll)),
+            opacity,
+            &self.image_cache,
+            reveal,
+            timestamp,
+            scale,
+        );
+    }
+
+    /// Bottom edge (relative to the content top) of the lowest element revealed
+    /// by the current reveal step of slide `idx`, using the same measurements
+    /// as the overflow detection. `None` when nothing new is below step 0.
+    fn revealed_content_bottom(
+        &self,
+        ui: &egui::Ui,
+        idx: usize,
+        rect: egui::Rect,
+        scale: f32,
+    ) -> Option<f32> {
+        let slide = &self.presentation.slides[idx];
+        let step = self.reveal_steps.get(idx).copied().unwrap_or(0);
+        let padding = 80.0 * scale;
+        let content_width = match slide.layout {
+            crate::parser::Layout::Code => rect.width() * 0.75,
+            _ => rect.width() - padding * 2.0,
+        };
+        let heights: Vec<f32> = slide
+            .blocks
+            .iter()
+            .map(|b| {
+                render::text::measure_single_block_height(ui, b, &self.theme, content_width, scale)
+            })
+            .collect();
+        let item_height = self.theme.body_size * scale + 8.0 * scale;
+        super::helpers::revealed_bottom(&slide.blocks, &heights, step, item_height, 20.0 * scale)
     }
 
     /// Draw a slide at full reveal (all steps visible). Used by grid view.
@@ -172,7 +229,7 @@ impl PresentationApp {
         // Cache slide rect for mouse coordinate conversion
         self.last_slide_rect = rect;
 
-        // During transitions, just render normally (no scroll)
+        // During transitions the outgoing slide keeps its scroll (see draw_presentation)
         if self.transition.is_some() {
             self.draw_presentation(ui, ctx, rect, scale);
             self.draw_annotations(ui, scale);
@@ -189,43 +246,46 @@ impl PresentationApp {
             // No overflow — render normally, reset scroll
             self.scroll_offsets[idx] = 0.0;
             self.scroll_targets[idx] = 0.0;
+            self.pending_reveal_scroll = false;
             self.draw_presentation(ui, ctx, rect, scale);
             self.draw_annotations(ui, scale);
             return;
         }
 
+        // A reveal step was just added: scroll so the newly revealed element is visible
+        if self.pending_reveal_scroll {
+            self.pending_reveal_scroll = false;
+            if let Some(bottom) = self.revealed_content_bottom(ui, idx, rect, scale) {
+                if let Some(target) = scroll_target_to_show(
+                    bottom,
+                    self.scroll_targets[idx],
+                    available_height,
+                    overflow,
+                    40.0 * scale,
+                ) {
+                    self.scroll_targets[idx] = target;
+                }
+            }
+        }
+
         // Clamp target
         self.scroll_targets[idx] = self.scroll_targets[idx].clamp(0.0, overflow);
 
-        // Animate: lerp current offset toward target
+        // Animate: ease current offset toward target (frame-rate independent)
         let target = self.scroll_targets[idx];
         let current = self.scroll_offsets[idx];
         let diff = target - current;
         if diff.abs() < 0.5 {
             self.scroll_offsets[idx] = target;
         } else {
-            // Smooth ease: move 15% of remaining distance each frame
-            self.scroll_offsets[idx] = current + diff * 0.15;
+            let dt = ctx.input(|i| i.stable_dt);
+            self.scroll_offsets[idx] = current + diff * smooth_factor(dt, SCROLL_SMOOTH_RATE);
             ctx.request_repaint();
         }
         let scroll_offset = self.scroll_offsets[idx];
 
-        // Render slide inside a clipped child UI so content doesn't bleed outside
-        let scrolled_rect = rect.translate(egui::vec2(0.0, -scroll_offset));
-        let reveal = self.reveal_steps.get(idx).copied().unwrap_or(0);
-        let timestamp = self.reveal_timestamps.get(idx).copied().flatten();
-        let child_ui = ui.new_child(egui::UiBuilder::new().max_rect(rect).id_salt("scroll_clip"));
-        render::render_slide(
-            &child_ui,
-            slide,
-            &self.theme,
-            scrolled_rect,
-            1.0,
-            &self.image_cache,
-            reveal,
-            timestamp,
-            scale,
-        );
+        // Render slide clipped to the slide rect so content doesn't bleed outside
+        self.draw_slide(ui, idx, rect, 1.0, scale, scroll_offset);
 
         // Draw fade-out gradient at bottom
         let fade_h = 80.0 * scale;
@@ -274,7 +334,7 @@ impl PresentationApp {
 
     pub(super) fn draw_presentation(
         &self,
-        ui: &egui::Ui,
+        ui: &mut egui::Ui,
         ctx: &egui::Context,
         rect: egui::Rect,
         scale: f32,
@@ -285,11 +345,13 @@ impl PresentationApp {
             let to = t.to;
             let progress = t.progress();
             let direction = t.direction;
+            // The outgoing slide keeps its scroll position while it leaves
+            let from_scroll = self.scroll_offsets.get(from).copied().unwrap_or(0.0);
 
             match kind {
                 crate::render::transition::TransitionKind::Fade => {
-                    self.draw_slide(ui, from, rect, 1.0 - progress, scale);
-                    self.draw_slide(ui, to, rect, progress, scale);
+                    self.draw_slide(ui, from, rect, 1.0 - progress, scale, from_scroll);
+                    self.draw_slide(ui, to, rect, progress, scale, 0.0);
                 }
                 crate::render::transition::TransitionKind::SlideHorizontal => {
                     let w = rect.width();
@@ -303,8 +365,8 @@ impl PresentationApp {
                     let from_rect = rect.translate(egui::vec2(from_offset, 0.0));
                     let to_rect = rect.translate(egui::vec2(to_offset, 0.0));
 
-                    self.draw_slide(ui, from, from_rect, 1.0, scale);
-                    self.draw_slide(ui, to, to_rect, 1.0, scale);
+                    self.draw_slide(ui, from, from_rect, 1.0, scale, from_scroll);
+                    self.draw_slide(ui, to, to_rect, 1.0, scale, 0.0);
                 }
                 crate::render::transition::TransitionKind::Spatial => {
                     let (dx, dy) = t.spatial_direction(self.grid_columns());
@@ -318,16 +380,16 @@ impl PresentationApp {
                         dy * (1.0 - progress) * h,
                     ));
 
-                    self.draw_slide(ui, from, from_rect, 1.0, scale);
-                    self.draw_slide(ui, to, to_rect, 1.0, scale);
+                    self.draw_slide(ui, from, from_rect, 1.0, scale, from_scroll);
+                    self.draw_slide(ui, to, to_rect, 1.0, scale, 0.0);
                 }
                 crate::render::transition::TransitionKind::None => {
-                    self.draw_slide(ui, to, rect, 1.0, scale);
+                    self.draw_slide(ui, to, rect, 1.0, scale, 0.0);
                 }
             }
             ctx.request_repaint();
         } else {
-            self.draw_slide(ui, self.current_slide, rect, 1.0, scale);
+            self.draw_slide(ui, self.current_slide, rect, 1.0, scale, 0.0);
         }
 
         self.draw_presentation_chrome(ui, rect, scale);
@@ -364,7 +426,10 @@ impl PresentationApp {
         ui.painter()
             .galley(counter_pos, counter_galley, counter_color);
 
-        // FPS overlay
+        // FPS overlay — presenter-only, shown with the HUD (H) so the audience never sees it
+        if !self.show_hud {
+            return;
+        }
         let fps_text = format!("{:.0} fps", self.fps);
         let fps_color = Theme::with_opacity(self.theme.foreground, 0.3);
         let fps_galley =
@@ -402,12 +467,13 @@ impl PresentationApp {
         // Clamp target
         self.grid_scroll_target = self.grid_scroll_target.clamp(0.0, overflow);
 
-        // Animate scroll
+        // Animate scroll (frame-rate independent)
         let diff = self.grid_scroll_target - self.grid_scroll_offset;
         if diff.abs() < 0.5 {
             self.grid_scroll_offset = self.grid_scroll_target;
         } else {
-            self.grid_scroll_offset += diff * 0.15;
+            let dt = ctx.input(|i| i.stable_dt);
+            self.grid_scroll_offset += diff * smooth_factor(dt, SCROLL_SMOOTH_RATE);
             ctx.request_repaint();
         }
 
@@ -468,14 +534,7 @@ impl PresentationApp {
 
         // --- Ensure selected cell is visible when using keyboard ---
         if !self.use_hover && overflow > 0.0 {
-            let sel_rect = self.grid_cell_rect(selected, rect, scale, scroll);
-            if sel_rect.top() < grid_top {
-                self.grid_scroll_target -= grid_top - sel_rect.top() + padding;
-                self.grid_scroll_target = self.grid_scroll_target.max(0.0);
-            } else if sel_rect.bottom() > grid_bottom {
-                self.grid_scroll_target += sel_rect.bottom() - grid_bottom + padding;
-                self.grid_scroll_target = self.grid_scroll_target.min(overflow);
-            }
+            self.grid_scroll_target = self.grid_scroll_to_show(selected, rect, scale, scroll);
         }
 
         // Title
@@ -488,12 +547,14 @@ impl PresentationApp {
         let title_pos = egui::pos2(rect.left() + padding, rect.top() + padding);
         ui.painter().galley(title_pos, title_galley, title_color);
 
-        // Render grid cells clipped to the grid area
+        // Render grid cells clipped to the grid area. `max_rect` only affects
+        // layout, so the clip rect must be set explicitly.
         let mut grid_child = ui.new_child(
             egui::UiBuilder::new()
                 .max_rect(clip_rect)
                 .id_salt("grid_clip"),
         );
+        grid_child.shrink_clip_rect(clip_rect);
 
         for i in 0..count {
             let cell_rect = self.grid_cell_rect(i, rect, scale, scroll);
@@ -510,12 +571,14 @@ impl PresentationApp {
                 .painter()
                 .rect_filled(cell_rect, 4.0 * scale, self.theme.background);
 
-            // Render slide at full reveal (all steps visible) in grid
-            let child_ui = grid_child.new_child(
+            // Render slide at full reveal (all steps visible), clipped to its cell
+            // so overflowing slides don't bleed into neighbours
+            let mut child_ui = grid_child.new_child(
                 egui::UiBuilder::new()
                     .max_rect(cell_rect)
                     .id_salt(("grid_cell", i)),
             );
+            child_ui.shrink_clip_rect(cell_rect);
             self.draw_slide_fully_revealed(&child_ui, i, cell_rect, 1.0, cell_scale);
 
             // Slide number badge overlay
@@ -556,7 +619,7 @@ impl PresentationApp {
         }
 
         // Navigation hint at bottom
-        let hint = "Arrows/Mouse: navigate  |  Enter/Click: select  |  Q: quit";
+        let hint = GRID_HINT;
         let hint_color = Theme::with_opacity(self.theme.foreground, 0.4);
         let hint_galley = ui.painter().layout_no_wrap(
             hint.to_string(),
@@ -625,28 +688,43 @@ impl PresentationApp {
         } else {
             selected
         };
-        let hero_cell_rect = self.grid_cell_rect(hero_index, rect, scale, 0.0);
+        // Use the live grid scroll so cells below the fold animate to/from
+        // where they will actually be drawn in the grid.
+        let grid_scroll = self.grid_scroll_offset;
+        let hero_cell_rect = self.grid_cell_rect(hero_index, rect, scale, grid_scroll);
         let hero_rect = super::lerp_rect(rect, hero_cell_rect, grid_amount);
         let hero_scale = (hero_rect.width() / 1920.0).min(hero_rect.height() / 1080.0);
+        // Ease the hero's slide scroll out as it shrinks into its (unscrolled) cell
+        let hero_scroll =
+            self.scroll_offsets.get(hero_index).copied().unwrap_or(0.0) * (1.0 - grid_amount);
 
         let count = self.slide_count();
+        let padding = 24.0 * scale;
+        let grid_clip = egui::Rect::from_min_max(
+            egui::pos2(rect.left(), rect.top() + padding + 40.0 * scale),
+            egui::pos2(rect.right(), rect.bottom() - padding),
+        );
 
         // Draw non-hero slides at their grid positions with fading opacity
         for i in 0..count {
             if i == hero_index {
                 continue;
             }
-            let cell_rect = self.grid_cell_rect(i, rect, scale, 0.0);
+            let cell_rect = self.grid_cell_rect(i, rect, scale, grid_scroll);
+            if !cell_rect.intersects(grid_clip) {
+                continue;
+            }
             let cell_scale = (cell_rect.width() / 1920.0).min(cell_rect.height() / 1080.0);
 
             ui.painter()
                 .rect_filled(cell_rect, 4.0 * scale, self.theme.background);
 
-            let child_ui = ui.new_child(
+            let mut child_ui = ui.new_child(
                 egui::UiBuilder::new()
                     .max_rect(cell_rect)
                     .id_salt(("overview_cell", i)),
             );
+            child_ui.shrink_clip_rect(cell_rect.intersect(grid_clip));
             self.draw_slide_fully_revealed(&child_ui, i, cell_rect, grid_amount, cell_scale);
 
             self.draw_slide_badge(ui, cell_rect, i, scale, grid_amount);
@@ -666,12 +744,20 @@ impl PresentationApp {
         ui.painter()
             .rect_filled(hero_rect, 4.0 * scale * grid_amount, self.theme.background);
 
-        let hero_child_ui = ui.new_child(
+        let mut hero_child_ui = ui.new_child(
             egui::UiBuilder::new()
                 .max_rect(hero_rect)
                 .id_salt("overview_hero"),
         );
-        self.draw_slide(&hero_child_ui, hero_index, hero_rect, 1.0, hero_scale);
+        hero_child_ui.shrink_clip_rect(hero_rect);
+        self.draw_slide(
+            &mut hero_child_ui,
+            hero_index,
+            hero_rect,
+            1.0,
+            hero_scale,
+            hero_scroll,
+        );
 
         self.draw_slide_badge(ui, hero_rect, hero_index, scale, grid_amount);
 
@@ -698,7 +784,7 @@ impl PresentationApp {
             let title_pos = egui::pos2(rect.left() + padding, rect.top() + padding);
             ui.painter().galley(title_pos, title_galley, title_color);
 
-            let hint = "Arrows/Mouse: navigate  |  Enter/Click: select  |  Q: quit";
+            let hint = GRID_HINT;
             let hint_color = Theme::with_opacity(self.theme.foreground, 0.4 * grid_amount);
             let hint_galley = ui.painter().layout_no_wrap(
                 hint.to_string(),
@@ -942,28 +1028,11 @@ pub(super) fn draw_fade_gradient(
     ui.painter().add(egui::Shape::mesh(mesh));
 }
 
+/// Navigation hint shown at the bottom of the grid view.
+const GRID_HINT: &str = "Arrows/Mouse: navigate  |  Enter/Click: select  |  Q \u{00d7}2: quit";
+
 pub(super) fn draw_hud(ui: &egui::Ui, theme: &Theme, rect: egui::Rect, scale: f32) {
-    let shortcuts = [
-        ("Space / N / \u{2192}", "Next slide / reveal"),
-        ("P / \u{2190}", "Previous slide / hide"),
-        ("\u{2191} / \u{2193} / Wheel", "Scroll slide content"),
-        ("Left click", "Next slide"),
-        ("Right click", "Previous slide"),
-        ("Left drag", "Freehand pen (blue)"),
-        ("Right drag", "Draw arrow (orange)"),
-        ("Esc", "Clear drawings / \u{00d7}2 exit"),
-        ("G", "Grid view / overview"),
-        ("T", "Cycle transition"),
-        ("\u{21e7}T", "Cycle theme"),
-        ("F", "Toggle fullscreen"),
-        ("M", "Move to next monitor"),
-        ("H", "Toggle this HUD"),
-        (".", "Blackout screen"),
-        ("R", "Debug overlay (L/R/off)"),
-        ("Q", "Quit"),
-        ("Home", "First slide"),
-        ("End", "Last slide"),
-    ];
+    let shortcuts = SHORTCUTS;
 
     let bg = Theme::with_opacity(theme.code_background, 0.9);
     let text_color = Theme::with_opacity(theme.foreground, 0.9);
@@ -972,7 +1041,7 @@ pub(super) fn draw_hud(ui: &egui::Ui, theme: &Theme, rect: egui::Rect, scale: f3
     let padding = 24.0 * scale;
     let line_height = 32.0 * scale;
     let hud_height = shortcuts.len() as f32 * line_height + padding * 2.0 + 40.0 * scale;
-    let hud_width = 360.0 * scale;
+    let hud_width = 440.0 * scale;
 
     let hud_rect = egui::Rect::from_center_size(rect.center(), egui::vec2(hud_width, hud_height));
 
@@ -989,7 +1058,7 @@ pub(super) fn draw_hud(ui: &egui::Ui, theme: &Theme, rect: egui::Rect, scale: f3
 
     let mut y = hud_rect.top() + padding + 40.0 * scale;
 
-    for (key, desc) in &shortcuts {
+    for (key, desc) in shortcuts {
         let key_galley = ui.painter().layout_no_wrap(
             key.to_string(),
             egui::FontId::monospace(15.0 * scale),
@@ -1007,7 +1076,7 @@ pub(super) fn draw_hud(ui: &egui::Ui, theme: &Theme, rect: egui::Rect, scale: f3
             text_color,
         );
         ui.painter().galley(
-            egui::pos2(hud_rect.left() + padding + 170.0 * scale, y),
+            egui::pos2(hud_rect.left() + padding + 210.0 * scale, y),
             desc_galley,
             text_color,
         );

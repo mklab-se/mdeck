@@ -85,8 +85,15 @@ pub async fn run(
         DEFAULT_IMAGE_STYLE,
     );
 
+    // `--style` names an *image* style; only apply it to icons when it is
+    // also (or only) an icon style name, or a literal description.
+    let icon_override = icon_style_override(
+        style_override.as_deref(),
+        |n| config.get_style(n).is_some(),
+        |n| config.get_icon_style(n).is_some(),
+    );
     let icon_style = resolve_style(
-        &style_override,
+        &icon_override,
         presentation.meta.icon_style.as_deref(),
         config
             .defaults
@@ -348,12 +355,6 @@ fn scan_markers(
     for (line_idx, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
 
-        // Track slide boundaries (rough heuristic based on separators and headings)
-        // This is imperfect but good enough for mapping lines to slides
-        if trimmed == "---" || trimmed.starts_with("# ") {
-            // We might be at a new slide
-        }
-
         // Check for image-generation markers: ![...](image-generation)
         if let Some(captures) = parse_image_gen_line(trimmed) {
             let slide_num = find_slide_for_line(line_idx, lines, presentation);
@@ -527,6 +528,26 @@ fn resolve_style<'a>(
     hardcoded.to_string()
 }
 
+/// Decide whether the `--style` override also applies to diagram icons.
+///
+/// - a name that exists as an icon style → use it for icons
+/// - a name that exists only as an image style → do NOT apply to icons
+/// - anything else is a literal description → applies to both
+fn icon_style_override(
+    cli_override: Option<&str>,
+    is_image_style: impl Fn(&str) -> bool,
+    is_icon_style: impl Fn(&str) -> bool,
+) -> Option<String> {
+    let s = cli_override?;
+    if is_icon_style(s) {
+        Some(s.to_string())
+    } else if is_image_style(s) {
+        None
+    } else {
+        Some(s.to_string())
+    }
+}
+
 // ── Auto-prompt ──────────────────────────────────────────────────────────────
 
 async fn auto_prompt(presentation: &parser::Presentation, slide_number: usize) -> Result<String> {
@@ -655,11 +676,7 @@ fn replace_icon_marker(line: &str, icon_name: &str) -> String {
 }
 
 fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max - 3])
-    }
+    crate::commands::util::truncate_chars(s, max)
 }
 
 #[cfg(test)]
@@ -719,5 +736,39 @@ mod tests {
     fn test_truncate() {
         assert_eq!(truncate("short", 10), "short");
         assert_eq!(truncate("a very long string here", 10), "a very ...");
+    }
+
+    #[test]
+    fn test_truncate_non_ascii_does_not_panic() {
+        // Regression: byte slicing panicked on multi-byte chars
+        assert_eq!(truncate("Räksmörgås på sommaren", 10), "Räksmör...");
+        assert_eq!(truncate("Plan — build — ship 🚀", 8), "Plan ...");
+        assert_eq!(truncate("🚀🚀🚀🚀", 4), "🚀🚀🚀🚀");
+    }
+
+    #[test]
+    fn test_icon_style_override() {
+        let image = |n: &str| n == "photo";
+        let icon = |n: &str| n == "flat" || n == "both";
+        let both_image = |n: &str| n == "photo" || n == "both";
+        // Image-only style name → not applied to icons
+        assert_eq!(icon_style_override(Some("photo"), image, icon), None);
+        // Icon style name → applied
+        assert_eq!(
+            icon_style_override(Some("flat"), image, icon),
+            Some("flat".to_string())
+        );
+        // Name that exists as both → applied (icon variant resolves it)
+        assert_eq!(
+            icon_style_override(Some("both"), both_image, icon),
+            Some("both".to_string())
+        );
+        // Literal description → applied to both
+        assert_eq!(
+            icon_style_override(Some("watercolor sketch"), image, icon),
+            Some("watercolor sketch".to_string())
+        );
+        // No override
+        assert_eq!(icon_style_override(None, image, icon), None);
     }
 }

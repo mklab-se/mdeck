@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use eframe::egui;
 
+use crate::commands::util::slide_number_width;
 use crate::parser::{self, Presentation};
 use crate::render;
 use crate::render::image_cache::ImageCache;
@@ -18,10 +20,18 @@ struct ExportApp {
     max_steps: Vec<usize>,
     debug: bool,
     done: bool,
+    /// First save error, shared with `run()` so the exit code reflects it.
+    error: Arc<Mutex<Option<String>>>,
 }
 
 impl ExportApp {
-    fn new(presentation: Presentation, base_path: &Path, output_dir: PathBuf, debug: bool) -> Self {
+    fn new(
+        presentation: Presentation,
+        base_path: &Path,
+        output_dir: PathBuf,
+        debug: bool,
+        error: Arc<Mutex<Option<String>>>,
+    ) -> Self {
         let theme_name = presentation.meta.theme.as_deref().unwrap_or("light");
         let theme = Theme::from_name(theme_name);
         let image_cache = ImageCache::new(base_path.to_path_buf());
@@ -42,11 +52,46 @@ impl ExportApp {
             max_steps,
             debug,
             done: false,
+            error,
         }
     }
 
     fn slide_count(&self) -> usize {
         self.presentation.slides.len()
+    }
+
+    /// File name for the current slide/step, zero-padded to the deck size.
+    fn output_filename(&self) -> String {
+        export_filename(
+            self.current_slide,
+            self.slide_count(),
+            self.debug.then_some(self.current_step),
+            self.max_steps.iter().copied().max().unwrap_or(0),
+        )
+    }
+}
+
+/// Build `slide-NN.png` / `slide-NN-step-MM.png`, padding both numbers so
+/// files sort correctly for decks with 100+ slides or steps.
+fn export_filename(
+    slide_index: usize,
+    slide_count: usize,
+    step: Option<usize>,
+    max_step: usize,
+) -> String {
+    let sw = slide_number_width(slide_count);
+    match step {
+        Some(step) => {
+            let stw = slide_number_width(max_step);
+            format!(
+                "slide-{:0sw$}-step-{:0stw$}.png",
+                slide_index + 1,
+                step,
+                sw = sw,
+                stw = stw
+            )
+        }
+        None => format!("slide-{:0sw$}.png", slide_index + 1, sw = sw),
     }
 }
 
@@ -59,25 +104,29 @@ impl eframe::App for ExportApp {
 
         // Check for screenshot result from previous frame
         let mut got_screenshot = false;
+        let mut save_error: Option<String> = None;
         ctx.input(|i| {
             for event in &i.events {
                 if let egui::Event::Screenshot { image, .. } = event {
-                    let filename = if self.debug {
-                        format!(
-                            "slide-{:02}-step-{:02}.png",
-                            self.current_slide + 1,
-                            self.current_step
-                        )
-                    } else {
-                        format!("slide-{:02}.png", self.current_slide + 1)
-                    };
+                    let filename = self.output_filename();
                     let path = self.output_dir.join(&filename);
-                    save_color_image(image, &path);
-                    eprintln!("  Saved {filename}");
+                    match save_color_image(image, &path) {
+                        Ok(()) => eprintln!("  Saved {filename}"),
+                        Err(e) => save_error = Some(e),
+                    }
                     got_screenshot = true;
                 }
             }
         });
+
+        if let Some(e) = save_error {
+            // Stop at the first failure so it cannot be mistaken for success
+            eprintln!("  {e}");
+            *self.error.lock().unwrap() = Some(e);
+            self.done = true;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            return;
+        }
 
         if got_screenshot {
             self.screenshot_requested = false;
@@ -147,7 +196,7 @@ impl eframe::App for ExportApp {
     }
 }
 
-fn save_color_image(image: &egui::ColorImage, path: &Path) {
+fn save_color_image(image: &egui::ColorImage, path: &Path) -> Result<(), String> {
     let width = image.width() as u32;
     let height = image.height() as u32;
     let pixels: Vec<u8> = image
@@ -157,7 +206,7 @@ fn save_color_image(image: &egui::ColorImage, path: &Path) {
         .collect();
 
     image::save_buffer(path, &pixels, width, height, image::ColorType::Rgba8)
-        .unwrap_or_else(|e| eprintln!("Failed to save {}: {e}", path.display()));
+        .map_err(|e| format!("Failed to save {}: {e}", path.display()))
 }
 
 pub fn run(
@@ -222,6 +271,8 @@ pub fn run(
     };
 
     let output_dir_clone = output_dir.clone();
+    let error: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let error_clone = error.clone();
     eframe::run_native(
         &title,
         options,
@@ -231,11 +282,45 @@ pub fn run(
                 &base_path,
                 output_dir_clone,
                 debug,
+                error_clone,
             )))
         }),
     )
     .map_err(|e| anyhow::anyhow!("{e}"))?;
 
+    // A failed save must not look like success: propagate it as an error
+    let failed = error.lock().unwrap().take();
+    if let Some(e) = failed {
+        anyhow::bail!("Export failed: {e}");
+    }
+
     eprintln!("Export complete.");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn filenames_pad_to_two_digits_for_small_decks() {
+        assert_eq!(export_filename(0, 5, None, 0), "slide-01.png");
+        assert_eq!(export_filename(98, 99, None, 0), "slide-99.png");
+    }
+
+    #[test]
+    fn filenames_pad_to_three_digits_for_large_decks() {
+        assert_eq!(export_filename(0, 100, None, 0), "slide-001.png");
+        assert_eq!(export_filename(119, 120, None, 0), "slide-120.png");
+    }
+
+    #[test]
+    fn debug_filenames_include_padded_step() {
+        assert_eq!(export_filename(2, 10, Some(0), 4), "slide-03-step-00.png");
+        assert_eq!(export_filename(2, 10, Some(3), 4), "slide-03-step-03.png");
+        assert_eq!(
+            export_filename(2, 150, Some(7), 120),
+            "slide-003-step-007.png"
+        );
+    }
 }

@@ -25,6 +25,8 @@ use self::opportunities::{extract_opportunities, write_opportunities};
 use self::prompts::{ANALYSIS_SYSTEM_PROMPT, generation_system_prompt};
 
 const APP_NAME: &str = "mdeck";
+/// Output file used when no `--output` is given and no name can be suggested.
+const DEFAULT_OUTPUT: &str = "presentation.md";
 
 // ── Entry point ─────────────────────────────────────────────────────────────
 
@@ -70,14 +72,15 @@ pub async fn run(args: CreateArgs, quiet: bool) -> Result<()> {
             .unwrap_or_else(|| "General audience. Focus on key takeaways.".to_string())
     };
 
-    // Step 3: Determine output filename
-    let output_file = if args.output == Path::new("presentation.md") && !quiet {
-        let suggested = suggest_filename(&client, &context).await?;
-        let (file, _) = resolve_output(Path::new(&suggested))?;
-        file
-    } else {
-        let (file, _) = resolve_output(&args.output)?;
-        file
+    // Step 3: Determine output filename. An explicit --output is always
+    // respected (even `presentation.md`); otherwise ask the AI for a name.
+    let output_file = match &args.output {
+        Some(explicit) => resolve_output(explicit)?.0,
+        None if !quiet => {
+            let suggested = suggest_filename(&client, &context).await?;
+            resolve_output(Path::new(&suggested))?.0
+        }
+        None => resolve_output(Path::new(DEFAULT_OUTPUT))?.0,
     };
     let output_dir = output_file
         .parent()
@@ -422,9 +425,13 @@ async fn run_pipeline(
 async fn run_analysis(client: &ailloy::Client, content: &str, context: &str) -> Result<String> {
     let mut user_message = format!("PRESENTATION CONTEXT:\n{context}\n\nSOURCE CONTENT:\n");
 
-    const MAX_CONTENT_CHARS: usize = 100_000;
-    if content.len() > MAX_CONTENT_CHARS {
-        user_message.push_str(&content[..MAX_CONTENT_CHARS]);
+    const MAX_CONTENT_BYTES: usize = 100_000;
+    if content.len() > MAX_CONTENT_BYTES {
+        // Cut on a char boundary — a raw byte slice panics on multi-byte text
+        user_message.push_str(crate::commands::util::truncate_bytes(
+            content,
+            MAX_CONTENT_BYTES,
+        ));
         user_message.push_str("\n\n[Content truncated.]");
     } else {
         user_message.push_str(content);
@@ -695,7 +702,7 @@ mod tests {
     fn test_resolve_input_literal_text() {
         let args = CreateArgs {
             input: Some("A presentation about Rust programming".to_string()),
-            output: PathBuf::from("out.md"),
+            output: Some(PathBuf::from("out.md")),
             prompt: None,
             interactive: false,
             style: None,
@@ -711,7 +718,7 @@ mod tests {
         let cargo_toml = format!("{manifest_dir}/Cargo.toml");
         let args = CreateArgs {
             input: Some(cargo_toml),
-            output: PathBuf::from("out.md"),
+            output: Some(PathBuf::from("out.md")),
             prompt: None,
             interactive: false,
             style: None,
@@ -725,7 +732,7 @@ mod tests {
     fn test_resolve_input_no_input_no_stdin() {
         let args = CreateArgs {
             input: None,
-            output: PathBuf::from("out.md"),
+            output: Some(PathBuf::from("out.md")),
             prompt: None,
             interactive: false,
             style: None,
@@ -738,7 +745,7 @@ mod tests {
     fn test_resolve_input_interactive_with_input_provided() {
         let args = CreateArgs {
             input: Some("A talk about functional programming".to_string()),
-            output: PathBuf::from("out.md"),
+            output: Some(PathBuf::from("out.md")),
             prompt: None,
             interactive: true,
             style: None,

@@ -9,7 +9,15 @@ pub fn run(short: bool) {
 }
 
 fn print_short_reference() {
-    println!(
+    print!("{}", short_reference());
+}
+
+/// Build the quick reference card. The keyboard section is generated from
+/// the same shortcut table the in-app HUD uses, so the two cannot drift.
+pub fn short_reference() -> String {
+    let card = crate::app::keys::shortcut_card();
+    let mut out = String::new();
+    out.push_str(
         r#"MDeck Quick Reference
 =====================
 
@@ -45,20 +53,12 @@ INCREMENTAL REVEAL (list markers)
 IMAGE DIRECTIVES (in alt text)
   @fill  @fit  @width:80%  @height:100px  @left  @right  @center
 
-KEYBOARD SHORTCUTS
-  Space/N/Right  Next slide       P/Left      Previous slide
-  Up/Down        Scroll content   G           Grid view
-  Enter/E        Back to present. T           Cycle transition
-  D              Toggle theme     F           Toggle fullscreen
-  M              Next monitor     H           Show/hide HUD
-  Esc x2         Exit
-  Ctrl+C x2      Exit             Q           Quit
-
-MOUSE CONTROLS
-  Left click     Next slide       Right click Previous slide
-  Left drag      Freehand pen     Right drag  Draw arrow
-  Scroll wheel   Scroll content
-  Drawings fade out after 8 seconds
+KEYBOARD & MOUSE
+"#,
+    );
+    out.push_str(&card);
+    out.push_str(
+        r#"  Drawings fade out after 8 seconds
 
 COLUMN SEPARATOR
   +++   Separates left and right columns in two-column layout
@@ -98,6 +98,44 @@ CHART AXIS LABELS
   # x-label: text    Horizontal axis label (centered below)
   # y-label: text    Vertical axis label (rotated 90° CCW)
   Supported by: @barchart, @linechart, @scatter, @stackedbar
-"#
+"#,
     );
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn short_reference_matches_actual_key_bindings() {
+        let card = short_reference();
+        assert!(card.contains("Shift+T"), "theme is Shift+T, not D");
+        assert!(!card.contains("\n  D "), "stale D binding");
+        assert!(card.contains("PgDn"));
+        assert!(card.contains("PgUp"));
+        assert!(card.contains("Home / End"));
+        assert!(card.contains(". / B"));
+        assert!(card.contains("Q ×2"));
+        assert!(card.contains("Debug overlay"));
+        assert!(card.contains("Left click"));
+    }
+
+    #[test]
+    fn short_reference_keeps_other_sections() {
+        let card = short_reference();
+        for section in [
+            "SLIDE SEPARATION",
+            "FRONTMATTER",
+            "LAYOUTS",
+            "INCREMENTAL REVEAL",
+            "KEYBOARD & MOUSE",
+            "SPEAKER NOTES",
+            "VISUALIZATIONS",
+            "GANTT CHART DURATION FORMATS",
+            "CHART AXIS LABELS",
+        ] {
+            assert!(card.contains(section), "missing section {section}");
+        }
+    }
 }
