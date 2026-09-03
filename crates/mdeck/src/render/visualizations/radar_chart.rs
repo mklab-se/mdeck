@@ -6,8 +6,8 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_CORNER_SWATCH, VIZ_DOT_RADIUS, VIZ_FONT_AXIS_LABEL, VIZ_FONT_LEGEND, VIZ_OPACITY_LABEL,
-    VIZ_STROKE_SEPARATOR, VIZ_SWATCH_SIZE, VizReveal, assign_steps, parse_reveal_prefix,
-    reveal_anim_progress,
+    VIZ_STROKE_SEPARATOR, VIZ_SWATCH_SIZE, VizReveal, assign_steps, parse_label_values,
+    parse_reveal_prefix, reveal_anim_progress,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -52,19 +52,12 @@ fn parse_radar_chart(content: &str) -> RadarData {
         }
 
         // Parse "Series Name: v1, v2, v3, ..."
-        if let Some(colon_pos) = text.find(": ") {
-            let label = text[..colon_pos].trim().to_string();
-            let values: Vec<f32> = text[colon_pos + 2..]
-                .split(',')
-                .filter_map(|s| s.trim().parse::<f32>().ok())
-                .collect();
-            if !values.is_empty() {
-                series.push(RadarSeries {
-                    label,
-                    values,
-                    reveal,
-                });
-            }
+        if let Some((label, values)) = parse_label_values(text) {
+            series.push(RadarSeries {
+                label,
+                values,
+                reveal,
+            });
         }
     }
 
@@ -72,6 +65,51 @@ fn parse_radar_chart(content: &str) -> RadarData {
 }
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
+
+/// Fill for a series polygon as a fan of triangles from the centre. Radar
+/// polygons are star-shaped around the centre but usually not convex, so a
+/// convex fill would paint over the notches between low and high axes.
+fn series_fill_mesh(center: Pos2, points: &[Pos2], color: Color32) -> egui::Shape {
+    use eframe::epaint::{Mesh, Vertex, WHITE_UV};
+
+    let mut mesh = Mesh::default();
+    let vertex = |pos: Pos2| Vertex {
+        pos,
+        uv: WHITE_UV,
+        color,
+    };
+    mesh.vertices.push(vertex(center));
+    for &p in points {
+        mesh.vertices.push(vertex(p));
+    }
+    let n = points.len() as u32;
+    for i in 0..n {
+        mesh.add_triangle(0, 1 + i, 1 + (i + 1) % n);
+    }
+    egui::Shape::mesh(mesh)
+}
+
+/// Offset of an axis label's top-left corner from its anchor point so the text
+/// sits clear of the ring: left-aligned on the right side, right-aligned on the
+/// left side, centred above/below at the top and bottom.
+fn axis_label_anchor(angle: f32, width: f32, height: f32) -> (f32, f32) {
+    let (sin, cos) = angle.sin_cos();
+    let dx = if cos > 0.2 {
+        0.0
+    } else if cos < -0.2 {
+        -width
+    } else {
+        -width / 2.0
+    };
+    let dy = if sin > 0.2 {
+        0.0
+    } else if sin < -0.2 {
+        -height
+    } else {
+        -height / 2.0
+    };
+    (dx, dy)
+}
 
 #[allow(clippy::too_many_arguments)]
 pub fn draw_radar_chart(
@@ -157,14 +195,13 @@ pub fn draw_radar_chart(
             Stroke::new(1.0 * scale, axis_line_color),
         );
 
-        // Axis label outside the polygon
-        let label_r = radar_radius + 16.0 * scale;
+        // Axis label outside the polygon, anchored by its angle
+        let label_r = radar_radius + 14.0 * scale;
         let label_pos = Pos2::new(cx + label_r * angle.cos(), cy + label_r * angle.sin());
         let galley =
             painter.layout_no_wrap(axis_name.clone(), axis_label_font.clone(), label_color);
-        // Center the label around the computed position
-        let offset_x = -galley.rect.width() / 2.0;
-        let offset_y = -galley.rect.height() / 2.0;
+        let (offset_x, offset_y) =
+            axis_label_anchor(angle, galley.rect.width(), galley.rect.height());
         painter.galley(
             Pos2::new(label_pos.x + offset_x, label_pos.y + offset_y),
             galley,
@@ -200,18 +237,18 @@ pub fn draw_radar_chart(
         let points: Vec<Pos2> = (0..num_axes)
             .map(|i| {
                 let val = series.values.get(i).copied().unwrap_or(0.0);
-                let frac = (val / max_value).min(1.0) * anim;
+                let frac = (val / max_value).clamp(0.0, 1.0) * anim;
                 let r = radar_radius * frac;
                 let angle = start_angle + i as f32 * angle_step;
                 Pos2::new(cx + r * angle.cos(), cy + r * angle.sin())
             })
             .collect();
 
-        // Filled polygon
+        // Filled polygon (fan mesh: correct for concave shapes) plus outline
         if points.len() >= 3 {
-            painter.add(egui::Shape::convex_polygon(
+            painter.add(series_fill_mesh(Pos2::new(cx, cy), &points, fill_color));
+            painter.add(egui::Shape::closed_line(
                 points.clone(),
-                fill_color,
                 Stroke::new(VIZ_STROKE_SEPARATOR * scale, stroke_color),
             ));
         }
@@ -324,5 +361,67 @@ mod tests {
         let data = parse_radar_chart(content);
         assert!(data.axes.is_empty());
         assert_eq!(data.series.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_radar_chart_rejects_non_finite_and_thousands() {
+        let data = parse_radar_chart("# axes: A, B, C\n- S: inf, nan, inf\n- T: 1,000, 2,000, 500");
+        assert_eq!(data.series.len(), 1);
+        assert_eq!(data.series[0].values, vec![1000.0, 2000.0, 500.0]);
+    }
+
+    #[test]
+    fn test_series_fill_mesh_covers_star_shape() {
+        // A 6-point star: a convex fill would cover the notches between the spikes;
+        // the fan mesh must leave them empty.
+        let center = Pos2::new(0.0, 0.0);
+        let points: Vec<Pos2> = (0..6)
+            .map(|i| {
+                let r = if i % 2 == 0 { 100.0 } else { 10.0 };
+                let a = -std::f32::consts::FRAC_PI_2 + i as f32 * std::f32::consts::FRAC_PI_3;
+                Pos2::new(r * a.cos(), r * a.sin())
+            })
+            .collect();
+        let egui::Shape::Mesh(mesh) = series_fill_mesh(center, &points, Color32::RED) else {
+            panic!("expected a mesh");
+        };
+        assert_eq!(mesh.indices.len(), 6 * 3);
+        // A point in a notch (between spike 0 at the top and spike 2) is outside every triangle
+        let notch_angle = -std::f32::consts::FRAC_PI_2 + std::f32::consts::FRAC_PI_3;
+        let notch = Pos2::new(60.0 * notch_angle.cos(), 60.0 * notch_angle.sin());
+        assert!(!mesh_contains(&mesh, notch));
+        // A point on a spike is inside
+        let tip = Pos2::new(0.0, -50.0);
+        assert!(mesh_contains(&mesh, tip));
+    }
+
+    fn mesh_contains(mesh: &eframe::epaint::Mesh, p: Pos2) -> bool {
+        mesh.indices.chunks(3).any(|tri| {
+            let a = mesh.vertices[tri[0] as usize].pos;
+            let b = mesh.vertices[tri[1] as usize].pos;
+            let c = mesh.vertices[tri[2] as usize].pos;
+            let sign = |p1: Pos2, p2: Pos2, p3: Pos2| {
+                (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y)
+            };
+            let d1 = sign(p, a, b);
+            let d2 = sign(p, b, c);
+            let d3 = sign(p, c, a);
+            let has_neg = d1 < 0.0 || d2 < 0.0 || d3 < 0.0;
+            let has_pos = d1 > 0.0 || d2 > 0.0 || d3 > 0.0;
+            !(has_neg && has_pos)
+        })
+    }
+
+    #[test]
+    fn test_axis_label_anchor_by_angle() {
+        use std::f32::consts::{FRAC_PI_2, PI};
+        // Top: centred horizontally, sits above the point
+        assert_eq!(axis_label_anchor(-FRAC_PI_2, 100.0, 20.0), (-50.0, -20.0));
+        // Bottom: centred, below the point
+        assert_eq!(axis_label_anchor(FRAC_PI_2, 100.0, 20.0), (-50.0, 0.0));
+        // Right side: left-aligned (text starts at the point), vertically centred
+        assert_eq!(axis_label_anchor(0.0, 100.0, 20.0), (0.0, -10.0));
+        // Left side: right-aligned (text ends at the point)
+        assert_eq!(axis_label_anchor(PI, 100.0, 20.0), (-100.0, -10.0));
     }
 }

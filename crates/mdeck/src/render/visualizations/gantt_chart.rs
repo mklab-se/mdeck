@@ -7,7 +7,8 @@ use crate::theme::Theme;
 use super::{
     VIZ_CORNER_BAR, VIZ_FONT_GRID_LABEL, VIZ_FONT_SECONDARY_LABEL, VIZ_FONT_TITLE,
     VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_GRID, VIZ_STROKE_AXIS, VIZ_STROKE_CONNECTOR,
-    VIZ_STROKE_GRID, VizReveal, assign_steps, parse_reveal_prefix, reveal_anim_progress,
+    VIZ_STROKE_GRID, VizReveal, assign_steps, label_fade, label_stride, parse_reveal_prefix,
+    reveal_anim_progress,
 };
 
 // ─── Date Arithmetic ────────────────────────────────────────────────────────
@@ -92,19 +93,15 @@ impl Date {
 
     fn add_workdays(self, n: i64) -> Self {
         let mut current = self.to_days();
-        let mut remaining = n;
         let dir: i64 = if n >= 0 { 1 } else { -1 };
-        let mut abs_remaining = remaining.unsigned_abs();
-        while abs_remaining > 0 {
+        let mut remaining = n.unsigned_abs();
+        while remaining > 0 {
             current += dir;
-            let d = Self::from_days(current);
-            if d.weekday() < 5 {
+            if Self::from_days(current).weekday() < 5 {
                 // Mon-Fri
-                abs_remaining -= 1;
+                remaining -= 1;
             }
         }
-        remaining = 0; // consumed
-        let _ = remaining;
         Self::from_days(current)
     }
 
@@ -316,6 +313,9 @@ struct ResolvedTask {
     name: String,
     start: Date,
     end: Date,
+    /// Carried over from the source task so arrows never index by position:
+    /// unresolvable tasks are dropped, which shifts every later index.
+    dependencies: Vec<(String, Option<Duration>)>,
     reveal: VizReveal,
 }
 
@@ -365,6 +365,7 @@ fn resolve_tasks(data: &GanttData) -> Vec<ResolvedTask> {
             name: task.name.clone(),
             start,
             end,
+            dependencies: task.dependencies.clone(),
             reveal: task.reveal,
         });
     }
@@ -530,12 +531,27 @@ pub fn draw_gantt_chart(
         painter.galley(Pos2::new(tx, pos.y + 4.0 * scale), galley, title_color);
     }
 
-    // Grid lines and date labels
+    // Grid lines and date labels (labels are thinned out when they would overlap)
     let grid_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
     let label_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
     let label_color = Theme::with_opacity(theme.foreground, opacity * 0.45);
 
-    for (frac, label_text) in &time_grid.labels {
+    let date_galleys: Vec<_> = time_grid
+        .labels
+        .iter()
+        .map(|(_, text)| painter.layout_no_wrap(text.clone(), label_font.clone(), label_color))
+        .collect();
+    let widest_date = date_galleys
+        .iter()
+        .map(|g| g.rect.width())
+        .fold(0.0f32, f32::max);
+    let slot_width = match time_grid.labels.as_slice() {
+        [(a, _), (b, _), ..] => (b - a) * chart_width,
+        _ => chart_width,
+    };
+    let date_stride = label_stride(widest_date + 12.0 * scale, slot_width);
+
+    for (idx, ((frac, _), galley)) in time_grid.labels.iter().zip(date_galleys).enumerate() {
         let x = chart_left + frac * chart_width;
 
         // Vertical grid line
@@ -545,7 +561,9 @@ pub fn draw_gantt_chart(
         );
 
         // Date label
-        let galley = painter.layout_no_wrap(label_text.clone(), label_font.clone(), label_color);
+        if idx % date_stride != 0 {
+            continue;
+        }
         let lx = x - galley.rect.width() / 2.0;
         painter.galley(
             Pos2::new(lx, chart_bottom + 6.0 * scale),
@@ -664,8 +682,7 @@ pub fn draw_gantt_chart(
 
         // Bar label: task name inside (inside mode) or duration (side mode)
         if anim > VIZ_LABEL_REVEAL_THRESHOLD {
-            let label_opacity =
-                ((anim - VIZ_LABEL_REVEAL_THRESHOLD) / (1.0 - VIZ_LABEL_REVEAL_THRESHOLD)).min(1.0);
+            let label_opacity = label_fade(anim);
 
             if data.labels == LabelMode::Inside {
                 // Task name inside bar, with duration suffix
@@ -728,7 +745,7 @@ pub fn draw_gantt_chart(
         }
 
         // Dependency arrows
-        for (dep_name, _) in data.tasks.get(i).map_or(&[][..], |t| &t.dependencies) {
+        for (dep_name, _) in &task.dependencies {
             if let Some((di, dep_task)) = resolved
                 .iter()
                 .enumerate()
@@ -1040,5 +1057,30 @@ mod tests {
         let resolved = resolve_tasks(&data);
         assert_eq!(resolved[0].start.format(), "2024-01-15");
         assert_eq!(resolved[0].end.format(), "2024-01-22"); // Next Monday
+    }
+
+    #[test]
+    fn test_resolved_tasks_keep_dependencies_when_a_task_is_dropped() {
+        // "Ghost" has no dates and no resolvable dependency, so it is dropped.
+        // "Build" (index 2 in the source) must still point at "Research"
+        // (index 0), not at whatever sits at index 2 of the resolved list.
+        let content =
+            "- Research: 2024-01-01, 5d\n- Ghost: after Nothing\n- Build: 3d, after Research";
+        let data = parse_gantt(content);
+        assert_eq!(data.tasks.len(), 3);
+        let resolved = resolve_tasks(&data);
+        assert_eq!(resolved.len(), 2);
+        assert_eq!(resolved[1].name, "Build");
+        assert_eq!(resolved[1].dependencies.len(), 1);
+        assert_eq!(resolved[1].dependencies[0].0, "Research");
+        assert!(resolved[0].dependencies.is_empty());
+    }
+
+    #[test]
+    fn test_workdays_backwards() {
+        // Monday 2024-01-08 minus 1 workday is Friday 2024-01-05
+        let d = Date::new(2024, 1, 8);
+        assert_eq!(d.add_workdays(-1), Date::new(2024, 1, 5));
+        assert_eq!(d.add_workdays(0), d);
     }
 }

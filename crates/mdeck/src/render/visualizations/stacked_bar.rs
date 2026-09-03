@@ -9,11 +9,10 @@ use super::{
     VIZ_FONT_GRID_LABEL, VIZ_FONT_LEGEND, VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD,
     VIZ_OPACITY_AXIS, VIZ_OPACITY_FILL, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL,
     VIZ_OPACITY_LABEL, VIZ_STROKE_AXIS, VIZ_STROKE_GRID, VIZ_SWATCH_SIZE, VizReveal, assign_steps,
-    draw_x_axis_label, draw_y_axis_label, format_axis_value, format_value, nice_axis_max,
-    nice_grid_step, parse_axis_label_directive, parse_reveal_prefix, reveal_anim_progress,
+    draw_x_axis_label, draw_y_axis_label, format_axis_value, format_value, grid_values, label_fade,
+    nice_axis_max, nice_grid_step, parse_axis_label_directive, parse_label_values,
+    parse_reveal_prefix, reveal_anim_progress,
 };
-
-// ─── Utilities ──────────────────────────────────────────────────────────────
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
 
@@ -67,20 +66,19 @@ fn parse_stacked_bar(content: &str) -> StackedBarData {
         }
 
         // Parse "Series Name: v1, v2, v3, ..."
-        if let Some(colon_pos) = text.find(": ") {
-            let label = text[..colon_pos].trim().to_string();
-            let values: Vec<f32> = text[colon_pos + 2..]
-                .split(',')
-                .filter_map(|s| s.trim().parse::<f32>().ok())
-                .collect();
-            if !values.is_empty() {
-                series.push(StackedSeries {
-                    label,
-                    values,
-                    reveal,
-                });
-            }
+        if let Some((label, values)) = parse_label_values(text) {
+            series.push(StackedSeries {
+                label,
+                values,
+                reveal,
+            });
         }
+    }
+
+    // Without a `# categories:` directive, number the columns after the longest series
+    if categories.is_empty() {
+        let n = series.iter().map(|s| s.values.len()).max().unwrap_or(0);
+        categories = (1..=n).map(|i| i.to_string()).collect();
     }
 
     StackedBarData {
@@ -92,6 +90,21 @@ fn parse_stacked_bar(content: &str) -> StackedBarData {
 }
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
+
+/// Corner rounding for one stacked segment: only the topmost segment of a stack
+/// gets rounded (top) corners, so there are no notches between segments.
+fn segment_corner_radius(radius: f32, is_top: bool) -> egui::CornerRadius {
+    if is_top {
+        egui::CornerRadius {
+            nw: radius as u8,
+            ne: radius as u8,
+            sw: 0,
+            se: 0,
+        }
+    } else {
+        egui::CornerRadius::ZERO
+    }
+}
 
 #[allow(clippy::too_many_arguments)]
 pub fn draw_stacked_bar(
@@ -124,12 +137,12 @@ pub fn draw_stacked_bar(
 
     let num_categories = data.categories.len();
 
-    // Compute max stacked total across all categories
+    // Compute max stacked total across all categories (negatives count as 0)
     let max_stack: f32 = (0..num_categories)
         .map(|ci| {
             data.series
                 .iter()
-                .map(|s| s.values.get(ci).copied().unwrap_or(0.0))
+                .map(|s| s.values.get(ci).copied().unwrap_or(0.0).max(0.0))
                 .sum::<f32>()
         })
         .fold(0.0f32, f32::max);
@@ -174,8 +187,8 @@ pub fn draw_stacked_bar(
     let grid_step = nice_grid_step(max_stack, 5);
     let grid_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
     let grid_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
-    let mut grid_val = grid_step;
-    while grid_val <= max_stack * 1.001 {
+    let grid_label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
+    for grid_val in grid_values(max_stack, grid_step) {
         let frac = grid_val / max_stack;
         let gy = chart_bottom - frac * chart_height;
         painter.line_segment(
@@ -186,8 +199,6 @@ pub fn draw_stacked_bar(
             Stroke::new(VIZ_STROKE_GRID * scale, grid_color),
         );
         let label = format_axis_value(grid_val, grid_step);
-        let grid_label_color =
-            Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
         let galley = painter.layout_no_wrap(label, grid_font.clone(), grid_label_color);
         painter.galley(
             Pos2::new(
@@ -197,7 +208,6 @@ pub fn draw_stacked_bar(
             galley,
             grid_label_color,
         );
-        grid_val += grid_step;
     }
 
     // Bars
@@ -232,6 +242,18 @@ pub fn draw_stacked_bar(
         let bx = chart_left + bar_gap + ci as f32 * (bar_width + bar_gap);
         let mut cumulative_height = 0.0f32;
 
+        // The last visible, non-empty segment is the top of this stack
+        let top_series = data
+            .series
+            .iter()
+            .enumerate()
+            .filter(|(si, s)| {
+                steps.get(*si).copied().unwrap_or(0) <= reveal_step
+                    && s.values.get(ci).copied().unwrap_or(0.0) > 0.0
+            })
+            .map(|(si, _)| si)
+            .next_back();
+
         for (si, series) in data.series.iter().enumerate() {
             let step = steps.get(si).copied().unwrap_or(0);
             if step > reveal_step {
@@ -243,12 +265,11 @@ pub fn draw_stacked_bar(
                 needs_repaint = true;
             }
 
-            let val = series.values.get(ci).copied().unwrap_or(0.0);
+            let val = series.values.get(ci).copied().unwrap_or(0.0).max(0.0);
             let full_seg_height = (val / max_stack) * chart_height;
             let seg_height = full_seg_height * anim;
 
             if seg_height <= 0.0 {
-                cumulative_height += full_seg_height * anim;
                 continue;
             }
 
@@ -258,15 +279,14 @@ pub fn draw_stacked_bar(
 
             let bar_rect =
                 egui::Rect::from_min_size(Pos2::new(bx, by), egui::vec2(bar_width, seg_height));
-            painter.rect_filled(bar_rect, VIZ_CORNER_BAR * scale, color);
+            let corners = segment_corner_radius(VIZ_CORNER_BAR * scale, top_series == Some(si));
+            painter.rect_filled(bar_rect, corners, color);
 
             // Value label inside segment if tall enough
             if seg_height > 18.0 * scale && anim > VIZ_LABEL_REVEAL_THRESHOLD {
-                let val_opacity = ((anim - VIZ_LABEL_REVEAL_THRESHOLD)
-                    / (1.0 - VIZ_LABEL_REVEAL_THRESHOLD))
-                    .min(1.0);
                 let val_text = format_value(val);
-                let val_color = Theme::with_opacity(theme.foreground, opacity * 0.7 * val_opacity);
+                let val_color =
+                    Theme::with_opacity(theme.foreground, opacity * 0.7 * label_fade(anim));
                 let val_galley = painter.layout_no_wrap(val_text, value_font.clone(), val_color);
                 if val_galley.rect.width() < bar_width {
                     let vx = bx + (bar_width - val_galley.rect.width()) / 2.0;
@@ -401,9 +421,43 @@ mod tests {
 
     #[test]
     fn test_parse_stacked_bar_no_categories() {
+        // Without a directive the columns are numbered so the chart still renders
         let content = "- Product A: 10, 20";
         let data = parse_stacked_bar(content);
-        assert!(data.categories.is_empty());
+        assert_eq!(data.categories, vec!["1", "2"]);
         assert_eq!(data.series.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_stacked_bar_rejects_non_finite() {
+        let data = parse_stacked_bar("# categories: A, B\n- S: inf, nan\n- T: 1, inf");
+        assert_eq!(data.series.len(), 1);
+        assert_eq!(data.series[0].values, vec![1.0]);
+    }
+
+    #[test]
+    fn test_parse_stacked_bar_thousands_separators() {
+        let data = parse_stacked_bar("# categories: A, B\n- S: 1,000, 2,000");
+        assert_eq!(data.series[0].values, vec![1000.0, 2000.0]);
+    }
+
+    #[test]
+    fn test_parse_stacked_bar_infers_categories() {
+        let data = parse_stacked_bar("- Product A: 10, 20\n- Product B: 5, 6, 7");
+        assert_eq!(data.categories, vec!["1", "2", "3"]);
+        // An explicit directive always wins
+        let data = parse_stacked_bar("# categories: X, Y\n- Product A: 10, 20, 30");
+        assert_eq!(data.categories, vec!["X", "Y"]);
+    }
+
+    #[test]
+    fn test_segment_corners_round_only_the_top() {
+        let top = segment_corner_radius(8.0, true);
+        assert_eq!(top.nw, 8);
+        assert_eq!(top.ne, 8);
+        assert_eq!(top.sw, 0);
+        assert_eq!(top.se, 0);
+        let inner = segment_corner_radius(8.0, false);
+        assert_eq!(inner, egui::CornerRadius::ZERO);
     }
 }

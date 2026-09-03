@@ -5,9 +5,9 @@ use eframe::egui::{self, FontId, Pos2, Stroke};
 use crate::theme::Theme;
 
 use super::{
-    VIZ_CORNER_TRACK, VIZ_FONT_PRIMARY_LABEL, VIZ_FONT_TITLE, VIZ_OPACITY_FILL, VIZ_OPACITY_GRID,
-    VIZ_OPACITY_LABEL, VIZ_STROKE_BORDER, VizReveal, assign_steps, parse_reveal_prefix,
-    reveal_anim_progress,
+    VIZ_CORNER_TRACK, VIZ_FONT_MIN, VIZ_FONT_PRIMARY_LABEL, VIZ_FONT_TITLE, VIZ_OPACITY_FILL,
+    VIZ_OPACITY_GRID, VIZ_OPACITY_LABEL, VIZ_STROKE_BORDER, VizReveal, assign_steps, fit_text,
+    parse_label_value, parse_reveal_prefix, reveal_anim_progress,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -32,16 +32,12 @@ fn parse_progress_bars(content: &str) -> Vec<ProgressEntry> {
         }
 
         // Parse "Label: 75%" or "Label: 75"
-        if let Some(colon_pos) = text.find(": ") {
-            let label = text[..colon_pos].trim().to_string();
-            let value_str = text[colon_pos + 2..].trim().trim_end_matches('%');
-            if let Ok(value) = value_str.parse::<f32>() {
-                entries.push(ProgressEntry {
-                    label,
-                    value: value.clamp(0.0, 100.0),
-                    reveal,
-                });
-            }
+        if let Some((label, value)) = parse_label_value(text) {
+            entries.push(ProgressEntry {
+                label,
+                value: value.clamp(0.0, 100.0),
+                reveal,
+            });
         }
     }
     entries
@@ -113,9 +109,16 @@ pub fn draw_progress_bars(
 
         let row_y = start_y + i as f32 * (bar_height + row_spacing);
 
-        // Label on the left
+        // Label on the left, fitted to the label column
         let label_color = Theme::with_opacity(theme.foreground, opacity * 0.9);
-        let galley = painter.layout_no_wrap(entry.label.clone(), label_font.clone(), label_color);
+        let galley = fit_text(
+            painter,
+            &entry.label,
+            label_font.clone(),
+            label_color,
+            label_width,
+            theme.body_size * VIZ_FONT_MIN * scale,
+        );
         let label_y = row_y + (bar_height - galley.rect.height()) / 2.0;
         let label_x = bar_left - 12.0 * scale - galley.rect.width();
         painter.galley(Pos2::new(label_x, label_y), galley, label_color);
@@ -214,5 +217,12 @@ mod tests {
         let content = "- Valid: 50%\n- no_value\n# comment\n- Also: 30%";
         let entries = parse_progress_bars(content);
         assert_eq!(entries.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_progress_bars_rejects_non_finite() {
+        let entries = parse_progress_bars("- A: inf\n- B: nan\n- C: 1_0");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].value, 10.0);
     }
 }

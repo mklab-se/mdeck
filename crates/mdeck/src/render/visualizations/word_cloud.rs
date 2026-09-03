@@ -15,8 +15,18 @@ use super::{VizReveal, assign_steps, parse_reveal_prefix};
 static LAYOUT_CACHE: LazyLock<Mutex<std::collections::HashMap<u64, Vec<WordLayout>>>> =
     LazyLock::new(|| Mutex::new(std::collections::HashMap::new()));
 
+/// Every distinct (content, size) pair gets an entry, so window resizes would
+/// grow the cache without bound. Past this many entries it is simply reset.
+const LAYOUT_CACHE_CAP: usize = 64;
+
+fn layout_cache() -> std::sync::MutexGuard<'static, std::collections::HashMap<u64, Vec<WordLayout>>>
+{
+    // A panic while holding the lock must not poison every later frame
+    LAYOUT_CACHE.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 pub fn clear_cache() {
-    LAYOUT_CACHE.lock().unwrap().clear();
+    layout_cache().clear();
 }
 
 #[derive(Debug, Clone)]
@@ -430,11 +440,14 @@ pub fn draw_word_cloud(
     // Get or compute layout
     let key = cache_key(content, max_width as u32, height as u32);
     let layouts = {
-        let mut cache = LAYOUT_CACHE.lock().unwrap();
+        let mut cache = layout_cache();
         if let Some(cached) = cache.get(&key) {
             cached.clone()
         } else {
             let layout = compute_layout(ui, &entries, max_width, height, scale);
+            if cache.len() >= LAYOUT_CACHE_CAP {
+                cache.clear();
+            }
             cache.insert(key, layout.clone());
             layout
         }

@@ -1,13 +1,13 @@
 use std::time::Instant;
 
-use eframe::egui::{self, FontId, Pos2, Stroke};
+use eframe::egui::{self, Pos2, Stroke};
 
 use crate::theme::Theme;
 
 use super::{
-    VIZ_CORNER_SWATCH, VIZ_FONT_LEGEND, VIZ_OPACITY_BORDER_RING, VIZ_OPACITY_FILL,
-    VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR, VIZ_SWATCH_SIZE, VizReveal, assign_steps,
-    parse_reveal_prefix, reveal_anim_progress, sector_mesh,
+    LegendItem, VIZ_OPACITY_BORDER_RING, VIZ_OPACITY_FILL, VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR,
+    VizReveal, assign_steps, draw_legend_column, parse_label_value, parse_reveal_prefix,
+    reveal_anim_progress, sector_mesh, side_legend_width,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -31,17 +31,13 @@ fn parse_pie_chart(content: &str) -> Vec<PieEntry> {
             continue;
         }
 
-        // Parse "Label: 40%" or "Label: 40"
-        if let Some(colon_pos) = text.find(": ") {
-            let label = text[..colon_pos].trim().to_string();
-            let value_str = text[colon_pos + 2..].trim().trim_end_matches('%');
-            if let Ok(value) = value_str.parse::<f32>() {
-                entries.push(PieEntry {
-                    label,
-                    value,
-                    reveal,
-                });
-            }
+        // Parse "Label: 40%" or "Label: 40"; a negative share is meaningless → 0
+        if let Some((label, value)) = parse_label_value(text) {
+            entries.push(PieEntry {
+                label,
+                value: value.max(0.0),
+                reveal,
+            });
         }
     }
     entries
@@ -85,7 +81,7 @@ pub fn draw_pie_chart(
     }
 
     // Layout: pie on left side, legend on right
-    let legend_width = 380.0 * scale;
+    let legend_width = side_legend_width(max_width, scale);
     let pie_area_width = max_width - legend_width;
     let pie_radius = (pie_area_width.min(height) / 2.0 - 30.0 * scale).max(40.0 * scale);
     let pie_cx = pos.x + pie_area_width / 2.0;
@@ -149,41 +145,27 @@ pub fn draw_pie_chart(
     );
 
     // Draw legend on the right
-    let legend_x = pos.x + pie_area_width + 20.0 * scale;
-    let legend_item_height = 48.0 * scale;
-    let total_legend_height = entries.len() as f32 * legend_item_height;
-    let legend_start_y = pos.y + (height - total_legend_height) / 2.0;
-    let swatch_size = VIZ_SWATCH_SIZE * scale;
-    let label_font = FontId::proportional(theme.body_size * VIZ_FONT_LEGEND * scale);
-
-    for (i, entry) in entries.iter().enumerate() {
-        let step = steps.get(i).copied().unwrap_or(0);
-        if step > reveal_step {
-            continue;
-        }
-
-        let ly = legend_start_y + i as f32 * legend_item_height;
-        let color = Theme::with_opacity(palette[i % palette.len()], opacity * VIZ_OPACITY_FILL);
-
-        // Color swatch
-        let swatch_rect = egui::Rect::from_min_size(
-            Pos2::new(legend_x, ly + (legend_item_height - swatch_size) / 2.0),
-            egui::vec2(swatch_size, swatch_size),
-        );
-        painter.rect_filled(swatch_rect, VIZ_CORNER_SWATCH * scale, color);
-
-        // Label + percentage
-        let pct = entry.value / total * 100.0;
-        let label_text = format!("{} ({:.0}%)", entry.label, pct);
-        let text_color = Theme::with_opacity(theme.foreground, opacity);
-        let galley = painter.layout_no_wrap(label_text, label_font.clone(), text_color);
-        let text_y = ly + (legend_item_height - galley.rect.height()) / 2.0;
-        painter.galley(
-            Pos2::new(legend_x + swatch_size + 10.0 * scale, text_y),
-            galley,
-            text_color,
-        );
-    }
+    let legend_gap = 20.0 * scale;
+    let items: Vec<LegendItem> = entries
+        .iter()
+        .enumerate()
+        .map(|(i, entry)| LegendItem {
+            label: format!("{} ({:.0}%)", entry.label, entry.value / total * 100.0),
+            color: Theme::with_opacity(palette[i % palette.len()], opacity * VIZ_OPACITY_FILL),
+            visible: steps.get(i).copied().unwrap_or(0) <= reveal_step,
+        })
+        .collect();
+    draw_legend_column(
+        painter,
+        &items,
+        theme,
+        opacity,
+        pos.x + pie_area_width + legend_gap,
+        pos.y,
+        legend_width - legend_gap,
+        height,
+        scale,
+    );
 
     height
 }
@@ -228,5 +210,21 @@ mod tests {
         let content = "- Valid: 50%\n- no_value\n# comment\n- Also Valid: 50%";
         let entries = parse_pie_chart(content);
         assert_eq!(entries.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_pie_chart_rejects_non_finite_and_clamps_negative() {
+        let entries = parse_pie_chart("- A: inf\n- B: nan\n- C: -5\n- D: 5");
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].label, "C");
+        assert_eq!(entries[0].value, 0.0);
+        assert_eq!(entries[1].value, 5.0);
+    }
+
+    #[test]
+    fn test_parse_pie_chart_decorated_values() {
+        let entries = parse_pie_chart("- A: 1,000\n- B: $250\n- C: 40 users");
+        let values: Vec<f32> = entries.iter().map(|e| e.value).collect();
+        assert_eq!(values, vec![1000.0, 250.0, 40.0]);
     }
 }

@@ -47,3 +47,21 @@ title: "Stacked Bar Chart Tests"
 - Hardware: 20, 15, 40, 10
 - Support: 30, 25, 20, 15
 ```
+
+
+# Stacked Bar — No Categories Directive
+
+```@stackedbar
+- Product A: 1,200, 1,450, 1,500, 1,550
+- Product B: 800, 950, 1,100, 1,250
+```
+
+
+# Stacked Bar — Long Category Labels
+
+```@stackedbar
+# categories: North America Region, Europe Middle East and Africa, Asia Pacific Region, Latin America
+- Enterprise: 120, 90, 70, 30
+- Mid-market: 60, 55, 40, 25
+- Self-serve: 30, 25, 45, 15
+```

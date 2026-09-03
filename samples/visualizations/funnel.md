@@ -38,3 +38,16 @@ title: "Funnel Chart Tests"
 + Purchase: 1400
 + Loyalty: 800
 ```
+
+
+---
+
+# Funnel — Long Labels and Formatted Values
+
+```@funnel
+- Website Visitors from Organic Search: 120,000
+- Signed Up for the Free Trial: 18,500
+- Activated a Workspace within 7 Days: 9,200
+- Converted to a Paid Plan: 2,100
+- Expanded to Enterprise Contract: 340
+```

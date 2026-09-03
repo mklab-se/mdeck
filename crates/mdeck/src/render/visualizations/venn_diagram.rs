@@ -6,10 +6,23 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_FONT_PRIMARY_LABEL, VIZ_FONT_SECONDARY_LABEL, VIZ_STROKE_SEPARATOR, VizReveal,
-    assign_steps, parse_reveal_prefix, reveal_anim_progress,
+    assign_steps, parse_reveal_prefix, parse_value, reveal_anim_progress,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
+
+/// Default circle size when none is given.
+const DEFAULT_SIZE: f32 = 30.0;
+
+/// A circle size must be finite and positive; anything else would give NaN
+/// radii (0/0) or negative geometry. Non-positive sizes become a tiny circle.
+fn sanitize_size(size: Option<f32>) -> f32 {
+    match size {
+        Some(v) if v.is_finite() && v > 0.0 => v,
+        Some(v) if v.is_finite() => 1.0,
+        _ => DEFAULT_SIZE,
+    }
+}
 
 #[derive(Debug, Clone)]
 struct VennCircle {
@@ -61,11 +74,7 @@ fn parse_venn_diagram(content: &str) -> (Vec<VennCircle>, Vec<VennIntersection>)
                 let inner = text[paren_start..]
                     .trim_start_matches('(')
                     .trim_end_matches(')');
-                let size = if let Some(rest) = inner.strip_prefix("size:") {
-                    rest.trim().parse::<f32>().unwrap_or(30.0)
-                } else {
-                    30.0
-                };
+                let size = sanitize_size(inner.strip_prefix("size:").and_then(parse_value));
                 (label, size)
             } else {
                 // Could be "Label: value" format
@@ -73,13 +82,13 @@ fn parse_venn_diagram(content: &str) -> (Vec<VennCircle>, Vec<VennIntersection>)
                     let label = text[..colon_pos].trim().to_string();
                     let val_str = text[colon_pos + 2..].trim();
                     // Check if it looks like a size value (not an intersection)
-                    if let Ok(v) = val_str.parse::<f32>() {
-                        (label, v)
+                    if let Some(v) = parse_value(val_str) {
+                        (label, sanitize_size(Some(v)))
                     } else {
-                        (text.to_string(), 30.0)
+                        (text.to_string(), DEFAULT_SIZE)
                     }
                 } else {
-                    (text.to_string(), 30.0)
+                    (text.to_string(), DEFAULT_SIZE)
                 }
             };
             circles.push(VennCircle {
@@ -94,6 +103,24 @@ fn parse_venn_diagram(content: &str) -> (Vec<VennCircle>, Vec<VennIntersection>)
 }
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
+
+/// Circle radii proportional to the square root of each size (so area tracks
+/// the value), with the largest circle at `max_radius`. Never produces NaN.
+fn circle_radii(sizes: &[f32], max_radius: f32) -> Vec<f32> {
+    let max_size = sizes.iter().copied().fold(0.0f32, f32::max);
+    let ratio = if sizes.len() >= 3 { 0.62 } else { 0.7 };
+    sizes
+        .iter()
+        .map(|&s| {
+            let frac = if max_size > 0.0 && s > 0.0 {
+                (s / max_size).sqrt()
+            } else {
+                1.0
+            };
+            frac * max_radius * ratio
+        })
+        .collect()
+}
 
 /// Position for an intersection label: the mean of the member centers. When
 /// only some circles are involved, the point is pushed away from the overall
@@ -161,15 +188,9 @@ pub fn draw_venn_diagram(
     let cy = pos.y + height / 2.0;
 
     // Compute circle radii proportional to size values
-    let max_size: f32 = circles.iter().map(|c| c.size).fold(0.0f32, f32::max);
     let max_radius = (max_width.min(height) / 2.0 - 60.0 * scale).max(40.0 * scale);
-    let radii: Vec<f32> = circles
-        .iter()
-        .map(|c| {
-            let ratio = if circles.len() >= 3 { 0.62 } else { 0.7 };
-            (c.size / max_size).sqrt() * max_radius * ratio
-        })
-        .collect();
+    let sizes: Vec<f32> = circles.iter().map(|c| c.size).collect();
+    let radii = circle_radii(&sizes, max_radius);
 
     // Compute circle centers based on count
     let centers: Vec<Pos2> = match circles.len() {
@@ -353,5 +374,33 @@ mod tests {
         let content = "# header\n- A (size: 10)\n# note\n- B (size: 20)";
         let (circles, _) = parse_venn_diagram(content);
         assert_eq!(circles.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_venn_zero_and_negative_sizes_are_sanitised() {
+        let content = "- A (size: 0)\n- B (size: -5)\n- C: 0";
+        let (circles, _) = parse_venn_diagram(content);
+        assert_eq!(circles.len(), 3);
+        for c in &circles {
+            assert!(
+                c.size > 0.0 && c.size.is_finite(),
+                "size {} for {}",
+                c.size,
+                c.label
+            );
+        }
+        let (circles, _) = parse_venn_diagram("- A (size: inf)\n- B (size: nan)");
+        for c in &circles {
+            assert!(c.size > 0.0 && c.size.is_finite());
+        }
+    }
+
+    #[test]
+    fn test_circle_radii_never_nan() {
+        let radii = circle_radii(&[0.0, 0.0], 100.0);
+        assert!(radii.iter().all(|r| r.is_finite() && *r > 0.0));
+        let radii = circle_radii(&[40.0, 10.0], 100.0);
+        assert!(radii.iter().all(|r| r.is_finite() && *r > 0.0));
+        assert!(radii[0] > radii[1]);
     }
 }

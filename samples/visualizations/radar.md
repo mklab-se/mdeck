@@ -30,3 +30,12 @@ title: "Radar Chart Tests"
 + After 3 Months: 60, 65, 55, 70, 50
 * After 6 Months: 80, 82, 70, 85, 72
 ```
+
+---
+
+# Radar Chart — Star Shape (Concave Fill)
+
+```@radar
+# axes: A, B, C, D, E, F
+- Spiky: 9, 1, 9, 1, 9, 1
+```
