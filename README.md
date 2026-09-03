@@ -5,8 +5,8 @@
 <h1 align="center">MDeck</h1>
 
 <p align="center">
-  Stunning presentations from markdown.<br>
-  Write content. MDeck handles the rest.
+  Stunning presentations from plain markdown.<br>
+  Write the content. MDeck does the design.
 </p>
 
 <p align="center">
@@ -20,20 +20,37 @@
 <p align="center">
   <a href="GALLERY.md"><strong>Gallery</strong></a> &middot;
   <a href="crates/mdeck/doc/mdeck-spec.md"><strong>Format Spec</strong></a> &middot;
-  <a href="CHANGELOG.md"><strong>Changelog</strong></a>
+  <a href="CHANGELOG.md"><strong>Changelog</strong></a> &middot;
+  <a href="BACKLOG.md"><strong>Roadmap</strong></a>
 </p>
 
 ---
 
-## What is MDeck?
+## Why MDeck?
 
-MDeck creates stunning presentations from standard markdown files. No proprietary formats, no complex setup — just write markdown and present beautifully.
+You already write markdown: notes, READMEs, design docs, meeting minutes. MDeck
+turns any of those into a polished, animated presentation, with nothing to
+install in your document and nothing to learn beyond a handful of conventions.
 
-- **Any `.md` file is instantly presentable** — intelligent layout inference picks the right slide design from your content structure: title slides, bullet lists, code blocks, quotes, images, tables, and more
-- **Built-in visualizations** — architecture diagrams, Gantt charts, word clouds, bar/line/pie charts, KPI dashboards, org charts, timelines, radar charts, scatter plots, Venn diagrams, and more — all from simple text in your markdown
-- **AI-powered presentation creation** — turn any content into a polished presentation with `mdeck ai create`. Feed it a PDF, DOCX, markdown file, or just a text prompt — MDeck analyzes the content, identifies key points, and generates a complete presentation with speaker notes, visualizations, and image placeholders. Your source material becomes a compelling talk in seconds
-- **AI-native** — since presentations are just markdown, any AI can help you write them. But MDeck also has AI built directly in: generate images and icons in your chosen style, right from the command line. Your slides, your aesthetic
-- **Built in Rust** — fast, lightweight, GPU-accelerated rendering with smooth transitions and animations
+- **Any `.md` file is presentable.** Headings split slides, and each slide picks
+  its own layout from what it contains: title, section, bullets, code, quote,
+  image, gallery, two-column, table, or diagram. Long slides scroll instead of
+  overflowing.
+- **Seventeen visualizations from plain text.** Bar, line, pie, donut, stacked,
+  scatter, radar, funnel, KPI cards, progress bars, timelines, word clouds, Venn
+  diagrams, org charts, Gantt charts, git graphs, and routed architecture
+  diagrams. Every one animates in and supports step-by-step reveal.
+- **A real presenter tool.** Smooth transitions, grid overview, blackout,
+  freehand pen and arrow annotations, live reload while you edit, speaker
+  notes, multi-monitor support, and clicker-friendly keys.
+- **Pixel-exact export.** `mdeck export` renders every slide to PNG at any
+  resolution, on any display, ready for slides.com, a PDF, or a README like
+  this one.
+- **AI when you want it.** Turn a PDF, DOCX, or a one-line prompt into a full
+  deck with speaker notes, and generate images and diagram icons in your own
+  style. Everything is optional and lives behind `mdeck ai`.
+- **Built in Rust.** A single fast binary, GPU-accelerated rendering, 60 fps
+  animations, no runtime dependencies.
 
 <p align="center">
   <img src="media/gallery/slide-08.png" width="45%">&nbsp;&nbsp;
@@ -44,52 +61,24 @@ MDeck creates stunning presentations from standard markdown files. No proprietar
   <img src="media/gallery/slide-26.png" width="45%">
 </p>
 
-<p align="center"><em>See the full <a href="GALLERY.md">Gallery</a> for all layouts and visualization types.</em></p>
+<p align="center"><em>See the <a href="GALLERY.md">Gallery</a> for every layout and visualization type.</em></p>
 
 ---
 
-## Installation
+## Sixty-second start
 
-### Homebrew (macOS / Linux)
-
-```bash
-brew install mklab-se/tap/mdeck
-```
-
-### Pre-built binaries
-
-Download from [GitHub Releases](https://github.com/mklab-se/mdeck/releases) — available for macOS (Intel + ARM), Linux, and Windows.
-
-### Cargo
+Install:
 
 ```bash
-cargo install mdeck
+brew install mklab-se/tap/mdeck      # macOS / Linux
+cargo install mdeck                  # anywhere with Rust 1.88+
+cargo binstall mdeck                 # pre-built binary via cargo-binstall
 ```
 
-### Build from source
+Or download a binary for macOS (Intel and Apple Silicon), Linux, or Windows
+from [GitHub Releases](https://github.com/mklab-se/mdeck/releases).
 
-```bash
-git clone https://github.com/mklab-se/mdeck.git
-cd mdeck
-cargo install --path crates/mdeck
-```
-
----
-
-## Quick Start
-
-```bash
-# Present a markdown file
-mdeck slides.md
-
-# Export slides as PNG images
-mdeck export slides.md
-
-# Show all commands
-mdeck --help
-```
-
-Write a file called `talk.md`:
+Write `talk.md`:
 
 ```markdown
 ---
@@ -99,36 +88,90 @@ title: "My Talk"
 
 # Welcome
 
-This is my first MDeck presentation.
-
----
+The first heading with a subtitle becomes a title slide.
 
 ## Key Points
 
 - Write in standard markdown
-- Slides are separated by `---`
-- Layout is inferred automatically
+- Headings start new slides
++ Items marked with `+` reveal one step at a time
 
----
+## Traffic by Region
+
+​```@barchart
+- Europe: 42
+- Americas: 35
+- Asia: 23
+​```
 
 ## Architecture
 
 ​```@architecture
-- Client -> Server: requests
-- Server -> Database: queries
-- Database -> Server: results
+- Client -> API: requests
+- API -> Database: queries
 ​```
 ```
 
-Then present it: `mdeck talk.md`
+Present it:
+
+```bash
+mdeck talk.md
+```
+
+Edit the file while presenting and MDeck reloads it in place, staying on the
+current slide.
 
 ---
 
-## Features
+## Presenting
 
-### Automatic Layout Inference
+| Key | Action |
+|-----|--------|
+| Space, N, Right, PageDown, Enter | Next slide or reveal step |
+| P, Left, PageUp, Backspace | Previous slide |
+| Up, Down, scroll wheel | Scroll a long slide |
+| Home, End | First / last slide |
+| G | Grid overview (click a slide to jump to it) |
+| T | Cycle transition (slide, fade, spatial, none) |
+| Shift+T | Cycle theme (light, dark, nord) |
+| F | Toggle fullscreen |
+| M | Move to the next monitor |
+| `.` or B | Blackout |
+| H | Presenter HUD with shortcuts |
+| Esc | Clear drawings; press twice to quit |
 
-MDeck detects what kind of slide you're writing and picks the best layout:
+| Mouse | Action |
+|-------|--------|
+| Left click | Next slide |
+| Right click | Previous slide |
+| Left drag | Freehand pen |
+| Right drag | Arrow |
+
+Drawings fade away after a few seconds. Presentation clickers that send
+PageUp/PageDown or Enter work out of the box.
+
+Start options:
+
+```bash
+mdeck talk.md --windowed     # in a window instead of fullscreen
+mdeck talk.md --slide 7      # start on slide 7
+mdeck talk.md --overview     # start in the grid overview
+mdeck talk.md --check        # validate the deck without opening a window
+```
+
+---
+
+## Writing slides
+
+### Slides and layouts
+
+Three things create a new slide, and they combine freely:
+
+1. A `---` line with blank lines around it
+2. Three blank lines
+3. A heading. If the file has one `#` title and `##` sections, both levels split; set `@slide-level: 2` in the frontmatter to control it explicitly.
+
+Each slide gets a layout from its content:
 
 | Content | Layout |
 |---------|--------|
@@ -138,23 +181,33 @@ MDeck detects what kind of slide you're writing and picks the best layout:
 | Heading + code block | Code |
 | Blockquote + attribution | Quote |
 | Single image | Full-screen image |
+| Two or more images | Gallery |
 | Bullets + image | Split layout |
-| `+++` separator | Two-column |
-| `@architecture` code block | Architecture diagram |
-| `@barchart`, `@piechart`, etc. | Visualization |
+| `+++` separator | Two columns |
+| `@architecture` block | Architecture diagram |
+| `@barchart`, `@piechart`, ... | Visualization |
+| Anything else | Content |
 
-Override with `@layout: name` when needed.
+Override with `@layout: name` on the first line of a slide when you want a
+specific one.
+
+### Progressive reveal
+
+List items that start with `+` appear one per key press; `*` items appear
+together with the previous `+` item. The same markers work inside every
+visualization, so a bar chart can grow bar by bar and a diagram can build up
+connection by connection.
 
 ### Visualizations
 
-Write data visualizations directly in markdown using fenced code blocks:
+Fenced code blocks with an `@` tag become charts:
 
-| Type | Tag | Example |
-|------|-----|---------|
+| Type | Tag | Example line |
+|------|-----|--------------|
 | Bar chart | `@barchart` | `- Python: 48` |
 | Line chart | `@linechart` | `- Revenue: 100, 150, 200` |
 | Pie chart | `@piechart` | `- Frontend: 35%` |
-| Donut chart | `@donut` | `- Complete: 78` |
+| Donut chart | `@donutchart` | `- Complete: 78` |
 | Stacked bar | `@stackedbar` | `- Product A: 40, 45, 50` |
 | Scatter plot | `@scatter` | `- Alice: 80, 90` |
 | Radar chart | `@radar` | `- Speed: 9, 7, 5, 3` |
@@ -163,17 +216,19 @@ Write data visualizations directly in markdown using fenced code blocks:
 | Progress bars | `@progress` | `- Design: 100%` |
 | Timeline | `@timeline` | `- 2024: Project launch` |
 | Word cloud | `@wordcloud` | `- AI (size: 50)` |
-| Venn diagram | `@venn` | `- Set A & Set B: Overlap` |
+| Venn diagram | `@venn` | `- Design & Business: Product` |
 | Org chart | `@orgchart` | `- CEO -> CTO` |
 | Gantt chart | `@gantt` | `- Design: 8d, after Research` |
-| Architecture | `@architecture` | `- Client -> Server` |
 | Git graph | `@gitgraph` | `- branch main -> develop` |
+| Architecture | `@architecture` | `- Client -> Server: requests` |
 
-All visualizations support progressive reveal with `+` markers.
+Values may carry units and separators (`$4,200`, `12%`, `40 users`). Charts
+pick round axis limits, size their labels to fit, and share one colour palette
+per theme. Options such as `# x-label:`, `# orientation: horizontal`, or
+`# axes:` go on comment lines inside the block; the
+[format spec](crates/mdeck/doc/mdeck-spec.md) lists them all.
 
-### Architecture Diagrams
-
-Architecture and flow diagrams from text:
+### Architecture diagrams
 
 ```markdown
 ​```@architecture
@@ -186,13 +241,15 @@ Architecture and flow diagrams from text:
 ​```
 ```
 
-Features: grid positioning, 20+ built-in icons, 5 arrow types (`->`, `<-`, `<->`, `--`, `-->`), labeled connections, and AI-generated custom icons.
+Grid or automatic placement, 20+ built-in icons, five arrow types
+(`->`, `<-`, `<->`, `--`, `-->`), colour-coded labels, and A* routed edges
+that avoid nodes and each other. Node icons can also be AI-generated.
 
-### Themes
+### Themes and transitions
 
-Built-in themes: **light**, **dark**, and **nord**. Cycle with `Shift+T` during presentation.
-
-Set globally in frontmatter or per-slide:
+Built-in themes **light**, **dark**, and **nord**; transitions **slide**,
+**fade**, **spatial**, and **none**. Set them in the frontmatter or cycle them
+live with `Shift+T` and `T`:
 
 ```yaml
 ---
@@ -201,222 +258,165 @@ Set globally in frontmatter or per-slide:
 ---
 ```
 
-### Speaker Notes
+### Speaker notes
 
-Add presenter-only notes to any slide with the `???` separator:
+Everything after a `???` line is a note for the presenter and is never shown
+on screen. AI-generated decks include detailed notes on every slide.
 
 ```markdown
 # Key Decision
 
 - We chose microservices for team autonomy
-- Event-driven for loose coupling
 
 ???
 
-Emphasize that this wasn't about scale — it was about letting teams
-ship independently. Ask: "How many of you have migrated from a monolith?"
+Emphasise that this was about letting teams ship independently, not scale.
 ```
 
-Notes are parsed but never shown in the presentation — they're designed to help the presenter understand each slide's intent and deliver it effectively. When MDeck generates presentations with AI, every slide includes detailed speaker notes explaining what to say and how to present it.
+### Images
 
-### Transitions
-
-Smooth animated transitions between slides: **fade**, **slide**, **spatial**, and **none**. Cycle with `T` during presentation.
-
-### Slide Splitting
-
-Three mechanisms create slide breaks (all combine):
-
-1. **`---`** separator with blank lines on both sides
-2. **Three blank lines** between content
-3. **Heading inference** — headings automatically start new slides
-
-Smart heading inference: if your file has one `#` title and uses `##` for sections, both levels split. Control explicitly with `@slide-level: 2` in frontmatter.
+Standard markdown images work, with optional directives in the alt text:
+`@fill`, `@fit`, `@width:80%`, `@left`, `@right`. A slide with one image
+becomes a full-screen image slide, two to four become a gallery, and bullets
+plus an image become a split layout. Images decode in the background, so big
+photos never stall a transition.
 
 ---
 
-## AI Features
-
-MDeck integrates AI for intelligent presentation creation and image generation. Configure with `mdeck ai enable`.
-
-### Create Presentations from Anything
-
-Turn any content into a polished presentation — text prompts, documents, PDFs, DOCX files, or piped input:
+## Export
 
 ```bash
-# From a text prompt
-mdeck ai create --input "A presentation about Git Flow for software teams" --output git-flow/
-
-# From a PDF report
-mdeck ai create --input company-report.pdf --output company-report.md
-
-# From a Word document
-mdeck ai create --input camera-manual.docx --output camera-manual.md
-
-# From piped input
-cat research-notes.txt | mdeck ai create --output research.md
-
-# Interactive mode — MDeck asks about audience, purpose, and key points
-mdeck ai create -i --input environment-report.md --output presentation/
-
-# With audience/purpose context
-mdeck ai create --input a-book-on-hobbits.md --output hobbits.md \
-  --prompt "For 10-year-old children, focusing on the adventures"
+mdeck export talk.md                              # slide-01.png ... at 1920x1080
+mdeck export talk.md --width 3840 --height 2160   # 4K
+mdeck export talk.md --output-dir slides/         # choose the folder
+mdeck export talk.md --debug                      # one PNG per reveal step
 ```
 
-MDeck doesn't just dump content onto slides — it **analyzes** your source material, identifies key points, and creates a concise, engaging presentation designed to support a presenter. Each slide includes detailed speaker notes explaining the intent and suggested delivery approach. The source material serves as the detailed handout; the presentation tells the story.
+Output is always exactly the requested size, independent of your screen's
+size or DPI: slides larger than the display are rendered in tiles and stitched.
 
-The generation pipeline:
-1. **Extract** — reads text from any supported format (PDF, DOCX, markdown, plain text)
-2. **Analyze** — AI identifies key points, structure, and visualization opportunities
-3. **Generate** — creates complete mdeck-format slides with speaker notes, visualizations, and image placeholders
-4. **Post-process** — validates the output and identifies opportunities for MDeck visualizations
+---
 
-### Generate Images for a Presentation
+## AI features
 
-Add image placeholders to your markdown:
+MDeck uses [ailloy](https://github.com/mklab-se/ailloy) to talk to OpenAI,
+Anthropic, Azure OpenAI, Ollama, and others. Run `mdeck ai enable` once to
+pick a provider; everything below is optional.
+
+### Create a presentation from anything
+
+```bash
+mdeck ai create --input "Git Flow for software teams" --output git-flow/
+mdeck ai create --input company-report.pdf --output report.md
+mdeck ai create --input camera-manual.docx --output manual.md
+cat research-notes.txt | mdeck ai create --output research.md
+mdeck ai create -i --input environment-report.md        # interactive: audience, purpose, mood
+mdeck ai create --input hobbits.md --prompt "For 10-year-olds, focus on the adventures"
+```
+
+MDeck extracts the text, analyses it for key points and visualization
+opportunities, and writes a concise deck with varied layouts, charts, image
+placeholders, and speaker notes. The source stays the handout; the deck tells
+the story.
+
+### Generate images
+
+Add placeholders, then generate them all at once:
 
 ```markdown
-## African Savanna
-
-- Home to 54 countries
-- The Sahara is the size of the United States
-
 ![A sweeping savanna at golden hour with acacia trees](image-generation)
 ```
 
-Then generate all images at once:
-
 ```bash
-mdeck ai generate slides.md
+mdeck ai generate slides.md          # generates every placeholder, rewrites the paths
+mdeck ai generate-image --prompt "A database server" --icon --output db.png
 ```
 
-MDeck scans for `image-generation` markers, generates images using AI, saves them to an `images/` directory, and rewrites your markdown with the actual file paths.
-
-### Style Control
-
-Control the visual style of generated images:
+Control the look with named styles or an inline description:
 
 ```yaml
 ---
-@image-style: "Cinematic photography, vivid colors, dramatic lighting"
+@image-style: "Cinematic photography, vivid colours, dramatic lighting"
 @icon-style: "Clean minimalist icon, subtle 3D feel"
 ---
 ```
 
-Or manage named styles:
-
 ```bash
-mdeck ai style add Cinematic "Vivid colors, dramatic lighting, sweeping vistas"
+mdeck ai style add Cinematic "Vivid colours, dramatic lighting, sweeping vistas"
 mdeck ai style set-default Cinematic
 mdeck ai style list
 ```
 
-### Ad-Hoc Image Generation
-
-Generate individual images from the command line:
-
-```bash
-mdeck ai generate-image --prompt "A futuristic cityscape at sunset"
-mdeck ai generate-image --prompt "A database server" --icon --output db.png
-```
-
-### Architecture Diagram Icons
-
-Generate custom icons for architecture diagram nodes:
+Diagram nodes can request their own icons:
 
 ```markdown
-​```@architecture
 - Gateway (icon: generate-image, prompt: "An API gateway router")
-- Auth    (icon: generate-image, prompt: "A security lock shield")
-​```
 ```
 
-Run `mdeck ai generate` to create and cache the icons.
+### AI agents
+
+`mdeck ai skill` prints a setup guide for coding agents such as Claude Code;
+`mdeck ai skill --emit` writes a ready-to-use skill file and
+`mdeck ai skill --reference` prints the complete format reference for an
+agent to read.
 
 ---
 
-## Commands
+## Command reference
 
 ```bash
-mdeck <file.md>              # Launch presentation
-mdeck <file.md> --check      # Validate presentation (exit 1 if warnings)
-mdeck export <file.md>       # Export slides as PNG images (1920x1080)
-mdeck export <file.md> --width 3840 --height 2160  # Custom resolution
-mdeck export <file.md> --debug     # Export every reveal step
-mdeck spec                   # Print full format specification
-mdeck spec --short           # Print quick reference card
-mdeck completion <shell>     # Generate shell completions
-mdeck config show            # Display current settings
-mdeck config set <key> <val> # Set config value
-mdeck ai                     # Show AI status
-mdeck ai status              # Show AI status (explicit)
-mdeck ai enable              # Enable AI features
-mdeck ai disable             # Disable AI features
-mdeck ai test                # Test AI integration
-mdeck ai config              # Open AI config in editor
-mdeck ai create              # Create a presentation from content using AI
-mdeck ai create --input X    # Create from file or text prompt
-mdeck ai create -i           # Interactive mode (asks questions first)
-mdeck ai generate <file.md>  # Generate all AI images in a presentation
-mdeck ai generate-image      # Generate a single image from a prompt
-mdeck ai style list          # List defined image styles
-mdeck ai style add <n> <d>   # Add a named style
-mdeck ai style set-default   # Set the default image style
-mdeck ai skill               # AI agent skill setup guide
-mdeck ai skill --emit        # Output skill file for Claude Code
-mdeck ai skill --reference   # Output full reference for AI agents
+mdeck <file.md>                    # present (add --windowed, --slide N, --overview, --check)
+mdeck export <file.md>             # PNG export (--width, --height, --output-dir, --debug)
+mdeck spec                         # full format specification
+mdeck spec --short                 # quick reference card
+mdeck config show                  # show configuration
+mdeck config set <key> <value>     # defaults.theme, defaults.transition, defaults.start_mode, ...
+mdeck completion <shell>           # bash, zsh, fish, powershell
+mdeck version                      # version banner
+
+mdeck ai                           # AI status
+mdeck ai enable | disable | test   # provider setup and check
+mdeck ai config                    # interactive provider and model wizard
+mdeck ai create ...                # deck from a file, prompt, or stdin
+mdeck ai generate <file.md>        # generate all image placeholders (--force, --style)
+mdeck ai generate-image --prompt   # single image (--icon, --output, --style)
+mdeck ai style list | add | remove | clear | set-default | set-icon-default | show-defaults
+mdeck ai skill [--emit | --reference]
 ```
 
-### Keyboard Controls
+Global flags: `-q/--quiet`, `-v/--verbose`, `--no-color`.
 
-| Key | Action |
-|-----|--------|
-| Space / N / Right | Next slide |
-| P / Left | Previous slide |
-| Up / Down | Scroll overflowed content |
-| G | Grid overview |
-| Shift+T | Cycle theme |
-| T | Cycle transition |
-| F | Toggle fullscreen |
-| M | Move to next monitor |
-| H | Toggle HUD |
-| `.` | Blackout screen |
-| Esc Esc | Quit |
-
-### Shell Completions
+Shell completions:
 
 ```bash
-# Static completions
-mdeck completion bash > ~/.bash_completion.d/mdeck
-mdeck completion zsh > ~/.zfunc/_mdeck
-
-# Dynamic completions (recommended)
-source <(COMPLETE=bash mdeck)
-source <(COMPLETE=zsh mdeck)
+mdeck completion zsh > ~/.zfunc/_mdeck        # static
+source <(COMPLETE=zsh mdeck)                  # dynamic (recommended)
 ```
 
 ---
 
 ## Documentation
 
-- **[Gallery](GALLERY.md)** — Visual showcase of all layouts and visualizations
-- **[Format Specification](crates/mdeck/doc/mdeck-spec.md)** — Complete reference for the MDeck markdown format (also available via `mdeck spec`)
-- **[Changelog](CHANGELOG.md)** — Release history and what's new
-
-The format spec is embedded in the binary and available via `mdeck spec`. It covers all slide layouts, directives, visualization syntax, diagram features, and keyboard shortcuts.
+- **[Gallery](GALLERY.md)** shows every layout and visualization as exported slides.
+- **[Format specification](crates/mdeck/doc/mdeck-spec.md)** is the complete reference for the markdown dialect, directives, visualization syntax, diagram features, and keyboard shortcuts. It is embedded in the binary: `mdeck spec`.
+- **[Changelog](CHANGELOG.md)** lists what changed in each release.
+- **[Roadmap](BACKLOG.md)** collects larger ideas and open decisions.
+- **[Contributing](CONTRIBUTING.md)** explains how to work on MDeck.
 
 ---
 
 ## Development
 
 ```bash
-cargo build              # Build
-cargo test --workspace   # Run tests
-cargo clippy --workspace -- -D warnings  # Lint (CI-enforced)
-cargo fmt --all -- --check               # Format check (CI-enforced)
-cargo run -p mdeck       # Run the app
+cargo build                                 # build
+cargo test --workspace                      # tests
+cargo clippy --workspace -- -D warnings     # lint (CI-enforced)
+cargo fmt --all -- --check                  # formatting (CI-enforced)
+cargo run -p mdeck -- samples/gallery.md    # run the app on a sample
 ```
+
+Sample decks live in `samples/`, with one file per layout and visualization
+type for quick visual checks.
 
 ---
 

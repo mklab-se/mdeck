@@ -5,7 +5,7 @@ Thank you for considering contributing to MDeck! This guide will help you get st
 ## Getting Started
 
 1. Fork the repository and clone your fork
-2. Install Rust 1.85+ via [rustup](https://rustup.rs/)
+2. Install Rust 1.88+ via [rustup](https://rustup.rs/)
 3. Build the project: `cargo build`
 4. Run tests: `cargo test`
 
@@ -29,7 +29,7 @@ cargo clippy                  # Lint check
 
 ### Code Style
 
-- Run `cargo clippy` before submitting -- CI will check this
+- Run `cargo fmt --all` and `cargo clippy --workspace -- -D warnings` before submitting -- CI checks both
 - Follow existing patterns in the codebase
 - Add tests for new functionality
 

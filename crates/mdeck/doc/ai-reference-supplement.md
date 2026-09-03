@@ -15,6 +15,7 @@ mdeck <file.md> --check        # Validate presentation without launching GUI
 ```bash
 mdeck spec                     # Print full format specification
 mdeck spec --short             # Print quick reference card
+mdeck completion <shell>       # Shell completions (bash, zsh, fish, powershell)
 ```
 
 ### Export
@@ -34,8 +35,10 @@ mdeck config set <key> <value> # Set a config value
 
 Available config keys:
 - `defaults.theme` — default theme (`light`, `dark`, `nord`)
-- `defaults.transition` — default transition (`fade`, `slide`, `none`)
-- `defaults.aspect` — default aspect ratio (`16:9`, `4:3`, `16:10`)
+- `defaults.transition` — default transition (`fade`, `slide`, `spatial`, `none`)
+- `defaults.start_mode` — `first`, `overview`, or a slide number
+- `defaults.image_style` / `defaults.icon_style` — default AI image / icon style names
+- `defaults.aspect` — reserved (accepted, not applied yet)
 
 ### AI Commands
 

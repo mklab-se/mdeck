@@ -168,7 +168,7 @@ MDeck renders charts directly from your markdown. Here's project status at a gla
 
 # Themes and Customization
 
-Set a theme globally in frontmatter or per-slide:
+Set a theme globally in frontmatter:
 
 ```markdown
 ---
@@ -178,7 +178,7 @@ Set a theme globally in frontmatter or per-slide:
 
 Built-in themes: **light**, **dark**, and **nord**.
 
-Override per slide with `@theme:`, `@background:`, or `@transition:`.
+Cycle themes live with `Shift+T`, and transitions with `T`.
 
 ---
 

@@ -17,3 +17,6 @@ coverage/
 **/mutants.out*/
 *.pdb
 .DS_Store
+
+# Agent worktrees
+.claude/worktrees/

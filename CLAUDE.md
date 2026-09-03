@@ -24,6 +24,7 @@ cargo build              # Build all crates
 cargo test --workspace   # Run all tests
 cargo clippy --workspace -- -D warnings  # Lint (CI-enforced)
 cargo fmt --all -- --check               # Format check (CI-enforced)
+cargo audit                              # Dependency advisories (install: cargo install cargo-audit)
 cargo run -p mdeck     # Run the app
 ```
 
@@ -46,7 +47,7 @@ crates/
       config.rs      # Config struct, load/save (~/.config/mdeck/config.yaml)
       commands/
         mod.rs       # Re-exports
-        ai.rs        # AI provider init/status/remove/style management
+        ai.rs        # AI status/enable/disable/test/config, style management, ad-hoc image generation
         create/        # AI presentation creation from any content (mdeck ai create)
           mod.rs     # Entry point, pipeline orchestration, output resolution
           prompts.rs # AI system prompts (interactive, analysis, generation)
@@ -56,7 +57,7 @@ crates/
         generate.rs  # AI image generation for presentations (mdeck ai generate)
         completion.rs # Shell completion generation
         config.rs    # Config show/set
-        export.rs    # PNG export via headless eframe rendering
+        export.rs    # Pixel-exact PNG export (1 pt/px, tiled screenshots stitched to the requested size)
         skill.rs     # AI agent skill setup, emit, and reference output
         spec.rs      # Format specification printer
       parser/          # Markdown-to-slide parser (frontmatter, blocks, inlines, splitter)
@@ -74,7 +75,7 @@ crates/
           edges.rs   # Edge rendering, coordinate conversion, polylines
           icons.rs   # Geometric icon fallback renderer
           routing/   # A* edge routing engine
-        image_cache.rs # Async image loading and caching
+        image_cache.rs # Background image decoding (worker thread) and texture caching
       theme.rs       # Theme definitions (light, dark, nord)
       prompt.rs      # AI prompt construction helpers (image/icon style + orientation)
     doc/
@@ -132,12 +133,13 @@ mdeck --help                 # Show help
 - **Terminal output:** `colored` for styled CLI output
 - **Error handling:** `anyhow` for ergonomic error propagation
 - **Rendering:** Scale factor `min(w/1920, h/1080)` applied to all pixel sizes for resolution independence
-- **Syntax highlighting:** `syntect` with `LazyLock`-cached `SyntaxSet` / `ThemeSet`; theme maps to syntect theme via `Theme::syntect_theme_name()`
-- **PNG export:** Headless eframe window using `ViewportCommand::Screenshot` / `Event::Screenshot`
+- **Syntax highlighting:** `syntect` with `LazyLock`-cached `SyntaxSet` / `ThemeSet`; theme maps to syntect theme via `Theme::syntect_theme_name()`; highlighted `LayoutJob`s are cached per (code, language, size, theme)
+- **PNG export:** eframe (glow renderer) window with `pixels_per_point` forced to 1; the slide is rendered in window-sized tiles via `ViewportCommand::Screenshot` / `Event::Screenshot` and stitched, so output is exactly `--width`×`--height` on any display. The glow renderer is required: wgpu's screenshot readback is asynchronous and never completes in this loop
 - **Transitions:** fade, horizontal slide, spatial (directional pan), with smooth easing; animated overview zoom in/out
 - **Scroll/overflow:** Per-slide smooth animated scroll with fade gradients; Up/Down keys; `scroll_targets` + lerp for animation
 - **Keyboard:** Space/N/Right forward, P/Left back, Up/Down scroll, G grid, T transition, Shift+T theme, F fullscreen, M move to next monitor, H HUD, `.` blackout, Esc×2 exit
 - **End slide:** Virtual "The End" slide with MDeck logo shown when navigating past the last slide
+- **Visualization helpers:** shared axis/value helpers live in `render/visualizations/mod.rs` (`nice_grid_step`, `nice_axis_max`, `format_value`, `sector_mesh`, `parse_value`); reuse them instead of re-implementing per chart
 - **Diagrams:** Grid layout (when `pos:` specified) or auto-layout; geometric fallback icons; AI-generated icon images from `media/diagram-icons/`; 5 arrow types (`->`, `<-`, `<->`, `--`, `-->`)
 - **AI integration:** `ailloy` crate for unified AI access (chat + image generation); config via `~/.config/ailloy/config.yaml`; async via `tokio`
 - FPS overlay in top-right corner
@@ -161,12 +163,14 @@ Before every release, verify these are up to date:
 - **`README.md`** — Ensure features list, command reference, visualization table, and AI section are current. Check that gallery preview images look correct. The README is the first thing users see — it must provide an excellent experience.
 - **`CHANGELOG.md`** — Dated entry with all user-visible changes.
 - **`crates/mdeck/doc/mdeck-spec.md`** — Format spec reflects all current features.
+- **`BACKLOG.md`** — Deferred ideas and decisions; move items out when implemented.
+- **Dependencies** — `cargo update` and `cargo audit`; bump major versions when the audit or `cargo info <crate>` shows a newer line.
 - **`samples/`** — Test presentations cover all features; dedicated test files exist for each visualization type.
 - **AI capabilities** — README documents AI image generation, style management, and diagram icon generation with clear examples.
 
 ## Code Style
 
-- Edition 2024, MSRV 1.85
+- Edition 2024, MSRV 1.88
 - `cargo clippy` with `-D warnings` (zero warnings policy)
 - `cargo fmt` enforced in CI
 - **File size guideline:** When a source file exceeds ~500 lines, evaluate whether it would benefit from being split into smaller modules (`mod` in Rust). Look for natural boundaries: distinct type groups, self-contained algorithms, test helpers, or feature areas that could live in their own files. Propose a split plan before refactoring.

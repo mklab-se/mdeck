@@ -55,14 +55,27 @@ date: 2026-02-28
 
 | Field         | Type   | Default   | Description                                        |
 |---------------|--------|-----------|----------------------------------------------------|
-| `@theme`      | string | `"light"` | Global theme: `"light"`, `"dark"`, `"nord"`, or custom name  |
-| `@transition` | string | `"slide"` | Default transition: `"fade"`, `"slide"`, `"none"`  |
-| `@aspect`     | string | `"16:9"`  | Aspect ratio: `"16:9"`, `"4:3"`, `"16:10"`        |
-| `@code-theme`  | string | (theme)   | Syntax highlighting theme for code blocks          |
-| `@footer`      | string | none      | Text shown in footer of every slide                |
+| `@theme`      | string | `"light"` | Global theme: `"light"`, `"dark"`, `"nord"`        |
+| `@transition` | string | `"slide"` | Default transition: `"fade"`, `"slide"`, `"spatial"`, `"none"` |
 | `@image-style` | string | none      | Default AI image generation style (name or description) |
 | `@icon-style`  | string | none      | Default AI icon generation style (name or description)  |
 | `@slide-level` | integer | (inferred) | Heading level that triggers slide breaks (1–6). E.g., `2` means H1 and H2 both split. When omitted, inferred from content. |
+
+Reserved fields that are parsed but not yet applied: `@aspect`, `@code-theme`,
+`@footer`. They are accepted so that files stay forward compatible; see
+`BACKLOG.md` for their status.
+
+#### Transitions
+
+| Transition | Effect |
+|------------|--------|
+| `slide`    | The next slide pushes the current one horizontally (default) |
+| `fade`     | Cross-fade between slides |
+| `spatial`  | Slides pan in the direction they sit in the grid overview, so `G` and navigation feel like one continuous space |
+| `none`     | Instant switch |
+
+All transitions use smooth easing and last about a third of a second. Cycle
+them while presenting with `T`.
 
 **Parser rule:** If the document starts with a line that is exactly `---`, begin parsing YAML until a closing `---` line. If no closing `---` is found before invalid YAML, treat the opening `---` as a slide separator instead (graceful recovery).
 
@@ -531,18 +544,19 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 
 | Directive      | Scope          | Values                                    | Default        |
 |----------------|----------------|-------------------------------------------|----------------|
-| `@theme`       | global, slide  | `light`, `dark`, `nord`, custom name      | `light`        |
-| `@transition`  | global, slide  | `fade`, `slide`, `none`                   | `slide`        |
+| `@theme`       | global         | `light`, `dark`, `nord`                   | `light`        |
+| `@transition`  | global         | `fade`, `slide`, `spatial`, `none`        | `slide`        |
 | `@layout`      | slide          | layout name (see Section 4.1)             | auto-inferred  |
-| `@background`  | slide          | color hex or image path                   | theme default  |
-| `@footer`      | global, slide  | string                                    | none           |
-| `@aspect`      | global         | `16:9`, `4:3`, `16:10`                    | `16:9`         |
-| `@code-theme`  | global, slide  | theme name                                | theme-dependent|
-| `@class`       | slide          | arbitrary string                          | none           |
+| `@slide-level` | global         | `1`–`6`                                   | inferred       |
+| `@image-style` | global         | style name or description                 | none           |
+| `@icon-style`  | global         | style name or description                 | none           |
 
-**Scope resolution:** Slide-level directives override global. If not set at slide level, the global value applies. If not set globally, the default applies.
+**Reserved directives** are parsed and accepted but not applied yet:
+`@background`, `@footer`, `@class`, `@code-theme`, `@aspect`, and per-slide
+`@theme` / `@transition`. Using them is harmless; they are listed in
+`BACKLOG.md` as candidates for a future release.
 
-**Unknown directives** are ignored with a warning. They are not rendered as content.
+**Unknown directives** are ignored. They are not rendered as content.
 
 ---
 
@@ -694,7 +708,19 @@ An unrecognized icon name falls back to `box`. Icons are simple and clear line d
 | Code background | `#2D2D2D`       |
 | Quote border    | accent color    |
 
-Both themes meet WCAG AA contrast requirements.
+**`nord`**
+
+| Property        | Value           |
+|-----------------|-----------------|
+| Background      | `#2E3440`       |
+| Primary text    | `#D8DEE9`       |
+| Heading text    | `#ECEFF4`       |
+| Accent          | `#81A1C1`       |
+| Code background | `#3B4252`       |
+| Quote border    | accent color    |
+
+All themes meet WCAG AA contrast requirements. Cycle themes during a
+presentation with `Shift+T`.
 
 ### 9.2 Theme properties
 
@@ -717,25 +743,11 @@ A theme defines:
 | `icon-set`        | Icon set for diagrams                     |
 | `diagram-colors`  | Color palette for diagram components      |
 
-### 9.3 Per-slide theme override
+### 9.3 Per-slide theme override (reserved)
 
-```markdown
-@theme: dark
-
-# The Dark Slide
-
-This slide uses the dark theme even if the presentation is light.
-```
-
-Individual properties can be overridden:
-
-```markdown
-@background: #2C3E50
-
-# Custom Background
-
-This slide has a custom background color.
-```
+Per-slide `@theme:` and `@background:` overrides are reserved syntax: the
+directives are accepted and ignored today, and are tracked in `BACKLOG.md`.
+Use the global `@theme` in frontmatter, or `Shift+T` while presenting.
 
 ### 9.4 Custom themes
 
