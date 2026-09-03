@@ -384,8 +384,8 @@ Sizing directives can be placed in the alt text with the `@` prefix:
 
 | Directive     | Description                                     |
 |---------------|-------------------------------------------------|
-| `@width:VAL`  | Set width (px, %, or `auto`)                    |
-| `@height:VAL` | Set height (px, %, or `auto`)                   |
+| `@width:VAL`  | Set width: `%` of the slide, or pixels at the 1920×1080 reference size (scaled on other resolutions) |
+| `@height:VAL` | Set height (same units as `@width`)              |
 | `@fill`       | Fill the entire slide as background              |
 | `@fit`        | Fit within available space, preserve aspect ratio (default) |
 | `@left`       | Align left                                       |
@@ -1042,7 +1042,11 @@ All visualization types share these features:
 
 **Axis labels:** Chart types with axes support `# x-label:` and `# y-label:` directives. The Y-axis label is rendered rotated 90° counter-clockwise.
 
-**Automatic scaling:** All visualizations scale proportionally to the available slide area. Grid lines use "nice" round numbers (1, 2, 5, 10, 20, 25, 50, 100, ...).
+**Automatic scaling:** All visualizations scale proportionally to the available slide area. Axes end on a "nice" round number above the largest value (1, 2, 5, 10, 20, 50, 100, ...), so the tallest bar never touches the top of the chart.
+
+**Numbers:** Values may carry a currency prefix (`$4200`, `€40`), a `%` suffix, thousands separators (`1,000` or `1_000`), or a trailing unit (`40 users`, `4.2M`). The decoration is ignored; only the number is used. Values that are not finite numbers (`inf`, `nan`) are skipped. In comma-separated series (`- Revenue: 1,000, 2,000`), a comma followed by exactly three digits is a thousands separator only when items are separated by `", "`.
+
+**Labels:** Category labels, legend entries and KPI values shrink to a shared minimum size and are then truncated with an ellipsis instead of overflowing. Crowded axis labels (many line-chart points, long Gantt timelines) are thinned automatically.
 
 ### 14.2 Bar Chart (`@barchart`)
 
@@ -1140,7 +1144,7 @@ Stacked bar chart showing multiple series stacked on top of each other for each 
 
 | Directive    | Values          | Default | Description                            |
 |--------------|-----------------|---------|----------------------------------------|
-| `categories` | comma-separated | none    | Category labels along the X axis       |
+| `categories` | comma-separated | `1..n`  | Category labels along the X axis (defaults to numbering when omitted) |
 | `x-label`    | string          | none    | Label for the X axis                   |
 | `y-label`    | string          | none    | Label for the Y axis (rotated 90° CCW) |
 

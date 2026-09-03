@@ -18,6 +18,18 @@ All notable changes to this project will be documented in this file.
 - **Word clouds fill the slide** — the layout is scaled up to use the available area instead of floating small in the centre.
 - **KPI cards** are sized to their content with centred text; **Gantt** rows get more room when there are few tasks; **bar charts** use gaps proportional to bar width.
 - **Venn diagrams** with three sets overlap properly and place pairwise labels inside their lens instead of on top of each other; labels wrap.
+- **Charts accept decorated numbers** — `$4,200`, `12%`, `1_000`, `40 users` all parse; `inf`/`nan` are rejected instead of hanging the renderer. Comma-separated series such as `1,000, 2,000` are read correctly.
+- **Labels fit** — category labels, legend entries, progress-bar labels, KPI values and donut centre text shrink to a shared size and truncate with an ellipsis instead of overflowing; crowded line-chart and Gantt axis labels are thinned. Legend entries keep their percentage when truncated.
+- **Radar charts** fill concave (star-shaped) series correctly; axis labels are anchored by angle so they stay clear of the rings.
+- **Stacked bars** work without a `# categories:` line (numbered 1..n) and round only the top segment.
+- **Gantt** dependency arrows point at the right task when an earlier task could not be resolved.
+- **Overflow detection is accurate** — bullet, content and two-column slides are measured at the width they are drawn at, with wrapped list items and table rows counted, so long slides scroll instead of being cut off and short two-column slides no longer show a scroll indicator.
+- **Wrapped titles and quotes** are centred on their real height; a fill-image heading band grows to fit an H1.
+- **Tables** size columns to their content, shrink the font for wide tables, clamp extra cells, and get a subtle header background and zebra rows.
+- **Bold text is visible** (rendered in the heading colour); links and inline code follow the theme and fade with transitions.
+- **Images** upscale to their reference size so decks look the same at every resolution; `@width:300px` scales with resolution; photos above 4096 px are downscaled and mipmapped so they stay crisp in the grid overview.
+- **Syntax highlighting** is cached per code block instead of recomputed every frame, and multi-line constructs (block comments) highlight correctly.
+- **Transitions** use cubic easing; heading-to-body spacing is consistent across layouts.
 - **README** rewritten with a sharper introduction, a sixty-second start, and complete presenting and command references.
 - **Format spec** documents the nord theme, the spatial transition, and marks directives that are accepted but not yet applied (`@background`, `@footer`, `@class`, `@code-theme`, `@aspect`, per-slide `@theme`/`@transition`) as reserved instead of implemented.
 

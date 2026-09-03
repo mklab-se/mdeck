@@ -21,8 +21,8 @@ Focused tests for the two-column layout
 
 **Disadvantages:**
 
-- No mouse support yet
-- Limited themes
+- No presenter view yet
+- Three built-in themes
 - Early stage project
 
 
