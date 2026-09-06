@@ -16,8 +16,8 @@ rust-version = "1.88"
 eframe = { version = "0.36", default-features = false, features = ["glow", "default_fonts", "links", "wayland", "x11"] }
 
 # CLI
-clap = { version = "4.5", features = ["derive", "wrap_help"] }
-clap_complete = { version = "4.5", features = ["unstable-dynamic"] }
+clap = { version = "4.6", features = ["derive", "wrap_help"] }
+clap_complete = { version = "4.6", features = ["unstable-dynamic"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -27,11 +27,11 @@ serde_yaml = "0.9"
 anyhow = "1.0"
 
 # Terminal
-colored = "3"
+colored = "3.1"
 inquire = "0.9"
 
 # Regex
-regex = "1.11"
+regex = "1.13"
 
 # Image loading
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
@@ -40,10 +40,10 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 syntect = { version = "5", default-features = false, features = ["default-syntaxes", "default-themes", "regex-onig"] }
 
 # Directories
-dirs = "6.0"
+dirs = "7.0"
 
 # HTTP client (for AI icon generation)
-ureq = { version = "3", features = ["json"] }
+ureq = { version = "3.4", features = ["json"] }
 
 # JSON serialization
 serde_json = "1.0"
@@ -52,16 +52,16 @@ serde_json = "1.0"
 base64 = "0.23"
 
 # Parallelism
-rayon = "1.10"
+rayon = "1.12"
 
 # File watching
 notify-debouncer-mini = "0.7"
 
 # AI integration
-ailloy = { version = "2.0", default-features = false, features = ["config-tui"] }
+ailloy = { version = "2.1", default-features = false, features = ["config-tui"] }
 futures = "0.3"
-tokio = { version = "1", features = ["rt", "macros"] }
+tokio = { version = "1.53", features = ["rt", "macros"] }
 
 # Document extraction (for ai create)
 pdf-extract = "0.12"
-zip = "8.3"
+zip = "8.6"
