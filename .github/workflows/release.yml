@@ -17,7 +17,7 @@ jobs:
     name: CI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
@@ -47,7 +47,7 @@ jobs:
             os: windows-latest
             archive: zip
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -55,11 +55,37 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      - name: Build release binary
+      # cargo-auditable embeds the dependency list into the binary itself
+      # (readable with `cargo audit bin` or syft); cargo-cyclonedx emits a
+      # standalone CycloneDX SBOM that ships next to the binary as a release asset.
+      - name: Install SBOM tooling
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-auditable,cargo-cyclonedx
+
+      - name: Build release binary (auditable)
         shell: bash
-        run: cargo build --release --target "$TARGET"
+        run: cargo auditable build --release --target "$TARGET"
         env:
           TARGET: ${{ matrix.target }}
+
+      # One SBOM per target: the dependency graph differs per platform
+      # (e.g. windows-sys only on Windows). cargo-cyclonedx writes one file
+      # next to every workspace Cargo.toml; keep the binary crate's, drop the rest.
+      - name: Generate CycloneDX SBOM
+        shell: bash
+        run: |
+          cargo cyclonedx \
+            --manifest-path crates/mdeck/Cargo.toml \
+            --format json \
+            --spec-version 1.5 \
+            --target "$TARGET" \
+            --override-filename "$SBOM"
+          mv "crates/mdeck/${SBOM}.json" "${SBOM}.cdx.json"
+          rm -f crates/*/"${SBOM}.json"
+        env:
+          TARGET: ${{ matrix.target }}
+          SBOM: mdeck-${{ github.ref_name }}-${{ matrix.target }}
 
       - name: Package (unix)
         if: matrix.archive == 'tar.gz'
@@ -82,7 +108,7 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: mdeck-${{ matrix.target }}
           path: mdeck-${{ github.ref_name }}-${{ matrix.target }}.*
@@ -93,16 +119,16 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
 
       - name: Create release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           files: artifacts/*
@@ -193,7 +219,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: crates-io
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 

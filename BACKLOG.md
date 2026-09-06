@@ -197,13 +197,16 @@ had none until this pass. Headless egui (`Context::default()` + `run`) can
 cover measure-vs-draw agreement. Consider snapshot tests of exported PNGs for
 the gallery deck (perceptual hash, tolerance) to catch visual regressions in CI.
 
-### 5.5 SBOM and signed release attestations — S, recommended
-Publish a CycloneDX SBOM per release (`cargo cyclonedx`), build binaries with
-`cargo auditable` so the dependency list is embedded in the executable, and sign
-both with GitHub artifact attestations. MDeck is free MIT software and therefore
-outside the EU Cyber Resilience Act's scope today, but corporate adopters ask for
-an SBOM anyway, and it would become mandatory if MDeck were ever sold or
-supported commercially. Publish as GitHub Release assets next to the binaries.
+### 5.5 Signed release attestations — S, recommended
+Done in 0.19.0: every release ships a CycloneDX 1.5 SBOM per target
+(`cargo cyclonedx`) and binaries are built with `cargo auditable`, so the
+dependency list is embedded in the executable (`cargo audit bin ./mdeck`).
+Still open: sign the archives and SBOMs with GitHub artifact attestations
+(`actions/attest-build-provenance`) so downloads can be verified with
+`gh attestation verify`. MDeck is free MIT software and therefore outside the
+EU Cyber Resilience Act's scope today, but corporate adopters ask for signed
+provenance, and it would become mandatory if MDeck were ever sold or supported
+commercially.
 
 ### 5.6 CI: add `cargo audit` and `cargo deny` — S
 Advisories were found (and fixed by upgrading) only because the audit was run

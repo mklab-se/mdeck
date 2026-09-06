@@ -78,6 +78,29 @@ cargo binstall mdeck                 # pre-built binary via cargo-binstall
 Or download a binary for macOS (Intel and Apple Silicon), Linux, or Windows
 from [GitHub Releases](https://github.com/mklab-se/mdeck/releases).
 
+<details>
+<summary>Software bill of materials (SBOM)</summary>
+
+Every release archive has a matching CycloneDX 1.5 SBOM listing the exact crate versions
+compiled into that platform's binary:
+
+```
+mdeck-vX.Y.Z-<target>.cdx.json
+```
+
+The binaries are also built with [`cargo auditable`](https://github.com/rust-secure-code/cargo-auditable),
+so the dependency list travels inside the executable itself. Check a downloaded binary against the
+RustSec advisory database with:
+
+```sh
+cargo install cargo-audit --features=fix
+cargo audit bin ./mdeck
+```
+
+`syft` and `trivy` also understand this format.
+
+</details>
+
 Write `talk.md`:
 
 ```markdown

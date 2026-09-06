@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Supply-chain transparency for release builds** — binaries are built with `cargo auditable`
+  (dependency list embedded in the executable, readable with `cargo audit bin` or `syft`), and
+  a per-target CycloneDX 1.5 SBOM (`mdeck-vX.Y.Z-<target>.cdx.json`) is attached to every
+  GitHub release. See the README's "Software bill of materials" section.
+
+### Changed
+
+- **Dependencies upgraded to current versions** — Ailloy 2.0 → 2.1, `clap`/`clap_complete` 4.5 → 4.6,
+  `colored` 3 → 3.1, `dirs` 6 → 7, `regex` 1.11 → 1.13, `rayon` 1.10 → 1.12, `tokio` 1 → 1.53,
+  `ureq` 3 → 3.4, `zip` 8.3 → 8.6, plus `cargo update` across the lockfile.
+- **GitHub Actions on Node 24** — `actions/checkout@v7`, `actions/upload-artifact@v7`,
+  `actions/download-artifact@v8`, `softprops/action-gh-release@v3`.
+
 ## [0.18.0] - 2026-09-03
 
 ### Added

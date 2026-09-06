@@ -147,10 +147,9 @@ mdeck --help                 # Show help
 
 ## Releasing
 
-1. Bump `version` in root `Cargo.toml`
-2. Commit and push to main
-3. Tag: `git tag v0.X.Y && git push origin v0.X.Y`
-4. Release workflow builds binaries (Linux, macOS Intel+ARM, Windows), creates GitHub Release, updates Homebrew tap (`mklab-se/homebrew-tap`), publishes to crates.io
+Releases are driven by the [`/release`](.claude/skills/release/SKILL.md) skill (`major`, `minor`, or `patch`): it runs the pre-flight checks, bumps `version` in the root `Cargo.toml`, renames `[Unreleased]` in `CHANGELOG.md` to the dated version, commits `Release vX.Y.Z`, pushes main, and pushes the tag `vX.Y.Z`.
+
+Pushing the tag triggers `.github/workflows/release.yml`, which re-runs CI, builds [auditable](https://github.com/rust-secure-code/cargo-auditable) binaries (Linux, macOS Intel+ARM, Windows) with a CycloneDX 1.5 SBOM per target (`mdeck-vX.Y.Z-<target>.cdx.json`), creates a GitHub Release with the archives and SBOMs, updates the Homebrew tap (`mklab-se/homebrew-tap`), and publishes to crates.io.
 
 **Required GitHub secrets:**
 - `CARGO_REGISTRY_TOKEN` (in `crates-io` environment)
