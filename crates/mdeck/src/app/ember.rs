@@ -231,7 +231,7 @@ impl EmberState {
         }
         let field = self.field.as_mut().expect("field created above");
         if still {
-            field.paint(ui.painter(), rect, opacity);
+            field.paint(ui.painter(), rect, opacity, false);
             if !self.labels.is_empty() {
                 story::draw_labels(
                     ui.painter(),
@@ -257,7 +257,7 @@ impl EmberState {
             (None, None) => 1.0,
         };
         field.tick(dt * speed, reveal);
-        field.paint(ui.painter(), rect, opacity);
+        field.paint(ui.painter(), rect, opacity, true);
         if !self.labels.is_empty() {
             story::draw_labels(
                 ui.painter(),

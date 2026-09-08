@@ -612,7 +612,8 @@ impl Field {
     }
 
     /// Draw the field: hairlines through the egui painter, glow through GL.
-    pub fn paint(&self, painter: &egui::Painter, rect: Rect, opacity: f32) {
+    /// Live frames get wakes; stills (`wakes == false`) are drawn crisp.
+    pub fn paint(&self, painter: &egui::Painter, rect: Rect, opacity: f32, wakes: bool) {
         let scale = rect.width() / REF_WIDTH;
 
         if !self.links.is_empty() && self.scene.link_alpha > 0.0 {
@@ -652,7 +653,7 @@ impl Field {
                 }
             })
             .collect();
-        self.renderer.paint(painter, rect, sprites);
+        self.renderer.paint(painter, rect, sprites, wakes);
     }
 }
 
