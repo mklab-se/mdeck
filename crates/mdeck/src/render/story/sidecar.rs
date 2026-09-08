@@ -23,6 +23,10 @@ pub struct Entry {
     pub hash: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generated: Option<String>,
+    /// A hand-written entry: matched by slide number, never stale, never
+    /// regenerated. Set it when you edit a scene by hand.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub pinned: bool,
     pub scene: Script,
 }
 
@@ -100,8 +104,8 @@ pub fn slide_hash(slide: &Slide, deck_hint: Option<&str>) -> String {
 /// Where a slide's story came from.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Source {
-    /// A ```@scene fence in the slide itself.
-    Inline,
+    /// A pinned (hand-written) sidecar entry for this slide number.
+    Pinned,
     /// A matching sidecar entry.
     Sidecar,
     /// A sidecar entry for this slide number whose hash no longer matches.
@@ -115,10 +119,10 @@ pub struct Resolved {
     pub source: Source,
 }
 
-/// Resolve the story for every slide: inline scripts win, then sidecar
+/// Resolve the story for every slide: pinned entries win, then sidecar
 /// entries by hash, then stale entries by slide number (still played, but
-/// flagged). Invalid inline scripts are reported and skipped, and slides
-/// without a stage (see [`super::allowed`]) never get a story.
+/// flagged). Slides without a stage (see [`super::allowed`]) never get a
+/// story, and a leftover inline `@scene` fence is reported.
 pub fn resolve(
     presentation: &Presentation,
     sidecar: Option<&Sidecar>,
@@ -130,21 +134,23 @@ pub fn resolve(
         .iter()
         .enumerate()
         .map(|(i, slide)| {
+            if slide.scene_script.is_some() {
+                problems.push(format!(
+                    "slide {}: inline @scene fences are no longer used; scripts live in the \
+                     sidecar (add the entry there with `pinned: true` to hand-write it)",
+                    i + 1
+                ));
+            }
             if !super::allowed(slide, i) {
                 return None;
             }
-            if let Some(text) = &slide.scene_script {
-                match Script::parse(text) {
-                    Ok(script) => {
-                        return Some(Resolved {
-                            script,
-                            source: Source::Inline,
-                        });
-                    }
-                    Err(e) => problems.push(format!("slide {}: @scene: {e}", i + 1)),
-                }
-            }
             let sidecar = sidecar?;
+            if let Some(entry) = sidecar.slides.iter().find(|e| e.pinned && e.slide == i + 1) {
+                return Some(Resolved {
+                    script: entry.scene.clone(),
+                    source: Source::Pinned,
+                });
+            }
             let hash = slide_hash(slide, deck_hint);
             if let Some(entry) = sidecar.slides.iter().find(|e| e.hash == hash) {
                 return Some(Resolved {
@@ -219,6 +225,7 @@ fn main() {}
             title: None,
             hash: slide_hash(&pres.slides[n - 1], None),
             generated: None,
+            pinned: false,
             scene: script.clone(),
         };
         let sidecar = Sidecar {
@@ -233,31 +240,43 @@ fn main() {}
     }
 
     #[test]
-    fn inline_beats_sidecar_and_hash_mismatch_is_stale() {
-        let md = "# A\n\n- one\n\n```@scene\ncast:\n  - { id: a, kind: person, cell: left }\nbeats: []\n```\n\n---\n\n# B\n\n- two\n";
+    fn pinned_beats_sidecar_and_hash_mismatch_is_stale() {
+        let md = "# A\n\n- one\n\n```@scene\ncast: []\n```\n\n---\n\n# B\n\n- two\n";
         let pres = parser::parse(md, Path::new("."));
         assert_eq!(pres.slides.len(), 2);
-        assert!(pres.slides[0].scene_script.is_some());
         let script = Script::parse("cast:\n  - { id: b, kind: box, cell: right }\n").unwrap();
         let sidecar = Sidecar {
             version: VERSION,
-            slides: vec![Entry {
-                slide: 2,
-                title: None,
-                hash: "nope".into(),
-                generated: None,
-                scene: script,
-            }],
+            slides: vec![
+                Entry {
+                    slide: 1,
+                    title: None,
+                    hash: "hand".into(),
+                    generated: None,
+                    pinned: true,
+                    scene: script.clone(),
+                },
+                Entry {
+                    slide: 2,
+                    title: None,
+                    hash: "nope".into(),
+                    generated: None,
+                    pinned: false,
+                    scene: script,
+                },
+            ],
         };
         let (resolved, problems) = resolve(&pres, Some(&sidecar));
-        assert!(problems.is_empty());
-        assert_eq!(resolved[0].as_ref().unwrap().source, Source::Inline);
+        // the leftover inline fence is reported, not used
+        assert_eq!(problems.len(), 1);
+        assert!(problems[0].contains("no longer used"));
+        assert_eq!(resolved[0].as_ref().unwrap().source, Source::Pinned);
         assert_eq!(resolved[1].as_ref().unwrap().source, Source::Stale);
         let good_hash = slide_hash(&pres.slides[1], None);
         let sidecar2 = Sidecar {
             slides: vec![Entry {
                 hash: good_hash,
-                ..sidecar.slides[0].clone()
+                ..sidecar.slides[1].clone()
             }],
             ..sidecar
         };

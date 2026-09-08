@@ -47,26 +47,10 @@ faster than he ever had, and for three weeks nobody looked at what it said.
 + The answers went out
 + One of them was wrong in a way that mattered
 
-```@scene
-cast:
-  - { id: anders, kind: person, label: Anders, cell: left-bottom }
-  - { id: queue, kind: inbox, label: Support queue, cell: center-top }
-  - { id: model, kind: orb, label: The assistant, cell: right, fill: brain }
-  - { id: laptop, kind: laptop, label: His laptop, cell: left-top }
-flows:
-  - { from: queue, to: model, color: white, at: 1 }
-  - { from: model, to: laptop, color: pale, at: 2 }
-  - { from: model, to: laptop, color: ember, at: 3 }
-beats:
-  - { show: [anders, laptop, queue], say: "Anders ran support alone, and the queue never emptied." }
-  - { show: [model], say: "So he pointed an assistant at it and went back to real work." }
-  - { say: "The answers went out. Fast, polite, and unread." }
-  - { hot: [model], say: "One of them promised a refund the company could not honour." }
-```
 
 ???
-This slide is hand-choreographed with an inline @scene block. The beats are
-released with Space, one per line.
+This slide's story is hand-written: a pinned entry in ember.scenes.yaml. The
+beats are released with Space, one per line.
 
 ---
 

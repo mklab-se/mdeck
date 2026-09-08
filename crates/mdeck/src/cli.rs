@@ -160,6 +160,9 @@ pub enum AiCommands {
         /// Regenerate even when the current story is up to date
         #[arg(long)]
         force: bool,
+        /// Print the scripts and their spoken lines without writing the sidecar
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Show AI status (same as running `mdeck ai` without a subcommand)
     Status,

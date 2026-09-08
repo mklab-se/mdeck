@@ -170,7 +170,24 @@ pub async fn generate_script(
     for attempt in 0..2 {
         let response = client.chat(&history).await.context("AI request failed")?;
         let json = extract_json(&response.content).to_string();
-        match Script::parse(&json) {
+        let parsed = Script::parse(&json).and_then(|script| {
+            let layout = pres.slides[index].layout;
+            let staged = story::stage(&script, layout, 16.0 / 9.0);
+            let clashes = story::label_collisions(&staged, 16.0 / 9.0);
+            if clashes.is_empty() {
+                Ok(script)
+            } else {
+                let list: Vec<String> = clashes
+                    .iter()
+                    .map(|(a, b)| format!("`{a}` overlaps `{b}`"))
+                    .collect();
+                Err(format!(
+                    "labels collide: {}. Use shorter labels or cells further apart",
+                    list.join(", ")
+                ))
+            }
+        });
+        match parsed {
             Ok(script) => return Ok(script),
             Err(e) => {
                 last_err = e.clone();
@@ -218,6 +235,9 @@ pub fn generate_one_blocking(deck: &Path, index: usize) -> Result<Script> {
                 version: sidecar::VERSION,
                 slides: vec![],
             });
+        if sc.slides.iter().any(|e| e.pinned && e.slide == index + 1) {
+            bail!("slide {} has a pinned (hand-written) story", index + 1);
+        }
         let cast = known_cast(&sc);
         let script = generate_script(&client, &pres, index, &cast).await?;
         upsert(&mut sc, &pres, index, script.clone());
@@ -248,6 +268,7 @@ fn upsert(sc: &mut Sidecar, pres: &Presentation, index: usize, script: Script) {
         title: slide_title(slide),
         hash: sidecar::slide_hash(slide, pres.meta.story.as_deref()),
         generated: Some(timestamp()),
+        pinned: false,
         scene: script,
     };
     sc.slides.retain(|e| e.slide != index + 1);
@@ -255,12 +276,30 @@ fn upsert(sc: &mut Sidecar, pres: &Presentation, index: usize, script: Script) {
     sc.slides.sort_by_key(|e| e.slide);
 }
 
+/// UTC timestamp as `YYYY-MM-DD HH:MM`, without a date crate.
 fn timestamp() -> String {
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
-    format!("{secs}")
+    let days = (secs / 86_400) as i64;
+    let rem = secs % 86_400;
+    // civil-from-days (Howard Hinnant)
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!(
+        "{y:04}-{m:02}-{d:02} {:02}:{:02}",
+        rem / 3600,
+        (rem % 3600) / 60
+    )
 }
 
 /// The `mdeck ai story` command.
@@ -270,6 +309,7 @@ pub async fn run(
     range: Option<String>,
     stale_only: bool,
     force: bool,
+    dry_run: bool,
     quiet: bool,
 ) -> Result<()> {
     let content = std::fs::read_to_string(&file)?;
@@ -306,7 +346,7 @@ pub async fn run(
         (0..count).collect()
     };
 
-    // Only slides with a stage get stories; hand-written @scene slides are
+    // Only slides with a stage get stories; pinned (hand-written) entries are
     // left alone.
     let requested = targets.len();
     targets.retain(|&i| story::allowed(&pres.slides[i], i));
@@ -317,7 +357,7 @@ pub async fn run(
             if no_stage == 1 { "" } else { "s" }
         );
     }
-    targets.retain(|&i| pres.slides[i].scene_script.is_none());
+    targets.retain(|&i| !sc.slides.iter().any(|e| e.pinned && e.slide == i + 1));
 
     // Entries for slides that can no longer play a story are dropped.
     let before = sc.slides.len();
@@ -327,7 +367,7 @@ pub async fn run(
             .is_some_and(|s| story::allowed(s, e.slide - 1))
     });
     let pruned = before - sc.slides.len();
-    if pruned > 0 {
+    if pruned > 0 && !dry_run {
         sidecar::save(&file, &sc).map_err(|e| anyhow::anyhow!(e))?;
         if !quiet {
             eprintln!(
@@ -382,6 +422,20 @@ pub async fn run(
                         script.cast.len(),
                         script.beats.len()
                     );
+                    for (b, beat) in script.beats.iter().enumerate() {
+                        if let Some(say) = &beat.say {
+                            eprintln!("            {}  {say}", format!("{}.", b + 1).dimmed());
+                        }
+                    }
+                }
+                if dry_run {
+                    if !quiet {
+                        eprintln!(
+                            "{}",
+                            serde_yaml::to_string(&script).unwrap_or_default().dimmed()
+                        );
+                    }
+                    continue;
                 }
                 upsert(&mut sc, &pres, i, script);
                 // Save after every slide so an interruption keeps the work so far.
@@ -403,7 +457,11 @@ pub async fn run(
         );
     }
     if !quiet {
-        eprintln!("Done. Present with `mdeck {}`.", file.display());
+        if dry_run {
+            eprintln!("Dry run: nothing was written.");
+        } else {
+            eprintln!("Done. Present with `mdeck {}`.", file.display());
+        }
     }
     Ok(())
 }

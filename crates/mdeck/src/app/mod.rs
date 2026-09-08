@@ -478,8 +478,15 @@ impl PresentationApp {
             return;
         }
         let idx = self.current_slide;
-        if self.presentation.slides[idx].scene_script.is_some() {
-            self.toast = Some(Toast::new("This slide has a hand-written @scene".into()));
+        if self
+            .stories
+            .get(idx)
+            .and_then(|r| r.as_ref())
+            .is_some_and(|r| r.source == story_sidecar::Source::Pinned)
+        {
+            self.toast = Some(Toast::new(
+                "This slide's story is pinned (hand-written)".into(),
+            ));
             return;
         }
         let (tx, rx) = mpsc::channel();

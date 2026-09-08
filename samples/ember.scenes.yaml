@@ -160,6 +160,25 @@ slides:
     - hot:
       - inbox
       say: The next story begins with what arrived, not what anyone planned.
+- slide: 5
+  title: The tickets nobody read
+  hash: pinned
+  pinned: true
+  scene:
+    cast:
+      - { id: anders, kind: person, label: Anders, cell: left-bottom }
+      - { id: queue, kind: inbox, label: Support queue, cell: center-top }
+      - { id: model, kind: orb, label: The assistant, cell: right, fill: brain }
+      - { id: laptop, kind: laptop, label: His laptop, cell: left-top }
+    flows:
+      - { from: queue, to: model, color: white, at: 1 }
+      - { from: model, to: laptop, color: pale, at: 2 }
+      - { from: model, to: laptop, color: ember, at: 3 }
+    beats:
+      - { show: [anders, laptop, queue], say: "Anders ran support alone, and the queue never emptied." }
+      - { show: [model], say: "So he pointed an assistant at it and went back to real work." }
+      - { say: "The answers went out. Fast, polite, and unread." }
+      - { hot: [model], say: "One of them promised a refund the company could not honour." }
 - slide: 6
   title: The same day, done differently
   hash: f1ea11c953d119d2

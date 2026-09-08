@@ -284,9 +284,9 @@ frontmatter turns it off.
 With Ember the field can also tell the slide's story: a cast of people and
 props, flows between them, and beats you release with Space. Describe the
 scene in English in a ```` ```@story ```` fence, run `mdeck ai story talk.md`,
-and the scripts land in `talk.scenes.yaml` next to the deck. Write the YAML
-yourself in a ```` ```@scene ```` fence when you want full control, or write
-nothing and keep the inferred scenes. See the format spec for the vocabulary. Set them in the frontmatter or cycle them
+and the scripts land in `talk.scenes.yaml` next to the deck. Edit an entry
+there by hand and mark it `pinned: true` to keep it, or write nothing and let
+the field follow the content on its own. See the format spec for the vocabulary. Set them in the frontmatter or cycle them
 live with `Shift+T` and `T`:
 
 ```yaml

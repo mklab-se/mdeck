@@ -593,6 +593,35 @@ fn bezier_points(p0: [f32; 2], p1: [f32; 2], bend: f32, aspect: f32) -> Vec<[f32
         .collect()
 }
 
+/// Pairs of labels whose boxes would overlap on a slide of the given aspect.
+/// Label boxes are estimated from text length (tracked mono at 13 px on a
+/// 1080 px tall slide) so scripts can be checked without a font.
+pub fn label_collisions(staged: &Staged, aspect: f32) -> Vec<(String, String)> {
+    let char_w = 0.0066; // fraction of slide width per character
+    let h = 0.028; // fraction of slide height
+    let boxes: Vec<(String, Rect)> = staged
+        .labels
+        .iter()
+        .map(|l| {
+            let w = l.text.chars().count() as f32 * char_w;
+            (
+                l.text.clone(),
+                Rect::from_min_size(Pos2::new(l.u - w / 2.0, l.v), eframe::egui::vec2(w, h)),
+            )
+        })
+        .collect();
+    let _ = aspect;
+    let mut out = Vec::new();
+    for i in 0..boxes.len() {
+        for j in i + 1..boxes.len() {
+            if boxes[i].1.intersects(boxes[j].1) {
+                out.push((boxes[i].0.clone(), boxes[j].0.clone()));
+            }
+        }
+    }
+    out
+}
+
 /// Draw the cast labels over the field: tracked mono, fading with each
 /// member's group and warming when it runs hot.
 pub fn draw_labels(
@@ -694,6 +723,20 @@ beats:
         let dup = "cast:\n  - { id: a, kind: person, cell: left }\n  - { id: b, kind: box, cell: left }\n";
         assert!(Script::parse(dup).unwrap_err().contains("share the cell"));
         assert!(Script::parse("cast: []\n").is_err());
+    }
+
+    #[test]
+    fn labels_in_neighbouring_cells_do_not_collide() {
+        let s = Script::parse(SAMPLE).unwrap();
+        let staged = stage(&s, Layout::Bullet, 16.0 / 9.0);
+        assert!(label_collisions(&staged, 16.0 / 9.0).is_empty());
+        // two long labels in adjacent cells on the same row do collide
+        let tight = Script::parse(
+            "cast:\n  - { id: a, kind: box, label: 'A rather long label here', cell: left }\n  - { id: b, kind: box, label: 'Another rather long label', cell: center }\n",
+        )
+        .unwrap();
+        let staged = stage(&tight, Layout::Bullet, 16.0 / 9.0);
+        assert!(!label_collisions(&staged, 16.0 / 9.0).is_empty());
     }
 
     #[test]
