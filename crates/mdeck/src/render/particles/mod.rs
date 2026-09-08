@@ -248,6 +248,8 @@ pub struct Scene {
     pub groups: Vec<Group>,
     /// Tint of the hairlines.
     pub link_alpha: f32,
+    /// How fast group brightness eases toward its target (per second).
+    pub life_rate: f32,
 }
 
 impl Scene {
@@ -255,6 +257,7 @@ impl Scene {
         Self {
             groups,
             link_alpha: 0.10,
+            life_rate: LIFE_RATE,
         }
     }
 }
@@ -506,7 +509,7 @@ impl Field {
         for (gi, g) in self.scene.groups.iter().enumerate() {
             let target = life_target(g, reveal_step);
             let l = &mut self.life[gi];
-            *l += (target - *l) * (1.0 - (-LIFE_RATE * dt).exp());
+            *l += (target - *l) * (1.0 - (-self.scene.life_rate * dt).exp());
             let ht = heat_target(g, reveal_step);
             let h = &mut self.heat[gi];
             *h += (ht - *h) * (1.0 - (-LIFE_RATE * 0.8 * dt).exp());

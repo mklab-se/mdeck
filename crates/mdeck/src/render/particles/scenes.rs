@@ -138,8 +138,9 @@ pub fn digit(points: Arc<Vec<[f32; 2]>>, glyph_aspect: f32, rect_aspect: f32) ->
     scene
 }
 
-/// The digit bursts: every particle flies straight out from the centre and
-/// fades to black (the group is born dimmed, so its life eases to zero).
+/// The digit bursts: every particle flashes ember, flies straight out from
+/// the centre and fades to black. The group is born dimmed, so its life eases
+/// to zero, slowly enough to be seen on the way out.
 pub fn burst() -> Scene {
     let mut scene = Scene::new(vec![
         Group::new(
@@ -147,17 +148,19 @@ pub fn burst() -> Scene {
             Home::Radial {
                 u: 0.5,
                 v: 0.47,
-                r: 1.6,
+                r: 2.2,
             },
         )
         .palette(Palette::Warm)
-        .alpha(0.7, 1.0)
-        .size(0.5, 0.9)
+        .alpha(0.8, 1.0)
+        .size(0.6, 1.1)
         .drift(Drift::Still)
         .dim(0.0)
-        .step(1),
+        .step(1)
+        .hot(0),
     ]);
     scene.link_alpha = 0.0;
+    scene.life_rate = 1.7;
     scene
 }
 

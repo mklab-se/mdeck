@@ -35,9 +35,12 @@ const DRAG_THRESHOLD: f32 = 5.0;
 /// Window for double-tap quit gestures (Esc, Q, Ctrl+C).
 const DOUBLE_TAP_WINDOW: Duration = Duration::from_secs(1);
 /// Each countdown digit holds for this long.
-const COUNTDOWN_DIGIT: Duration = Duration::from_secs(1);
+const COUNTDOWN_DIGIT: Duration = Duration::from_millis(1100);
+/// Time for the particles to gather into the first digit before its second
+/// starts counting (the clock starts on the first drawn frame).
+const COUNTDOWN_LEAD: Duration = Duration::from_millis(450);
 /// Ember's final burst, after the "1".
-const COUNTDOWN_BURST: Duration = Duration::from_millis(750);
+const COUNTDOWN_BURST: Duration = Duration::from_millis(1000);
 /// A reveal animation counts as "in flight" for this long after it started.
 const REVEAL_IN_FLIGHT_WINDOW: Duration = Duration::from_secs(3);
 /// How long to wait for the window to settle after a monitor move.
@@ -216,7 +219,9 @@ struct PresentationApp {
 /// The 3-2-1 opener. Ember forms the digits out of particles and bursts;
 /// Nord shows plain numerals. Any key or click cancels it.
 struct Countdown {
-    start: Instant,
+    /// Set on the first frame that draws it, not when the app is created:
+    /// shader compilation and font atlas building would eat the first digit.
+    start: Option<Instant>,
     burst: bool,
 }
 
@@ -232,7 +237,13 @@ enum CountdownPhase {
 
 impl Countdown {
     fn phase(&self, now: Instant) -> CountdownPhase {
-        let t = now.saturating_duration_since(self.start).as_secs_f32();
+        let Some(start) = self.start else {
+            return CountdownPhase::Digit(3, 0.0);
+        };
+        let t = now.saturating_duration_since(start).as_secs_f32() - COUNTDOWN_LEAD.as_secs_f32();
+        if t < 0.0 {
+            return CountdownPhase::Digit(3, 0.0);
+        }
         let d = COUNTDOWN_DIGIT.as_secs_f32();
         if t < 3.0 * d {
             let n = (t / d).floor();
@@ -390,10 +401,7 @@ impl PresentationApp {
             "nord" => false,
             _ => return,
         };
-        self.countdown = Some(Countdown {
-            start: Instant::now(),
-            burst,
-        });
+        self.countdown = Some(Countdown { start: None, burst });
     }
 
     fn countdown_running(&self) -> bool {
@@ -1307,7 +1315,8 @@ impl eframe::App for PresentationApp {
         }
 
         // The opening countdown ends on its own, or on any key or click.
-        if let Some(cd) = &self.countdown {
+        if let Some(cd) = &mut self.countdown {
+            cd.start.get_or_insert_with(Instant::now);
             let clicked = ctx.input(|i| i.pointer.any_pressed());
             if cd.phase(Instant::now()) == CountdownPhase::Done || !pressed.is_empty() || clicked {
                 self.countdown = None;
@@ -1401,8 +1410,10 @@ impl eframe::App for PresentationApp {
                         self.countdown
                             .as_ref()
                             .and_then(|cd| match cd.phase(Instant::now()) {
-                                CountdownPhase::Digit(d, _) => Some(ember::CountPhase::Digit(d)),
-                                CountdownPhase::Burst(_) => Some(ember::CountPhase::Burst),
+                                CountdownPhase::Digit(d, p) => {
+                                    Some((ember::CountPhase::Digit(d), p))
+                                }
+                                CountdownPhase::Burst(p) => Some((ember::CountPhase::Burst, p)),
                                 CountdownPhase::Done => None,
                             });
                     self.ember.frame(
@@ -1760,18 +1771,33 @@ mod tests {
     #[test]
     fn countdown_phases_run_three_two_one_then_burst_then_done() {
         let start = Instant::now();
-        let cd = Countdown { start, burst: true };
-        let at = |secs: f32| start + Duration::from_secs_f32(secs);
+        let lead = COUNTDOWN_LEAD.as_secs_f32();
+        let d = COUNTDOWN_DIGIT.as_secs_f32();
+        let cd = Countdown {
+            start: Some(start),
+            burst: true,
+        };
+        let at = |secs: f32| start + Duration::from_secs_f32(lead + secs);
+        // before the clock has started, and during the lead, the 3 is forming
+        let unstarted = Countdown {
+            start: None,
+            burst: true,
+        };
+        assert_eq!(unstarted.phase(start), CountdownPhase::Digit(3, 0.0));
+        assert_eq!(cd.phase(start), CountdownPhase::Digit(3, 0.0));
         assert!(matches!(cd.phase(at(0.1)), CountdownPhase::Digit(3, _)));
-        assert!(matches!(cd.phase(at(1.5)), CountdownPhase::Digit(2, _)));
-        assert!(matches!(cd.phase(at(2.9)), CountdownPhase::Digit(1, _)));
-        assert!(matches!(cd.phase(at(3.3)), CountdownPhase::Burst(_)));
-        assert_eq!(cd.phase(at(4.0)), CountdownPhase::Done);
+        assert!(matches!(cd.phase(at(d * 1.5)), CountdownPhase::Digit(2, _)));
+        assert!(matches!(cd.phase(at(d * 2.9)), CountdownPhase::Digit(1, _)));
+        assert!(matches!(
+            cd.phase(at(d * 3.0 + 0.3)),
+            CountdownPhase::Burst(_)
+        ));
+        assert_eq!(cd.phase(at(d * 3.0 + 1.2)), CountdownPhase::Done);
         let plain = Countdown {
-            start,
+            start: Some(start),
             burst: false,
         };
-        assert_eq!(plain.phase(at(3.1)), CountdownPhase::Done);
+        assert_eq!(plain.phase(at(d * 3.0 + 0.1)), CountdownPhase::Done);
     }
 
     #[test]

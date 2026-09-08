@@ -21,6 +21,9 @@ pub(super) enum CountPhase {
     Burst,
 }
 
+/// How far the countdown is through its current phase (0..1), for pacing.
+pub(super) type CountProgress = f32;
+
 /// Mask points in the unit square, with the mask's width / height.
 type Mask = (std::sync::Arc<Vec<[f32; 2]>>, f32);
 
@@ -73,7 +76,7 @@ impl EmberState {
         index: usize,
         reveal: usize,
         end: bool,
-        countdown: Option<CountPhase>,
+        countdown: Option<(CountPhase, CountProgress)>,
         theme: &Theme,
         scale: f32,
         opacity: f32,
@@ -96,11 +99,11 @@ impl EmberState {
             self.key = None;
         }
 
-        let key = (index, reveal, end, story_version, countdown);
+        let key = (index, reveal, end, story_version, countdown.map(|(p, _)| p));
         let rect_aspect = rect.width() / rect.height();
         if self.key != Some(key) {
             self.labels.clear();
-            let scene = if let Some(phase) = countdown {
+            let scene = if let Some((phase, _)) = countdown {
                 match phase {
                     CountPhase::Digit(d) => {
                         let (points, aspect) = self.digit_mask(ui, theme, d);
@@ -130,10 +133,11 @@ impl EmberState {
             self.key = Some(key);
         }
         let field = self.field.as_mut().expect("field created above");
-        // Digits assemble briskly and the burst is fast; slides take their time.
+        // Digits assemble briskly, the burst accelerates outward, slides
+        // take their time.
         let speed = match countdown {
-            Some(CountPhase::Digit(_)) => 1.8,
-            Some(CountPhase::Burst) => 2.6,
+            Some((CountPhase::Digit(_), _)) => 1.8,
+            Some((CountPhase::Burst, progress)) => 1.0 + 3.0 * progress,
             None => 1.0,
         };
         field.tick(dt * speed, reveal);
