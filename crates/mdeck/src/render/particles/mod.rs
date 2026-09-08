@@ -148,6 +148,9 @@ pub enum Home {
     /// Along a polyline in slide fractions; `spread` (fraction of min side)
     /// scatters particles across the line.
     Path { points: Vec<[f32; 2]>, spread: f32 },
+    /// Straight out from `(u, v)` along each particle's own direction, to a
+    /// distance of `r` (fraction of min side): an explosion.
+    Radial { u: f32, v: f32, r: f32 },
 }
 
 /// Per-frame motion applied on top of the home.
@@ -418,7 +421,17 @@ impl Field {
                 p.size_mul = self.rng.range(g.size.0, g.size.1);
                 p.along = self.rng.unit();
                 p.lateral = self.rng.range(-1.0, 1.0);
-                let (hx, hy) = home_point(&g.home, rect, min_side, &mut self.rng);
+                let (hx, hy) = match &g.home {
+                    Home::Radial { u, v, r } => {
+                        let cx = rect.left() + u * rect.width();
+                        let cy = rect.top() + v * rect.height();
+                        let (dx, dy) = (p.x - cx, p.y - cy);
+                        let len = (dx * dx + dy * dy).sqrt().max(1.0);
+                        let d = r * min_side * self.rng.range(0.7, 1.3);
+                        (cx + dx / len * d, cy + dy / len * d)
+                    }
+                    home => home_point(home, rect, min_side, &mut self.rng),
+                };
                 p.hx = hx;
                 p.hy = hy;
             }
@@ -687,6 +700,12 @@ fn home_point(home: &Home, rect: Rect, min_side: f32, rng: &mut Rng) -> (f32, f3
         Home::Field { u0, v0, u1, v1 } => (
             rect.left() + rng.range(*u0, *u1) * rect.width(),
             rect.top() + rng.range(*v0, *v1) * rect.height(),
+        ),
+        // Radial homes depend on the particle's position and are resolved in
+        // `set_scene`; a bare call lands on the centre.
+        Home::Radial { u, v, .. } => (
+            rect.left() + u * rect.width(),
+            rect.top() + v * rect.height(),
         ),
         Home::Path { points, spread } => {
             let (px, py, nx, ny) = path_point(points, rng.unit(), rect);

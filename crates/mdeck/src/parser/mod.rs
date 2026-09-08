@@ -27,6 +27,8 @@ pub struct PresentationMeta {
     /// Deck-level hint for AI story generation (`@story` in the frontmatter):
     /// tone, cast, anything that should hold across slides.
     pub story: Option<String>,
+    /// `@countdown: false` turns off the opening countdown (Ember and Nord).
+    pub countdown: Option<bool>,
 }
 
 #[derive(Debug, Clone)]

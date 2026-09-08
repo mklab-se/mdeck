@@ -277,6 +277,10 @@ Built-in themes **light**, **dark**, **nord**, and the experimental **ember**
 field behind every slide, see `samples/ember.md`); transitions **slide**,
 **fade**, **spatial**, and **none**.
 
+Ember and Nord open with a 3-2-1 countdown (Ember counts in particles and
+bursts into the first slide). Any key skips it; `@countdown: false` in the
+frontmatter turns it off.
+
 With Ember the field can also tell the slide's story: a cast of people and
 props, flows between them, and beats you release with Space. Describe the
 scene in English in a ```` ```@story ```` fence, run `mdeck ai story talk.md`,

@@ -26,6 +26,11 @@ All notable changes to this project will be documented in this file.
   Stories play only on slides with a stage (bullet, content, quote, section); code, chart,
   diagram, table, image and title slides keep the quiet inferred field, and beats count as
   reveal steps only while the Ember theme is active.
+- **Opening countdown** — Ember and Nord decks start with a 3-2-1 countdown. Ember forms the
+  digits out of particles in the serif face, morphs between them and bursts the 1 into black
+  before the first slide assembles; Nord fades plain numerals. Any key or click cancels it,
+  `--slide`/`--overview` starts skip it, and `@countdown: false` turns it off per deck. The
+  logo intro from the first Ember spike is gone (the end slide still gathers into the logo).
 - **`mdeck export --slide N` and `--range A-B`** export one slide or a range instead of the
   whole deck, keeping the deck's slide numbers in the file names. Combined with `--debug`
   this is the quick way for a person or an AI agent to check a single slide's reveal steps.

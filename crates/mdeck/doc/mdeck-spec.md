@@ -559,6 +559,7 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 |----------------|----------------|-------------------------------------------|----------------|
 | `@theme`       | global         | `light`, `dark`, `nord`, `ember`          | `light`        |
 | `@story`       | global         | English direction for AI stories (Ember) | none           |
+| `@countdown`   | global         | `true`, `false`: the 3-2-1 opener (Ember, Nord) | `true`   |
 | `@transition`  | global         | `fade`, `slide`, `spatial`, `none`        | `slide`        |
 | `@layout`      | slide          | layout name (see Section 4.1)             | auto-inferred  |
 | `@slide-level` | global         | `1`–`6`                                   | inferred       |
@@ -755,6 +756,15 @@ code slide rains. Slides whose content fills the frame (code, tables, charts,
 diagrams, images) keep their regular layouts with the Ember palette. Every
 slide gets a tracked eyebrow with its roman numeral and the deck title, and
 the presenter chrome is a counter and a progress hairline.
+
+#### The countdown
+
+Ember and Nord open with a three-second countdown before the first slide.
+In Ember the particles form the digits 3, 2 and 1 in the display face, morph
+from one to the next, and the 1 bursts outward into black before the first
+slide's scene assembles; in Nord the numerals simply fade. Any key or click
+cancels it, starting on a chosen slide (`--slide`, `--overview`) skips it, and
+`@countdown: false` in the frontmatter turns it off for a deck.
 
 #### Ember stories
 

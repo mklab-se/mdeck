@@ -109,6 +109,58 @@ pub fn mask(points: Arc<Vec<[f32; 2]>>, aspect: f32, rect_aspect: f32, size: f32
     scene
 }
 
+/// A countdown digit: the glyph mask, bright and tight, with a little dust.
+pub fn digit(points: Arc<Vec<[f32; 2]>>, glyph_aspect: f32, rect_aspect: f32) -> Scene {
+    // The digit stands about half the slide tall.
+    let h = 0.52;
+    let w = h * glyph_aspect / rect_aspect;
+    let mut scene = Scene::new(vec![
+        Group::new(
+            0.86,
+            Home::Mask {
+                points,
+                u: 0.5 - w / 2.0,
+                v: 0.47 - h / 2.0,
+                w,
+                h,
+            },
+        )
+        .palette(Palette::Site)
+        .alpha(0.7, 1.0)
+        .size(0.42, 0.7)
+        .drift(Drift::Breathe {
+            amp: 0.0012,
+            speed: 1.4,
+        }),
+        dust(0.14).alpha(0.03, 0.10),
+    ]);
+    scene.link_alpha = 0.0;
+    scene
+}
+
+/// The digit bursts: every particle flies straight out from the centre and
+/// fades to black (the group is born dimmed, so its life eases to zero).
+pub fn burst() -> Scene {
+    let mut scene = Scene::new(vec![
+        Group::new(
+            1.0,
+            Home::Radial {
+                u: 0.5,
+                v: 0.47,
+                r: 1.6,
+            },
+        )
+        .palette(Palette::Warm)
+        .alpha(0.7, 1.0)
+        .size(0.5, 0.9)
+        .drift(Drift::Still)
+        .dim(0.0)
+        .step(1),
+    ]);
+    scene.link_alpha = 0.0;
+    scene
+}
+
 /// A section divider: one warm mass on the right and slow rising embers.
 fn section() -> Scene {
     let mut scene = Scene::new(vec![

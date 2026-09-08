@@ -73,7 +73,7 @@ impl PresentationApp {
             count: self.slide_count(),
             deck_title: self.presentation.meta.title.clone(),
             author: self.presentation.meta.author.clone(),
-            hold_copy: self.ember.intro_running(),
+            hold_copy: self.countdown_running(),
             animate: true,
             beats: self.story(index).filter(|s| s.beats.len() > 1).map(|s| {
                 (
@@ -458,7 +458,7 @@ impl PresentationApp {
 
     pub(super) fn draw_presentation_chrome(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
         if self.theme.is_ember() {
-            if !self.ember.intro_running() {
+            if !self.countdown_running() {
                 render::ember::draw_chrome(
                     ui.painter(),
                     &self.theme,

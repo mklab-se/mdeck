@@ -68,7 +68,16 @@ fn parse_frontmatter(yaml_str: &str) -> PresentationMeta {
         icon_style: get_string(&map, "@icon-style"),
         slide_level: get_u8(&map, "@slide-level"),
         story: get_string(&map, "@story"),
+        countdown: get_string(&map, "@countdown").map(|v| parse_switch(&v)),
     }
+}
+
+/// `true`/`on`/`yes`/`1` → true; anything else → false.
+fn parse_switch(value: &str) -> bool {
+    matches!(
+        value.trim().to_ascii_lowercase().as_str(),
+        "true" | "on" | "yes" | "1"
+    )
 }
 
 fn get_string(map: &HashMap<String, serde_yaml::Value>, key: &str) -> Option<String> {
@@ -104,6 +113,7 @@ fn parse_frontmatter_manual(yaml_str: &str) -> PresentationMeta {
                 "@icon-style" => meta.icon_style = Some(value.to_string()),
                 "@slide-level" => meta.slide_level = value.parse().ok(),
                 "@story" => meta.story = Some(value.to_string()),
+                "@countdown" => meta.countdown = Some(parse_switch(value)),
                 _ => {}
             }
         }
@@ -114,6 +124,18 @@ fn parse_frontmatter_manual(yaml_str: &str) -> PresentationMeta {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn countdown_switch_parses_common_spellings() {
+        let (meta, _) = extract("---\n@countdown: false\n---\n# A\n");
+        assert_eq!(meta.countdown, Some(false));
+        let (meta, _) = extract("---\n@countdown: off\n---\n# A\n");
+        assert_eq!(meta.countdown, Some(false));
+        let (meta, _) = extract("---\n@countdown: true\n---\n# A\n");
+        assert_eq!(meta.countdown, Some(true));
+        let (meta, _) = extract("---\ntitle: x\n---\n# A\n");
+        assert_eq!(meta.countdown, None);
+    }
 
     #[test]
     fn test_extract_frontmatter() {

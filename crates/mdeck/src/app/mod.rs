@@ -34,6 +34,10 @@ const DRAW_FADE_DURATION: f32 = 8.0;
 const DRAG_THRESHOLD: f32 = 5.0;
 /// Window for double-tap quit gestures (Esc, Q, Ctrl+C).
 const DOUBLE_TAP_WINDOW: Duration = Duration::from_secs(1);
+/// Each countdown digit holds for this long.
+const COUNTDOWN_DIGIT: Duration = Duration::from_secs(1);
+/// Ember's final burst, after the "1".
+const COUNTDOWN_BURST: Duration = Duration::from_millis(750);
 /// A reveal animation counts as "in flight" for this long after it started.
 const REVEAL_IN_FLIGHT_WINDOW: Duration = Duration::from_secs(3);
 /// How long to wait for the window to settle after a monitor move.
@@ -205,6 +209,43 @@ struct PresentationApp {
     story_version: u64,
     /// Background `S` generation in flight: receives (slide, result).
     story_rx: Option<mpsc::Receiver<(usize, Result<(), String>)>>,
+    /// Opening countdown, while it runs.
+    countdown: Option<Countdown>,
+}
+
+/// The 3-2-1 opener. Ember forms the digits out of particles and bursts;
+/// Nord shows plain numerals. Any key or click cancels it.
+struct Countdown {
+    start: Instant,
+    burst: bool,
+}
+
+/// What the countdown is showing right now.
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum CountdownPhase {
+    /// A digit and how far through its second we are (0..1).
+    Digit(u8, f32),
+    /// The burst and its progress (0..1).
+    Burst(f32),
+    Done,
+}
+
+impl Countdown {
+    fn phase(&self, now: Instant) -> CountdownPhase {
+        let t = now.saturating_duration_since(self.start).as_secs_f32();
+        let d = COUNTDOWN_DIGIT.as_secs_f32();
+        if t < 3.0 * d {
+            let n = (t / d).floor();
+            return CountdownPhase::Digit(3 - n as u8, (t - n * d) / d);
+        }
+        if self.burst {
+            let b = (t - 3.0 * d) / COUNTDOWN_BURST.as_secs_f32();
+            if b < 1.0 {
+                return CountdownPhase::Burst(b);
+            }
+        }
+        CountdownPhase::Done
+    }
 }
 
 struct Toast {
@@ -334,7 +375,56 @@ impl PresentationApp {
             stories,
             story_version: 0,
             story_rx: None,
+            countdown: None,
         }
+    }
+
+    /// Start the opening countdown if the theme has one and the deck did not
+    /// turn it off (`@countdown: false`).
+    fn start_countdown(&mut self) {
+        if self.presentation.meta.countdown == Some(false) {
+            return;
+        }
+        let burst = match self.theme.name.as_str() {
+            "ember" => true,
+            "nord" => false,
+            _ => return,
+        };
+        self.countdown = Some(Countdown {
+            start: Instant::now(),
+            burst,
+        });
+    }
+
+    fn countdown_running(&self) -> bool {
+        self.countdown.is_some()
+    }
+
+    /// Draw Nord's plain numeral for the current countdown phase.
+    fn draw_countdown_numeral(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
+        let Some(cd) = &self.countdown else {
+            return;
+        };
+        let CountdownPhase::Digit(d, p) = cd.phase(Instant::now()) else {
+            return;
+        };
+        // fade in over the first quarter, out over the last quarter, settle in size
+        let fade_in = (p / 0.25).clamp(0.0, 1.0);
+        let fade_out = ((1.0 - p) / 0.25).clamp(0.0, 1.0);
+        let alpha = fade_in.min(fade_out);
+        let size =
+            420.0 * scale * (1.06 - 0.06 * render::transition::ease_in_out(p.min(0.5) * 2.0));
+        let color = Theme::with_opacity(self.theme.heading_color, alpha);
+        let galley = ui.painter().layout_no_wrap(
+            d.to_string(),
+            egui::FontId::new(size, self.theme.display_family()),
+            color,
+        );
+        let pos = egui::pos2(
+            rect.center().x - galley.rect.width() / 2.0,
+            rect.center().y - galley.rect.height() / 2.0,
+        );
+        ui.painter().galley(pos, galley, color);
     }
 
     /// The story playing on slide `index`, if any.
@@ -447,10 +537,6 @@ impl PresentationApp {
     }
 
     fn navigate_forward(&mut self) {
-        if self.ember.intro_running() {
-            self.ember.skip_intro();
-            return;
-        }
         if self.transition.is_some() {
             self.pending_nav = Some(PendingNav::Forward);
             return;
@@ -490,7 +576,6 @@ impl PresentationApp {
     }
 
     fn navigate_backward(&mut self) {
-        self.ember.skip_intro();
         if self.transition.is_some() {
             self.pending_nav = Some(PendingNav::Backward);
             return;
@@ -1221,6 +1306,21 @@ impl eframe::App for PresentationApp {
             ctx.request_repaint_after(Duration::from_millis(100));
         }
 
+        // The opening countdown ends on its own, or on any key or click.
+        if let Some(cd) = &self.countdown {
+            let clicked = ctx.input(|i| i.pointer.any_pressed());
+            if cd.phase(Instant::now()) == CountdownPhase::Done || !pressed.is_empty() || clicked {
+                self.countdown = None;
+            }
+            ctx.request_repaint();
+        }
+        // keys pressed during the countdown only cancel it
+        let pressed = if self.countdown_running() {
+            Vec::new()
+        } else {
+            pressed
+        };
+
         for (key, modifiers) in pressed {
             let Some(action) = map_key(key, modifiers, key_mode) else {
                 continue;
@@ -1297,6 +1397,14 @@ impl eframe::App for PresentationApp {
                     let reveal = self.reveal_steps.get(target).copied().unwrap_or(0);
                     let story = self.story(target).cloned();
                     let theme = self.theme.clone();
+                    let phase =
+                        self.countdown
+                            .as_ref()
+                            .and_then(|cd| match cd.phase(Instant::now()) {
+                                CountdownPhase::Digit(d, _) => Some(ember::CountPhase::Digit(d)),
+                                CountdownPhase::Burst(_) => Some(ember::CountPhase::Burst),
+                                CountdownPhase::Done => None,
+                            });
                     self.ember.frame(
                         ui,
                         rect,
@@ -1306,10 +1414,17 @@ impl eframe::App for PresentationApp {
                         target,
                         reveal,
                         end,
+                        phase,
                         &theme,
                         scale,
                         1.0,
                     );
+                }
+
+                // Nord's countdown: numerals on the bare background, no slide yet.
+                if self.countdown_running() && !self.theme.is_ember() {
+                    self.draw_countdown_numeral(ui, rect, scale);
+                    return;
                 }
 
                 // End slide: "The End" with logo attribution
@@ -1610,6 +1725,10 @@ pub fn run(
                 app.mode = AppMode::Grid {
                     selected: initial_slide,
                 };
+            } else if initial_slide == 0 {
+                // Starting on a chosen slide (an agent checking its work, a
+                // presenter resuming) skips the opener.
+                app.start_countdown();
             }
             app.spawn_diagram_precache();
             Ok(Box::new(app))
@@ -1637,6 +1756,23 @@ pub fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn countdown_phases_run_three_two_one_then_burst_then_done() {
+        let start = Instant::now();
+        let cd = Countdown { start, burst: true };
+        let at = |secs: f32| start + Duration::from_secs_f32(secs);
+        assert!(matches!(cd.phase(at(0.1)), CountdownPhase::Digit(3, _)));
+        assert!(matches!(cd.phase(at(1.5)), CountdownPhase::Digit(2, _)));
+        assert!(matches!(cd.phase(at(2.9)), CountdownPhase::Digit(1, _)));
+        assert!(matches!(cd.phase(at(3.3)), CountdownPhase::Burst(_)));
+        assert_eq!(cd.phase(at(4.0)), CountdownPhase::Done);
+        let plain = Countdown {
+            start,
+            burst: false,
+        };
+        assert_eq!(plain.phase(at(3.1)), CountdownPhase::Done);
+    }
 
     #[test]
     fn story_beats_extend_steps_only_in_ember() {
