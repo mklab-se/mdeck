@@ -22,8 +22,8 @@ fn dust(share: f32) -> Group {
             v1: 0.96,
         },
     )
-    .alpha(0.06, 0.22)
-    .size(0.4, 0.8)
+    .alpha(0.10, 0.30)
+    .size(0.45, 0.9)
     .drift(Drift::Breathe {
         amp: 0.006,
         speed: 0.8,
@@ -41,7 +41,7 @@ fn bokeh(share: f32) -> Group {
             v1: 0.95,
         },
     )
-    .alpha(0.05, 0.14)
+    .alpha(0.07, 0.18)
     .size(2.6, 4.2)
     .drift(Drift::Breathe {
         amp: 0.01,

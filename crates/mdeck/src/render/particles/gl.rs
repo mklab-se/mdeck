@@ -60,9 +60,9 @@ const FRAG: &str = r#"
     void main() {
         float d = length(v_uv);
         if (d > 1.0) { discard; }
-        float core = 1.0 - smoothstep(0.0, 0.32, d);
+        float core = 1.0 - smoothstep(0.0, 0.36, d);
         float halo = 1.0 - smoothstep(0.30, 1.0, d);
-        float a = core * 0.55 + halo * 0.5;
+        float a = core * 0.75 + halo * 0.55;
         gl_FragColor = vec4(v_color.rgb, v_color.a * a);
     }
 "#;

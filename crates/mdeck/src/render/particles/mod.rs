@@ -299,6 +299,10 @@ const LIFE_RATE: f32 = 3.2;
 pub const DEFAULT_COUNT: usize = 900;
 /// Reference slide width the site's pixel sizes were tuned for.
 const REF_WIDTH: f32 = 1440.0;
+/// Gain over the site's values: decks are watched on projectors that are
+/// dimmer than a laptop screen, so sprites are larger and brighter.
+const SIZE_GAIN: f32 = 1.4;
+const ALPHA_GAIN: f32 = 1.35;
 
 pub struct Field {
     particles: Vec<Particle>,
@@ -612,12 +616,12 @@ impl Field {
                 Sprite {
                     x: p.x,
                     y: p.y,
-                    size: p.base_size * p.size_mul * scale * (1.0 + heat * 0.4),
+                    size: p.base_size * p.size_mul * scale * SIZE_GAIN * (1.0 + heat * 0.4),
                     rgba: [
                         r + (er - r) * heat,
                         g + (eg - g) * heat,
                         b + (eb - b) * heat,
-                        (p.alpha * opacity).clamp(0.0, 1.0),
+                        (p.alpha * ALPHA_GAIN * opacity).clamp(0.0, 1.0),
                     ],
                 }
             })
