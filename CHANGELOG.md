@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.0.0] - 2026-09-08
 
 MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 
