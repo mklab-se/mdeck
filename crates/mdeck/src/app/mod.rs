@@ -272,7 +272,7 @@ impl PresentationApp {
         let image_cache = ImageCache::new(base_path);
 
         let stories = load_stories(&file, &presentation, quiet);
-        let max_steps: Vec<usize> = slide_max_steps(&presentation, &stories);
+        let max_steps: Vec<usize> = slide_max_steps(&presentation, &stories, theme.is_ember());
         let slide_count = presentation.slides.len();
         let reveal_steps = vec![0; slide_count];
         let reveal_timestamps = vec![None; slide_count];
@@ -348,7 +348,7 @@ impl PresentationApp {
     /// Re-read the sidecar and rebuild per-slide stories and step counts.
     fn reload_stories(&mut self) {
         self.stories = load_stories(&self.file_path, &self.presentation, true);
-        self.max_steps = slide_max_steps(&self.presentation, &self.stories);
+        self.max_steps = slide_max_steps(&self.presentation, &self.stories, self.theme.is_ember());
         for (i, r) in self.reveal_steps.iter_mut().enumerate() {
             *r = (*r).min(self.max_steps[i]);
         }
@@ -650,6 +650,12 @@ impl PresentationApp {
 
     fn toggle_theme(&mut self) {
         self.theme = self.theme.next();
+        // Story beats are an Ember feature: other themes step through the
+        // content's own reveals only.
+        self.max_steps = slide_max_steps(&self.presentation, &self.stories, self.theme.is_ember());
+        for (i, r) in self.reveal_steps.iter_mut().enumerate() {
+            *r = (*r).min(self.max_steps[i]);
+        }
         self.toast = Some(Toast::new(format!("Theme: {}", self.theme.name)));
     }
 
@@ -732,7 +738,7 @@ impl PresentationApp {
         // progress (clamped to the new step count) and scroll position.
         self.stories = load_stories(&self.file_path, &new_presentation, true);
         self.story_version += 1;
-        self.max_steps = slide_max_steps(&new_presentation, &self.stories);
+        self.max_steps = slide_max_steps(&new_presentation, &self.stories, self.theme.is_ember());
         self.reveal_steps = vec![0; slide_count];
         self.reveal_timestamps = vec![None; slide_count];
         self.scroll_offsets = vec![0.0; slide_count];
@@ -1433,14 +1439,22 @@ fn load_stories(
     stories
 }
 
-/// Reveal steps per slide: the content's own steps, extended by story beats.
-fn slide_max_steps(presentation: &Presentation, stories: &[Option<Resolved>]) -> Vec<usize> {
+/// Reveal steps per slide: the content's own steps, extended by story beats
+/// when the Ember theme is showing them.
+fn slide_max_steps(
+    presentation: &Presentation,
+    stories: &[Option<Resolved>],
+    ember: bool,
+) -> Vec<usize> {
     presentation
         .slides
         .iter()
         .enumerate()
         .map(|(i, s)| {
             let content = parser::compute_max_steps(&s.blocks);
+            if !ember {
+                return content;
+            }
             let beats = stories
                 .get(i)
                 .and_then(|r| r.as_ref())
@@ -1623,6 +1637,23 @@ pub fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn story_beats_extend_steps_only_in_ember() {
+        let md = "# A\n\n- one\n+ two\n";
+        let pres = crate::parser::parse(md, std::path::Path::new("."));
+        let script = crate::render::story::Script::parse(
+            "cast:\n  - { id: a, kind: person, cell: left }\nbeats: [{}, {}, {}, {}]\n",
+        )
+        .unwrap();
+        let stories = vec![Some(Resolved {
+            script,
+            source: story_sidecar::Source::Sidecar,
+        })];
+        // one `+` reveal on the slide; the story has four beats (three extra steps)
+        assert_eq!(slide_max_steps(&pres, &stories, false), vec![1]);
+        assert_eq!(slide_max_steps(&pres, &stories, true), vec![3]);
+    }
     use crate::parser::{Layout, Slide};
 
     fn slide(raw: &str) -> Slide {

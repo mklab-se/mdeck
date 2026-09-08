@@ -159,11 +159,15 @@ impl ExportApp {
             .iter()
             .enumerate()
             .map(|(i, s)| {
-                let beats = stories
-                    .get(i)
-                    .and_then(|r| r.as_ref())
-                    .map(|r| r.script.extra_steps())
-                    .unwrap_or(0);
+                let beats = if theme.is_ember() {
+                    stories
+                        .get(i)
+                        .and_then(|r| r.as_ref())
+                        .map(|r| r.script.extra_steps())
+                        .unwrap_or(0)
+                } else {
+                    0
+                };
                 parser::compute_max_steps(&s.blocks).max(beats)
             })
             .collect();

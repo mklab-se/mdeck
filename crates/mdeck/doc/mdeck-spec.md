@@ -799,8 +799,14 @@ Kinds: `person`, `hooded`, `box`, `orb`, `doc`, `docs`, `inbox`, `db`,
 `right-top`, `left`, `center`, `right`, `left-bottom`, `center-bottom`,
 `right-bottom` (one member per cell). Fills: `outline`, `brain`, `hot`,
 `cold`. Flow colours: `white`, `ember`, `candle`, `pale`. At most seven cast
-members and six beats; each `say` line at most 160 characters. Title slides
-have no stage and never play a story.
+members and six beats; each `say` line at most 160 characters.
+
+A story needs a stage: the right half of a slide whose copy sits on the left
+(bullet, content, quote and section slides). Code, chart, diagram, table,
+image, two-column and title slides never play a story, whatever a sidecar
+says; their field stays the quiet, content-aware one, and `mdeck ai story`
+skips them. Beats are an Ember feature: under any other theme a slide steps
+through its own `+` reveals only.
 
 All themes meet WCAG AA contrast requirements. Cycle themes during a
 presentation with `Shift+T`.

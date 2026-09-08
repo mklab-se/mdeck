@@ -117,7 +117,8 @@ pub struct Resolved {
 
 /// Resolve the story for every slide: inline scripts win, then sidecar
 /// entries by hash, then stale entries by slide number (still played, but
-/// flagged). Invalid inline scripts are reported and skipped.
+/// flagged). Invalid inline scripts are reported and skipped, and slides
+/// without a stage (see [`super::allowed`]) never get a story.
 pub fn resolve(
     presentation: &Presentation,
     sidecar: Option<&Sidecar>,
@@ -129,6 +130,9 @@ pub fn resolve(
         .iter()
         .enumerate()
         .map(|(i, slide)| {
+            if !super::allowed(slide, i) {
+                return None;
+            }
             if let Some(text) = &slide.scene_script {
                 match Script::parse(text) {
                     Ok(script) => {
@@ -182,6 +186,50 @@ mod tests {
         assert_eq!(p, yaml);
         assert!(both);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn slides_without_a_stage_never_get_a_story() {
+        // A code slide and a chart slide: a sidecar entry for them is ignored.
+        let md = "# Code
+
+```rust
+fn main() {}
+```
+
+---
+
+# Chart
+
+```@barchart
+- A: 1
+```
+
+---
+
+# Words
+
+- a bullet
+";
+        let pres = parser::parse(md, Path::new("."));
+        assert_eq!(pres.slides.len(), 3);
+        let script = Script::parse("cast:\n  - { id: b, kind: box, cell: right }\n").unwrap();
+        let entry = |n: usize| Entry {
+            slide: n,
+            title: None,
+            hash: slide_hash(&pres.slides[n - 1], None),
+            generated: None,
+            scene: script.clone(),
+        };
+        let sidecar = Sidecar {
+            version: VERSION,
+            slides: vec![entry(1), entry(2), entry(3)],
+        };
+        let (resolved, problems) = resolve(&pres, Some(&sidecar));
+        assert!(problems.is_empty());
+        assert!(resolved[0].is_none(), "code slide must not play a story");
+        assert!(resolved[1].is_none(), "chart slide must not play a story");
+        assert!(resolved[2].is_some(), "bullet slide keeps its story");
     }
 
     #[test]

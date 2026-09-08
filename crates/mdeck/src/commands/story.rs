@@ -306,11 +306,36 @@ pub async fn run(
         (0..count).collect()
     };
 
-    // Slides with a hand-written @scene never need generation, and title
-    // slides have no stage (their copy is centred).
-    targets.retain(|&i| {
-        pres.slides[i].scene_script.is_none() && !crate::render::ember::is_title(&pres.slides[i], i)
+    // Only slides with a stage get stories; hand-written @scene slides are
+    // left alone.
+    let requested = targets.len();
+    targets.retain(|&i| story::allowed(&pres.slides[i], i));
+    let no_stage = requested - targets.len();
+    if no_stage > 0 && !quiet {
+        eprintln!(
+            "Skipping {no_stage} slide{} without a stage (code, charts, diagrams, tables, images, titles).",
+            if no_stage == 1 { "" } else { "s" }
+        );
+    }
+    targets.retain(|&i| pres.slides[i].scene_script.is_none());
+
+    // Entries for slides that can no longer play a story are dropped.
+    let before = sc.slides.len();
+    sc.slides.retain(|e| {
+        pres.slides
+            .get(e.slide.wrapping_sub(1))
+            .is_some_and(|s| story::allowed(s, e.slide - 1))
     });
+    let pruned = before - sc.slides.len();
+    if pruned > 0 {
+        sidecar::save(&file, &sc).map_err(|e| anyhow::anyhow!(e))?;
+        if !quiet {
+            eprintln!(
+                "Removed {pruned} stored stor{} for slides without a stage.",
+                if pruned == 1 { "y" } else { "ies" }
+            );
+        }
+    }
 
     // Unless forced, skip slides whose sidecar entry is still current.
     if !force {

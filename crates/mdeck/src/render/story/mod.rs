@@ -338,17 +338,22 @@ pub struct Staged {
     pub labels: Vec<Label>,
 }
 
+/// Whether a story can play on this slide at all. A story needs a stage:
+/// the right half of a slide whose copy Ember lays out on the left (bullets,
+/// content, quotes, section dividers). Slides whose content fills the frame
+/// (code, charts, diagrams, tables, images, two columns) and title slides
+/// (centred copy) never play a story; their field stays content-aware and
+/// quiet, whatever a sidecar says.
+pub fn allowed(slide: &crate::parser::Slide, index: usize) -> bool {
+    crate::render::ember::handles(slide) && !crate::render::ember::is_title(slide, index)
+}
+
 /// The part of the slide the story plays on, as slide fractions.
 pub fn stage_box(layout: Layout) -> Rect {
     match layout {
-        // Copy sits left; the stage is the right half.
-        Layout::Bullet | Layout::Content | Layout::Section | Layout::TwoColumn => {
-            Rect::from_min_max(Pos2::new(0.52, 0.10), Pos2::new(0.96, 0.90))
-        }
         // Quotes run wider, so the stage is narrower.
         Layout::Quote => Rect::from_min_max(Pos2::new(0.64, 0.10), Pos2::new(0.96, 0.90)),
-        // Title copy is centred: play above and below it, full width.
-        Layout::Title => Rect::from_min_max(Pos2::new(0.06, 0.06), Pos2::new(0.94, 0.94)),
+        // Copy sits left; the stage is the right half.
         _ => Rect::from_min_max(Pos2::new(0.52, 0.10), Pos2::new(0.96, 0.90)),
     }
 }

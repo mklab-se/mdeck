@@ -23,6 +23,9 @@ All notable changes to this project will be documented in this file.
   `--slide`, `--range`, `--stale`, `--force`), or a hand-written ```` ```@scene ```` fence. A
   frontmatter `@story:` gives deck-wide direction. `S` writes the current slide's story from
   inside the presentation; `H` shows the beat's line; `--check` reports stale or invalid stories.
+  Stories play only on slides with a stage (bullet, content, quote, section); code, chart,
+  diagram, table, image and title slides keep the quiet inferred field, and beats count as
+  reveal steps only while the Ember theme is active.
 - Headings, body text and code now take their font families from the theme, so themes can
   bundle typefaces.
 
