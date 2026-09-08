@@ -111,9 +111,10 @@ pub fn mask(points: Arc<Vec<[f32; 2]>>, aspect: f32, rect_aspect: f32, size: f32
 
 /// A countdown digit: the glyph mask, bright and tight, with a little dust.
 pub fn digit(points: Arc<Vec<[f32; 2]>>, glyph_aspect: f32, rect_aspect: f32) -> Scene {
-    // The digit stands about half the slide tall.
+    // The digit stands about half the slide tall and is stretched a quarter
+    // wider than the face draws it: particles read better with more room.
     let h = 0.52;
-    let w = h * glyph_aspect / rect_aspect;
+    let w = h * glyph_aspect / rect_aspect * 1.25;
     let mut scene = Scene::new(vec![
         Group::new(
             0.86,

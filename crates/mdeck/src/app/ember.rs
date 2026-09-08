@@ -58,7 +58,10 @@ impl EmberState {
         if let Some((_, mask)) = self.digits.iter().find(|(d, _)| *d == digit) {
             return mask.clone();
         }
-        let mask = glyph_mask(ui, theme, char::from(b'0' + digit));
+        let mut mask = glyph_mask(ui, theme, char::from(b'0' + digit));
+        if digit == 1 {
+            mask = trim_flag(mask);
+        }
         self.digits.push((digit, mask.clone()));
         mask
     }
@@ -157,6 +160,26 @@ impl EmberState {
     }
 }
 
+/// Spectral's 1 wears a long flag. Keep only the half of it nearest the stem,
+/// then renormalise the mask to its new width.
+fn trim_flag((pts, aspect): Mask) -> Mask {
+    // The flag is the part left of the stem in the top third of the glyph;
+    // the stem starts around 45% of the width in this face.
+    let flag_cut = 0.24;
+    let kept: Vec<[f32; 2]> = pts
+        .iter()
+        .copied()
+        .filter(|p| !(p[1] < 0.34 && p[0] < flag_cut))
+        .collect();
+    let min_x = kept.iter().map(|p| p[0]).fold(1.0, f32::min);
+    let width = (1.0 - min_x).max(1e-3);
+    let renormalised = kept
+        .into_iter()
+        .map(|p| [(p[0] - min_x) / width, p[1]])
+        .collect();
+    (std::sync::Arc::new(renormalised), aspect * width)
+}
+
 /// Sample a glyph's coverage out of egui's font atlas into mask points in the
 /// unit square, returning them with the glyph's width / height.
 fn glyph_mask(ui: &egui::Ui, theme: &Theme, ch: char) -> Mask {
@@ -214,7 +237,11 @@ mod tests {
             },
             |ui| {
                 for ch in ['3', '2', '1'] {
-                    let (pts, aspect) = glyph_mask(ui, &theme, ch);
+                    let mut mask = glyph_mask(ui, &theme, ch);
+                    if ch == '1' {
+                        mask = trim_flag(mask);
+                    }
+                    let (pts, aspect) = mask;
                     assert!(pts.len() > 300, "{ch}: only {} points", pts.len());
                     assert!(aspect > 0.35 && aspect < 0.9, "{ch}: aspect {aspect}");
                     // ASCII dump, 24 rows

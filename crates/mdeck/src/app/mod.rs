@@ -39,6 +39,9 @@ const COUNTDOWN_DIGIT: Duration = Duration::from_millis(1100);
 /// Time for the particles to gather into the first digit before its second
 /// starts counting (the clock starts on the first drawn frame).
 const COUNTDOWN_LEAD: Duration = Duration::from_millis(450);
+/// The 3 holds this much longer than the other digits: it is the one the
+/// audience has to find on a screen that was black a moment ago.
+const COUNTDOWN_FIRST_EXTRA: Duration = Duration::from_millis(600);
 /// Ember's final burst, after the "1".
 const COUNTDOWN_BURST: Duration = Duration::from_millis(1000);
 /// A reveal animation counts as "in flight" for this long after it started.
@@ -245,12 +248,17 @@ impl Countdown {
             return CountdownPhase::Digit(3, 0.0);
         }
         let d = COUNTDOWN_DIGIT.as_secs_f32();
-        if t < 3.0 * d {
-            let n = (t / d).floor();
-            return CountdownPhase::Digit(3 - n as u8, (t - n * d) / d);
+        let first = d + COUNTDOWN_FIRST_EXTRA.as_secs_f32();
+        if t < first {
+            return CountdownPhase::Digit(3, t / first);
+        }
+        let t2 = t - first;
+        if t2 < 2.0 * d {
+            let n = (t2 / d).floor();
+            return CountdownPhase::Digit(2 - n as u8, (t2 - n * d) / d);
         }
         if self.burst {
-            let b = (t - 3.0 * d) / COUNTDOWN_BURST.as_secs_f32();
+            let b = (t2 - 2.0 * d) / COUNTDOWN_BURST.as_secs_f32();
             if b < 1.0 {
                 return CountdownPhase::Burst(b);
             }
@@ -1773,6 +1781,7 @@ mod tests {
         let start = Instant::now();
         let lead = COUNTDOWN_LEAD.as_secs_f32();
         let d = COUNTDOWN_DIGIT.as_secs_f32();
+        let three = d + COUNTDOWN_FIRST_EXTRA.as_secs_f32();
         let cd = Countdown {
             start: Some(start),
             burst: true,
@@ -1786,18 +1795,26 @@ mod tests {
         assert_eq!(unstarted.phase(start), CountdownPhase::Digit(3, 0.0));
         assert_eq!(cd.phase(start), CountdownPhase::Digit(3, 0.0));
         assert!(matches!(cd.phase(at(0.1)), CountdownPhase::Digit(3, _)));
-        assert!(matches!(cd.phase(at(d * 1.5)), CountdownPhase::Digit(2, _)));
-        assert!(matches!(cd.phase(at(d * 2.9)), CountdownPhase::Digit(1, _)));
+        // the 3 holds longer than a plain digit
+        assert!(matches!(cd.phase(at(d + 0.2)), CountdownPhase::Digit(3, _)));
         assert!(matches!(
-            cd.phase(at(d * 3.0 + 0.3)),
+            cd.phase(at(three + d * 0.5)),
+            CountdownPhase::Digit(2, _)
+        ));
+        assert!(matches!(
+            cd.phase(at(three + d * 1.9)),
+            CountdownPhase::Digit(1, _)
+        ));
+        assert!(matches!(
+            cd.phase(at(three + d * 2.0 + 0.3)),
             CountdownPhase::Burst(_)
         ));
-        assert_eq!(cd.phase(at(d * 3.0 + 1.2)), CountdownPhase::Done);
+        assert_eq!(cd.phase(at(three + d * 2.0 + 1.2)), CountdownPhase::Done);
         let plain = Countdown {
             start: Some(start),
             burst: false,
         };
-        assert_eq!(plain.phase(at(d * 3.0 + 0.1)), CountdownPhase::Done);
+        assert_eq!(plain.phase(at(three + d * 2.0 + 0.1)), CountdownPhase::Done);
     }
 
     #[test]
