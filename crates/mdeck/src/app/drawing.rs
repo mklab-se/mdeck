@@ -255,16 +255,22 @@ impl PresentationApp {
     /// Ember's end slide: the particles have already gathered into the logo
     /// (see `EmberState`), so only a quiet caption is drawn.
     fn draw_end_slide_ember(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
+        // The caption arrives only after the bang has faded to black.
+        let alpha = ((self.ember.end_elapsed() - 7.4) / 0.9).clamp(0.0, 1.0);
+        ui.ctx().request_repaint();
+        if alpha <= 0.0 {
+            return;
+        }
         let painter = ui.painter();
         let size = 15.0 * scale;
         let font = egui::FontId::new(size, self.theme.mono_family());
         let mut job = egui::text::LayoutJob::default();
         job.append(
-            "THE END  ·  POWERED BY MDECK",
+            "POWERED BY MDECK  ·  GITHUB.COM/MKLAB-SE/MDECK",
             0.0,
             egui::text::TextFormat {
                 font_id: font,
-                color: egui::Color32::from_rgb(0x8F, 0x8F, 0x98),
+                color: Theme::with_opacity(egui::Color32::from_rgb(0x8F, 0x8F, 0x98), alpha),
                 extra_letter_spacing: size * 0.22,
                 ..Default::default()
             },
@@ -273,7 +279,7 @@ impl PresentationApp {
         painter.galley(
             egui::pos2(
                 rect.center().x - galley.rect.width() / 2.0,
-                rect.bottom() - 62.0 * scale,
+                rect.center().y - galley.rect.height() / 2.0,
             ),
             galley,
             egui::Color32::WHITE,

@@ -10,8 +10,6 @@ use crate::render::particles::{self, Field, scenes};
 use crate::render::story::{self, Script};
 use crate::theme::Theme;
 
-static LOGO_BYTES: &[u8] = include_bytes!("../../media/logo-small.png");
-
 /// Where the opening countdown is, as seen by the particle field.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum CountPhase {
@@ -24,17 +22,50 @@ pub(super) enum CountPhase {
 /// How far the countdown is through its current phase (0..1), for pacing.
 pub(super) type CountProgress = f32;
 
+/// The end slide's choreography: the words, a swirl, a bang, then black.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum EndPhase {
+    Words,
+    Dance,
+    Bang,
+    Black,
+}
+
+const END_WORDS: f32 = 3.2;
+const END_DANCE: f32 = 2.8;
+const END_BANG: f32 = 1.2;
+
+impl EndPhase {
+    fn at(elapsed: f32) -> (EndPhase, f32) {
+        if elapsed < END_WORDS {
+            (EndPhase::Words, elapsed / END_WORDS)
+        } else if elapsed < END_WORDS + END_DANCE {
+            (EndPhase::Dance, (elapsed - END_WORDS) / END_DANCE)
+        } else if elapsed < END_WORDS + END_DANCE + END_BANG {
+            (EndPhase::Bang, (elapsed - END_WORDS - END_DANCE) / END_BANG)
+        } else {
+            (EndPhase::Black, 1.0)
+        }
+    }
+}
+
 /// Mask points in the unit square, with the mask's width / height.
 type Mask = (std::sync::Arc<Vec<[f32; 2]>>, f32);
 
+/// Everything a scene choice depends on: slide index, reveal step, end
+/// phase, story version and countdown phase.
+type SceneKey = (usize, usize, Option<EndPhase>, u64, Option<CountPhase>);
+
 pub(super) struct EmberState {
     field: Option<Field>,
-    /// (slide index, reveal step, end-slide flag, story version, countdown
-    /// phase) the current scene was built for.
-    key: Option<(usize, usize, bool, u64, Option<CountPhase>)>,
+    /// What the current scene was built for.
+    key: Option<SceneKey>,
+    /// When the end slide was entered, for its choreography.
+    end_started: Option<Instant>,
+    /// "THE END" as a mask, rasterised once.
+    end_words: Option<Mask>,
     /// Labels of the staged story, if the current scene is one.
     labels: Vec<story::Label>,
-    logo: Option<Mask>,
     /// Glyph masks for the countdown digits, sampled from egui's font atlas.
     digits: Vec<(u8, Mask)>,
     last_tick: Option<Instant>,
@@ -46,10 +77,18 @@ impl EmberState {
             field: None,
             key: None,
             labels: Vec::new(),
-            logo: None,
             digits: Vec::new(),
+            end_started: None,
+            end_words: None,
             last_tick: None,
         }
+    }
+
+    /// Seconds since the end slide was entered (0 when not on it).
+    pub(super) fn end_elapsed(&self) -> f32 {
+        self.end_started
+            .map(|t| t.elapsed().as_secs_f32())
+            .unwrap_or(0.0)
     }
 
     /// Mask points and aspect (width / height) for a digit, rasterised once
@@ -102,7 +141,21 @@ impl EmberState {
             self.key = None;
         }
 
-        let key = (index, reveal, end, story_version, countdown.map(|(p, _)| p));
+        // The end slide runs its own clock from the moment it is entered.
+        let end_phase = if end {
+            let started = *self.end_started.get_or_insert(now);
+            Some(EndPhase::at(now.duration_since(started).as_secs_f32()))
+        } else {
+            self.end_started = None;
+            None
+        };
+        let key = (
+            index,
+            reveal,
+            end_phase.map(|(p, _)| p),
+            story_version,
+            countdown.map(|(p, _)| p),
+        );
         let rect_aspect = rect.width() / rect.height();
         if self.key != Some(key) {
             self.labels.clear();
@@ -114,12 +167,18 @@ impl EmberState {
                     }
                     CountPhase::Burst => scenes::burst(),
                 }
-            } else if end {
-                let (points, aspect) = self
-                    .logo
-                    .get_or_insert_with(|| particles::mask_points_from_png(LOGO_BYTES))
-                    .clone();
-                scenes::mask(points, aspect, rect_aspect, 0.30)
+            } else if let Some((phase, _)) = end_phase {
+                match phase {
+                    EndPhase::Words => {
+                        let (points, aspect) = self
+                            .end_words
+                            .get_or_insert_with(|| text_mask(ui, theme, "THE END"))
+                            .clone();
+                        scenes::end_words(points, aspect, rect_aspect)
+                    }
+                    EndPhase::Dance => scenes::end_dance(),
+                    EndPhase::Bang | EndPhase::Black => scenes::end_bang(),
+                }
             } else if let (Some(slide), Some(script)) = (slide, story)
                 && !crate::render::ember::is_title(slide, index)
             {
@@ -138,10 +197,14 @@ impl EmberState {
         let field = self.field.as_mut().expect("field created above");
         // Digits assemble briskly, the burst accelerates outward, slides
         // take their time.
-        let speed = match countdown {
-            Some((CountPhase::Digit(_), _)) => 1.8,
-            Some((CountPhase::Burst, progress)) => 1.0 + 3.0 * progress,
-            None => 1.0,
+        let speed = match (countdown, end_phase) {
+            (Some((CountPhase::Digit(_), _)), _) => 1.8,
+            (Some((CountPhase::Burst, progress)), _) => 1.0 + 3.0 * progress,
+            (None, Some((EndPhase::Words, _))) => 1.6,
+            (None, Some((EndPhase::Dance, _))) => 1.3,
+            (None, Some((EndPhase::Bang, progress))) => 1.2 + 3.0 * progress,
+            (None, Some((EndPhase::Black, _))) => 2.0,
+            (None, None) => 1.0,
         };
         field.tick(dt * speed, reveal);
         field.paint(ui.painter(), rect, opacity);
@@ -183,41 +246,94 @@ fn trim_flag((pts, aspect): Mask) -> Mask {
 /// Sample a glyph's coverage out of egui's font atlas into mask points in the
 /// unit square, returning them with the glyph's width / height.
 fn glyph_mask(ui: &egui::Ui, theme: &Theme, ch: char) -> Mask {
+    text_mask(ui, theme, &ch.to_string())
+}
+
+/// Sample a whole string's coverage out of egui's font atlas into mask points
+/// in the unit square, with the text's width / height. Glyphs keep their
+/// layout positions, so spacing and kerning come from the face.
+fn text_mask(ui: &egui::Ui, theme: &Theme, text: &str) -> Mask {
     let font = egui::FontId::new(220.0, theme.display_family());
-    let (rect_px, image) = ui.fonts_mut(|f| {
-        let galley = f.layout_no_wrap(ch.to_string(), font, egui::Color32::WHITE);
-        let uv = galley
+    let (glyphs, image) = ui.fonts_mut(|f| {
+        let galley = f.layout_no_wrap(text.to_string(), font, egui::Color32::WHITE);
+        let glyphs: Vec<(egui::Pos2, egui::Vec2, [u16; 2], [u16; 2])> = galley
             .rows
-            .first()
-            .and_then(|r| r.glyphs.first())
-            .map(|g| (g.uv_rect.min, g.uv_rect.max));
-        (uv, f.image())
+            .iter()
+            .flat_map(|r| r.glyphs.iter())
+            .filter(|g| g.uv_rect.max[0] > g.uv_rect.min[0])
+            .map(|g| {
+                (
+                    g.pos + g.uv_rect.offset,
+                    g.uv_rect.size,
+                    g.uv_rect.min,
+                    g.uv_rect.max,
+                )
+            })
+            .collect();
+        (glyphs, f.image())
     });
-    let Some((min, max)) = rect_px else {
+    if glyphs.is_empty() {
         return (std::sync::Arc::new(Vec::new()), 0.6);
-    };
-    let (x0, y0, x1, y1) = (
-        min[0] as usize,
-        min[1] as usize,
-        max[0] as usize,
-        max[1] as usize,
-    );
-    let (gw, gh) = ((x1 - x0).max(1), (y1 - y0).max(1));
-    let step = (gw.max(gh) / 90).max(1);
+    }
+    // bounding box of the ink in layout points
+    let (mut bx0, mut by0, mut bx1, mut by1) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+    for (pos, size, _, _) in &glyphs {
+        bx0 = bx0.min(pos.x);
+        by0 = by0.min(pos.y);
+        bx1 = bx1.max(pos.x + size.x);
+        by1 = by1.max(pos.y + size.y);
+    }
+    let (bw, bh) = ((bx1 - bx0).max(1.0), (by1 - by0).max(1.0));
     let mut pts = Vec::new();
-    for y in (y0..y1).step_by(step) {
-        for x in (x0..x1).step_by(step) {
-            if image[(x, y)].a() > 110 {
-                pts.push([(x - x0) as f32 / gw as f32, (y - y0) as f32 / gh as f32]);
+    for (pos, size, min, max) in &glyphs {
+        let (x0, y0, x1, y1) = (
+            min[0] as usize,
+            min[1] as usize,
+            max[0] as usize,
+            max[1] as usize,
+        );
+        let (gw, gh) = ((x1 - x0).max(1), (y1 - y0).max(1));
+        let step = (bh as usize / 90).max(1);
+        for y in (y0..y1).step_by(step) {
+            for x in (x0..x1).step_by(step) {
+                if image[(x, y)].a() > 110 {
+                    let px = pos.x + (x - x0) as f32 / gw as f32 * size.x;
+                    let py = pos.y + (y - y0) as f32 / gh as f32 * size.y;
+                    pts.push([(px - bx0) / bw, (py - by0) / bh]);
+                }
             }
         }
     }
-    (std::sync::Arc::new(pts), gw as f32 / gh as f32)
+    (std::sync::Arc::new(pts), bw / bh)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn end_words_mask_is_wide_and_dense() {
+        let ctx = egui::Context::default();
+        crate::render::fonts::install(&ctx);
+        let theme = Theme::ember();
+        let mut output = ctx.run_ui(Default::default(), |ui| {
+            let (pts, aspect) = text_mask(ui, &theme, "THE END");
+            assert!(pts.len() > 1500, "only {} points", pts.len());
+            assert!(aspect > 4.0 && aspect < 9.0, "aspect {aspect}");
+            let (w, h) = (((14.0 * aspect) * 2.0) as usize, 14usize);
+            let mut grid = vec![vec![' '; w + 1]; h + 1];
+            for p in pts.iter() {
+                let x = (p[0] * w as f32) as usize;
+                let y = (p[1] * h as f32) as usize;
+                grid[y.min(h)][x.min(w)] = '#';
+            }
+            eprintln!("--- THE END (aspect {aspect:.2}, {} points)", pts.len());
+            for row in grid {
+                eprintln!("{}", row.into_iter().collect::<String>());
+            }
+        });
+        output.textures_delta.clear();
+    }
 
     /// The digit masks come out of egui's font atlas; make sure the sampled
     /// coverage is a real glyph (dense, right aspect) and print it so a

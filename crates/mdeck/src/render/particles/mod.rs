@@ -166,6 +166,9 @@ pub enum Drift {
     Still,
     /// Runs along its [`Home::Path`] and wraps; `speed` is passes per 4 s.
     Flow { speed: f32 },
+    /// Circles the slide centre at its home's radius; `speed` in radians per
+    /// second, scaled per particle so the field swirls rather than rotates.
+    Orbit { speed: f32 },
 }
 
 #[derive(Clone, Debug)]
@@ -196,8 +199,8 @@ impl Group {
             share,
             home,
             drift: Drift::Breathe {
-                amp: 0.008,
-                speed: 1.0,
+                amp: 0.010,
+                speed: 1.15,
             },
             palette: Palette::Site,
             alpha: (0.10, 0.35),
@@ -527,14 +530,29 @@ impl Field {
             match g.drift {
                 Drift::Breathe { amp, speed } => {
                     let a = amp * min_side;
-                    p.tx = p.hx + (t * 0.30 * speed * p.speed + p.phase).sin() * a;
-                    p.ty = p.hy + (t * 0.24 * speed * p.speed + p.phase * 1.7).cos() * a * 0.8;
-                    p.alpha = p.base_alpha * (0.8 + 0.2 * (t * 1.2 + p.phase).sin());
+                    // two incommensurate frequencies so the wander never
+                    // settles into a visible loop
+                    p.tx = p.hx
+                        + (t * 0.42 * speed * p.speed + p.phase).sin() * a
+                        + (t * 0.17 * speed + p.phase * 2.3).cos() * a * 0.5;
+                    p.ty = p.hy
+                        + (t * 0.34 * speed * p.speed + p.phase * 1.7).cos() * a * 0.8
+                        + (t * 0.21 * speed + p.phase * 3.1).sin() * a * 0.45;
+                    p.alpha = p.base_alpha * (0.78 + 0.22 * (t * 1.4 + p.phase).sin());
                 }
                 Drift::Still => {
                     p.tx = p.hx;
                     p.ty = p.hy;
                     p.alpha = p.base_alpha * (0.88 + 0.12 * (t * 2.0 + p.phase).sin());
+                }
+                Drift::Orbit { speed } => {
+                    let c = rect.center();
+                    let (dx, dy) = (p.hx - c.x, p.hy - c.y);
+                    let a = t * speed * (0.6 + 0.8 * p.speed) + p.phase * 0.05;
+                    let (s, co) = a.sin_cos();
+                    p.tx = c.x + dx * co - dy * s;
+                    p.ty = c.y + dx * s + dy * co;
+                    p.alpha = p.base_alpha * (0.75 + 0.25 * (t * 3.0 + p.phase).sin());
                 }
                 Drift::Flow { speed } => {
                     if let Home::Path { points, spread } = &g.home {
@@ -731,27 +749,6 @@ fn home_point(home: &Home, rect: Rect, min_side: f32, rng: &mut Rng) -> (f32, f3
             )
         }
     }
-}
-
-/// Sample the opaque pixels of a PNG into points normalised to the unit
-/// square (x/width, y/height). Callers fit the mask into a box with the
-/// image's aspect ratio. Used for the logo intro and the end slide.
-pub fn mask_points_from_png(bytes: &[u8]) -> (Arc<Vec<[f32; 2]>>, f32) {
-    let Ok(img) = image::load_from_memory(bytes) else {
-        return (Arc::new(Vec::new()), 1.0);
-    };
-    let rgba = img.to_rgba8();
-    let (w, h) = (rgba.width() as usize, rgba.height() as usize);
-    let step = (w.max(h) / 110).max(1);
-    let mut pts = Vec::new();
-    for y in (0..h).step_by(step) {
-        for x in (0..w).step_by(step) {
-            if rgba.get_pixel(x as u32, y as u32)[3] > 120 {
-                pts.push([x as f32 / w as f32, y as f32 / h as f32]);
-            }
-        }
-    }
-    (Arc::new(pts), w as f32 / h.max(1) as f32)
 }
 
 #[cfg(test)]

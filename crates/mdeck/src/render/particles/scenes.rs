@@ -25,8 +25,8 @@ fn dust(share: f32) -> Group {
     .alpha(0.10, 0.30)
     .size(0.45, 0.9)
     .drift(Drift::Breathe {
-        amp: 0.006,
-        speed: 0.8,
+        amp: 0.011,
+        speed: 1.1,
     })
 }
 
@@ -44,8 +44,8 @@ fn bokeh(share: f32) -> Group {
     .alpha(0.07, 0.18)
     .size(2.6, 4.2)
     .drift(Drift::Breathe {
-        amp: 0.01,
-        speed: 0.5,
+        amp: 0.016,
+        speed: 0.7,
     })
 }
 
@@ -81,32 +81,6 @@ pub fn constellation(seed: u64) -> Scene {
     groups.push(dust(0.35));
     groups.push(bokeh(0.10));
     Scene::new(groups)
-}
-
-/// Particles assemble into a mask (the logo).
-pub fn mask(points: Arc<Vec<[f32; 2]>>, aspect: f32, rect_aspect: f32, size: f32) -> Scene {
-    // `size` is the mask's width as a fraction of the slide width; the height
-    // follows from the image aspect and the slide aspect.
-    let w = size;
-    let h = size / aspect * rect_aspect;
-    let mut scene = Scene::new(vec![
-        Group::new(
-            0.9,
-            Home::Mask {
-                points,
-                u: 0.5 - w / 2.0,
-                v: 0.46 - h / 2.0,
-                w,
-                h,
-            },
-        )
-        .alpha(0.6, 1.0)
-        .size(0.36, 0.6)
-        .drift(Drift::Still),
-        dust(0.1),
-    ]);
-    scene.link_alpha = 0.0;
-    scene
 }
 
 /// A countdown digit: the glyph mask, bright and tight, with a little dust.
@@ -162,6 +136,85 @@ pub fn burst() -> Scene {
     ]);
     scene.link_alpha = 0.0;
     scene.life_rate = 1.7;
+    scene
+}
+
+/// The end, act one: the particles spell the words.
+pub fn end_words(points: Arc<Vec<[f32; 2]>>, text_aspect: f32, rect_aspect: f32) -> Scene {
+    // the words span about 56% of the slide width
+    let w = 0.56;
+    let h = w / text_aspect * rect_aspect;
+    let mut scene = Scene::new(vec![
+        Group::new(
+            0.84,
+            Home::Mask {
+                points,
+                u: 0.5 - w / 2.0,
+                v: 0.47 - h / 2.0,
+                w,
+                h,
+            },
+        )
+        .palette(Palette::Site)
+        .alpha(0.7, 1.0)
+        .size(0.42, 0.72)
+        .drift(Drift::Breathe {
+            amp: 0.0012,
+            speed: 1.6,
+        }),
+        dust(0.16),
+    ]);
+    scene.link_alpha = 0.0;
+    scene
+}
+
+/// The end, act two: the words let go and everything swirls around the
+/// centre like sparks over a fire.
+pub fn end_dance() -> Scene {
+    let mut scene = Scene::new(vec![
+        Group::new(
+            0.55,
+            Home::Cluster {
+                u: 0.5,
+                v: 0.47,
+                r: 0.34,
+                falloff: 0.5,
+            },
+        )
+        .palette(Palette::Warm)
+        .alpha(0.6, 1.0)
+        .size(0.5, 0.9)
+        .drift(Drift::Orbit { speed: 1.9 }),
+        Group::new(
+            0.30,
+            Home::Cluster {
+                u: 0.5,
+                v: 0.47,
+                r: 0.16,
+                falloff: 0.7,
+            },
+        )
+        .palette(Palette::Site)
+        .alpha(0.7, 1.0)
+        .size(0.4, 0.7)
+        .drift(Drift::Orbit { speed: -2.8 }),
+        dust(0.15),
+    ]);
+    scene.link_alpha = 0.0;
+    scene
+}
+
+/// The end, act three: the bang. Everything flies out and fades to black.
+pub fn end_bang() -> Scene {
+    let mut scene = burst();
+    if let Some(g) = scene.groups.first_mut() {
+        g.home = Home::Radial {
+            u: 0.5,
+            v: 0.47,
+            r: 2.6,
+        };
+    }
+    scene.life_rate = 1.5;
     scene
 }
 
