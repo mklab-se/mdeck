@@ -324,6 +324,8 @@ mdeck export talk.md                              # slide-01.png ... at 1920x108
 mdeck export talk.md --width 3840 --height 2160   # 4K
 mdeck export talk.md --output-dir slides/         # choose the folder
 mdeck export talk.md --debug                      # one PNG per reveal step
+mdeck export talk.md --slide 7                    # just slide 7 (file names keep the deck numbering)
+mdeck export talk.md --range 3-5 --debug          # slides 3 to 5, every step
 ```
 
 Output is always exactly the requested size, independent of your screen's
@@ -400,7 +402,7 @@ agent to read.
 
 ```bash
 mdeck <file.md>                    # present (add --windowed, --slide N, --overview, --check)
-mdeck export <file.md>             # PNG export (--width, --height, --output-dir, --debug)
+mdeck export <file.md>             # PNG export (--width, --height, --output-dir, --debug, --slide, --range)
 mdeck spec                         # full format specification
 mdeck spec --short                 # quick reference card
 mdeck config show                  # show configuration

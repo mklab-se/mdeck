@@ -90,6 +90,14 @@ pub enum Commands {
         /// Debug mode: export every reveal step of every slide
         #[arg(long)]
         debug: bool,
+
+        /// Export only this slide (1-based); file names keep the deck's numbering
+        #[arg(long, conflicts_with = "range")]
+        slide: Option<usize>,
+
+        /// Export only these slides, e.g. 3-7 (1-based, inclusive)
+        #[arg(long)]
+        range: Option<String>,
     },
 
     /// Print the mdeck markdown format specification
@@ -306,7 +314,11 @@ impl Cli {
                 width,
                 height,
                 debug,
-            }) => crate::commands::export::run(file, output_dir, width, height, debug),
+                slide,
+                range,
+            }) => {
+                crate::commands::export::run(file, output_dir, width, height, debug, slide, range)
+            }
             Some(Commands::Spec { short }) => {
                 crate::commands::spec::run(short);
                 Ok(())

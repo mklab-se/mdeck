@@ -116,6 +116,8 @@ mdeck ai status              # Show AI status (explicit alias)
 mdeck config show            # Display configuration
 mdeck config set <key> <val> # Set config value (defaults.theme, defaults.transition, defaults.aspect)
 mdeck export <file.md>       # Export slides as PNG images (1920x1080 default)
+mdeck export <file.md> --slide 7          # Export one slide (add --debug for its reveal steps)
+mdeck export <file.md> --range 3-5        # Export a range of slides
 mdeck export <file.md> --width 3840 --height 2160  # Export at custom resolution
 mdeck completion <shell>     # Generate shell completions (bash, zsh, fish, powershell)
 mdeck spec                   # Print format specification
@@ -191,6 +193,7 @@ Before every release, verify these are up to date:
   cargo run -p mdeck -- export samples/layouts/code.md --output-dir /tmp/slides
   ```
   Then read the exported PNGs to check layout, syntax highlighting, spacing, and overall visual quality.
+  To check one slide without rendering the whole deck, add `--slide N` (and `--debug` for its reveal steps).
 - Test presentations in `samples/` are organized into subdirectories:
   - **`samples/visualizations/`** — per-visualization test files:
     - `barchart.md` — bar charts (vertical, horizontal, axis labels, reveal)

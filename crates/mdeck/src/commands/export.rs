@@ -118,6 +118,10 @@ struct ExportApp {
     screenshot_requested: bool,
     warmup_frames: u32,
     max_steps: Vec<usize>,
+    /// Slide indices to export, in order (the whole deck by default).
+    targets: Vec<usize>,
+    /// Position in `targets`.
+    target_pos: usize,
     debug: bool,
     done: bool,
     /// First save error, shared with `run()` so the exit code reflects it.
@@ -142,6 +146,7 @@ impl ExportApp {
         width: u32,
         height: u32,
         debug: bool,
+        targets: Vec<usize>,
         error: Arc<Mutex<Option<String>>>,
     ) -> Self {
         let theme_name = presentation.meta.theme.as_deref().unwrap_or("light");
@@ -172,6 +177,13 @@ impl ExportApp {
             })
             .collect();
 
+        if debug {
+            let total: usize = targets
+                .iter()
+                .map(|&i| max_steps.get(i).copied().unwrap_or(0) + 1)
+                .sum();
+            eprintln!("  {total} reveal steps in total (story beats included)");
+        }
         Self {
             presentation,
             theme,
@@ -180,7 +192,9 @@ impl ExportApp {
             width,
             height,
             canvas: TileCanvas::new(width, height),
-            current_slide: 0,
+            current_slide: targets.first().copied().unwrap_or(0),
+            targets,
+            target_pos: 0,
             current_step: 0,
             tile: (0, 0),
             pending_tile_origin: (0, 0),
@@ -211,20 +225,24 @@ impl ExportApp {
         )
     }
 
-    /// Advance to the next reveal step or slide. Returns false when finished.
+    /// Advance to the next reveal step or target slide. Returns false when finished.
     fn advance(&mut self) -> bool {
         if self.debug {
             let max = self.max_steps.get(self.current_slide).copied().unwrap_or(0);
             if self.current_step < max {
                 self.current_step += 1;
-            } else {
-                self.current_step = 0;
-                self.current_slide += 1;
+                return true;
             }
-        } else {
-            self.current_slide += 1;
+            self.current_step = 0;
         }
-        self.current_slide < self.slide_count()
+        self.target_pos += 1;
+        match self.targets.get(self.target_pos) {
+            Some(&idx) => {
+                self.current_slide = idx;
+                true
+            }
+            None => false,
+        }
     }
 }
 
@@ -403,12 +421,44 @@ impl eframe::App for ExportApp {
     }
 }
 
+/// Which slides (0-based) `--slide` / `--range` select out of `count`.
+pub fn select_slides(
+    slide: Option<usize>,
+    range: Option<&str>,
+    count: usize,
+) -> anyhow::Result<Vec<usize>> {
+    if let Some(n) = slide {
+        if n == 0 || n > count {
+            anyhow::bail!("slide {n} is outside 1-{count}");
+        }
+        return Ok(vec![n - 1]);
+    }
+    if let Some(r) = range {
+        let (a, b) = r
+            .split_once('-')
+            .ok_or_else(|| anyhow::anyhow!("range must look like 3-7"))?;
+        let a: usize = a
+            .trim()
+            .parse()
+            .map_err(|_| anyhow::anyhow!("range start"))?;
+        let b: usize = b.trim().parse().map_err(|_| anyhow::anyhow!("range end"))?;
+        if a == 0 || b < a || b > count {
+            anyhow::bail!("range {r} is outside 1-{count}");
+        }
+        return Ok((a - 1..b).collect());
+    }
+    Ok((0..count).collect())
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     file: PathBuf,
     output_dir: PathBuf,
     width: u32,
     height: u32,
     debug: bool,
+    slide: Option<usize>,
+    range: Option<String>,
 ) -> anyhow::Result<()> {
     if width == 0 || height == 0 {
         anyhow::bail!("Export width and height must be greater than zero");
@@ -427,30 +477,27 @@ pub fn run(
 
     std::fs::create_dir_all(&output_dir)?;
 
-    let slide_count = presentation.slides.len();
-    if debug {
-        let total_steps: usize = presentation
-            .slides
-            .iter()
-            .map(|s| parser::compute_max_steps(&s.blocks) + 1)
-            .sum();
-        eprintln!(
-            "Debug export: {} slides, {} total steps to {} ({}x{})",
-            slide_count,
-            total_steps,
-            output_dir.display(),
-            width,
-            height,
-        );
+    let targets = select_slides(slide, range.as_deref(), presentation.slides.len())?;
+    let slide_count = targets.len();
+    let which = if slide_count == presentation.slides.len() {
+        format!("{slide_count} slides")
     } else {
-        eprintln!(
-            "Exporting {} slides to {} ({}x{})",
-            slide_count,
-            output_dir.display(),
-            width,
-            height,
-        );
-    }
+        let span = if slide_count > 1 {
+            format!("-{}", targets[slide_count - 1] + 1)
+        } else {
+            String::new()
+        };
+        format!(
+            "{slide_count} of {} slides ({}{span})",
+            presentation.slides.len(),
+            targets[0] + 1
+        )
+    };
+    eprintln!(
+        "{} {which} to {} ({width}x{height})",
+        if debug { "Debug export:" } else { "Exporting" },
+        output_dir.display(),
+    );
 
     let title = presentation
         .meta
@@ -484,6 +531,7 @@ pub fn run(
                 width,
                 height,
                 debug,
+                targets,
                 error_clone,
             )))
         }),
@@ -506,6 +554,17 @@ mod tests {
 
     fn solid_image(w: usize, h: usize, c: egui::Color32) -> egui::ColorImage {
         egui::ColorImage::new([w, h], vec![c; w * h])
+    }
+
+    #[test]
+    fn slide_and_range_select_zero_based_indices() {
+        assert_eq!(select_slides(None, None, 4).unwrap(), vec![0, 1, 2, 3]);
+        assert_eq!(select_slides(Some(3), None, 4).unwrap(), vec![2]);
+        assert_eq!(select_slides(None, Some("2-3"), 4).unwrap(), vec![1, 2]);
+        assert!(select_slides(Some(0), None, 4).is_err());
+        assert!(select_slides(Some(5), None, 4).is_err());
+        assert!(select_slides(None, Some("3-2"), 4).is_err());
+        assert!(select_slides(None, Some("x"), 4).is_err());
     }
 
     #[test]
