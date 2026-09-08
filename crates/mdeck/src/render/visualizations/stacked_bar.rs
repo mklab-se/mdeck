@@ -7,11 +7,11 @@ use crate::theme::Theme;
 use super::{
     VIZ_CORNER_BAR, VIZ_CORNER_SWATCH, VIZ_FONT_AXIS_LABEL, VIZ_FONT_CATEGORY_LABEL,
     VIZ_FONT_GRID_LABEL, VIZ_FONT_LEGEND, VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD,
-    VIZ_OPACITY_AXIS, VIZ_OPACITY_FILL, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL,
-    VIZ_OPACITY_LABEL, VIZ_STROKE_AXIS, VIZ_STROKE_GRID, VIZ_SWATCH_SIZE, VizReveal, assign_steps,
-    draw_x_axis_label, draw_y_axis_label, format_axis_value, format_value, grid_values, label_fade,
-    nice_axis_max, nice_grid_step, parse_axis_label_directive, parse_label_values,
-    parse_reveal_prefix, reveal_anim_progress,
+    VIZ_OPACITY_AXIS, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL, VIZ_STROKE_AXIS,
+    VIZ_STROKE_GRID, VIZ_SWATCH_SIZE, VizReveal, assign_steps, draw_x_axis_label,
+    draw_y_axis_label, format_axis_value, format_value, grid_values, label_fade, nice_axis_max,
+    nice_grid_step, parse_axis_label_directive, parse_label_values, parse_reveal_prefix,
+    reveal_anim_progress,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -186,7 +186,10 @@ pub fn draw_stacked_bar(
     // Y-axis grid lines
     let grid_step = nice_grid_step(max_stack, 5);
     let grid_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
-    let grid_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
+    let grid_font = FontId::new(
+        theme.body_size * VIZ_FONT_GRID_LABEL * scale,
+        theme.body_family(),
+    );
     let grid_label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
     for grid_val in grid_values(max_stack, grid_step) {
         let frac = grid_val / max_stack;
@@ -214,8 +217,14 @@ pub fn draw_stacked_bar(
     let bar_gap = 12.0 * scale;
     let total_gaps = (num_categories + 1) as f32 * bar_gap;
     let bar_width = ((chart_width - total_gaps) / num_categories as f32).max(8.0 * scale);
-    let label_font = FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale);
-    let value_font = FontId::proportional(theme.body_size * VIZ_FONT_VALUE_LABEL * scale);
+    let label_font = FontId::new(
+        theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale,
+        theme.body_family(),
+    );
+    let value_font = FontId::new(
+        theme.body_size * VIZ_FONT_VALUE_LABEL * scale,
+        theme.body_family(),
+    );
 
     let mut needs_repaint = false;
 
@@ -274,13 +283,14 @@ pub fn draw_stacked_bar(
             }
 
             let color =
-                Theme::with_opacity(palette[si % palette.len()], opacity * VIZ_OPACITY_FILL);
+                Theme::with_opacity(palette[si % palette.len()], opacity * theme.fill_opacity());
             let by = chart_bottom - cumulative_height - seg_height;
 
             let bar_rect =
                 egui::Rect::from_min_size(Pos2::new(bx, by), egui::vec2(bar_width, seg_height));
             let corners = segment_corner_radius(VIZ_CORNER_BAR * scale, top_series == Some(si));
             painter.rect_filled(bar_rect, corners, color);
+            crate::render::hints::push(ui.ctx(), crate::render::hints::Hint::Bar(bar_rect));
 
             // Value label inside segment if tall enough
             if seg_height > 18.0 * scale && anim > VIZ_LABEL_REVEAL_THRESHOLD {
@@ -300,7 +310,10 @@ pub fn draw_stacked_bar(
     }
 
     // Axis labels
-    let axis_label_font = FontId::proportional(theme.body_size * VIZ_FONT_AXIS_LABEL * scale);
+    let axis_label_font = FontId::new(
+        theme.body_size * VIZ_FONT_AXIS_LABEL * scale,
+        theme.body_family(),
+    );
     let axis_label_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
     if let Some(ref text) = data.x_label {
         draw_x_axis_label(
@@ -326,7 +339,10 @@ pub fn draw_stacked_bar(
     }
 
     // Legend at top
-    let legend_font = FontId::proportional(theme.body_size * VIZ_FONT_LEGEND * scale);
+    let legend_font = FontId::new(
+        theme.body_size * VIZ_FONT_LEGEND * scale,
+        theme.body_family(),
+    );
     let swatch_size = VIZ_SWATCH_SIZE * scale;
     let item_spacing = 28.0 * scale;
 

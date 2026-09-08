@@ -73,6 +73,12 @@ pub fn render(
         }
     }
 
+    // The field keeps clear of the whole content area below the padding.
+    crate::render::hints::push(
+        ui.ctx(),
+        crate::render::hints::Hint::Frame(rect.shrink(padding * 0.5)),
+    );
+
     // Draw heading if present
     if let Some(Block::Heading { level, inlines }) = heading {
         let h = text::draw_heading(

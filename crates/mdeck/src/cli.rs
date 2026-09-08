@@ -90,6 +90,14 @@ pub enum Commands {
         /// Debug mode: export every reveal step of every slide
         #[arg(long)]
         debug: bool,
+
+        /// Export only this slide (1-based); file names keep the deck's numbering
+        #[arg(long, conflicts_with = "range")]
+        slide: Option<usize>,
+
+        /// Export only these slides, e.g. 3-7 (1-based, inclusive)
+        #[arg(long)]
+        range: Option<String>,
     },
 
     /// Print the mdeck markdown format specification
@@ -136,6 +144,26 @@ pub enum AiCommands {
     },
     /// Create a presentation from content using AI
     Create(CreateArgs),
+    /// Write particle stories for the Ember theme (saved next to the deck as <deck>.scenes.yaml)
+    Story {
+        /// Markdown file to process
+        file: PathBuf,
+        /// Only this slide (1-based)
+        #[arg(long, conflicts_with = "range")]
+        slide: Option<usize>,
+        /// Only these slides, e.g. 3-7 (1-based, inclusive)
+        #[arg(long)]
+        range: Option<String>,
+        /// Only refresh slides whose story has gone stale
+        #[arg(long)]
+        stale: bool,
+        /// Regenerate even when the current story is up to date
+        #[arg(long)]
+        force: bool,
+        /// Print the scripts and their spoken lines without writing the sidecar
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// Show AI status (same as running `mdeck ai` without a subcommand)
     Status,
     /// AI agent skill information — helps set up Claude Code skills for mdeck
@@ -289,7 +317,11 @@ impl Cli {
                 width,
                 height,
                 debug,
-            }) => crate::commands::export::run(file, output_dir, width, height, debug),
+                slide,
+                range,
+            }) => {
+                crate::commands::export::run(file, output_dir, width, height, debug, slide, range)
+            }
             Some(Commands::Spec { short }) => {
                 crate::commands::spec::run(short);
                 Ok(())

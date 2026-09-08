@@ -1,4 +1,4 @@
-use eframe::egui::Color32;
+use eframe::egui::{self, Color32};
 
 #[derive(Debug, Clone)]
 pub struct Theme {
@@ -16,7 +16,78 @@ pub struct Theme {
     pub code_size: f32,
 }
 
+/// Font families installed by [`crate::render::fonts::install`]. Every theme
+/// resolves its `display`, `body` and `mono` families through
+/// [`Theme::display_family`], [`Theme::body_family`] and [`Theme::mono_family`].
+pub const FONT_DISPLAY: &str = "mdeck-display";
+pub const FONT_BODY: &str = "mdeck-body";
+pub const FONT_BODY_LIGHT: &str = "mdeck-body-light";
+pub const FONT_BODY_MEDIUM: &str = "mdeck-body-medium";
+pub const FONT_MONO: &str = "mdeck-mono";
+
 impl Theme {
+    /// Ember: MKLab's monochrome luxury brand. Graphite on near-black, one
+    /// signature red-orange accent, an editorial serif for headings and a
+    /// living particle field behind every slide.
+    pub fn ember() -> Self {
+        Self {
+            name: "ember".to_string(),
+            background: Color32::from_rgb(0x05, 0x05, 0x05), // ink-950
+            foreground: Color32::from_rgb(0xB4, 0xB4, 0xBC), // ink-200
+            heading_color: Color32::from_rgb(0xEC, 0xEC, 0xEF), // ink-050
+            accent: Color32::from_rgb(0xFF, 0x4D, 0x1C),     // ember-500
+            code_background: Color32::from_rgb(0x10, 0x10, 0x12), // ink-850
+            code_foreground: Color32::from_rgb(0xD6, 0xD6, 0xDB), // ink-100
+            h1_size: 104.0,
+            h2_size: 72.0,
+            h3_size: 48.0,
+            body_size: 38.0,
+            code_size: 28.0,
+        }
+    }
+
+    /// Whether this is the Ember theme (particle field, editorial layouts).
+    pub fn is_ember(&self) -> bool {
+        self.name == "ember"
+    }
+
+    /// Opacity of filled chart shapes. Ember's fills are glassier so the
+    /// particle field shows through and bars read as lit panes.
+    pub fn fill_opacity(&self) -> f32 {
+        if self.is_ember() {
+            0.80
+        } else {
+            crate::render::visualizations::VIZ_OPACITY_FILL
+        }
+    }
+
+    /// Font family for display headings.
+    pub fn display_family(&self) -> egui::FontFamily {
+        if self.is_ember() {
+            egui::FontFamily::Name(FONT_DISPLAY.into())
+        } else {
+            egui::FontFamily::Proportional
+        }
+    }
+
+    /// Font family for body text.
+    pub fn body_family(&self) -> egui::FontFamily {
+        if self.is_ember() {
+            egui::FontFamily::Name(FONT_BODY.into())
+        } else {
+            egui::FontFamily::Proportional
+        }
+    }
+
+    /// Font family for code and labels.
+    pub fn mono_family(&self) -> egui::FontFamily {
+        if self.is_ember() {
+            egui::FontFamily::Name(FONT_MONO.into())
+        } else {
+            egui::FontFamily::Monospace
+        }
+    }
+
     pub fn dark() -> Self {
         Self {
             name: "dark".to_string(),
@@ -74,15 +145,17 @@ impl Theme {
         match name {
             "dark" => Self::dark(),
             "nord" => Self::nord(),
+            "ember" => Self::ember(),
             _ => Self::light(),
         }
     }
 
-    /// Cycle to the next theme: dark → light → nord → dark.
+    /// Cycle to the next theme: dark → light → nord → ember → dark.
     pub fn next(&self) -> Self {
         match self.name.as_str() {
             "dark" => Self::light(),
             "light" => Self::nord(),
+            "nord" => Self::ember(),
             _ => Self::dark(),
         }
     }
@@ -116,6 +189,7 @@ impl Theme {
         match self.name.as_str() {
             "light" => Color32::from_rgb(0x16, 0x7A, 0x3E), // dark green on light bg
             "nord" => Color32::from_rgb(0xA3, 0xBE, 0x8C),  // aurora green
+            "ember" => Color32::from_rgb(0x4F, 0xB4, 0x77), // herbal
             _ => Color32::from_rgb(0x5C, 0xDB, 0x95),       // mint green on dark bg
         }
     }
@@ -125,6 +199,7 @@ impl Theme {
         match self.name.as_str() {
             "light" => Color32::from_rgb(0xB9, 0x2D, 0x2D), // dark red on light bg
             "nord" => Color32::from_rgb(0xBF, 0x61, 0x6A),  // aurora red
+            "ember" => Color32::from_rgb(0xE8, 0x34, 0x1C), // bitter
             _ => Color32::from_rgb(0xFF, 0x6B, 0x6B),       // bright red on dark bg
         }
     }
@@ -138,6 +213,7 @@ impl Theme {
         match self.name.as_str() {
             "light" => LIGHT_EDGE_PALETTE,
             "nord" => NORD_EDGE_PALETTE,
+            "ember" => EMBER_EDGE_PALETTE,
             _ => DARK_EDGE_PALETTE,
         }
     }
@@ -166,6 +242,18 @@ const NORD_EDGE_PALETTE: [Color32; EDGE_PALETTE_LEN] = [
     Color32::from_rgb(0x5E, 0x81, 0xAC), // frost blue
     Color32::from_rgb(0xD0, 0x87, 0x70), // aurora orange
     Color32::from_rgb(0x8F, 0xBC, 0xBB), // frost light teal
+];
+
+/// Ember's "cocktail" palette: bright drink colours reserved for data.
+const EMBER_EDGE_PALETTE: [Color32; EDGE_PALETTE_LEN] = [
+    Color32::from_rgb(0xFF, 0x4D, 0x1C), // ember
+    Color32::from_rgb(0xFF, 0xB0, 0x2E), // citrus
+    Color32::from_rgb(0x2F, 0x9B, 0xD8), // curaçao
+    Color32::from_rgb(0x4F, 0xB4, 0x77), // herbal
+    Color32::from_rgb(0xA2, 0x4B, 0xD8), // berry
+    Color32::from_rgb(0xD9, 0xB4, 0x6A), // gold
+    Color32::from_rgb(0xE8, 0x34, 0x1C), // bitter
+    Color32::from_rgb(0xB4, 0xB4, 0xBC), // ink-200
 ];
 
 const DARK_EDGE_PALETTE: [Color32; EDGE_PALETTE_LEN] = [

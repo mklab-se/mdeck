@@ -7,11 +7,10 @@ use crate::theme::Theme;
 use super::{
     VIZ_CORNER_BAR, VIZ_FONT_AXIS_LABEL, VIZ_FONT_CATEGORY_LABEL, VIZ_FONT_GRID_LABEL,
     VIZ_FONT_MIN, VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_AXIS,
-    VIZ_OPACITY_FILL, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL, VIZ_STROKE_AXIS,
-    VIZ_STROKE_GRID, VizReveal, assign_steps, draw_x_axis_label, draw_y_axis_label, fit_font_size,
-    fit_text, format_axis_value, format_value, grid_values, label_fade, nice_axis_max,
-    nice_grid_step, parse_axis_label_directive, parse_label_value, parse_reveal_prefix,
-    reveal_anim_progress,
+    VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL, VIZ_STROKE_AXIS, VIZ_STROKE_GRID,
+    VizReveal, assign_steps, draw_x_axis_label, draw_y_axis_label, fit_font_size, fit_text,
+    format_axis_value, format_value, grid_values, label_fade, nice_axis_max, nice_grid_step,
+    parse_axis_label_directive, parse_label_value, parse_reveal_prefix, reveal_anim_progress,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -205,7 +204,10 @@ fn draw_vertical(
 
     // Reserve room on the left for the widest grid label (plus the axis title)
     let grid_step = nice_grid_step(max_value, 5);
-    let grid_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
+    let grid_font = FontId::new(
+        theme.body_size * VIZ_FONT_GRID_LABEL * scale,
+        theme.body_family(),
+    );
     let grid_label_w = grid_values(max_value, grid_step)
         .into_iter()
         .map(|v| {
@@ -264,17 +266,23 @@ fn draw_vertical(
     let bar_gap = (chart_width / n as f32 * 0.22).clamp(10.0 * scale, 48.0 * scale);
     let total_gaps = (n + 1) as f32 * bar_gap;
     let bar_width = ((chart_width - total_gaps) / n as f32).max(8.0 * scale);
-    let value_font = FontId::proportional(theme.body_size * VIZ_FONT_VALUE_LABEL * scale);
+    let value_font = FontId::new(
+        theme.body_size * VIZ_FONT_VALUE_LABEL * scale,
+        theme.body_family(),
+    );
     let min_font = theme.body_size * VIZ_FONT_MIN * scale;
     // One label size for every category so the axis reads as a unit
     let label_texts: Vec<&str> = entries.iter().map(|e| e.label.as_str()).collect();
-    let label_font = FontId::proportional(fit_font_size(
-        painter,
-        &label_texts,
-        &FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale),
-        bar_width + bar_gap,
-        min_font,
-    ));
+    let label_font = FontId::new(
+        fit_font_size(
+            painter,
+            &label_texts,
+            &FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale),
+            bar_width + bar_gap,
+            min_font,
+        ),
+        theme.body_family(),
+    );
 
     for (i, entry) in entries.iter().enumerate() {
         let step = steps.get(i).copied().unwrap_or(0);
@@ -287,7 +295,7 @@ fn draw_vertical(
             needs_repaint = true;
         }
 
-        let color = Theme::with_opacity(palette[i % palette.len()], opacity * VIZ_OPACITY_FILL);
+        let color = Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity());
         // Negative values are clamped to the axis so nothing draws below the chart
         let full_bar_height = (entry.value.max(0.0) / max_value) * chart_height;
         let bar_height = full_bar_height * anim;
@@ -298,6 +306,7 @@ fn draw_vertical(
         let bar_rect =
             egui::Rect::from_min_size(Pos2::new(bx, by), egui::vec2(bar_width, bar_height));
         painter.rect_filled(bar_rect, VIZ_CORNER_BAR * scale, color);
+        crate::render::hints::push(painter.ctx(), crate::render::hints::Hint::Bar(bar_rect));
 
         // Value label above bar (only show when animation is near-complete)
         if anim > VIZ_LABEL_REVEAL_THRESHOLD {
@@ -331,7 +340,10 @@ fn draw_vertical(
     }
 
     // Axis labels
-    let axis_label_font = FontId::proportional(theme.body_size * VIZ_FONT_AXIS_LABEL * scale);
+    let axis_label_font = FontId::new(
+        theme.body_size * VIZ_FONT_AXIS_LABEL * scale,
+        theme.body_family(),
+    );
     let axis_label_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
     if let Some(text) = x_label {
         draw_x_axis_label(
@@ -389,13 +401,16 @@ fn draw_horizontal(
     // All labels share one font size.
     let max_label_w = max_width * 0.33;
     let label_texts: Vec<&str> = entries.iter().map(|e| e.label.as_str()).collect();
-    let label_font = FontId::proportional(fit_font_size(
-        painter,
-        &label_texts,
-        &FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale),
-        max_label_w,
-        min_font,
-    ));
+    let label_font = FontId::new(
+        fit_font_size(
+            painter,
+            &label_texts,
+            &FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale),
+            max_label_w,
+            min_font,
+        ),
+        theme.body_family(),
+    );
     let label_galleys: Vec<_> = entries
         .iter()
         .map(|e| {
@@ -435,7 +450,10 @@ fn draw_horizontal(
     let bar_gap = 10.0 * scale;
     let total_gaps = (n + 1) as f32 * bar_gap;
     let bar_height = ((chart_height - total_gaps) / n as f32).max(8.0 * scale);
-    let value_font = FontId::proportional(theme.body_size * VIZ_FONT_VALUE_LABEL * scale);
+    let value_font = FontId::new(
+        theme.body_size * VIZ_FONT_VALUE_LABEL * scale,
+        theme.body_family(),
+    );
 
     for (i, entry) in entries.iter().enumerate() {
         let step = steps.get(i).copied().unwrap_or(0);
@@ -448,7 +466,7 @@ fn draw_horizontal(
             needs_repaint = true;
         }
 
-        let color = Theme::with_opacity(palette[i % palette.len()], opacity * VIZ_OPACITY_FILL);
+        let color = Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity());
         // Negative values are clamped to the axis so nothing draws left of it
         let full_bar_w = (entry.value.max(0.0) / max_value) * chart_width;
         let bar_w = full_bar_w * anim;
@@ -458,6 +476,7 @@ fn draw_horizontal(
         let bar_rect =
             egui::Rect::from_min_size(Pos2::new(chart_left, by), egui::vec2(bar_w, bar_height));
         painter.rect_filled(bar_rect, VIZ_CORNER_BAR * scale, color);
+        crate::render::hints::push(painter.ctx(), crate::render::hints::Hint::Bar(bar_rect));
 
         // Category label on the left
         let galley = label_galleys[i].clone();
@@ -477,7 +496,10 @@ fn draw_horizontal(
     }
 
     // Axis labels
-    let axis_label_font = FontId::proportional(theme.body_size * VIZ_FONT_AXIS_LABEL * scale);
+    let axis_label_font = FontId::new(
+        theme.body_size * VIZ_FONT_AXIS_LABEL * scale,
+        theme.body_family(),
+    );
     let axis_label_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
     if let Some(text) = x_label {
         draw_x_axis_label(

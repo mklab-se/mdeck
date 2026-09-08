@@ -40,6 +40,14 @@ pub async fn run(cmd: Option<AiCommands>, quiet: bool) -> Result<()> {
             crate::commands::generate::run(file, force, style, quiet).await
         }
         Some(AiCommands::Create(args)) => crate::commands::create::run(args, quiet).await,
+        Some(AiCommands::Story {
+            file,
+            slide,
+            range,
+            stale,
+            force,
+            dry_run,
+        }) => crate::commands::story::run(file, slide, range, stale, force, dry_run, quiet).await,
         Some(AiCommands::Status) => config_tui::print_ai_status(APP_NAME, &["chat", "image"]),
         Some(AiCommands::Skill { emit, reference }) => {
             crate::commands::skill::run(emit, reference);

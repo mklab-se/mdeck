@@ -262,6 +262,7 @@ fn spiral_place(
 /// Returns the placed WordLayout or None if it truly can't fit.
 fn try_place_word(
     ui: &egui::Ui,
+    theme: &Theme,
     ctx: &PlaceCtx,
     entry: &WordEntry,
     base_fs: f32,
@@ -276,7 +277,7 @@ fn try_place_word(
             if try_fs < (WORD_CLOUD_MIN_FONT * ctx.scale).min(base_fs) {
                 break; // don't go below the readable floor; drop the word instead
             }
-            let font_id = FontId::proportional(try_fs);
+            let font_id = FontId::new(try_fs, theme.body_family());
             let galley = ui
                 .painter()
                 .layout_no_wrap(entry.text.clone(), font_id, Color32::WHITE);
@@ -312,6 +313,7 @@ fn try_place_word(
 /// Some words are rotated 90° CCW for a classic word cloud look.
 fn compute_layout(
     ui: &egui::Ui,
+    theme: &Theme,
     entries: &[WordEntry],
     area_width: f32,
     area_height: f32,
@@ -362,7 +364,7 @@ fn compute_layout(
         let fs = font_sizes[orig_idx];
         let prefer_rotated = should_rotate(&entry.text, orig_idx, rank, total);
 
-        if let Some(layout) = try_place_word(ui, &ctx, entry, fs, prefer_rotated, &placed) {
+        if let Some(layout) = try_place_word(ui, theme, &ctx, entry, fs, prefer_rotated, &placed) {
             placed.push(layout.clone());
             result[orig_idx] = layout;
         }
@@ -443,13 +445,18 @@ pub fn draw_word_cloud(
     };
 
     // Get or compute layout
-    let key = cache_key(content, max_width as u32, height as u32);
+    // the layout depends on the face, so the theme is part of the key
+    let key = cache_key(
+        &format!("{}\u{0}{}", theme.name, content),
+        max_width as u32,
+        height as u32,
+    );
     let layouts = {
         let mut cache = layout_cache();
         if let Some(cached) = cache.get(&key) {
             cached.clone()
         } else {
-            let layout = compute_layout(ui, &entries, max_width, height, scale);
+            let layout = compute_layout(ui, theme, &entries, max_width, height, scale);
             if cache.len() >= LAYOUT_CACHE_CAP {
                 cache.clear();
             }
@@ -478,7 +485,7 @@ pub fn draw_word_cloud(
             }
             let color_idx = i % palette.len();
             let color = Theme::with_opacity(palette[color_idx], opacity);
-            let font_id = FontId::proportional(wl.font_size);
+            let font_id = FontId::new(wl.font_size, theme.body_family());
 
             let galley = painter.layout_no_wrap(entry.text.clone(), font_id, color);
 

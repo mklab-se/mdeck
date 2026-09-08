@@ -1,4 +1,5 @@
 mod drawing;
+pub(crate) mod ember;
 mod helpers;
 mod input;
 pub mod keys;
@@ -24,6 +25,7 @@ use crate::incident_log::IncidentLog;
 use crate::parser::{self, Presentation};
 use crate::render;
 use crate::render::image_cache::ImageCache;
+use crate::render::story::sidecar::{self as story_sidecar, Resolved};
 use crate::render::transition::{ActiveTransition, TransitionDirection, TransitionKind};
 use crate::theme::Theme;
 
@@ -32,6 +34,16 @@ const DRAW_FADE_DURATION: f32 = 8.0;
 const DRAG_THRESHOLD: f32 = 5.0;
 /// Window for double-tap quit gestures (Esc, Q, Ctrl+C).
 const DOUBLE_TAP_WINDOW: Duration = Duration::from_secs(1);
+/// Each countdown digit holds for this long.
+const COUNTDOWN_DIGIT: Duration = Duration::from_millis(1100);
+/// Time for the particles to gather into the first digit before its second
+/// starts counting (the clock starts on the first drawn frame).
+const COUNTDOWN_LEAD: Duration = Duration::from_millis(450);
+/// The 3 holds this much longer than the other digits: it is the one the
+/// audience has to find on a screen that was black a moment ago.
+const COUNTDOWN_FIRST_EXTRA: Duration = Duration::from_millis(600);
+/// Ember's final burst, after the "1".
+const COUNTDOWN_BURST: Duration = Duration::from_millis(1000);
 /// A reveal animation counts as "in flight" for this long after it started.
 const REVEAL_IN_FLIGHT_WINDOW: Duration = Duration::from_secs(3);
 /// How long to wait for the window to settle after a monitor move.
@@ -195,6 +207,64 @@ struct PresentationApp {
     incident_log: Arc<IncidentLog>,
     /// Timestamp of the previous frame, used to detect power-state time jumps.
     last_frame: Instant,
+    /// Ember theme: particle field and logo intro.
+    ember: ember::EmberState,
+    /// Resolved story per slide (inline `@scene`, sidecar, or none).
+    stories: Vec<Option<Resolved>>,
+    /// Bumped whenever `stories` changes so cached scenes rebuild.
+    story_version: u64,
+    /// Background `S` generation in flight: receives (slide, result).
+    story_rx: Option<mpsc::Receiver<(usize, Result<(), String>)>>,
+    /// Opening countdown, while it runs.
+    countdown: Option<Countdown>,
+}
+
+/// The 3-2-1 opener. Ember forms the digits out of particles and bursts;
+/// Nord shows plain numerals. Any key or click cancels it.
+struct Countdown {
+    /// Set on the first frame that draws it, not when the app is created:
+    /// shader compilation and font atlas building would eat the first digit.
+    start: Option<Instant>,
+    burst: bool,
+}
+
+/// What the countdown is showing right now.
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum CountdownPhase {
+    /// A digit and how far through its second we are (0..1).
+    Digit(u8, f32),
+    /// The burst and its progress (0..1).
+    Burst(f32),
+    Done,
+}
+
+impl Countdown {
+    fn phase(&self, now: Instant) -> CountdownPhase {
+        let Some(start) = self.start else {
+            return CountdownPhase::Digit(3, 0.0);
+        };
+        let t = now.saturating_duration_since(start).as_secs_f32() - COUNTDOWN_LEAD.as_secs_f32();
+        if t < 0.0 {
+            return CountdownPhase::Digit(3, 0.0);
+        }
+        let d = COUNTDOWN_DIGIT.as_secs_f32();
+        let first = d + COUNTDOWN_FIRST_EXTRA.as_secs_f32();
+        if t < first {
+            return CountdownPhase::Digit(3, t / first);
+        }
+        let t2 = t - first;
+        if t2 < 2.0 * d {
+            let n = (t2 / d).floor();
+            return CountdownPhase::Digit(2 - n as u8, (t2 - n * d) / d);
+        }
+        if self.burst {
+            let b = (t2 - 2.0 * d) / COUNTDOWN_BURST.as_secs_f32();
+            if b < 1.0 {
+                return CountdownPhase::Burst(b);
+            }
+        }
+        CountdownPhase::Done
+    }
 }
 
 struct Toast {
@@ -261,11 +331,8 @@ impl PresentationApp {
             .to_path_buf();
         let image_cache = ImageCache::new(base_path);
 
-        let max_steps: Vec<usize> = presentation
-            .slides
-            .iter()
-            .map(|s| parser::compute_max_steps(&s.blocks))
-            .collect();
+        let stories = load_stories(&file, &presentation, quiet);
+        let max_steps: Vec<usize> = slide_max_steps(&presentation, &stories, theme.is_ember());
         let slide_count = presentation.slides.len();
         let reveal_steps = vec![0; slide_count];
         let reveal_timestamps = vec![None; slide_count];
@@ -323,6 +390,140 @@ impl PresentationApp {
             shared_slide: None,
             incident_log,
             last_frame: now,
+            ember: ember::EmberState::new(),
+            stories,
+            story_version: 0,
+            story_rx: None,
+            countdown: None,
+        }
+    }
+
+    /// Start the opening countdown if the theme has one and the deck did not
+    /// turn it off (`@countdown: false`).
+    fn start_countdown(&mut self) {
+        if self.presentation.meta.countdown == Some(false) {
+            return;
+        }
+        let burst = match self.theme.name.as_str() {
+            "ember" => true,
+            "nord" => false,
+            _ => return,
+        };
+        self.countdown = Some(Countdown { start: None, burst });
+    }
+
+    fn countdown_running(&self) -> bool {
+        self.countdown.is_some()
+    }
+
+    /// Draw Nord's plain numeral for the current countdown phase.
+    fn draw_countdown_numeral(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
+        let Some(cd) = &self.countdown else {
+            return;
+        };
+        let CountdownPhase::Digit(d, p) = cd.phase(Instant::now()) else {
+            return;
+        };
+        // fade in over the first quarter, out over the last quarter, settle in size
+        let fade_in = (p / 0.25).clamp(0.0, 1.0);
+        let fade_out = ((1.0 - p) / 0.25).clamp(0.0, 1.0);
+        let alpha = fade_in.min(fade_out);
+        let size =
+            420.0 * scale * (1.06 - 0.06 * render::transition::ease_in_out(p.min(0.5) * 2.0));
+        let color = Theme::with_opacity(self.theme.heading_color, alpha);
+        let galley = ui.painter().layout_no_wrap(
+            d.to_string(),
+            egui::FontId::new(size, self.theme.display_family()),
+            color,
+        );
+        let pos = egui::pos2(
+            rect.center().x - galley.rect.width() / 2.0,
+            rect.center().y - galley.rect.height() / 2.0,
+        );
+        ui.painter().galley(pos, galley, color);
+    }
+
+    /// The story playing on slide `index`, if any.
+    fn story(&self, index: usize) -> Option<&crate::render::story::Script> {
+        self.stories
+            .get(index)
+            .and_then(|r| r.as_ref())
+            .map(|r| &r.script)
+    }
+
+    /// Re-read the sidecar and rebuild per-slide stories and step counts.
+    fn reload_stories(&mut self) {
+        self.stories = load_stories(&self.file_path, &self.presentation, true);
+        self.max_steps = slide_max_steps(&self.presentation, &self.stories, self.theme.is_ember());
+        for (i, r) in self.reveal_steps.iter_mut().enumerate() {
+            *r = (*r).min(self.max_steps[i]);
+        }
+        self.story_version += 1;
+    }
+
+    /// `S`: write a story for the current slide with AI, in the background.
+    fn generate_story(&mut self) {
+        if !self.theme.is_ember() {
+            self.toast = Some(Toast::new("Stories need the ember theme (Shift+T)".into()));
+            return;
+        }
+        if self.story_rx.is_some() {
+            self.toast = Some(Toast::new("A story is already being written…".into()));
+            return;
+        }
+        if !crate::commands::ai::has_capability("chat") {
+            self.toast = Some(Toast::new(
+                "AI is not configured: run `mdeck ai enable`".into(),
+            ));
+            return;
+        }
+        let idx = self.current_slide;
+        if self
+            .stories
+            .get(idx)
+            .and_then(|r| r.as_ref())
+            .is_some_and(|r| r.source == story_sidecar::Source::Pinned)
+        {
+            self.toast = Some(Toast::new(
+                "This slide's story is pinned (hand-written)".into(),
+            ));
+            return;
+        }
+        let (tx, rx) = mpsc::channel();
+        self.story_rx = Some(rx);
+        let deck = self.file_path.clone();
+        std::thread::spawn(move || {
+            let result = crate::commands::story::generate_one_blocking(&deck, idx)
+                .map(|_| ())
+                .map_err(|e| e.to_string());
+            let _ = tx.send((idx, result));
+        });
+        self.toast = Some(Toast::new(format!(
+            "Writing a story for slide {}…",
+            idx + 1
+        )));
+    }
+
+    fn poll_story(&mut self) {
+        let Some(rx) = &self.story_rx else {
+            return;
+        };
+        match rx.try_recv() {
+            Ok((idx, Ok(()))) => {
+                self.story_rx = None;
+                self.reload_stories();
+                self.toast = Some(Toast::new(format!("Story ready for slide {}", idx + 1)));
+            }
+            Ok((idx, Err(e))) => {
+                self.story_rx = None;
+                self.incident_log
+                    .record("story_error", &format!("slide {}", idx + 1), &e);
+                self.toast = Some(Toast::new(format!("Story failed: {e}")));
+            }
+            Err(mpsc::TryRecvError::Empty) => {}
+            Err(mpsc::TryRecvError::Disconnected) => {
+                self.story_rx = None;
+            }
         }
     }
 
@@ -557,6 +758,12 @@ impl PresentationApp {
 
     fn toggle_theme(&mut self) {
         self.theme = self.theme.next();
+        // Story beats are an Ember feature: other themes step through the
+        // content's own reveals only.
+        self.max_steps = slide_max_steps(&self.presentation, &self.stories, self.theme.is_ember());
+        for (i, r) in self.reveal_steps.iter_mut().enumerate() {
+            *r = (*r).min(self.max_steps[i]);
+        }
         self.toast = Some(Toast::new(format!("Theme: {}", self.theme.name)));
     }
 
@@ -637,11 +844,9 @@ impl PresentationApp {
 
         // Recompute per-slide vectors, keeping the current slide's reveal
         // progress (clamped to the new step count) and scroll position.
-        self.max_steps = new_presentation
-            .slides
-            .iter()
-            .map(|s| parser::compute_max_steps(&s.blocks))
-            .collect();
+        self.stories = load_stories(&self.file_path, &new_presentation, true);
+        self.story_version += 1;
+        self.max_steps = slide_max_steps(&new_presentation, &self.stories, self.theme.is_ember());
         self.reveal_steps = vec![0; slide_count];
         self.reveal_timestamps = vec![None; slide_count];
         self.scroll_offsets = vec![0.0; slide_count];
@@ -994,6 +1199,7 @@ impl PresentationApp {
                 }
             }
             Action::ToggleHud => self.show_hud = !self.show_hud,
+            Action::GenerateStory => self.generate_story(),
             Action::CycleRawOverlay => {
                 self.raw_overlay_side = match self.raw_overlay_side {
                     RawOverlaySide::Off => RawOverlaySide::Left,
@@ -1067,6 +1273,8 @@ impl eframe::App for PresentationApp {
             shared.store(self.current_slide, Ordering::Relaxed);
         }
 
+        self.poll_story();
+
         // Check for file changes
         if self.watcher_rx.try_recv().is_ok() {
             // Drain any extra queued events
@@ -1120,6 +1328,22 @@ impl eframe::App for PresentationApp {
         if self.monitor_move.is_some() {
             ctx.request_repaint_after(Duration::from_millis(100));
         }
+
+        // The opening countdown ends on its own, or on any key or click.
+        if let Some(cd) = &mut self.countdown {
+            cd.start.get_or_insert_with(Instant::now);
+            let clicked = ctx.input(|i| i.pointer.any_pressed());
+            if cd.phase(Instant::now()) == CountdownPhase::Done || !pressed.is_empty() || clicked {
+                self.countdown = None;
+            }
+            ctx.request_repaint();
+        }
+        // keys pressed during the countdown only cancel it
+        let pressed = if self.countdown_running() {
+            Vec::new()
+        } else {
+            pressed
+        };
 
         for (key, modifiers) in pressed {
             let Some(action) = map_key(key, modifiers, key_mode) else {
@@ -1182,6 +1406,53 @@ impl eframe::App for PresentationApp {
                 }
 
                 let scale = Self::compute_scale(rect);
+
+                // Ember: the living particle field goes under everything.
+                if self.theme.is_ember() && matches!(self.mode, AppMode::Presentation) {
+                    let target = self
+                        .transition
+                        .as_ref()
+                        .map(|t| t.to)
+                        .unwrap_or(self.current_slide);
+                    let end = self.on_end_slide;
+                    let slide = (!end).then(|| {
+                        &self.presentation.slides[target.min(self.presentation.slides.len() - 1)]
+                    });
+                    let reveal = self.reveal_steps.get(target).copied().unwrap_or(0);
+                    let story = self.story(target).cloned();
+                    let theme = self.theme.clone();
+                    let phase =
+                        self.countdown
+                            .as_ref()
+                            .and_then(|cd| match cd.phase(Instant::now()) {
+                                CountdownPhase::Digit(d, p) => {
+                                    Some((ember::CountPhase::Digit(d), p))
+                                }
+                                CountdownPhase::Burst(p) => Some((ember::CountPhase::Burst, p)),
+                                CountdownPhase::Done => None,
+                            });
+                    self.ember.frame(
+                        ui,
+                        rect,
+                        slide,
+                        story.as_ref(),
+                        self.story_version,
+                        target,
+                        reveal,
+                        end,
+                        phase,
+                        &theme,
+                        scale,
+                        1.0,
+                        false,
+                    );
+                }
+
+                // Nord's countdown: numerals on the bare background, no slide yet.
+                if self.countdown_running() && !self.theme.is_ember() {
+                    self.draw_countdown_numeral(ui, rect, scale);
+                    return;
+                }
 
                 // End slide: "The End" with logo attribution
                 if self.on_end_slide {
@@ -1283,6 +1554,57 @@ impl eframe::App for PresentationApp {
         #[cfg(not(target_os = "linux"))]
         ctx.request_repaint_after(std::time::Duration::from_secs(4));
     }
+}
+
+/// Load the story sidecar and resolve a story per slide, reporting problems
+/// on stderr unless quiet.
+fn load_stories(
+    file: &std::path::Path,
+    presentation: &Presentation,
+    quiet: bool,
+) -> Vec<Option<Resolved>> {
+    let sidecar = match story_sidecar::load(file) {
+        Ok(s) => s,
+        Err(e) => {
+            if !quiet {
+                eprintln!("Warning: story sidecar ignored: {e}");
+            }
+            None
+        }
+    };
+    let (stories, problems) = story_sidecar::resolve(presentation, sidecar.as_ref());
+    if !quiet {
+        for p in problems {
+            eprintln!("Warning: {p}");
+        }
+    }
+    stories
+}
+
+/// Reveal steps per slide: the content's own steps, extended by story beats
+/// when the Ember theme is showing them.
+fn slide_max_steps(
+    presentation: &Presentation,
+    stories: &[Option<Resolved>],
+    ember: bool,
+) -> Vec<usize> {
+    presentation
+        .slides
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            let content = parser::compute_max_steps(&s.blocks);
+            if !ember {
+                return content;
+            }
+            let beats = stories
+                .get(i)
+                .and_then(|r| r.as_ref())
+                .map(|r| r.script.extra_steps())
+                .unwrap_or(0);
+            content.max(beats)
+        })
+        .collect()
 }
 
 /// Resolve the initial slide (0-indexed) and overview flag from CLI flags and
@@ -1410,6 +1732,7 @@ pub fn run(
         &title,
         options,
         Box::new(move |cc| {
+            render::fonts::install(&cc.egui_ctx);
             let content_hash = hash_content(&content);
             let (watcher_rx, watcher) =
                 spawn_file_watcher(&file_clone, cc.egui_ctx.clone(), log_clone.clone())?;
@@ -1429,6 +1752,10 @@ pub fn run(
                 app.mode = AppMode::Grid {
                     selected: initial_slide,
                 };
+            } else if initial_slide == 0 {
+                // Starting on a chosen slide (an agent checking its work, a
+                // presenter resuming) skips the opener.
+                app.start_countdown();
             }
             app.spawn_diagram_precache();
             Ok(Box::new(app))
@@ -1456,6 +1783,64 @@ pub fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn countdown_phases_run_three_two_one_then_burst_then_done() {
+        let start = Instant::now();
+        let lead = COUNTDOWN_LEAD.as_secs_f32();
+        let d = COUNTDOWN_DIGIT.as_secs_f32();
+        let three = d + COUNTDOWN_FIRST_EXTRA.as_secs_f32();
+        let cd = Countdown {
+            start: Some(start),
+            burst: true,
+        };
+        let at = |secs: f32| start + Duration::from_secs_f32(lead + secs);
+        // before the clock has started, and during the lead, the 3 is forming
+        let unstarted = Countdown {
+            start: None,
+            burst: true,
+        };
+        assert_eq!(unstarted.phase(start), CountdownPhase::Digit(3, 0.0));
+        assert_eq!(cd.phase(start), CountdownPhase::Digit(3, 0.0));
+        assert!(matches!(cd.phase(at(0.1)), CountdownPhase::Digit(3, _)));
+        // the 3 holds longer than a plain digit
+        assert!(matches!(cd.phase(at(d + 0.2)), CountdownPhase::Digit(3, _)));
+        assert!(matches!(
+            cd.phase(at(three + d * 0.5)),
+            CountdownPhase::Digit(2, _)
+        ));
+        assert!(matches!(
+            cd.phase(at(three + d * 1.9)),
+            CountdownPhase::Digit(1, _)
+        ));
+        assert!(matches!(
+            cd.phase(at(three + d * 2.0 + 0.3)),
+            CountdownPhase::Burst(_)
+        ));
+        assert_eq!(cd.phase(at(three + d * 2.0 + 1.2)), CountdownPhase::Done);
+        let plain = Countdown {
+            start: Some(start),
+            burst: false,
+        };
+        assert_eq!(plain.phase(at(three + d * 2.0 + 0.1)), CountdownPhase::Done);
+    }
+
+    #[test]
+    fn story_beats_extend_steps_only_in_ember() {
+        let md = "# A\n\n- one\n+ two\n";
+        let pres = crate::parser::parse(md, std::path::Path::new("."));
+        let script = crate::render::story::Script::parse(
+            "cast:\n  - { id: a, kind: person, cell: left }\nbeats: [{}, {}, {}, {}]\n",
+        )
+        .unwrap();
+        let stories = vec![Some(Resolved {
+            script,
+            source: story_sidecar::Source::Sidecar,
+        })];
+        // one `+` reveal on the slide; the story has four beats (three extra steps)
+        assert_eq!(slide_max_steps(&pres, &stories, false), vec![1]);
+        assert_eq!(slide_max_steps(&pres, &stories, true), vec![3]);
+    }
     use crate::parser::{Layout, Slide};
 
     fn slide(raw: &str) -> Slide {
@@ -1465,6 +1850,8 @@ mod tests {
             layout: Layout::Content,
             raw_source: raw.to_string(),
             notes: None,
+            story_hint: None,
+            scene_script: None,
         }
     }
 

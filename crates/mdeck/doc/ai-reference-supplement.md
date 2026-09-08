@@ -24,6 +24,8 @@ mdeck completion <shell>       # Shell completions (bash, zsh, fish, powershell)
 mdeck export <file.md>                          # Export slides as PNG (1920x1080)
 mdeck export <file.md> --width 3840 --height 2160  # Export at custom resolution
 mdeck export <file.md> --output-dir ./slides    # Export to specific directory
+mdeck export <file.md> --slide 7 --debug        # One slide, every reveal step (fast way to check a slide)
+mdeck export <file.md> --range 3-5              # A range of slides
 ```
 
 ### Configuration
@@ -34,7 +36,10 @@ mdeck config set <key> <value> # Set a config value
 ```
 
 Available config keys:
-- `defaults.theme` — default theme (`light`, `dark`, `nord`)
+- `defaults.theme` — default theme (`light`, `dark`, `nord`, `ember`)
+- `mdeck ai story <deck.md> [--slide N | --range A-B] [--stale] [--force]` — write Ember story
+  scripts (cast, flows, beats) into `<deck>.scenes.yaml`; ```` ```@story ```` fences are the
+  author's hints, ```` ```@scene ```` fences are hand-written scripts and are left alone
 - `defaults.transition` — default transition (`fade`, `slide`, `spatial`, `none`)
 - `defaults.start_mode` — `first`, `overview`, or a slide number
 - `defaults.image_style` / `defaults.icon_style` — default AI image / icon style names

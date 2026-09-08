@@ -624,7 +624,7 @@ pub(super) fn draw_routed_edge(
         let label_pad_v = 5.0 * scale;
         let galley = painter.layout_no_wrap(
             label.to_string(),
-            FontId::proportional(label_font_size),
+            FontId::new(label_font_size, theme.body_family()),
             label_text_color,
         );
         let label_w = galley.rect.width() + label_pad_h * 2.0;

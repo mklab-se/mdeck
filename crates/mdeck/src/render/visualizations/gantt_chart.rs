@@ -524,7 +524,10 @@ pub fn draw_gantt_chart(
 
     // Title
     if let Some(ref title_text) = data.title {
-        let title_font = FontId::proportional(theme.body_size * VIZ_FONT_TITLE * scale);
+        let title_font = FontId::new(
+            theme.body_size * VIZ_FONT_TITLE * scale,
+            theme.body_family(),
+        );
         let title_color = Theme::with_opacity(theme.foreground, opacity * 0.9);
         let galley = painter.layout_no_wrap(title_text.clone(), title_font, title_color);
         let tx = pos.x + (max_width - galley.rect.width()) / 2.0;
@@ -533,7 +536,10 @@ pub fn draw_gantt_chart(
 
     // Grid lines and date labels (labels are thinned out when they would overlap)
     let grid_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
-    let label_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
+    let label_font = FontId::new(
+        theme.body_size * VIZ_FONT_GRID_LABEL * scale,
+        theme.body_family(),
+    );
     let label_color = Theme::with_opacity(theme.foreground, opacity * 0.45);
 
     let date_galleys: Vec<_> = time_grid
@@ -609,8 +615,14 @@ pub fn draw_gantt_chart(
     let bar_height = (row_height * 0.6).min(40.0 * scale).max(12.0 * scale);
     let bar_corner = VIZ_CORNER_BAR * scale;
 
-    let task_name_font = FontId::proportional(theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale);
-    let bar_label_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
+    let task_name_font = FontId::new(
+        theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale,
+        theme.body_family(),
+    );
+    let bar_label_font = FontId::new(
+        theme.body_size * VIZ_FONT_GRID_LABEL * scale,
+        theme.body_family(),
+    );
 
     // Center tasks vertically if they don't fill the chart
     let total_task_height = total_tasks as f32 * row_height;
@@ -670,6 +682,7 @@ pub fn draw_gantt_chart(
         let bar_rect =
             egui::Rect::from_min_size(Pos2::new(bar_x, bar_y), egui::vec2(bar_w, bar_height));
         painter.rect_filled(bar_rect, bar_corner, bar_color);
+        crate::render::hints::push(ui.ctx(), crate::render::hints::Hint::Bar(bar_rect));
 
         // Subtle border for definition
         let border_color = Theme::with_opacity(palette[color_idx], opacity * 0.3 * anim);

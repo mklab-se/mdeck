@@ -3,10 +3,12 @@ use std::sync::{Arc, Mutex};
 
 use eframe::egui;
 
+use crate::app::ember::EmberState;
 use crate::commands::util::slide_number_width;
 use crate::parser::{self, Presentation};
 use crate::render;
 use crate::render::image_cache::ImageCache;
+use crate::render::story::{self, sidecar::Resolved};
 use crate::theme::Theme;
 
 /// Frames to let the viewport settle (pixels-per-point change, fonts) before
@@ -116,31 +118,71 @@ struct ExportApp {
     screenshot_requested: bool,
     warmup_frames: u32,
     max_steps: Vec<usize>,
+    /// Slide indices to export, in order (the whole deck by default).
+    targets: Vec<usize>,
+    /// Position in `targets`.
+    target_pos: usize,
     debug: bool,
     done: bool,
     /// First save error, shared with `run()` so the exit code reflects it.
     error: Arc<Mutex<Option<String>>>,
+    /// Ember's particle field, settled per slide so exports are still frames.
+    ember: EmberState,
+    /// Frames rendered for the current slide/step; content hints arrive one
+    /// frame late, so the screenshot waits for the second frame.
+    frames_on_slide: u32,
+    /// Story per slide (sidecar), for the Ember theme.
+    stories: Vec<Option<Resolved>>,
 }
 
 impl ExportApp {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         presentation: Presentation,
+        deck: &Path,
         base_path: &Path,
         output_dir: PathBuf,
         width: u32,
         height: u32,
         debug: bool,
+        targets: Vec<usize>,
         error: Arc<Mutex<Option<String>>>,
     ) -> Self {
         let theme_name = presentation.meta.theme.as_deref().unwrap_or("light");
         let theme = Theme::from_name(theme_name);
         let image_cache = ImageCache::new(base_path.to_path_buf());
+        let stories = match story::sidecar::load(deck) {
+            Ok(sc) => story::sidecar::resolve(&presentation, sc.as_ref()).0,
+            Err(e) => {
+                eprintln!("Warning: story sidecar ignored: {e}");
+                story::sidecar::resolve(&presentation, None).0
+            }
+        };
         let max_steps: Vec<usize> = presentation
             .slides
             .iter()
-            .map(|s| parser::compute_max_steps(&s.blocks))
+            .enumerate()
+            .map(|(i, s)| {
+                let beats = if theme.is_ember() {
+                    stories
+                        .get(i)
+                        .and_then(|r| r.as_ref())
+                        .map(|r| r.script.extra_steps())
+                        .unwrap_or(0)
+                } else {
+                    0
+                };
+                parser::compute_max_steps(&s.blocks).max(beats)
+            })
             .collect();
 
+        if debug {
+            let total: usize = targets
+                .iter()
+                .map(|&i| max_steps.get(i).copied().unwrap_or(0) + 1)
+                .sum();
+            eprintln!("  {total} reveal steps in total (story beats included)");
+        }
         Self {
             presentation,
             theme,
@@ -149,7 +191,9 @@ impl ExportApp {
             width,
             height,
             canvas: TileCanvas::new(width, height),
-            current_slide: 0,
+            current_slide: targets.first().copied().unwrap_or(0),
+            targets,
+            target_pos: 0,
             current_step: 0,
             tile: (0, 0),
             pending_tile_origin: (0, 0),
@@ -159,6 +203,9 @@ impl ExportApp {
             debug,
             done: false,
             error,
+            ember: EmberState::new(),
+            frames_on_slide: 0,
+            stories,
         }
     }
 
@@ -176,20 +223,24 @@ impl ExportApp {
         )
     }
 
-    /// Advance to the next reveal step or slide. Returns false when finished.
+    /// Advance to the next reveal step or target slide. Returns false when finished.
     fn advance(&mut self) -> bool {
         if self.debug {
             let max = self.max_steps.get(self.current_slide).copied().unwrap_or(0);
             if self.current_step < max {
                 self.current_step += 1;
-            } else {
-                self.current_step = 0;
-                self.current_slide += 1;
+                return true;
             }
-        } else {
-            self.current_slide += 1;
+            self.current_step = 0;
         }
-        self.current_slide < self.slide_count()
+        self.target_pos += 1;
+        match self.targets.get(self.target_pos) {
+            Some(&idx) => {
+                self.current_slide = idx;
+                true
+            }
+            None => false,
+        }
     }
 }
 
@@ -254,6 +305,7 @@ impl eframe::App for ExportApp {
                 eprintln!("  Saved {filename}");
                 self.canvas.clear();
                 self.tile = (0, 0);
+                self.frames_on_slide = 0;
 
                 if !self.advance() {
                     self.done = true;
@@ -287,6 +339,40 @@ impl eframe::App for ExportApp {
                     } else {
                         self.max_steps.get(idx).copied().unwrap_or(0)
                     };
+                    if self.theme.is_ember() {
+                        let slide = &self.presentation.slides[idx];
+                        let story = self
+                            .stories
+                            .get(idx)
+                            .and_then(|r| r.as_ref())
+                            .map(|r| r.script.clone());
+                        let theme = self.theme.clone();
+                        self.ember.frame(
+                            ui,
+                            rect,
+                            Some(slide),
+                            story.as_ref(),
+                            0,
+                            idx,
+                            reveal,
+                            false,
+                            None,
+                            &theme,
+                            scale,
+                            1.0,
+                            true,
+                        );
+                    }
+                    let cx = render::SlideContext {
+                        index: idx,
+                        count: self.presentation.slides.len(),
+                        deck_title: self.presentation.meta.title.clone(),
+                        author: self.presentation.meta.author.clone(),
+                        hold_copy: false,
+                        animate: false,
+                        beats: None,
+                        say: None,
+                    };
                     render::render_slide(
                         ui,
                         &self.presentation.slides[idx],
@@ -297,13 +383,17 @@ impl eframe::App for ExportApp {
                         reveal,
                         None, // no animation in export
                         scale,
+                        &cx,
                     );
                 }
             });
 
         // Request screenshot after rendering (will arrive next frame), but not
-        // while images are still decoding in the background.
-        if !self.screenshot_requested && !self.image_cache.is_loading() {
+        // while images are still decoding in the background, and for Ember
+        // only once the field has seen the slide's geometry (second frame).
+        self.frames_on_slide += 1;
+        let settled = !self.theme.is_ember() || self.frames_on_slide >= 2;
+        if !self.screenshot_requested && !self.image_cache.is_loading() && settled {
             ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
             self.screenshot_requested = true;
         }
@@ -312,12 +402,44 @@ impl eframe::App for ExportApp {
     }
 }
 
+/// Which slides (0-based) `--slide` / `--range` select out of `count`.
+pub fn select_slides(
+    slide: Option<usize>,
+    range: Option<&str>,
+    count: usize,
+) -> anyhow::Result<Vec<usize>> {
+    if let Some(n) = slide {
+        if n == 0 || n > count {
+            anyhow::bail!("slide {n} is outside 1-{count}");
+        }
+        return Ok(vec![n - 1]);
+    }
+    if let Some(r) = range {
+        let (a, b) = r
+            .split_once('-')
+            .ok_or_else(|| anyhow::anyhow!("range must look like 3-7"))?;
+        let a: usize = a
+            .trim()
+            .parse()
+            .map_err(|_| anyhow::anyhow!("range start"))?;
+        let b: usize = b.trim().parse().map_err(|_| anyhow::anyhow!("range end"))?;
+        if a == 0 || b < a || b > count {
+            anyhow::bail!("range {r} is outside 1-{count}");
+        }
+        return Ok((a - 1..b).collect());
+    }
+    Ok((0..count).collect())
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     file: PathBuf,
     output_dir: PathBuf,
     width: u32,
     height: u32,
     debug: bool,
+    slide: Option<usize>,
+    range: Option<String>,
 ) -> anyhow::Result<()> {
     if width == 0 || height == 0 {
         anyhow::bail!("Export width and height must be greater than zero");
@@ -336,30 +458,27 @@ pub fn run(
 
     std::fs::create_dir_all(&output_dir)?;
 
-    let slide_count = presentation.slides.len();
-    if debug {
-        let total_steps: usize = presentation
-            .slides
-            .iter()
-            .map(|s| parser::compute_max_steps(&s.blocks) + 1)
-            .sum();
-        eprintln!(
-            "Debug export: {} slides, {} total steps to {} ({}x{})",
-            slide_count,
-            total_steps,
-            output_dir.display(),
-            width,
-            height,
-        );
+    let targets = select_slides(slide, range.as_deref(), presentation.slides.len())?;
+    let slide_count = targets.len();
+    let which = if slide_count == presentation.slides.len() {
+        format!("{slide_count} slides")
     } else {
-        eprintln!(
-            "Exporting {} slides to {} ({}x{})",
-            slide_count,
-            output_dir.display(),
-            width,
-            height,
-        );
-    }
+        let span = if slide_count > 1 {
+            format!("-{}", targets[slide_count - 1] + 1)
+        } else {
+            String::new()
+        };
+        format!(
+            "{slide_count} of {} slides ({}{span})",
+            presentation.slides.len(),
+            targets[0] + 1
+        )
+    };
+    eprintln!(
+        "{} {which} to {} ({width}x{height})",
+        if debug { "Debug export:" } else { "Exporting" },
+        output_dir.display(),
+    );
 
     let title = presentation
         .meta
@@ -383,14 +502,17 @@ pub fn run(
     eframe::run_native(
         &title,
         options,
-        Box::new(move |_cc| {
+        Box::new(move |cc| {
+            render::fonts::install(&cc.egui_ctx);
             Ok(Box::new(ExportApp::new(
                 presentation,
+                &file,
                 &base_path,
                 output_dir_clone,
                 width,
                 height,
                 debug,
+                targets,
                 error_clone,
             )))
         }),
@@ -413,6 +535,17 @@ mod tests {
 
     fn solid_image(w: usize, h: usize, c: egui::Color32) -> egui::ColorImage {
         egui::ColorImage::new([w, h], vec![c; w * h])
+    }
+
+    #[test]
+    fn slide_and_range_select_zero_based_indices() {
+        assert_eq!(select_slides(None, None, 4).unwrap(), vec![0, 1, 2, 3]);
+        assert_eq!(select_slides(Some(3), None, 4).unwrap(), vec![2]);
+        assert_eq!(select_slides(None, Some("2-3"), 4).unwrap(), vec![1, 2]);
+        assert!(select_slides(Some(0), None, 4).is_err());
+        assert!(select_slides(Some(5), None, 4).is_err());
+        assert!(select_slides(None, Some("3-2"), 4).is_err());
+        assert!(select_slides(None, Some("x"), 4).is_err());
     }
 
     #[test]

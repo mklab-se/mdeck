@@ -215,7 +215,10 @@ pub fn draw_org_chart(
 
     let palette = theme.edge_palette();
     let painter = ui.painter();
-    let label_font = FontId::proportional(theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale);
+    let label_font = FontId::new(
+        theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale,
+        theme.body_family(),
+    );
 
     let padding = 40.0 * scale;
     let layout = build_layout(
@@ -319,6 +322,7 @@ pub fn draw_org_chart(
 
         let rect = egui::Rect::from_center_size(Pos2::new(nx, ny), egui::vec2(node_w, node_h));
         painter.rect_filled(rect, corner_radius, bg_color);
+        crate::render::hints::push(ui.ctx(), crate::render::hints::Hint::Frame(rect));
         painter.rect_stroke(
             rect,
             corner_radius,

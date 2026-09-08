@@ -29,6 +29,7 @@ pub const SHORTCUTS: &[(&str, &str)] = &[
     ("F", "Toggle fullscreen"),
     ("M", "Move to next monitor"),
     ("H", "Toggle HUD"),
+    ("S", "Ember: write story for slide (AI)"),
     (". / B", "Blackout screen"),
     ("R", "Debug overlay (L/R/off)"),
 ];
@@ -64,6 +65,7 @@ pub enum Action {
     EnterGrid,
     ToggleHud,
     CycleRawOverlay,
+    GenerateStory,
     // Grid mode
     GridRight,
     GridLeft,
@@ -119,6 +121,7 @@ pub fn map_key(key: Key, modifiers: Modifiers, mode: KeyMode) -> Option<Action> 
             Key::End => Some(Action::LastSlide),
             Key::G => Some(Action::EnterGrid),
             Key::H => Some(Action::ToggleHud),
+            Key::S => Some(Action::GenerateStory),
             Key::R => Some(Action::CycleRawOverlay),
             _ => None,
         },

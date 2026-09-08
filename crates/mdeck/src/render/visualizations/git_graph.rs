@@ -391,8 +391,14 @@ pub fn draw_gitgraph(
         }
     }
 
-    let label_font = FontId::proportional(theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale);
-    let msg_font = FontId::proportional(theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale);
+    let label_font = FontId::new(
+        theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale,
+        theme.body_family(),
+    );
+    let msg_font = FontId::new(
+        theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale,
+        theme.body_family(),
+    );
 
     // ── 7. Draw events (S-curves, dots, labels) ─────────────────────────
     for (i, item) in items.iter().enumerate() {
@@ -584,8 +590,10 @@ pub fn draw_gitgraph(
                 let tag_color = lane_color(branch, opacity);
 
                 // Draw tag box above the commit
-                let tag_font =
-                    FontId::proportional(theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale);
+                let tag_font = FontId::new(
+                    theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale,
+                    theme.body_family(),
+                );
                 let text_color = Theme::with_opacity(theme.foreground, opacity);
                 let galley = painter.layout_no_wrap(label.clone(), tag_font, text_color);
                 let pad_h = 8.0 * scale;

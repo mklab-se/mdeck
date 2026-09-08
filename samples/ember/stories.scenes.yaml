@@ -1,0 +1,320 @@
+# Story scenes for the Ember theme, written by `mdeck ai story`.
+# Hand edits are fine; a slide's entry goes stale when the slide changes.
+version: 1
+slides:
+- slide: 2
+  title: 'Monday: the queue'
+  hash: 5713f24a2256a471
+  generated: 2026-09-08 21:42
+  scene:
+    cast:
+    - id: elin
+      kind: person
+      label: Elin
+      cell: left
+    - id: laptop
+      kind: laptop
+      label: Elin's laptop
+      cell: left-bottom
+      fill: outline
+    - id: inbox
+      kind: inbox
+      label: Support inbox
+      cell: center-top
+      fill: outline
+    - id: assistant
+      kind: orb
+      label: The assistant
+      cell: right
+      fill: brain
+    flows:
+    - from: inbox
+      to: assistant
+      color: white
+      at: 1
+    - from: assistant
+      to: laptop
+      color: candle
+      at: 2
+    beats:
+    - show:
+      - elin
+      - laptop
+      - inbox
+      say: On Monday, Elin faced the support queue as usual.
+    - show:
+      - assistant
+      say: She pointed an assistant at the inbox, and it read every ticket.
+    - say: Drafts flowed back to Elin's laptop for approval.
+    - hot:
+      - laptop
+      say: Elin approved the replies in batches of twenty.
+- slide: 3
+  title: 'Tuesday: the folder'
+  hash: 4af5f784695bdc34
+  generated: 2026-09-08 21:42
+  scene:
+    cast:
+    - id: jonas
+      kind: person
+      label: Jonas
+      cell: left
+    - id: laptop
+      kind: laptop
+      label: His laptop
+      cell: left-bottom
+    - id: folder
+      kind: folder
+      label: Interview folder
+      cell: center-top
+    - id: model
+      kind: orb
+      label: The assistant
+      cell: right
+      fill: brain
+    - id: wrong
+      kind: doc
+      label: Wrong theme
+      cell: center-bottom
+      fill: hot
+    flows:
+    - from: folder
+      to: model
+      color: white
+      at: 1
+    - from: model
+      to: laptop
+      color: candle
+      at: 2
+    beats:
+    - show:
+      - jonas
+      - laptop
+      - folder
+      say: Jonas dropped the interviews into the assistant and asked for the themes.
+    - show:
+      - model
+      say: Six themes appeared in eleven minutes, including two nobody had said out loud.
+    - hot:
+      - wrong
+      say: One theme was wrong—and it was the one Jonas liked most.
+- slide: 4
+  title: Wednesday
+  hash: 4e5f4bf9f27eb223
+  generated: 2026-09-08 21:42
+  scene:
+    cast:
+    - id: elin
+      kind: person
+      label: Elin
+      cell: left
+    - id: laptop
+      kind: laptop
+      label: Working laptop
+      cell: center-top
+      fill: outline
+    - id: draft
+      kind: doc
+      label: Wednesday draft
+      cell: right-top
+      fill: outline
+    - id: jonas
+      kind: person
+      label: Jonas
+      cell: right
+      fill: outline
+    flows:
+    - from: laptop
+      to: draft
+      color: white
+      at: 1
+    - from: draft
+      to: jonas
+      color: candle
+      at: 2
+    beats:
+    - show:
+      - elin
+      - laptop
+      - jonas
+      say: 'Wednesday looked ordinary: Elin worked through the morning, and Jonas waited for the draft.'
+    - show:
+      - draft
+      say: By midday, Elin had turned the work into something ready to share.
+    - hot:
+      - draft
+      say: Jonas took a careful look before anything moved on.
+- slide: 5
+  title: 'Wednesday: the gate'
+  hash: 4e9519f8d4a7d5ea
+  generated: 2026-09-08 21:42
+  scene:
+    cast:
+    - id: maja
+      kind: person
+      label: Maja, team lead
+      cell: left
+    - id: assistant
+      kind: orb
+      label: Review assistant
+      cell: center-top
+      fill: brain
+    - id: gate
+      kind: gate
+      label: Review gate
+      cell: center-bottom
+      fill: outline
+    - id: mail
+      kind: mail
+      label: Outgoing mail
+      cell: right
+      fill: outline
+    flows:
+    - from: assistant
+      to: gate
+      color: pale
+      at: 1
+    - from: gate
+      to: mail
+      color: white
+      at: 3
+    beats:
+    - show:
+      - maja
+      - assistant
+      - gate
+      say: Maja put a review gate between the assistant and anything leaving the building.
+    - hot:
+      - assistant
+      say: The assistant sends every draft to the gate.
+    - hot:
+      - gate
+      say: Maja reviews each message, while money and legal words are flagged automatically.
+    - show:
+      - mail
+      say: After review, calm messages leave; nothing slows down except the mistakes.
+- slide: 6
+  title: 'Thursday: the lesson'
+  hash: c6f338192b799ed2
+  generated: 2026-09-08 21:42
+  scene:
+    cast:
+    - id: maja
+      kind: person
+      label: Maja
+      cell: left
+    - id: laptop
+      kind: laptop
+      label: Work laptop
+      cell: center
+    - id: assistant
+      kind: orb
+      label: The assistant
+      cell: right
+      fill: brain
+    flows:
+    - from: laptop
+      to: assistant
+      color: white
+      at: 1
+    - from: assistant
+      to: maja
+      color: candle
+      at: 2
+    beats:
+    - show:
+      - maja
+      - laptop
+      say: Maja returned to the same work at the end of another Thursday.
+    - show:
+      - assistant
+      say: The assistant handled the work without changing the work itself.
+    - hot:
+      - assistant
+      - maja
+      say: 'The lesson was simple: Maja looked more often.'
+- slide: 7
+  title: What the week taught
+  hash: 4e95cd719018b520
+  generated: 2026-09-08 21:43
+  scene:
+    cast:
+    - id: elin
+      kind: person
+      label: Elin
+      cell: left
+    - id: queue
+      kind: inbox
+      label: Boring queue
+      cell: center-top
+    - id: assistant
+      kind: orb
+      label: The assistant
+      cell: center
+      fill: brain
+    - id: gate
+      kind: gate
+      label: Review gate
+      cell: right-top
+    - id: jonas
+      kind: person
+      label: Jonas
+      cell: right
+    - id: notes
+      kind: doc
+      label: Error notes
+      cell: right-bottom
+    flows:
+    - from: queue
+      to: assistant
+      color: white
+      at: 1
+    - from: assistant
+      to: gate
+      color: candle
+      at: 2
+    - from: gate
+      to: notes
+      color: ember
+      at: 3
+    beats:
+    - show:
+      - elin
+      - queue
+      - jonas
+      - gate
+      say: Elin starts with the queue, while Jonas keeps the review gate open.
+    - show:
+      - assistant
+      say: Elin points the assistant at the boring queue first.
+    - hot:
+      - gate
+      - jonas
+      say: Jonas stays at the gate before anything leaves the queue.
+    - show:
+      - notes
+      hot:
+      - notes
+      say: They write down what it got wrong, and why they noticed.
+- slide: 8
+  title: Thank you
+  hash: 4628dcee74b290d5
+  generated: 2026-09-08 21:43
+  scene:
+    cast:
+    - id: elin
+      kind: person
+      label: Elin
+      cell: left
+    - id: laptop
+      kind: laptop
+      label: Working laptop
+      cell: right
+    beats:
+    - show:
+      - elin
+      - laptop
+      say: Thank you for staying with us.
+    - hot:
+      - elin
+      say: The work continues, a little more thoughtfully.

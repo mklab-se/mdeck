@@ -3,7 +3,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
 
-use eframe::egui::{self, Color32, FontFamily, FontId};
+use eframe::egui::{self, Color32, FontId};
 use syntect::easy::HighlightLines;
 use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
@@ -110,7 +110,7 @@ pub fn highlight_code(
 
     let mut job = egui::text::LayoutJob::default();
     job.wrap.max_width = max_width;
-    let font_id = FontId::new(font_size, FontFamily::Monospace);
+    let font_id = FontId::new(font_size, theme.mono_family());
     let alpha = (opacity.clamp(0.0, 1.0) * 255.0) as u8;
 
     for span in spans.iter() {

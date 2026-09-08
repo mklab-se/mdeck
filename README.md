@@ -49,16 +49,19 @@ install in your document and nothing to learn beyond a handful of conventions.
 - **AI when you want it.** Turn a PDF, DOCX, or a one-line prompt into a full
   deck with speaker notes, and generate images and diagram icons in your own
   style. Everything is optional and lives behind `mdeck ai`.
+- **Ember.** A theme with a living field of glowing particles behind every
+  slide that follows your content, tells stories you describe in English, and
+  opens with a countdown. See [Ember](#ember) below.
 - **Built in Rust.** A single fast binary, GPU-accelerated rendering, 60 fps
   animations, no runtime dependencies.
 
 <p align="center">
-  <img src="media/gallery/slide-08.png" width="45%">&nbsp;&nbsp;
-  <img src="media/gallery/slide-22.png" width="45%">
+  <img src="media/gallery/ember-title.png" width="45%">&nbsp;&nbsp;
+  <img src="media/gallery/ember-story.png" width="45%">
 </p>
 <p align="center">
-  <img src="media/gallery/slide-25.png" width="45%">&nbsp;&nbsp;
-  <img src="media/gallery/slide-26.png" width="45%">
+  <img src="media/gallery/slide-08.png" width="45%">&nbsp;&nbsp;
+  <img src="media/gallery/slide-22.png" width="45%">
 </p>
 
 <p align="center"><em>See the <a href="GALLERY.md">Gallery</a> for every layout and visualization type.</em></p>
@@ -156,11 +159,12 @@ current slide.
 | Home, End | First / last slide |
 | G | Grid overview (click a slide to jump to it) |
 | T | Cycle transition (slide, fade, spatial, none) |
-| Shift+T | Cycle theme (light, dark, nord) |
+| Shift+T | Cycle theme (light, dark, nord, ember) |
 | F | Toggle fullscreen |
 | M | Move to the next monitor |
 | `.` or B | Blackout |
-| H | Presenter HUD with shortcuts |
+| H | Presenter HUD with shortcuts (and the current story beat's line) |
+| S | Ember: write an AI story for this slide |
 | Esc | Clear drawings; press twice to quit (Q twice and Ctrl+C twice also quit) |
 
 | Mouse | Action |
@@ -184,6 +188,38 @@ mdeck talk.md --check        # validate the deck without opening a window
 ```
 
 ---
+
+## Ember
+
+Ember is MKLab's brand as a theme: graphite on near-black, one ember accent,
+an editorial serif for headings, and a living field of glowing particles
+behind every slide. Set `@theme: ember` and any deck you already have gets it.
+
+<p align="center">
+  <img src="media/gallery/ember-bullets.png" width="45%">&nbsp;&nbsp;
+  <img src="media/gallery/ember-diagram.png" width="45%">
+</p>
+
+**The field follows your content.** A title slide opens on a constellation. A
+bullet slide lights one cluster per item as you reveal them. Quotes burn like
+a candle, code slides rain. On charts and diagrams the particles serve what is
+drawn: embers rise off bars, runners travel the edges of a diagram, sparks
+circle a pie. None of this needs a line of authoring.
+
+**It can tell a story.** Describe a scene in English in a ```` ```@story ````
+fence on a slide, run `mdeck ai story talk.md`, and the particles form a cast
+of people and props with flows between them and beats you release with Space,
+each with a line you can say out loud (`H` shows it). Scripts land in
+`talk.scenes.yaml` next to the deck; edit one by hand and mark it
+`pinned: true` to keep it. Stories play on bullet, content, quote and section
+slides, where there is room beside the copy.
+
+**It opens and closes.** A 3-2-1 countdown counted in particles (any key
+skips it, `@countdown: false` turns it off) and an ending where the field
+spells THE END before it bursts into black. Nord gets a plain countdown too.
+
+Try the decks in `samples/ember/`: plain text, visualizations, images, and
+stories. The format spec has the full vocabulary.
 
 ## Writing slides
 
@@ -271,8 +307,8 @@ that avoid nodes and each other. Node icons can also be AI-generated.
 
 ### Themes and transitions
 
-Built-in themes **light**, **dark**, and **nord**; transitions **slide**,
-**fade**, **spatial**, and **none**. Set them in the frontmatter or cycle them
+Built-in themes **light**, **dark**, **nord** and **ember**; transitions
+**slide**, **fade**, **spatial**, and **none**. Set them in the frontmatter or cycle them
 live with `Shift+T` and `T`:
 
 ```yaml
@@ -314,6 +350,8 @@ mdeck export talk.md                              # slide-01.png ... at 1920x108
 mdeck export talk.md --width 3840 --height 2160   # 4K
 mdeck export talk.md --output-dir slides/         # choose the folder
 mdeck export talk.md --debug                      # one PNG per reveal step
+mdeck export talk.md --slide 7                    # just slide 7 (file names keep the deck numbering)
+mdeck export talk.md --range 3-5 --debug          # slides 3 to 5, every step
 ```
 
 Output is always exactly the requested size, independent of your screen's
@@ -390,7 +428,7 @@ agent to read.
 
 ```bash
 mdeck <file.md>                    # present (add --windowed, --slide N, --overview, --check)
-mdeck export <file.md>             # PNG export (--width, --height, --output-dir, --debug)
+mdeck export <file.md>             # PNG export (--width, --height, --output-dir, --debug, --slide, --range)
 mdeck spec                         # full format specification
 mdeck spec --short                 # quick reference card
 mdeck config show                  # show configuration

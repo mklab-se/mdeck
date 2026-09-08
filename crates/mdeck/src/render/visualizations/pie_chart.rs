@@ -5,9 +5,9 @@ use eframe::egui::{self, Pos2, Stroke};
 use crate::theme::Theme;
 
 use super::{
-    LegendItem, VIZ_OPACITY_BORDER_RING, VIZ_OPACITY_FILL, VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR,
-    VizReveal, assign_steps, draw_legend_column, parse_label_value, parse_reveal_prefix,
-    reveal_anim_progress, sector_mesh, side_legend_width,
+    LegendItem, VIZ_OPACITY_BORDER_RING, VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR, VizReveal,
+    assign_steps, draw_legend_column, parse_label_value, parse_reveal_prefix, reveal_anim_progress,
+    sector_mesh, side_legend_width,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -85,6 +85,13 @@ pub fn draw_pie_chart(
     let pie_area_width = max_width - legend_width;
     let pie_radius = (pie_area_width.min(height) / 2.0 - 30.0 * scale).max(40.0 * scale);
     let pie_cx = pos.x + pie_area_width / 2.0;
+    crate::render::hints::push(
+        ui.ctx(),
+        crate::render::hints::Hint::Circle {
+            center: Pos2::new(pie_cx, pos.y + height / 2.0),
+            radius: pie_radius,
+        },
+    );
     let pie_cy = pos.y + height / 2.0;
 
     // Draw pie slices
@@ -106,7 +113,7 @@ pub fn draw_pie_chart(
 
         let full_sweep = (entry.value / total) * 2.0 * std::f32::consts::PI;
         let sweep = full_sweep * anim;
-        let color = Theme::with_opacity(palette[i % palette.len()], opacity * VIZ_OPACITY_FILL);
+        let color = Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity());
 
         // Single mesh per slice: no anti-aliasing seams between segments
         painter.add(sector_mesh(
@@ -152,7 +159,7 @@ pub fn draw_pie_chart(
         .map(|(i, entry)| LegendItem {
             label: entry.label.clone(),
             suffix: format!(" ({:.0}%)", entry.value / total * 100.0),
-            color: Theme::with_opacity(palette[i % palette.len()], opacity * VIZ_OPACITY_FILL),
+            color: Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity()),
             visible: steps.get(i).copied().unwrap_or(0) <= reveal_step,
         })
         .collect();

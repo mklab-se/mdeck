@@ -54,6 +54,45 @@ pub fn run(file: PathBuf, verbose: u8, quiet: bool) -> anyhow::Result<()> {
         }
     }
 
+    // Ember stories: broken inline scripts and sidecar entries that no longer
+    // match their slide.
+    let sidecar = match render::story::sidecar::load(&file) {
+        Ok(sc) => sc,
+        Err(e) => {
+            report.add(CheckWarning {
+                slide: 1,
+                category: CheckCategory::Story,
+                message: format!("story sidecar could not be read: {e}"),
+            });
+            None
+        }
+    };
+    let (stories, problems) = render::story::sidecar::resolve(&presentation, sidecar.as_ref());
+    for p in problems {
+        // "slide N: ..." messages carry their own slide number
+        let slide = p
+            .strip_prefix("slide ")
+            .and_then(|r| r.split(':').next())
+            .and_then(|n| n.trim().parse().ok())
+            .unwrap_or(1);
+        report.add(CheckWarning {
+            slide,
+            category: CheckCategory::Story,
+            message: p,
+        });
+    }
+    for (i, r) in stories.iter().enumerate() {
+        if let Some(r) = r
+            && r.source == render::story::sidecar::Source::Stale
+        {
+            report.add(CheckWarning {
+                slide: i + 1,
+                category: CheckCategory::Story,
+                message: "story is stale (slide changed since it was written); run `mdeck ai story --stale`".into(),
+            });
+        }
+    }
+
     if report.has_warnings() {
         if !quiet {
             report.print_detailed();
@@ -109,6 +148,8 @@ mod tests {
             layout,
             raw_source: String::new(),
             notes: notes.map(String::from),
+            story_hint: None,
+            scene_script: None,
         }
     }
 

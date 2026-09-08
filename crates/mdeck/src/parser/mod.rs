@@ -24,6 +24,11 @@ pub struct PresentationMeta {
     pub image_style: Option<String>,
     pub icon_style: Option<String>,
     pub slide_level: Option<u8>,
+    /// Deck-level hint for AI story generation (`@story` in the frontmatter):
+    /// tone, cast, anything that should hold across slides.
+    pub story: Option<String>,
+    /// `@countdown: false` turns off the opening countdown (Ember and Nord).
+    pub countdown: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -37,6 +42,10 @@ pub struct Slide {
     /// Speaker notes for this slide (content after `???` separator).
     #[allow(dead_code)]
     pub notes: Option<String>,
+    /// English hint for AI story generation (a ```@story fence).
+    pub story_hint: Option<String>,
+    /// Hand-written scene script in YAML (a ```@scene fence).
+    pub scene_script: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -128,6 +137,16 @@ pub enum Block {
     GitGraph {
         content: String,
     },
+    /// ```@story fence: an English hint for the AI story generator. Removed
+    /// from the slide's blocks at parse time (see [`Slide::story_hint`]).
+    StoryHint {
+        content: String,
+    },
+    /// ```@scene fence: a hand-written scene script. Removed from the slide's
+    /// blocks at parse time (see [`Slide::scene_script`]).
+    SceneScript {
+        content: String,
+    },
     ColumnSeparator,
 }
 
@@ -195,7 +214,7 @@ pub fn parse(content: &str, _base_path: &Path) -> Presentation {
             let raw_source = raw.clone();
             let (content_part, notes) = extract_notes(&raw);
             let (directives, content) = blocks::extract_directives(&content_part);
-            let blocks = blocks::parse(&content);
+            let (blocks, story_hint, scene_script) = take_story_blocks(blocks::parse(&content));
             let layout = classify_layout(&directives, &blocks);
             Slide {
                 directives,
@@ -203,10 +222,38 @@ pub fn parse(content: &str, _base_path: &Path) -> Presentation {
                 layout,
                 raw_source,
                 notes,
+                story_hint,
+                scene_script,
             }
         })
         .collect();
     Presentation { meta, slides }
+}
+
+/// Pull the story authoring fences out of a slide's blocks so they never
+/// render and never influence layout inference.
+fn take_story_blocks(blocks: Vec<Block>) -> (Vec<Block>, Option<String>, Option<String>) {
+    let mut hint: Option<String> = None;
+    let mut script: Option<String> = None;
+    let rest = blocks
+        .into_iter()
+        .filter(|b| match b {
+            Block::StoryHint { content } => {
+                let h = hint.get_or_insert_with(String::new);
+                if !h.is_empty() {
+                    h.push_str("\n\n");
+                }
+                h.push_str(content.trim());
+                false
+            }
+            Block::SceneScript { content } => {
+                script = Some(content.clone());
+                false
+            }
+            _ => true,
+        })
+        .collect();
+    (rest, hint.filter(|h| !h.is_empty()), script)
 }
 
 /// Extract speaker notes from a raw slide string.
@@ -283,6 +330,8 @@ fn classify_layout(directives: &[Directive], blocks: &[Block]) -> Layout {
             Block::CodeBlock { .. } => code_blocks += 1,
             Block::BlockQuote { .. } => quotes += 1,
             Block::Diagram { .. } => diagrams += 1,
+            // authoring fences are stripped before classification
+            Block::StoryHint { .. } | Block::SceneScript { .. } => {}
             Block::WordCloud { .. }
             | Block::Timeline { .. }
             | Block::PieChart { .. }

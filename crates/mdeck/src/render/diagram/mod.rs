@@ -474,7 +474,7 @@ pub fn draw_diagram_sized(
         ui.painter().rect_filled(rect, 8.0 * scale, bg);
         let galley = ui.painter().layout(
             "[Diagram]".to_string(),
-            FontId::proportional(theme.body_size * 0.8 * scale),
+            FontId::new(theme.body_size * 0.8 * scale, theme.body_family()),
             color,
             max_width,
         );
@@ -582,6 +582,7 @@ pub fn draw_diagram_sized(
 
         // Node background
         painter.rect_filled(node_rect, corner_radius, node_fill);
+        crate::render::hints::push(ui.ctx(), crate::render::hints::Hint::Frame(node_rect));
 
         // Node border
         painter.rect_stroke(
@@ -651,7 +652,7 @@ pub fn draw_diagram_sized(
         let label_font_size = theme.body_size * 0.8 * scale;
         let galley = painter.layout(
             node.label.clone(),
-            FontId::proportional(label_font_size),
+            FontId::new(label_font_size, theme.body_family()),
             label_color,
             layout.width - 8.0 * scale,
         );
@@ -853,6 +854,10 @@ pub fn draw_diagram_sized(
 
         // Use edge color as label background so labels visually match their edge
         let edge_label_bg = Theme::with_opacity(current_edge_color, opacity * 0.80);
+        crate::render::hints::push(
+            ui.ctx(),
+            crate::render::hints::Hint::Path(pixel_waypoints.clone()),
+        );
         draw_routed_edge(
             painter,
             &pixel_waypoints,

@@ -27,6 +27,7 @@ impl PresentationApp {
         let reveal = self.reveal_steps.get(index).copied().unwrap_or(0);
         let timestamp = self.reveal_timestamps.get(index).copied().flatten();
         let slide = &self.presentation.slides[index];
+        let cx = self.slide_context(index);
         if scroll.abs() < 0.5 {
             render::render_slide(
                 ui,
@@ -38,6 +39,7 @@ impl PresentationApp {
                 reveal,
                 timestamp,
                 scale,
+                &cx,
             );
             return;
         }
@@ -60,7 +62,30 @@ impl PresentationApp {
             reveal,
             timestamp,
             scale,
+            &cx,
         );
+    }
+
+    /// Facts about the deck shown by the Ember eyebrow and chrome.
+    pub(super) fn slide_context(&self, index: usize) -> render::SlideContext {
+        render::SlideContext {
+            index,
+            count: self.slide_count(),
+            deck_title: self.presentation.meta.title.clone(),
+            author: self.presentation.meta.author.clone(),
+            hold_copy: self.countdown_running(),
+            animate: true,
+            beats: self.story(index).filter(|s| s.beats.len() > 1).map(|s| {
+                (
+                    self.reveal_steps.get(index).copied().unwrap_or(0),
+                    s.beats.len(),
+                )
+            }),
+            say: self.story(index).and_then(|s| {
+                s.line(self.reveal_steps.get(index).copied().unwrap_or(0))
+                    .map(str::to_string)
+            }),
+        }
     }
 
     /// Bottom edge (relative to the content top) of the lowest element revealed
@@ -102,6 +127,9 @@ impl PresentationApp {
     ) {
         if index < self.presentation.slides.len() {
             let reveal = self.max_steps.get(index).copied().unwrap_or(0);
+            let mut cx = self.slide_context(index);
+            cx.hold_copy = false;
+            cx.animate = false;
             render::render_slide(
                 ui,
                 &self.presentation.slides[index],
@@ -112,11 +140,16 @@ impl PresentationApp {
                 reveal,
                 None,
                 scale,
+                &cx,
             );
         }
     }
 
     pub(super) fn draw_end_slide(&mut self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
+        if self.theme.is_ember() {
+            self.draw_end_slide_ember(ui, rect, scale);
+            return;
+        }
         // Draw ESC hint at top like regular slides
         let hint_color = egui::Color32::from_gray(100);
         let hint_galley = ui.painter().layout_no_wrap(
@@ -216,6 +249,40 @@ impl PresentationApp {
             egui::pos2(text_x, text_y + 14.0 * scale + 4.0 * scale),
             url_galley,
             url_color,
+        );
+    }
+
+    /// Ember's end slide: the particles have already gathered into the logo
+    /// (see `EmberState`), so only a quiet caption is drawn.
+    fn draw_end_slide_ember(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
+        // The caption arrives only after the bang has faded to black.
+        let alpha = ((self.ember.end_elapsed() - 7.4) / 0.9).clamp(0.0, 1.0);
+        ui.ctx().request_repaint();
+        if alpha <= 0.0 {
+            return;
+        }
+        let painter = ui.painter();
+        let size = 15.0 * scale;
+        let font = egui::FontId::new(size, self.theme.mono_family());
+        let mut job = egui::text::LayoutJob::default();
+        job.append(
+            "POWERED BY MDECK  ·  GITHUB.COM/MKLAB-SE/MDECK",
+            0.0,
+            egui::text::TextFormat {
+                font_id: font,
+                color: Theme::with_opacity(egui::Color32::from_rgb(0x8F, 0x8F, 0x98), alpha),
+                extra_letter_spacing: size * 0.22,
+                ..Default::default()
+            },
+        );
+        let galley = painter.layout_job(job);
+        painter.galley(
+            egui::pos2(
+                rect.center().x - galley.rect.width() / 2.0,
+                rect.center().y - galley.rect.height() / 2.0,
+            ),
+            galley,
+            egui::Color32::WHITE,
         );
     }
 
@@ -396,6 +463,35 @@ impl PresentationApp {
     }
 
     pub(super) fn draw_presentation_chrome(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
+        if self.theme.is_ember() {
+            if !self.countdown_running() {
+                render::ember::draw_chrome(
+                    ui.painter(),
+                    &self.theme,
+                    rect,
+                    &self.slide_context(self.current_slide),
+                    scale,
+                );
+            }
+            if self.show_hud {
+                if let Some(line) = &self.slide_context(self.current_slide).say {
+                    render::ember::draw_say_line(ui.painter(), &self.theme, rect, line, scale);
+                }
+                let fps_text = format!("{:.0} fps", self.fps);
+                let fps_color = Theme::with_opacity(self.theme.foreground, 0.3);
+                let fps_galley = ui.painter().layout_no_wrap(
+                    fps_text,
+                    egui::FontId::new(14.0 * scale, self.theme.mono_family()),
+                    fps_color,
+                );
+                let fps_pos = egui::pos2(
+                    rect.right() - fps_galley.rect.width() - 12.0 * scale,
+                    rect.top() + 10.0 * scale,
+                );
+                ui.painter().galley(fps_pos, fps_galley, fps_color);
+            }
+            return;
+        }
         // Footer
         if let Some(ref footer) = self.presentation.meta.footer {
             let footer_color = Theme::with_opacity(self.theme.foreground, 0.4);
