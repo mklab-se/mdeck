@@ -214,7 +214,39 @@ by hand. Add a scheduled audit workflow.
 
 ---
 
-## 6. Documentation and onboarding
+## 6. Ember follow-ups
+
+Collected while shipping 1.0. All are polish on a working feature.
+
+### 6.1 Presenter view for story lines — M
+The `say` lines exist for a second display (see 1.1). Until then `H` shows the
+current line in the HUD.
+
+### 6.2 Reduced motion and a particle budget — S
+A `--reduced-motion` flag (and the OS setting where egui exposes it) that
+lowers particle count, disables wakes and shortens the countdown; a budget
+that scales with window size and drops on slow GPUs.
+
+### 6.3 Theme as an enum — S
+Theme identity is still a string compared in a handful of places (backlog 5.3);
+Ember added `is_ember()` and per-theme font/fill accessors rather than fixing it.
+
+### 6.4 Bundled fonts for every theme — M, needs a decision
+Ember bundles its faces; dark, light and nord still use egui's default sans
+(backlog 1.8). Giving them Hanken Grotesk with a real bold changes their look.
+
+### 6.5 Beat theatrics — S
+Cast entering a scene could rise into place and a flow visibly start at its
+beat; today both ease in through brightness only.
+
+### 6.6 Per-deck cast sheet — S
+The generator reuses people it has already named; a cast sheet written once
+per deck would make that explicit and editable.
+
+### 6.7 Content-aware fields for the remaining visualizations — S each
+Funnel, word cloud and git graph only get the quiet frame today.
+
+## 7. Documentation and onboarding
 
 - Generate the keyboard-shortcut table for the HUD, README, spec and
   `mdeck spec --short` from one shared table so they cannot drift again (the

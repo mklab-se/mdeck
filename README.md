@@ -49,16 +49,19 @@ install in your document and nothing to learn beyond a handful of conventions.
 - **AI when you want it.** Turn a PDF, DOCX, or a one-line prompt into a full
   deck with speaker notes, and generate images and diagram icons in your own
   style. Everything is optional and lives behind `mdeck ai`.
+- **Ember.** A theme with a living field of glowing particles behind every
+  slide that follows your content, tells stories you describe in English, and
+  opens with a countdown. See [Ember](#ember) below.
 - **Built in Rust.** A single fast binary, GPU-accelerated rendering, 60 fps
   animations, no runtime dependencies.
 
 <p align="center">
-  <img src="media/gallery/slide-08.png" width="45%">&nbsp;&nbsp;
-  <img src="media/gallery/slide-22.png" width="45%">
+  <img src="media/gallery/ember-title.png" width="45%">&nbsp;&nbsp;
+  <img src="media/gallery/ember-story.png" width="45%">
 </p>
 <p align="center">
-  <img src="media/gallery/slide-25.png" width="45%">&nbsp;&nbsp;
-  <img src="media/gallery/slide-26.png" width="45%">
+  <img src="media/gallery/slide-08.png" width="45%">&nbsp;&nbsp;
+  <img src="media/gallery/slide-22.png" width="45%">
 </p>
 
 <p align="center"><em>See the <a href="GALLERY.md">Gallery</a> for every layout and visualization type.</em></p>
@@ -186,6 +189,38 @@ mdeck talk.md --check        # validate the deck without opening a window
 
 ---
 
+## Ember
+
+Ember is MKLab's brand as a theme: graphite on near-black, one ember accent,
+an editorial serif for headings, and a living field of glowing particles
+behind every slide. Set `@theme: ember` and any deck you already have gets it.
+
+<p align="center">
+  <img src="media/gallery/ember-bullets.png" width="45%">&nbsp;&nbsp;
+  <img src="media/gallery/ember-diagram.png" width="45%">
+</p>
+
+**The field follows your content.** A title slide opens on a constellation. A
+bullet slide lights one cluster per item as you reveal them. Quotes burn like
+a candle, code slides rain. On charts and diagrams the particles serve what is
+drawn: embers rise off bars, runners travel the edges of a diagram, sparks
+circle a pie. None of this needs a line of authoring.
+
+**It can tell a story.** Describe a scene in English in a ```` ```@story ````
+fence on a slide, run `mdeck ai story talk.md`, and the particles form a cast
+of people and props with flows between them and beats you release with Space,
+each with a line you can say out loud (`H` shows it). Scripts land in
+`talk.scenes.yaml` next to the deck; edit one by hand and mark it
+`pinned: true` to keep it. Stories play on bullet, content, quote and section
+slides, where there is room beside the copy.
+
+**It opens and closes.** A 3-2-1 countdown counted in particles (any key
+skips it, `@countdown: false` turns it off) and an ending where the field
+spells THE END before it bursts into black. Nord gets a plain countdown too.
+
+Try the decks in `samples/ember/`: plain text, visualizations, images, and
+stories. The format spec has the full vocabulary.
+
 ## Writing slides
 
 ### Slides and layouts
@@ -272,21 +307,8 @@ that avoid nodes and each other. Node icons can also be AI-generated.
 
 ### Themes and transitions
 
-Built-in themes **light**, **dark**, **nord**, and the experimental **ember**
-(MKLab's brand: editorial type, a left copy column and a living particle
-field behind every slide, see `samples/ember.md`); transitions **slide**,
-**fade**, **spatial**, and **none**.
-
-Ember and Nord open with a 3-2-1 countdown (Ember counts in particles and
-bursts into the first slide). Any key skips it; `@countdown: false` in the
-frontmatter turns it off.
-
-With Ember the field can also tell the slide's story: a cast of people and
-props, flows between them, and beats you release with Space. Describe the
-scene in English in a ```` ```@story ```` fence, run `mdeck ai story talk.md`,
-and the scripts land in `talk.scenes.yaml` next to the deck. Edit an entry
-there by hand and mark it `pinned: true` to keep it, or write nothing and let
-the field follow the content on its own. See the format spec for the vocabulary. Set them in the frontmatter or cycle them
+Built-in themes **light**, **dark**, **nord** and **ember**; transitions
+**slide**, **fade**, **spatial**, and **none**. Set them in the frontmatter or cycle them
 live with `Shift+T` and `T`:
 
 ```yaml

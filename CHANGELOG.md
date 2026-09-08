@@ -4,38 +4,51 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
+
 ### Added
 
-- **`ember` theme (experimental spike)** — MKLab's brand as a theme: near-black ink, one ember
-  accent, bundled Spectral / Hanken Grotesk / JetBrains Mono faces, and a living field of
-  glowing particles behind every slide, drawn additively in a dedicated OpenGL pass. The field
-  morphs between slides and follows the content (constellation on the title, one cluster per
-  bullet lighting with its reveal step, a candle behind quotes, rain behind code, a logo intro
-  on the first slide and on the end slide). Text slides use the site's composition: a copy
-  column on the left with an eyebrow, serif heading and staggered fade-up. Charts, diagrams,
-  code, tables and images keep their layouts in the Ember palette. Showcase deck in
-  `samples/ember.md`; select with `@theme: ember` or cycle with `Shift+T`.
-- **Ember stories (experimental spike)** — the particle field can tell the slide's story: a
-  YAML script names a cast (person, hooded, laptop, inbox, orb, gate, …) in stage cells, flows
-  between them and beats the presenter releases with Space, each with its spoken line. Three
-  tiers: nothing (inferred scenes), an English ```` ```@story ```` hint turned into a script by
-  `mdeck ai story deck.md` (saved to `deck.scenes.yaml`/`.yml`, stale-tracked by content hash,
-  `--slide`, `--range`, `--stale`, `--force`), or a hand-written ```` ```@scene ```` fence. A
-  frontmatter `@story:` gives deck-wide direction. `S` writes the current slide's story from
-  inside the presentation; `H` shows the beat's line; `--check` reports stale or invalid stories.
-  Stories play only on slides with a stage (bullet, content, quote, section); code, chart,
-  diagram, table, image and title slides keep the quiet inferred field, and beats count as
-  reveal steps only while the Ember theme is active.
-- **Opening countdown** — Ember and Nord decks start with a 3-2-1 countdown. Ember forms the
-  digits out of particles in the serif face, morphs between them and bursts the 1 into black
-  before the first slide assembles; Nord fades plain numerals. Any key or click cancels it,
-  `--slide`/`--overview` starts skip it, and `@countdown: false` turns it off per deck. The
-  logo intro from the first Ember spike is gone (the end slide still gathers into the logo).
-- **`mdeck export --slide N` and `--range A-B`** export one slide or a range instead of the
-  whole deck, keeping the deck's slide numbers in the file names. Combined with `--debug`
-  this is the quick way for a person or an AI agent to check a single slide's reveal steps.
-- Headings, body text and code now take their font families from the theme, so themes can
-  bundle typefaces.
+- **The `ember` theme.** MKLab's brand as a theme: near-black ink, one ember accent, bundled
+  Spectral, Hanken Grotesk and JetBrains Mono, an editorial copy column on the left, and a
+  living field of glowing particles behind every slide, drawn additively in a dedicated OpenGL
+  pass with the short trails the MKLab site has. Select it with `@theme: ember`, or cycle with
+  `Shift+T`. Showcase in `samples/ember.md`; four more decks in `samples/ember/`.
+- **A field that follows the content.** Without any authoring, every layout gets a scene:
+  a constellation on the title, one cluster per bullet that lights with its reveal step, a
+  warm mass on section dividers, a candle behind quotes, rain behind code. On charts and
+  diagrams the renderers publish their geometry and the field serves it: embers rise off bar
+  tops, runners follow line series, routed edges and timelines, sparks circle pies and radars,
+  glints sit on scatter points, and dust keeps to the margins around images and tables. Every
+  chart, diagram and label uses the theme's faces.
+- **Stories.** A story script names a cast of people and props (person, hooded, laptop,
+  inbox, orb, gate, …) in stage cells, flows of light between them, and beats the presenter
+  releases with Space, each with a spoken line. Scripts live in a sidecar next to the deck
+  (`deck.scenes.yaml` or `.yml`), written by `mdeck ai story deck.md` from an English
+  ```` ```@story ```` hint on the slide, or from the copy and notes when there is none, with a
+  frontmatter `@story:` for deck-wide direction. Entries are keyed by content hash and go
+  stale when the slide changes (`--check` warns, `--stale` refreshes); `pinned: true` marks a
+  hand-written entry that is never regenerated. `--slide`, `--range`, `--force` and
+  `--dry-run` narrow or preview a run; generated scripts are rejected when labels would
+  overlap. `S` writes the current slide's story from inside the presentation, `H` shows the
+  beat's line. Stories play only on slides with a stage (bullet, content, quote, section) and
+  their beats count as reveal steps only under Ember.
+- **The countdown.** Ember and Nord decks open with 3, 2, 1. Ember forms the digits out of
+  particles in the serif face, morphs between them and bursts the 1 into black before the
+  first slide assembles; Nord fades plain numerals. Any key or click cancels it, starting on a
+  chosen slide skips it, `@countdown: false` turns it off.
+- **The end.** Under Ember the deck ends with the particles spelling THE END, letting go into a
+  swirl, and bursting into black before a quiet caption.
+- **`mdeck export --slide N` and `--range A-B`** export one slide or a range with the deck's
+  numbering kept in the file names; with `--debug` the quick way for a person or an agent to
+  check one slide's reveal steps.
+
+### Changed
+
+- Headings, body text, code and every visualization label take their font families from the
+  theme, so themes can bundle typefaces.
+- Chart fills are tuned per theme (`Theme::fill_opacity`).
+- Idle particles wander a little more, on two incommensurate frequencies, so the field never
+  looks still.
 
 ## [0.19.0] - 2026-09-06
 

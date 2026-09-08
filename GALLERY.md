@@ -8,6 +8,40 @@ A visual showcase of what you can create with MDeck — layouts, charts, diagram
 
 ---
 
+## Ember
+
+The Ember theme puts a living field of glowing particles behind every slide.
+These stills are from `samples/ember.md`, `samples/ember/stories.md` and
+`samples/ember/visualizations.md`; the field moves in the presentation.
+
+### Title
+
+The particles gather into a constellation on the flanks of the title.
+
+<img src="media/gallery/ember-title.png" width="720">
+
+### Bullets
+
+One cluster per item, each lighting with its reveal step, beside the copy column.
+
+<img src="media/gallery/ember-bullets.png" width="720">
+
+### A story
+
+A cast of people and props with flows between them, written by `mdeck ai story`
+from an English hint on the slide, released beat by beat with Space.
+
+<img src="media/gallery/ember-story.png" width="720">
+
+### A diagram
+
+On charts and diagrams the field serves the content: here runners travel the
+routed edges in their direction while dust keeps to the margins.
+
+<img src="media/gallery/ember-diagram.png" width="720">
+
+---
+
 ## Layouts
 
 MDeck automatically infers the right layout from your content structure. No configuration needed.

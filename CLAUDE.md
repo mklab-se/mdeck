@@ -39,7 +39,8 @@ crates/
       main.rs        # Entry point, CLI bootstrap
       cli.rs         # Clap argument definitions (Cli, Commands, subcommands)
       app/             # GUI presentation app (eframe/egui rendering)
-        mod.rs       # State, navigation, egui update loop, run() entry point
+        mod.rs       # State, navigation, egui update loop, countdown, stories, run() entry point
+        ember.rs     # EmberState: particle field lifetime, scene selection, hints, countdown digits, end choreography
         drawing.rs   # All rendering/drawing methods
         input.rs     # Mouse input handling
         helpers.rs   # Standalone utilities (lerp, hashing, file watcher)
@@ -55,6 +56,7 @@ crates/
           opportunities.rs # Visualization opportunity parsing & reporting
           extractors.rs # PDF/DOCX/text content extraction
         generate.rs  # AI image generation for presentations (mdeck ai generate)
+        story.rs     # AI story scripts for the Ember theme (mdeck ai story): prompt, validation, sidecar
         completion.rs # Shell completion generation
         config.rs    # Config show/set
         export.rs    # Pixel-exact PNG export (1 pt/px, tiled screenshots stitched to the requested size)
@@ -63,6 +65,11 @@ crates/
       parser/          # Markdown-to-slide parser (frontmatter, blocks, inlines, splitter)
       render/          # Slide rendering engine
         mod.rs       # render_slide entry point, content height measurement
+        ember.rs     # Ember layouts (copy column, eyebrow, title/section/quote), chrome, say line
+        fonts.rs     # Bundled Spectral / Hanken Grotesk / JetBrains Mono (fonts/, OFL)
+        hints.rs     # Geometry hints from renderers to the particle field
+        particles/   # The particle field: Field/Scene/Group (mod.rs), additive GL sprites and wakes (gl.rs), inferred and hint-driven scenes (scenes.rs)
+        story/       # Story scripts: schema, staging and labels (mod.rs), cast silhouettes, sidecar with staleness
         text.rs      # Block-level drawing (headings, lists, code, tables, diagrams, images)
         syntax.rs    # Syntax highlighting via syntect (LazyLock-cached SyntaxSet/ThemeSet)
         transition.rs # Slide transitions (fade, slide, spatial) with easing
@@ -76,7 +83,7 @@ crates/
           icons.rs   # Geometric icon fallback renderer
           routing/   # A* edge routing engine
         image_cache.rs # Background image decoding (worker thread) and texture caching
-      theme.rs       # Theme definitions (light, dark, nord)
+      theme.rs       # Theme definitions (light, dark, nord, ember) and per-theme font families
       prompt.rs      # AI prompt construction helpers (image/icon style + orientation)
     doc/
       mdeck-spec.md  # Markdown format specification (included via include_str!)
@@ -101,6 +108,7 @@ mdeck ai create --input <file-or-text> --output <path>  # Create presentation fr
 mdeck ai create -i           # Interactive presentation creation
 mdeck ai create --prompt "..." # With audience/purpose context
 mdeck ai generate <file.md>  # Generate all AI images in a presentation
+mdeck ai story <file.md> [--slide N | --range A-B] [--stale] [--force] [--dry-run]  # Write Ember story scripts to <file>.scenes.yaml
 mdeck ai generate-image --prompt "..." [--icon] [--output path] [--style name]
 mdeck ai style add <name> <desc> [--icon]  # Add named style
 mdeck ai style remove <name> [--icon]      # Remove named style
@@ -146,6 +154,8 @@ mdeck --help                 # Show help
 - **AI integration:** `ailloy` crate for unified AI access (chat + image generation); config via `~/.config/ailloy/config.yaml`; async via `tokio`
 - FPS overlay in the top-right corner while the HUD (`H`) is shown
 - **Config precedence:** frontmatter > `~/.config/mdeck/config.yaml` defaults > built-in (theme, transition, start mode)
+- **Ember field:** `app/ember.rs` owns one `particles::Field`; each frame it picks a scene from the slide (countdown digit, end act, story, hints from renderers, or the inferred layout scene), ticks and paints it under the slide. Renderers publish geometry with `render::hints::push` (a no-op unless Ember is drawing). Export uses the same state with `still = true`.
+- **Stories:** `render::story` defines the script schema; `render::story::sidecar` resolves per slide (pinned by number, then by content hash, then stale). Beats extend `max_steps` only under Ember (`slide_max_steps`). The AI prompt and JSON handling live in `commands/story.rs`.
 
 ## Releasing
 
@@ -223,7 +233,8 @@ Before every release, verify these are up to date:
   - **`samples/transitions/`** — per-transition test files: `fade.md`, `slide.md`, `spatial.md`, `none.md`
   - **`samples/features/`** — feature-specific test files:
     - `notes.md` — speaker notes with `???` separator
-  - **Top-level `samples/`** — showcase presentations: `gallery.md`, `introducing-mdeck.md`, `poker-night.md`, `saloon-workshop.md`, `continents.md`
+  - **Top-level `samples/`** — showcase presentations: `gallery.md`, `introducing-mdeck.md`, `poker-night.md`, `saloon-workshop.md`, `continents.md`, `ember.md` (Ember showcase, with `ember.scenes.yaml`)
+  - **`samples/ember/`** — Ember decks: `plain-text.md` (no scenes), `visualizations.md` (content-aware field), `with-images.md`, `stories.md` (hinted slides with a generated `stories.scenes.yaml`)
   When working on a specific visualization type, use its dedicated test file for faster iteration.
 - When fixing visual issues, export before and after to confirm the fix.
 
