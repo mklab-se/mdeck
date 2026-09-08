@@ -30,7 +30,7 @@ pub fn block_spacing(block: &Block, theme: &Theme, scale: f32) -> f32 {
 
 /// Colours used when laying out inline runs. Derived from the theme and the
 /// caller's base colour so that fade opacity carries through to every run.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct InlineStyle {
     /// Base text colour (already carries the fade opacity in its alpha).
     color: Color32,
@@ -41,16 +41,33 @@ struct InlineStyle {
     link: Color32,
     /// Background tint for inline code.
     code_bg: Color32,
+    /// Family for ordinary runs.
+    body_family: FontFamily,
+    /// Family for `**bold**` runs (a medium face where the theme bundles one).
+    strong_family: FontFamily,
+    /// Family for inline code.
+    mono_family: FontFamily,
+    /// Line height as a multiple of the font size, when the theme sets one.
+    line_height: Option<f32>,
 }
 
 impl InlineStyle {
     fn new(theme: &Theme, color: Color32) -> Self {
         let alpha = color.a();
+        let strong_family = if theme.is_ember() {
+            FontFamily::Name(crate::theme::FONT_BODY_MEDIUM.into())
+        } else {
+            theme.body_family()
+        };
         Self {
             color,
             strong: with_alpha(strong_color(theme), alpha),
             link: with_alpha(theme.accent, alpha),
             code_bg: with_alpha(theme.accent, (alpha as f32 * 0.12) as u8),
+            body_family: theme.body_family(),
+            strong_family,
+            mono_family: theme.mono_family(),
+            line_height: theme.is_ember().then_some(1.45),
         }
     }
 }
@@ -88,7 +105,7 @@ pub fn inlines_to_job(
     let mut job = egui::text::LayoutJob::default();
     job.wrap.max_width = max_width;
     let style = InlineStyle::new(theme, color);
-    append_inlines(&mut job, inlines, font_size, style, false, false);
+    append_inlines(&mut job, inlines, font_size, &style, false, false);
     job
 }
 
@@ -96,7 +113,7 @@ fn append_inlines(
     job: &mut egui::text::LayoutJob,
     inlines: &[Inline],
     font_size: f32,
-    style: InlineStyle,
+    style: &InlineStyle,
     bold: bool,
     italic: bool,
 ) {
@@ -104,14 +121,25 @@ fn append_inlines(
         match inline {
             Inline::Text(s) => {
                 let (size, color) = if bold {
-                    (font_size + 1.0, style.strong)
+                    let bump = if style.line_height.is_some() {
+                        0.0
+                    } else {
+                        1.0
+                    };
+                    (font_size + bump, style.strong)
                 } else {
                     (font_size, style.color)
                 };
+                let family = if bold {
+                    style.strong_family.clone()
+                } else {
+                    style.body_family.clone()
+                };
                 let format = egui::text::TextFormat {
-                    font_id: FontId::new(size, FontFamily::Proportional),
+                    font_id: FontId::new(size, family),
                     color,
                     italics: italic,
+                    line_height: style.line_height.map(|lh| lh * font_size),
                     ..Default::default()
                 };
                 job.append(s, 0.0, format);
@@ -138,9 +166,10 @@ fn append_inlines(
             }
             Inline::Code(s) => {
                 let format = egui::text::TextFormat {
-                    font_id: FontId::new(font_size * 0.85, FontFamily::Monospace),
+                    font_id: FontId::new(font_size * 0.85, style.mono_family.clone()),
                     color: style.color,
                     background: style.code_bg,
+                    line_height: style.line_height.map(|lh| lh * font_size),
                     ..Default::default()
                 };
                 job.append(s, 0.0, format);
@@ -150,9 +179,9 @@ fn append_inlines(
                 let link_style = InlineStyle {
                     color: style.link,
                     strong: style.link,
-                    ..style
+                    ..style.clone()
                 };
-                append_inlines(job, text, font_size, link_style, bold, italic);
+                append_inlines(job, text, font_size, &link_style, bold, italic);
             }
         }
     }
@@ -188,6 +217,24 @@ pub fn draw_inlines(
     height
 }
 
+/// Layout job for a heading: the theme's display face (Ember's serif) at the
+/// heading size. Drawing and measuring both go through here.
+pub fn heading_job(
+    inlines: &[Inline],
+    level: u8,
+    theme: &Theme,
+    color: Color32,
+    max_width: f32,
+    scale: f32,
+) -> egui::text::LayoutJob {
+    let size = theme.heading_size(level) * scale;
+    if theme.is_ember() {
+        crate::render::ember::display_job(inlines, size, color, max_width, theme)
+    } else {
+        inlines_to_job(inlines, size, color, max_width, theme)
+    }
+}
+
 /// Draw a heading block. Returns height used.
 #[allow(clippy::too_many_arguments)]
 pub fn draw_heading(
@@ -200,9 +247,13 @@ pub fn draw_heading(
     opacity: f32,
     scale: f32,
 ) -> f32 {
-    let size = theme.heading_size(level) * scale;
     let color = Theme::with_opacity(theme.heading_color, opacity);
-    draw_inlines(ui, inlines, pos, size, color, max_width, theme)
+    let galley = ui
+        .painter()
+        .layout_job(heading_job(inlines, level, theme, color, max_width, scale));
+    let height = galley.rect.height();
+    ui.painter().galley(pos, galley, color);
+    height
 }
 
 /// Draw a paragraph. Returns height used.
@@ -325,9 +376,11 @@ fn draw_list_inner(
         };
 
         let marker_pos = Pos2::new(pos.x + indent, pos.y + y_offset);
-        let marker_galley =
-            ui.painter()
-                .layout_no_wrap(marker_text, FontId::proportional(font_size), color);
+        let marker_galley = ui.painter().layout_no_wrap(
+            marker_text,
+            FontId::new(font_size, theme.body_family()),
+            color,
+        );
         ui.painter().galley(marker_pos, marker_galley, color);
 
         // Draw item text
@@ -823,10 +876,18 @@ pub fn measure_single_block_height(
     scale: f32,
 ) -> f32 {
     match block {
-        Block::Heading { level, inlines } => {
-            let size = theme.heading_size(*level) * scale;
-            measure_inlines(ui, inlines, size, max_width, theme)
-        }
+        Block::Heading { level, inlines } => ui
+            .painter()
+            .layout_job(heading_job(
+                inlines,
+                *level,
+                theme,
+                theme.heading_color,
+                max_width,
+                scale,
+            ))
+            .rect
+            .height(),
         Block::Paragraph { inlines } => {
             measure_inlines(ui, inlines, theme.body_size * scale, max_width, theme)
         }

@@ -28,7 +28,7 @@ SLIDE SEPARATION
 
 FRONTMATTER (YAML at top of file)
   title, author, date     Standard metadata
-  @theme: dark|light      Global theme
+  @theme: dark|light|nord|ember  Global theme
   @transition: slide|fade|spatial|none
   @aspect: 16:9|4:3|16:10
   @footer: "text"         Footer on every slide

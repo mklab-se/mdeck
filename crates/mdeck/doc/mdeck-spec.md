@@ -55,7 +55,7 @@ date: 2026-02-28
 
 | Field         | Type   | Default   | Description                                        |
 |---------------|--------|-----------|----------------------------------------------------|
-| `@theme`      | string | `"light"` | Global theme: `"light"`, `"dark"`, `"nord"`        |
+| `@theme`      | string | `"light"` | Global theme: `"light"`, `"dark"`, `"nord"`, `"ember"` |
 | `@transition` | string | `"slide"` | Default transition: `"fade"`, `"slide"`, `"spatial"`, `"none"` |
 | `@image-style` | string | none      | Default AI image generation style (name or description) |
 | `@icon-style`  | string | none      | Default AI icon generation style (name or description)  |
@@ -557,7 +557,7 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 
 | Directive      | Scope          | Values                                    | Default        |
 |----------------|----------------|-------------------------------------------|----------------|
-| `@theme`       | global         | `light`, `dark`, `nord`                   | `light`        |
+| `@theme`       | global         | `light`, `dark`, `nord`, `ember`          | `light`        |
 | `@transition`  | global         | `fade`, `slide`, `spatial`, `none`        | `slide`        |
 | `@layout`      | slide          | layout name (see Section 4.1)             | auto-inferred  |
 | `@slide-level` | global         | `1`–`6`                                   | inferred       |
@@ -731,6 +731,29 @@ An unrecognized icon name falls back to `box`. Icons are simple and clear line d
 | Accent          | `#81A1C1`       |
 | Code background | `#3B4252`       |
 | Quote border    | accent color    |
+
+**`ember`** (experimental)
+
+| Property        | Value           |
+|-----------------|-----------------|
+| Background      | `#050505`       |
+| Primary text    | `#B4B4BC`       |
+| Heading text    | `#ECECEF`       |
+| Accent          | `#FF4D1C`       |
+| Code background | `#101012`       |
+| Quote border    | accent color    |
+
+Ember is MKLab's brand theme and goes further than a palette. It bundles its
+own typefaces (Spectral for headings, Hanken Grotesk for copy, JetBrains Mono
+for labels), lays text slides out as a copy column on the left, and draws a
+living field of glowing particles behind every slide. The field morphs from
+slide to slide and follows the content: a title slide opens on a constellation
+(after the particles assemble into the logo), a bullet slide lights one
+cluster per item as the items reveal, a quote slide burns like a candle, a
+code slide rains. Slides whose content fills the frame (code, tables, charts,
+diagrams, images) keep their regular layouts with the Ember palette. Every
+slide gets a tracked eyebrow with its roman numeral and the deck title, and
+the presenter chrome is a counter and a progress hairline.
 
 All themes meet WCAG AA contrast requirements. Cycle themes during a
 presentation with `Shift+T`.
@@ -1413,7 +1436,7 @@ in-app HUD (`H`) show the same table.
 | Home, End | First / last slide |
 | G | Grid overview; arrows move the selection, Enter / E / click opens it |
 | T | Cycle transition (slide, fade, spatial, none) |
-| Shift+T | Cycle theme (light, dark, nord) |
+| Shift+T | Cycle theme (light, dark, nord, ember) |
 | F | Toggle fullscreen |
 | M | Move the fullscreen window to the next monitor (remembered in config) |
 | H | Toggle the presenter HUD |

@@ -156,7 +156,7 @@ current slide.
 | Home, End | First / last slide |
 | G | Grid overview (click a slide to jump to it) |
 | T | Cycle transition (slide, fade, spatial, none) |
-| Shift+T | Cycle theme (light, dark, nord) |
+| Shift+T | Cycle theme (light, dark, nord, ember) |
 | F | Toggle fullscreen |
 | M | Move to the next monitor |
 | `.` or B | Blackout |
@@ -271,7 +271,9 @@ that avoid nodes and each other. Node icons can also be AI-generated.
 
 ### Themes and transitions
 
-Built-in themes **light**, **dark**, and **nord**; transitions **slide**,
+Built-in themes **light**, **dark**, **nord**, and the experimental **ember**
+(MKLab's brand: editorial type, a left copy column and a living particle
+field behind every slide, see `samples/ember.md`); transitions **slide**,
 **fade**, **spatial**, and **none**. Set them in the frontmatter or cycle them
 live with `Shift+T` and `T`:
 

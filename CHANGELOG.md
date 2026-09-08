@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **`ember` theme (experimental spike)** — MKLab's brand as a theme: near-black ink, one ember
+  accent, bundled Spectral / Hanken Grotesk / JetBrains Mono faces, and a living field of
+  glowing particles behind every slide, drawn additively in a dedicated OpenGL pass. The field
+  morphs between slides and follows the content (constellation on the title, one cluster per
+  bullet lighting with its reveal step, a candle behind quotes, rain behind code, a logo intro
+  on the first slide and on the end slide). Text slides use the site's composition: a copy
+  column on the left with an eyebrow, serif heading and staggered fade-up. Charts, diagrams,
+  code, tables and images keep their layouts in the Ember palette. Showcase deck in
+  `samples/ember.md`; select with `@theme: ember` or cycle with `Shift+T`.
+- Headings, body text and code now take their font families from the theme, so themes can
+  bundle typefaces.
+
 ## [0.19.0] - 2026-09-06
 
 ### Added

@@ -34,7 +34,7 @@ mdeck config set <key> <value> # Set a config value
 ```
 
 Available config keys:
-- `defaults.theme` — default theme (`light`, `dark`, `nord`)
+- `defaults.theme` — default theme (`light`, `dark`, `nord`, `ember`)
 - `defaults.transition` — default transition (`fade`, `slide`, `spatial`, `none`)
 - `defaults.start_mode` — `first`, `overview`, or a slide number
 - `defaults.image_style` / `defaults.icon_style` — default AI image / icon style names

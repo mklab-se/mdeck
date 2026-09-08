@@ -1,6 +1,9 @@
 pub mod diagram;
+pub mod ember;
+pub mod fonts;
 pub mod image_cache;
 pub mod layouts;
+pub mod particles;
 pub mod syntax;
 pub mod text;
 pub mod transition;
@@ -13,6 +16,7 @@ use eframe::egui;
 use crate::parser::{Layout, Slide};
 use crate::theme::Theme;
 
+pub use ember::SlideContext;
 use image_cache::ImageCache;
 
 /// Measure the content height of a slide (for scroll/overflow detection),
@@ -28,6 +32,11 @@ pub fn measure_slide_content_height(
 ) -> (f32, f32) {
     let padding = layouts::SLIDE_PADDING * scale;
     let available_height = rect.height() - padding * 2.0;
+
+    if theme.is_ember() && ember::handles(slide) {
+        let h = ember::measure_content_height(ui, slide, theme, rect, scale);
+        return (h, rect.height() * 0.80);
+    }
 
     let content_height = match slide.layout {
         Layout::Bullet | Layout::Content | Layout::Code => {
@@ -57,7 +66,22 @@ pub fn render_slide(
     reveal_step: usize,
     reveal_timestamp: Option<Instant>,
     scale: f32,
+    cx: &SlideContext,
 ) {
+    if theme.is_ember() && ember::handles(slide) {
+        ember::render(
+            ui,
+            slide,
+            theme,
+            rect,
+            opacity,
+            reveal_step,
+            reveal_timestamp,
+            scale,
+            cx,
+        );
+        return;
+    }
     match slide.layout {
         Layout::Title => layouts::title::render(ui, slide, theme, rect, opacity, scale),
         Layout::Section => layouts::section::render(ui, slide, theme, rect, opacity, scale),

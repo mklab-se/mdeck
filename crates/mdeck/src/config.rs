@@ -243,9 +243,11 @@ impl Config {
         match key {
             "defaults.theme" => {
                 match value {
-                    "light" | "dark" | "nord" => {}
+                    "light" | "dark" | "nord" | "ember" => {}
                     _ => {
-                        anyhow::bail!("Invalid theme: {value}. Must be 'light', 'dark', or 'nord'.")
+                        anyhow::bail!(
+                            "Invalid theme: {value}. Must be 'light', 'dark', 'nord', or 'ember'."
+                        )
                     }
                 }
                 self.defaults

@@ -1,4 +1,5 @@
 mod drawing;
+mod ember;
 mod helpers;
 mod input;
 pub mod keys;
@@ -195,6 +196,8 @@ struct PresentationApp {
     incident_log: Arc<IncidentLog>,
     /// Timestamp of the previous frame, used to detect power-state time jumps.
     last_frame: Instant,
+    /// Ember theme: particle field and logo intro.
+    ember: ember::EmberState,
 }
 
 struct Toast {
@@ -323,6 +326,7 @@ impl PresentationApp {
             shared_slide: None,
             incident_log,
             last_frame: now,
+            ember: ember::EmberState::new(),
         }
     }
 
@@ -359,6 +363,10 @@ impl PresentationApp {
     }
 
     fn navigate_forward(&mut self) {
+        if self.ember.intro_running() {
+            self.ember.skip_intro();
+            return;
+        }
         if self.transition.is_some() {
             self.pending_nav = Some(PendingNav::Forward);
             return;
@@ -398,6 +406,7 @@ impl PresentationApp {
     }
 
     fn navigate_backward(&mut self) {
+        self.ember.skip_intro();
         if self.transition.is_some() {
             self.pending_nav = Some(PendingNav::Backward);
             return;
@@ -1183,6 +1192,21 @@ impl eframe::App for PresentationApp {
 
                 let scale = Self::compute_scale(rect);
 
+                // Ember: the living particle field goes under everything.
+                if self.theme.is_ember() && matches!(self.mode, AppMode::Presentation) {
+                    let target = self
+                        .transition
+                        .as_ref()
+                        .map(|t| t.to)
+                        .unwrap_or(self.current_slide);
+                    let end = self.on_end_slide;
+                    let slide = (!end).then(|| {
+                        &self.presentation.slides[target.min(self.presentation.slides.len() - 1)]
+                    });
+                    let reveal = self.reveal_steps.get(target).copied().unwrap_or(0);
+                    self.ember.frame(ui, rect, slide, target, reveal, end, 1.0);
+                }
+
                 // End slide: "The End" with logo attribution
                 if self.on_end_slide {
                     self.draw_end_slide(ui, rect, scale);
@@ -1410,6 +1434,7 @@ pub fn run(
         &title,
         options,
         Box::new(move |cc| {
+            render::fonts::install(&cc.egui_ctx);
             let content_hash = hash_content(&content);
             let (watcher_rx, watcher) =
                 spawn_file_watcher(&file_clone, cc.egui_ctx.clone(), log_clone.clone())?;

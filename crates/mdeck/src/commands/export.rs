@@ -7,6 +7,7 @@ use crate::commands::util::slide_number_width;
 use crate::parser::{self, Presentation};
 use crate::render;
 use crate::render::image_cache::ImageCache;
+use crate::render::particles::{self, Field};
 use crate::theme::Theme;
 
 /// Frames to let the viewport settle (pixels-per-point change, fonts) before
@@ -120,6 +121,10 @@ struct ExportApp {
     done: bool,
     /// First save error, shared with `run()` so the exit code reflects it.
     error: Arc<Mutex<Option<String>>>,
+    /// Ember's particle field, settled per slide so exports are still frames.
+    field: Option<Field>,
+    /// (slide, step) the field was last settled for.
+    field_key: Option<(usize, usize)>,
 }
 
 impl ExportApp {
@@ -159,6 +164,8 @@ impl ExportApp {
             debug,
             done: false,
             error,
+            field: None,
+            field_key: None,
         }
     }
 
@@ -287,6 +294,32 @@ impl eframe::App for ExportApp {
                     } else {
                         self.max_steps.get(idx).copied().unwrap_or(0)
                     };
+                    if self.theme.is_ember() {
+                        let slide = &self.presentation.slides[idx];
+                        let field = self.field.get_or_insert_with(|| {
+                            let mut f = Field::new(particles::DEFAULT_COUNT, 11);
+                            f.scatter(rect);
+                            f
+                        });
+                        if self.field_key != Some((idx, reveal)) {
+                            field.set_scene(
+                                particles::scenes::for_slide(slide, idx as u64 + 1),
+                                rect,
+                                idx as u64 + 1,
+                            );
+                            field.settle(reveal);
+                            self.field_key = Some((idx, reveal));
+                        }
+                        field.paint(ui.painter(), rect, 1.0);
+                    }
+                    let cx = render::SlideContext {
+                        index: idx,
+                        count: self.presentation.slides.len(),
+                        deck_title: self.presentation.meta.title.clone(),
+                        author: self.presentation.meta.author.clone(),
+                        hold_copy: false,
+                        animate: false,
+                    };
                     render::render_slide(
                         ui,
                         &self.presentation.slides[idx],
@@ -297,6 +330,7 @@ impl eframe::App for ExportApp {
                         reveal,
                         None, // no animation in export
                         scale,
+                        &cx,
                     );
                 }
             });
@@ -383,7 +417,8 @@ pub fn run(
     eframe::run_native(
         &title,
         options,
-        Box::new(move |_cc| {
+        Box::new(move |cc| {
+            render::fonts::install(&cc.egui_ctx);
             Ok(Box::new(ExportApp::new(
                 presentation,
                 &base_path,
