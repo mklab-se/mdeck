@@ -15,6 +15,14 @@ All notable changes to this project will be documented in this file.
   column on the left with an eyebrow, serif heading and staggered fade-up. Charts, diagrams,
   code, tables and images keep their layouts in the Ember palette. Showcase deck in
   `samples/ember.md`; select with `@theme: ember` or cycle with `Shift+T`.
+- **Ember stories (experimental spike)** — the particle field can tell the slide's story: a
+  YAML script names a cast (person, hooded, laptop, inbox, orb, gate, …) in stage cells, flows
+  between them and beats the presenter releases with Space, each with its spoken line. Three
+  tiers: nothing (inferred scenes), an English ```` ```@story ```` hint turned into a script by
+  `mdeck ai story deck.md` (saved to `deck.scenes.yaml`/`.yml`, stale-tracked by content hash,
+  `--slide`, `--range`, `--stale`, `--force`), or a hand-written ```` ```@scene ```` fence. A
+  frontmatter `@story:` gives deck-wide direction. `S` writes the current slide's story from
+  inside the presentation; `H` shows the beat's line; `--check` reports stale or invalid stories.
 - Headings, body text and code now take their font families from the theme, so themes can
   bundle typefaces.
 

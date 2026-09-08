@@ -3,6 +3,10 @@ title: "Ember"
 author: "MKLab"
 @theme: ember
 @transition: fade
+@story: >
+  Calm, factual, a little dry. The people in these stories are ordinary
+  colleagues in a Stockholm software company: developers, a product owner,
+  a support engineer. Keep the same person across slides when one fits.
 ---
 
 # Light, held quietly
@@ -13,7 +17,7 @@ A theme for MDeck drawn from the MKLab site: graphite on near-black, one ember a
 
 ## What you are looking at
 
-- Six hundred and eighty particles that *migrate* between slides instead of cutting
+- Nine hundred particles that *migrate* between slides instead of cutting
 - Additive glow drawn in a dedicated OpenGL pass, so overlapping lights **burn hotter**
 - An editorial serif for headings, a light grotesque for copy, tracked mono for the fine print
 - The same reveal steps you already write, now lighting one cluster per item
@@ -31,6 +35,61 @@ Every choice here follows three rules from the brand book.
 ---
 
 # Part two
+
+---
+
+## The tickets nobody read
+
+Anders automated triage and stopped reading the queue. The assistant answered
+faster than he ever had, and for three weeks nobody looked at what it said.
+
++ The queue went quiet
++ The answers went out
++ One of them was wrong in a way that mattered
+
+```@scene
+cast:
+  - { id: anders, kind: person, label: Anders, cell: left-bottom }
+  - { id: queue, kind: inbox, label: Support queue, cell: center-top }
+  - { id: model, kind: orb, label: The assistant, cell: right, fill: brain }
+  - { id: laptop, kind: laptop, label: His laptop, cell: left-top }
+flows:
+  - { from: queue, to: model, color: white, at: 1 }
+  - { from: model, to: laptop, color: pale, at: 2 }
+  - { from: model, to: laptop, color: ember, at: 3 }
+beats:
+  - { show: [anders, laptop, queue], say: "Anders ran support alone, and the queue never emptied." }
+  - { show: [model], say: "So he pointed an assistant at it and went back to real work." }
+  - { say: "The answers went out. Fast, polite, and unread." }
+  - { hot: [model], say: "One of them promised a refund the company could not honour." }
+```
+
+???
+This slide is hand-choreographed with an inline @scene block. The beats are
+released with Space, one per line.
+
+---
+
+## The same day, done differently
+
+Sofia kept the assistant. She also kept reading.
+
++ Every answer waited in a review queue
++ A rule flagged anything that mentioned money
++ The assistant learned from what she changed
+
+```@story
+Sofia, a support engineer, sits at her laptop on the left. The support queue
+feeds an AI orb, but between the orb and the outgoing mail there is a gate
+that she controls. Step one: tickets flow into the orb. Step two: the orb's
+answers flow to the gate and wait. Step three: Sofia's laptop connects to the
+gate and it lights up as she reviews. Step four: mail leaves the gate, calm
+and white, nothing hot.
+```
+
+???
+This slide has an English @story hint; `mdeck ai story samples/ember.md`
+turns it into a scene in the sidecar.
 
 ---
 

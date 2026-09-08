@@ -4,6 +4,7 @@ pub mod fonts;
 pub mod image_cache;
 pub mod layouts;
 pub mod particles;
+pub mod story;
 pub mod syntax;
 pub mod text;
 pub mod transition;
@@ -209,6 +210,8 @@ mod tests {
             layout,
             raw_source: String::new(),
             notes: None,
+            story_hint: None,
+            scene_script: None,
         }
     }
 

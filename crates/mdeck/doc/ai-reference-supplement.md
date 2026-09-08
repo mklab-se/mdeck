@@ -35,6 +35,9 @@ mdeck config set <key> <value> # Set a config value
 
 Available config keys:
 - `defaults.theme` — default theme (`light`, `dark`, `nord`, `ember`)
+- `mdeck ai story <deck.md> [--slide N | --range A-B] [--stale] [--force]` — write Ember story
+  scripts (cast, flows, beats) into `<deck>.scenes.yaml`; ```` ```@story ```` fences are the
+  author's hints, ```` ```@scene ```` fences are hand-written scripts and are left alone
 - `defaults.transition` — default transition (`fade`, `slide`, `spatial`, `none`)
 - `defaults.start_mode` — `first`, `overview`, or a slide number
 - `defaults.image_style` / `defaults.icon_style` — default AI image / icon style names

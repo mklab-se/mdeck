@@ -8,6 +8,7 @@ use crate::parser::{self, Presentation};
 use crate::render;
 use crate::render::image_cache::ImageCache;
 use crate::render::particles::{self, Field};
+use crate::render::story::{self, sidecar::Resolved};
 use crate::theme::Theme;
 
 /// Frames to let the viewport settle (pixels-per-point change, fonts) before
@@ -125,11 +126,17 @@ struct ExportApp {
     field: Option<Field>,
     /// (slide, step) the field was last settled for.
     field_key: Option<(usize, usize)>,
+    /// Story per slide (sidecar or inline), for the Ember theme.
+    stories: Vec<Option<Resolved>>,
+    /// Labels of the staged story on the current slide.
+    labels: Vec<story::Label>,
 }
 
 impl ExportApp {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         presentation: Presentation,
+        deck: &Path,
         base_path: &Path,
         output_dir: PathBuf,
         width: u32,
@@ -140,10 +147,25 @@ impl ExportApp {
         let theme_name = presentation.meta.theme.as_deref().unwrap_or("light");
         let theme = Theme::from_name(theme_name);
         let image_cache = ImageCache::new(base_path.to_path_buf());
+        let stories = match story::sidecar::load(deck) {
+            Ok(sc) => story::sidecar::resolve(&presentation, sc.as_ref()).0,
+            Err(e) => {
+                eprintln!("Warning: story sidecar ignored: {e}");
+                story::sidecar::resolve(&presentation, None).0
+            }
+        };
         let max_steps: Vec<usize> = presentation
             .slides
             .iter()
-            .map(|s| parser::compute_max_steps(&s.blocks))
+            .enumerate()
+            .map(|(i, s)| {
+                let beats = stories
+                    .get(i)
+                    .and_then(|r| r.as_ref())
+                    .map(|r| r.script.extra_steps())
+                    .unwrap_or(0);
+                parser::compute_max_steps(&s.blocks).max(beats)
+            })
             .collect();
 
         Self {
@@ -166,6 +188,8 @@ impl ExportApp {
             error,
             field: None,
             field_key: None,
+            stories,
+            labels: Vec::new(),
         }
     }
 
@@ -302,15 +326,42 @@ impl eframe::App for ExportApp {
                             f
                         });
                         if self.field_key != Some((idx, reveal)) {
-                            field.set_scene(
-                                particles::scenes::for_slide(slide, idx as u64 + 1),
-                                rect,
-                                idx as u64 + 1,
-                            );
+                            let story = self
+                                .stories
+                                .get(idx)
+                                .and_then(|r| r.as_ref())
+                                .filter(|_| !render::ember::is_title(slide, idx));
+                            let scene = match story {
+                                Some(r) => {
+                                    let staged = story::stage(
+                                        &r.script,
+                                        slide.layout,
+                                        rect.width() / rect.height(),
+                                    );
+                                    self.labels = staged.labels;
+                                    staged.scene
+                                }
+                                None => {
+                                    self.labels.clear();
+                                    particles::scenes::for_slide(slide, idx as u64 + 1)
+                                }
+                            };
+                            field.set_scene(scene, rect, idx as u64 + 1);
                             field.settle(reveal);
                             self.field_key = Some((idx, reveal));
                         }
                         field.paint(ui.painter(), rect, 1.0);
+                        if !self.labels.is_empty() {
+                            story::draw_labels(
+                                ui.painter(),
+                                &self.labels,
+                                field,
+                                rect,
+                                &self.theme,
+                                scale,
+                                1.0,
+                            );
+                        }
                     }
                     let cx = render::SlideContext {
                         index: idx,
@@ -319,6 +370,8 @@ impl eframe::App for ExportApp {
                         author: self.presentation.meta.author.clone(),
                         hold_copy: false,
                         animate: false,
+                        beats: None,
+                        say: None,
                     };
                     render::render_slide(
                         ui,
@@ -421,6 +474,7 @@ pub fn run(
             render::fonts::install(&cc.egui_ctx);
             Ok(Box::new(ExportApp::new(
                 presentation,
+                &file,
                 &base_path,
                 output_dir_clone,
                 width,

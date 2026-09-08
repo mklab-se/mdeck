@@ -354,6 +354,8 @@ mod tests {
             layout: Layout::Bullet,
             raw_source: String::new(),
             notes: None,
+            story_hint: None,
+            scene_script: None,
         };
         let scene = for_slide(&slide, 3);
         let steps: Vec<Option<usize>> = scene
@@ -386,6 +388,8 @@ mod tests {
                 layout,
                 raw_source: String::new(),
                 notes: None,
+                story_hint: None,
+                scene_script: None,
             };
             let scene = for_slide(&slide, 1);
             assert!(scene.groups.len() >= 2, "{layout:?} has too few groups");

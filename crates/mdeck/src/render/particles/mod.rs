@@ -145,6 +145,9 @@ pub enum Home {
         w: f32,
         h: f32,
     },
+    /// Along a polyline in slide fractions; `spread` (fraction of min side)
+    /// scatters particles across the line.
+    Path { points: Vec<[f32; 2]>, spread: f32 },
 }
 
 /// Per-frame motion applied on top of the home.
@@ -158,6 +161,8 @@ pub enum Drift {
     Rise { speed: f32 },
     /// Holds still apart from a faint shimmer.
     Still,
+    /// Runs along its [`Home::Path`] and wraps; `speed` is passes per 4 s.
+    Flow { speed: f32 },
 }
 
 #[derive(Clone, Debug)]
@@ -176,6 +181,10 @@ pub struct Group {
     /// Connect each particle to its nearest neighbours in the group with a
     /// hairline (only meaningful for clusters).
     pub links: u8,
+    /// Brightness while the group's step has not been reached (0 hides it).
+    pub dim: f32,
+    /// Reveal step from which the group glows hot (brighter, ember-tinted).
+    pub hot_step: Option<usize>,
 }
 
 impl Group {
@@ -192,7 +201,17 @@ impl Group {
             size: (0.4, 0.9),
             step: None,
             links: 0,
+            dim: 0.10,
+            hot_step: None,
         }
+    }
+    pub fn dim(mut self, dim: f32) -> Self {
+        self.dim = dim;
+        self
+    }
+    pub fn hot(mut self, step: usize) -> Self {
+        self.hot_step = Some(step);
+        self
     }
     pub fn drift(mut self, d: Drift) -> Self {
         self.drift = d;
@@ -262,14 +281,16 @@ struct Particle {
     alpha: f32,
     tint: Tint,
     group: usize,
-    /// Position through a field, 0..1 (rain and rising embers).
+    /// Position through a field or along a path, 0..1.
     along: f32,
+    /// Lateral offset across a path, -1..1.
+    lateral: f32,
 }
 
 /// Easing of a group's brightness toward its reveal target.
 const LIFE_RATE: f32 = 3.2;
 /// Particles in the presentation window (the site uses 520 on desktop).
-pub const DEFAULT_COUNT: usize = 680;
+pub const DEFAULT_COUNT: usize = 900;
 /// Reference slide width the site's pixel sizes were tuned for.
 const REF_WIDTH: f32 = 1440.0;
 
@@ -280,6 +301,8 @@ pub struct Field {
     rect: Rect,
     /// Brightness of each group (eases toward 1 or the dimmed level).
     life: Vec<f32>,
+    /// Heat of each group (0 normal, 1 glowing hot), eased.
+    heat: Vec<f32>,
     /// Neighbour hairlines as particle index pairs.
     links: Vec<(usize, usize)>,
     /// 0 right after a scene change, easing to 1: fades links in.
@@ -309,6 +332,7 @@ impl Field {
                 tint: Tint::White,
                 group: 0,
                 along: rng.unit(),
+                lateral: rng.range(-1.0, 1.0),
             })
             .collect();
         Self {
@@ -317,6 +341,7 @@ impl Field {
             scene: Scene::default(),
             rect: Rect::NOTHING,
             life: Vec::new(),
+            heat: Vec::new(),
             links: Vec::new(),
             scene_fade: 1.0,
             time: 0.0,
@@ -326,6 +351,17 @@ impl Field {
 
     pub fn rect(&self) -> Rect {
         self.rect
+    }
+
+    /// Current brightness (0..1) of group `gi`, for drawing things that
+    /// belong to it (labels) with the same fade.
+    pub fn group_life(&self, gi: usize) -> f32 {
+        self.life.get(gi).copied().unwrap_or(0.0)
+    }
+
+    /// Current heat (0..1) of group `gi`.
+    pub fn group_heat(&self, gi: usize) -> f32 {
+        self.heat.get(gi).copied().unwrap_or(0.0)
     }
 
     /// Scatter every particle randomly over `rect` (initial state, so the
@@ -381,6 +417,7 @@ impl Field {
                 p.base_alpha = self.rng.range(g.alpha.0, g.alpha.1);
                 p.size_mul = self.rng.range(g.size.0, g.size.1);
                 p.along = self.rng.unit();
+                p.lateral = self.rng.range(-1.0, 1.0);
                 let (hx, hy) = home_point(&g.home, rect, min_side, &mut self.rng);
                 p.hx = hx;
                 p.hy = hy;
@@ -421,6 +458,7 @@ impl Field {
         self.life = (0..scene.groups.len())
             .map(|gi| old_life.get(gi).copied().unwrap_or(0.0))
             .collect();
+        self.heat = vec![0.0; scene.groups.len()];
         self.scene = scene;
         self.scene_fade = 0.0;
     }
@@ -430,6 +468,7 @@ impl Field {
     pub fn settle(&mut self, reveal_step: usize) {
         for (gi, g) in self.scene.groups.iter().enumerate() {
             self.life[gi] = life_target(g, reveal_step);
+            self.heat[gi] = heat_target(g, reveal_step);
         }
         self.scene_fade = 1.0;
         // One tick computes targets and alphas with the final brightness.
@@ -455,6 +494,9 @@ impl Field {
             let target = life_target(g, reveal_step);
             let l = &mut self.life[gi];
             *l += (target - *l) * (1.0 - (-LIFE_RATE * dt).exp());
+            let ht = heat_target(g, reveal_step);
+            let h = &mut self.heat[gi];
+            *h += (ht - *h) * (1.0 - (-LIFE_RATE * 0.8 * dt).exp());
         }
 
         for p in &mut self.particles {
@@ -473,6 +515,26 @@ impl Field {
                     p.tx = p.hx;
                     p.ty = p.hy;
                     p.alpha = p.base_alpha * (0.88 + 0.12 * (t * 2.0 + p.phase).sin());
+                }
+                Drift::Flow { speed } => {
+                    if let Home::Path { points, spread } = &g.home {
+                        p.along = (p.along + speed * p.speed * dt / 4.0).rem_euclid(1.0);
+                        let (px, py, nx, ny) = path_point(points, p.along, rect);
+                        let off = p.lateral * spread * min_side;
+                        p.tx = px + nx * off;
+                        p.ty = py + ny * off;
+                        let edge = (p.along * (1.0 - p.along) * 6.0).clamp(0.0, 1.0);
+                        p.alpha = p.base_alpha * edge;
+                        // wrapped: snap so the runner does not streak back
+                        if ((p.tx - p.x).powi(2) + (p.ty - p.y).powi(2)).sqrt() > min_side * 0.2 {
+                            p.x = p.tx;
+                            p.y = p.ty;
+                        }
+                    } else {
+                        p.tx = p.hx;
+                        p.ty = p.hy;
+                        p.alpha = p.base_alpha;
+                    }
                 }
                 Drift::Fall { speed } | Drift::Rise { speed } => {
                     let (v0, v1) = field_v_range(&g.home);
@@ -495,7 +557,8 @@ impl Field {
                     }
                 }
             }
-            p.alpha *= life;
+            let heat = self.heat[p.group];
+            p.alpha *= life * (1.0 + heat * 0.9);
             let k = 1.0 - (1.0 - p.k).powf(frames);
             p.x += (p.tx - p.x) * k;
             p.y += (p.ty - p.y) * k;
@@ -528,11 +591,18 @@ impl Field {
             .filter(|p| p.alpha > 0.003)
             .map(|p| {
                 let [r, g, b] = p.tint.rgb();
+                let heat = self.heat.get(p.group).copied().unwrap_or(0.0) * 0.75;
+                let [er, eg, eb] = Tint::Ember.rgb();
                 Sprite {
                     x: p.x,
                     y: p.y,
-                    size: p.base_size * p.size_mul * scale,
-                    rgba: [r, g, b, (p.alpha * opacity).clamp(0.0, 1.0)],
+                    size: p.base_size * p.size_mul * scale * (1.0 + heat * 0.4),
+                    rgba: [
+                        r + (er - r) * heat,
+                        g + (eg - g) * heat,
+                        b + (eb - b) * heat,
+                        (p.alpha * opacity).clamp(0.0, 1.0),
+                    ],
                 }
             })
             .collect();
@@ -542,9 +612,58 @@ impl Field {
 
 fn life_target(g: &Group, reveal_step: usize) -> f32 {
     match g.step {
-        Some(s) if s > reveal_step => 0.10,
+        Some(s) if s > reveal_step => g.dim,
         _ => 1.0,
     }
+}
+
+fn heat_target(g: &Group, reveal_step: usize) -> f32 {
+    match g.hot_step {
+        Some(s) if s <= reveal_step => 1.0,
+        _ => 0.0,
+    }
+}
+
+/// Point at parameter `s` (0..1) along a normalised polyline, with its unit
+/// normal, in points.
+fn path_point(points: &[[f32; 2]], s: f32, rect: Rect) -> (f32, f32, f32, f32) {
+    if points.len() < 2 {
+        let c = rect.center();
+        return (c.x, c.y, 0.0, 1.0);
+    }
+    let to_px = |p: [f32; 2]| {
+        (
+            rect.left() + p[0] * rect.width(),
+            rect.top() + p[1] * rect.height(),
+        )
+    };
+    let pts: Vec<(f32, f32)> = points.iter().map(|&p| to_px(p)).collect();
+    let mut total = 0.0;
+    let lens: Vec<f32> = pts
+        .windows(2)
+        .map(|w| {
+            let l = ((w[1].0 - w[0].0).powi(2) + (w[1].1 - w[0].1).powi(2)).sqrt();
+            total += l;
+            l
+        })
+        .collect();
+    let mut d = s.clamp(0.0, 1.0) * total;
+    for (i, l) in lens.iter().enumerate() {
+        if d <= *l || i + 1 == lens.len() {
+            let f = if *l > 0.0 {
+                (d / l).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            let (a, b) = (pts[i], pts[i + 1]);
+            let (dx, dy) = (b.0 - a.0, b.1 - a.1);
+            let len = (dx * dx + dy * dy).sqrt().max(1e-3);
+            return (a.0 + dx * f, a.1 + dy * f, -dy / len, dx / len);
+        }
+        d -= l;
+    }
+    let last = pts[pts.len() - 1];
+    (last.0, last.1, 0.0, 1.0)
 }
 
 fn field_v_range(home: &Home) -> (f32, f32) {
@@ -569,6 +688,11 @@ fn home_point(home: &Home, rect: Rect, min_side: f32, rng: &mut Rng) -> (f32, f3
             rect.left() + rng.range(*u0, *u1) * rect.width(),
             rect.top() + rng.range(*v0, *v1) * rect.height(),
         ),
+        Home::Path { points, spread } => {
+            let (px, py, nx, ny) = path_point(points, rng.unit(), rect);
+            let off = rng.range(-1.0, 1.0) * spread * min_side;
+            (px + nx * off, py + ny * off)
+        }
         Home::Mask { points, u, v, w, h } => {
             if points.is_empty() {
                 return (rect.center().x, rect.center().y);

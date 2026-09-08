@@ -558,6 +558,7 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 | Directive      | Scope          | Values                                    | Default        |
 |----------------|----------------|-------------------------------------------|----------------|
 | `@theme`       | global         | `light`, `dark`, `nord`, `ember`          | `light`        |
+| `@story`       | global         | English direction for AI stories (Ember) | none           |
 | `@transition`  | global         | `fade`, `slide`, `spatial`, `none`        | `slide`        |
 | `@layout`      | slide          | layout name (see Section 4.1)             | auto-inferred  |
 | `@slide-level` | global         | `1`–`6`                                   | inferred       |
@@ -754,6 +755,52 @@ code slide rains. Slides whose content fills the frame (code, tables, charts,
 diagrams, images) keep their regular layouts with the Ember palette. Every
 slide gets a tracked eyebrow with its roman numeral and the deck title, and
 the presenter chrome is a counter and a progress hairline.
+
+#### Ember stories
+
+With Ember, the particle field can tell the slide's story instead of only
+decorating it. A **story script** names a cast of people and props placed in
+stage cells, flows of light between them, and beats the presenter releases
+with Space (beats share the reveal counter with `+` list items). Three tiers,
+all optional:
+
+1. **Nothing.** The inferred scene: constellation, clusters per bullet, and so on.
+2. **An English hint.** A ```` ```@story ```` fence on the slide describes what
+   the canvas should do. `mdeck ai story deck.md` turns hints (and, for slides
+   without one, the copy and notes) into scripts, saved next to the deck in
+   `deck.scenes.yaml` (or `.yml`; `.yaml` wins when both exist). A deck-level
+   `@story:` in the frontmatter sets tone and cast for the whole deck.
+3. **A hand-written script.** A ```` ```@scene ```` fence holds the YAML
+   script itself and is never regenerated.
+
+Neither fence renders. A sidecar entry is keyed by a hash of the slide's
+source (copy, hint and notes) plus the deck hint, so editing any of them marks
+the story stale: it still plays, `mdeck --check` warns, and
+`mdeck ai story --stale` refreshes it. In the presentation, `S` writes a story
+for the current slide in the background; `H` shows the current beat's spoken
+line to the presenter.
+
+```yaml
+cast:
+  - { id: anders, kind: person, label: Anders, cell: left }
+  - { id: queue,  kind: inbox,  label: Support queue, cell: center-top }
+  - { id: model,  kind: orb,    label: The assistant, cell: right, fill: brain }
+flows:
+  - { from: queue, to: model, color: white, at: 1 }
+  - { from: model, to: anders, color: ember, at: 2 }
+beats:
+  - { show: [anders, queue], say: "Anders stopped reading the tickets." }
+  - { show: [model],         say: "He pointed the assistant at the queue." }
+  - { hot: [model],          say: "Nobody noticed what came back." }
+```
+
+Kinds: `person`, `hooded`, `box`, `orb`, `doc`, `docs`, `inbox`, `db`,
+`cloud`, `laptop`, `folder`, `mail`, `gate`. Cells: `left-top`, `center-top`,
+`right-top`, `left`, `center`, `right`, `left-bottom`, `center-bottom`,
+`right-bottom` (one member per cell). Fills: `outline`, `brain`, `hot`,
+`cold`. Flow colours: `white`, `ember`, `candle`, `pale`. At most seven cast
+members and six beats; each `say` line at most 160 characters. Title slides
+have no stage and never play a story.
 
 All themes meet WCAG AA contrast requirements. Cycle themes during a
 presentation with `Shift+T`.

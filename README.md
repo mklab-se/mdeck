@@ -160,7 +160,8 @@ current slide.
 | F | Toggle fullscreen |
 | M | Move to the next monitor |
 | `.` or B | Blackout |
-| H | Presenter HUD with shortcuts |
+| H | Presenter HUD with shortcuts (and the current story beat's line) |
+| S | Ember: write an AI story for this slide |
 | Esc | Clear drawings; press twice to quit (Q twice and Ctrl+C twice also quit) |
 
 | Mouse | Action |
@@ -274,7 +275,14 @@ that avoid nodes and each other. Node icons can also be AI-generated.
 Built-in themes **light**, **dark**, **nord**, and the experimental **ember**
 (MKLab's brand: editorial type, a left copy column and a living particle
 field behind every slide, see `samples/ember.md`); transitions **slide**,
-**fade**, **spatial**, and **none**. Set them in the frontmatter or cycle them
+**fade**, **spatial**, and **none**.
+
+With Ember the field can also tell the slide's story: a cast of people and
+props, flows between them, and beats you release with Space. Describe the
+scene in English in a ```` ```@story ```` fence, run `mdeck ai story talk.md`,
+and the scripts land in `talk.scenes.yaml` next to the deck. Write the YAML
+yourself in a ```` ```@scene ```` fence when you want full control, or write
+nothing and keep the inferred scenes. See the format spec for the vocabulary. Set them in the frontmatter or cycle them
 live with `Shift+T` and `T`:
 
 ```yaml

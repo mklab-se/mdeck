@@ -136,6 +136,23 @@ pub enum AiCommands {
     },
     /// Create a presentation from content using AI
     Create(CreateArgs),
+    /// Write particle stories for the Ember theme (saved next to the deck as <deck>.scenes.yaml)
+    Story {
+        /// Markdown file to process
+        file: PathBuf,
+        /// Only this slide (1-based)
+        #[arg(long, conflicts_with = "range")]
+        slide: Option<usize>,
+        /// Only these slides, e.g. 3-7 (1-based, inclusive)
+        #[arg(long)]
+        range: Option<String>,
+        /// Only refresh slides whose story has gone stale
+        #[arg(long)]
+        stale: bool,
+        /// Regenerate even when the current story is up to date
+        #[arg(long)]
+        force: bool,
+    },
     /// Show AI status (same as running `mdeck ai` without a subcommand)
     Status,
     /// AI agent skill information — helps set up Claude Code skills for mdeck

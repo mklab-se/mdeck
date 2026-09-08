@@ -318,6 +318,8 @@ fn parse_code_block(lines: &[&str], start: usize, fence_char: char) -> (Block, u
         VizKind::OrgChart => Block::OrgChart { content: code },
         VizKind::GanttChart => Block::GanttChart { content: code },
         VizKind::GitGraph => Block::GitGraph { content: code },
+        VizKind::StoryHint => Block::StoryHint { content: code },
+        VizKind::SceneScript => Block::SceneScript { content: code },
         VizKind::None => Block::CodeBlock {
             language,
             code,
@@ -348,11 +350,23 @@ enum VizKind {
     OrgChart,
     GanttChart,
     GitGraph,
+    /// ```@story — an English hint for AI story generation (never rendered).
+    StoryHint,
+    /// ```@scene — a hand-written scene script in YAML (never rendered).
+    SceneScript,
 }
 
 fn parse_code_info(info: &str) -> (Option<String>, Vec<usize>, VizKind) {
     if info.is_empty() {
         return (None, vec![], VizKind::None);
+    }
+
+    // Story authoring fences (see the Ember theme): kept off the slide
+    if info.starts_with("@story") {
+        return (None, vec![], VizKind::StoryHint);
+    }
+    if info.starts_with("@scene") {
+        return (None, vec![], VizKind::SceneScript);
     }
 
     // Check for visualization language tags

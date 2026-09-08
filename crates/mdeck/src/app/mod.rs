@@ -25,6 +25,7 @@ use crate::incident_log::IncidentLog;
 use crate::parser::{self, Presentation};
 use crate::render;
 use crate::render::image_cache::ImageCache;
+use crate::render::story::sidecar::{self as story_sidecar, Resolved};
 use crate::render::transition::{ActiveTransition, TransitionDirection, TransitionKind};
 use crate::theme::Theme;
 
@@ -198,6 +199,12 @@ struct PresentationApp {
     last_frame: Instant,
     /// Ember theme: particle field and logo intro.
     ember: ember::EmberState,
+    /// Resolved story per slide (inline `@scene`, sidecar, or none).
+    stories: Vec<Option<Resolved>>,
+    /// Bumped whenever `stories` changes so cached scenes rebuild.
+    story_version: u64,
+    /// Background `S` generation in flight: receives (slide, result).
+    story_rx: Option<mpsc::Receiver<(usize, Result<(), String>)>>,
 }
 
 struct Toast {
@@ -264,11 +271,8 @@ impl PresentationApp {
             .to_path_buf();
         let image_cache = ImageCache::new(base_path);
 
-        let max_steps: Vec<usize> = presentation
-            .slides
-            .iter()
-            .map(|s| parser::compute_max_steps(&s.blocks))
-            .collect();
+        let stories = load_stories(&file, &presentation, quiet);
+        let max_steps: Vec<usize> = slide_max_steps(&presentation, &stories);
         let slide_count = presentation.slides.len();
         let reveal_steps = vec![0; slide_count];
         let reveal_timestamps = vec![None; slide_count];
@@ -327,6 +331,86 @@ impl PresentationApp {
             incident_log,
             last_frame: now,
             ember: ember::EmberState::new(),
+            stories,
+            story_version: 0,
+            story_rx: None,
+        }
+    }
+
+    /// The story playing on slide `index`, if any.
+    fn story(&self, index: usize) -> Option<&crate::render::story::Script> {
+        self.stories
+            .get(index)
+            .and_then(|r| r.as_ref())
+            .map(|r| &r.script)
+    }
+
+    /// Re-read the sidecar and rebuild per-slide stories and step counts.
+    fn reload_stories(&mut self) {
+        self.stories = load_stories(&self.file_path, &self.presentation, true);
+        self.max_steps = slide_max_steps(&self.presentation, &self.stories);
+        for (i, r) in self.reveal_steps.iter_mut().enumerate() {
+            *r = (*r).min(self.max_steps[i]);
+        }
+        self.story_version += 1;
+    }
+
+    /// `S`: write a story for the current slide with AI, in the background.
+    fn generate_story(&mut self) {
+        if !self.theme.is_ember() {
+            self.toast = Some(Toast::new("Stories need the ember theme (Shift+T)".into()));
+            return;
+        }
+        if self.story_rx.is_some() {
+            self.toast = Some(Toast::new("A story is already being written…".into()));
+            return;
+        }
+        if !crate::commands::ai::has_capability("chat") {
+            self.toast = Some(Toast::new(
+                "AI is not configured: run `mdeck ai enable`".into(),
+            ));
+            return;
+        }
+        let idx = self.current_slide;
+        if self.presentation.slides[idx].scene_script.is_some() {
+            self.toast = Some(Toast::new("This slide has a hand-written @scene".into()));
+            return;
+        }
+        let (tx, rx) = mpsc::channel();
+        self.story_rx = Some(rx);
+        let deck = self.file_path.clone();
+        std::thread::spawn(move || {
+            let result = crate::commands::story::generate_one_blocking(&deck, idx)
+                .map(|_| ())
+                .map_err(|e| e.to_string());
+            let _ = tx.send((idx, result));
+        });
+        self.toast = Some(Toast::new(format!(
+            "Writing a story for slide {}…",
+            idx + 1
+        )));
+    }
+
+    fn poll_story(&mut self) {
+        let Some(rx) = &self.story_rx else {
+            return;
+        };
+        match rx.try_recv() {
+            Ok((idx, Ok(()))) => {
+                self.story_rx = None;
+                self.reload_stories();
+                self.toast = Some(Toast::new(format!("Story ready for slide {}", idx + 1)));
+            }
+            Ok((idx, Err(e))) => {
+                self.story_rx = None;
+                self.incident_log
+                    .record("story_error", &format!("slide {}", idx + 1), &e);
+                self.toast = Some(Toast::new(format!("Story failed: {e}")));
+            }
+            Err(mpsc::TryRecvError::Empty) => {}
+            Err(mpsc::TryRecvError::Disconnected) => {
+                self.story_rx = None;
+            }
         }
     }
 
@@ -646,11 +730,9 @@ impl PresentationApp {
 
         // Recompute per-slide vectors, keeping the current slide's reveal
         // progress (clamped to the new step count) and scroll position.
-        self.max_steps = new_presentation
-            .slides
-            .iter()
-            .map(|s| parser::compute_max_steps(&s.blocks))
-            .collect();
+        self.stories = load_stories(&self.file_path, &new_presentation, true);
+        self.story_version += 1;
+        self.max_steps = slide_max_steps(&new_presentation, &self.stories);
         self.reveal_steps = vec![0; slide_count];
         self.reveal_timestamps = vec![None; slide_count];
         self.scroll_offsets = vec![0.0; slide_count];
@@ -1003,6 +1085,7 @@ impl PresentationApp {
                 }
             }
             Action::ToggleHud => self.show_hud = !self.show_hud,
+            Action::GenerateStory => self.generate_story(),
             Action::CycleRawOverlay => {
                 self.raw_overlay_side = match self.raw_overlay_side {
                     RawOverlaySide::Off => RawOverlaySide::Left,
@@ -1075,6 +1158,8 @@ impl eframe::App for PresentationApp {
         if let Some(shared) = &self.shared_slide {
             shared.store(self.current_slide, Ordering::Relaxed);
         }
+
+        self.poll_story();
 
         // Check for file changes
         if self.watcher_rx.try_recv().is_ok() {
@@ -1204,7 +1289,21 @@ impl eframe::App for PresentationApp {
                         &self.presentation.slides[target.min(self.presentation.slides.len() - 1)]
                     });
                     let reveal = self.reveal_steps.get(target).copied().unwrap_or(0);
-                    self.ember.frame(ui, rect, slide, target, reveal, end, 1.0);
+                    let story = self.story(target).cloned();
+                    let theme = self.theme.clone();
+                    self.ember.frame(
+                        ui,
+                        rect,
+                        slide,
+                        story.as_ref(),
+                        self.story_version,
+                        target,
+                        reveal,
+                        end,
+                        &theme,
+                        scale,
+                        1.0,
+                    );
                 }
 
                 // End slide: "The End" with logo attribution
@@ -1307,6 +1406,49 @@ impl eframe::App for PresentationApp {
         #[cfg(not(target_os = "linux"))]
         ctx.request_repaint_after(std::time::Duration::from_secs(4));
     }
+}
+
+/// Load the story sidecar and resolve a story per slide, reporting problems
+/// on stderr unless quiet.
+fn load_stories(
+    file: &std::path::Path,
+    presentation: &Presentation,
+    quiet: bool,
+) -> Vec<Option<Resolved>> {
+    let sidecar = match story_sidecar::load(file) {
+        Ok(s) => s,
+        Err(e) => {
+            if !quiet {
+                eprintln!("Warning: story sidecar ignored: {e}");
+            }
+            None
+        }
+    };
+    let (stories, problems) = story_sidecar::resolve(presentation, sidecar.as_ref());
+    if !quiet {
+        for p in problems {
+            eprintln!("Warning: {p}");
+        }
+    }
+    stories
+}
+
+/// Reveal steps per slide: the content's own steps, extended by story beats.
+fn slide_max_steps(presentation: &Presentation, stories: &[Option<Resolved>]) -> Vec<usize> {
+    presentation
+        .slides
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            let content = parser::compute_max_steps(&s.blocks);
+            let beats = stories
+                .get(i)
+                .and_then(|r| r.as_ref())
+                .map(|r| r.script.extra_steps())
+                .unwrap_or(0);
+            content.max(beats)
+        })
+        .collect()
 }
 
 /// Resolve the initial slide (0-indexed) and overview flag from CLI flags and
@@ -1490,6 +1632,8 @@ mod tests {
             layout: Layout::Content,
             raw_source: raw.to_string(),
             notes: None,
+            story_hint: None,
+            scene_script: None,
         }
     }
 

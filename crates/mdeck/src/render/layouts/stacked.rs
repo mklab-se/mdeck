@@ -128,6 +128,8 @@ mod tests {
             layout,
             raw_source: String::new(),
             notes: None,
+            story_hint: None,
+            scene_script: None,
         }
     }
 

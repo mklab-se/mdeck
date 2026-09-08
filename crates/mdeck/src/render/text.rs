@@ -909,6 +909,7 @@ pub fn measure_single_block_height(
             measure_table_height(ui, headers, rows, theme, max_width, scale)
         }
         Block::HorizontalRule => 20.0 * scale,
+        Block::StoryHint { .. } | Block::SceneScript { .. } => 0.0,
         Block::Diagram { .. }
         | Block::WordCloud { .. }
         | Block::Timeline { .. }
@@ -1228,6 +1229,7 @@ pub fn draw_block(
             20.0 * scale
         }
         Block::ColumnSeparator => 0.0, // handled by two-column layout
+        Block::StoryHint { .. } | Block::SceneScript { .. } => 0.0, // never rendered
     }
 }
 

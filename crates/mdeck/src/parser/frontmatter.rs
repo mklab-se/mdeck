@@ -67,6 +67,7 @@ fn parse_frontmatter(yaml_str: &str) -> PresentationMeta {
         image_style: get_string(&map, "@image-style"),
         icon_style: get_string(&map, "@icon-style"),
         slide_level: get_u8(&map, "@slide-level"),
+        story: get_string(&map, "@story"),
     }
 }
 
@@ -102,6 +103,7 @@ fn parse_frontmatter_manual(yaml_str: &str) -> PresentationMeta {
                 "@image-style" => meta.image_style = Some(value.to_string()),
                 "@icon-style" => meta.icon_style = Some(value.to_string()),
                 "@slide-level" => meta.slide_level = value.parse().ok(),
+                "@story" => meta.story = Some(value.to_string()),
                 _ => {}
             }
         }

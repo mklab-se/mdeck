@@ -7,6 +7,8 @@ use eframe::egui;
 
 use crate::parser::Slide;
 use crate::render::particles::{self, Field, scenes};
+use crate::render::story::{self, Script};
+use crate::theme::Theme;
 
 static LOGO_BYTES: &[u8] = include_bytes!("../../media/logo-small.png");
 
@@ -26,8 +28,10 @@ enum Intro {
 
 pub(super) struct EmberState {
     field: Option<Field>,
-    /// (slide index, reveal step, end-slide flag) the current scene was built for.
-    key: Option<(usize, usize, bool)>,
+    /// (slide index, reveal step, end-slide flag, story version) the current scene was built for.
+    key: Option<(usize, usize, bool, u64)>,
+    /// Labels of the staged story, if the current scene is one.
+    labels: Vec<story::Label>,
     intro: Intro,
     logo: Option<(std::sync::Arc<Vec<[f32; 2]>>, f32)>,
     last_tick: Option<Instant>,
@@ -38,6 +42,7 @@ impl EmberState {
         Self {
             field: None,
             key: None,
+            labels: Vec::new(),
             intro: Intro::Pending,
             logo: None,
             last_tick: None,
@@ -70,9 +75,13 @@ impl EmberState {
         ui: &egui::Ui,
         rect: egui::Rect,
         slide: Option<&Slide>,
+        story: Option<&Script>,
+        story_version: u64,
         index: usize,
         reveal: usize,
         end: bool,
+        theme: &Theme,
+        scale: f32,
         opacity: f32,
     ) {
         let now = Instant::now();
@@ -110,16 +119,23 @@ impl EmberState {
             self.key = None;
         }
 
-        let key = (index, reveal, end);
+        let key = (index, reveal, end, story_version);
         let show_logo = end || self.intro_running();
         let field = self.field.as_mut().expect("field created above");
         if self.key != Some(key) {
+            self.labels.clear();
             let scene = if show_logo {
                 let (points, aspect) = self
                     .logo
                     .get_or_insert_with(|| particles::mask_points_from_png(LOGO_BYTES))
                     .clone();
                 scenes::mask(points, aspect, rect.width() / rect.height(), 0.30)
+            } else if let (Some(slide), Some(script)) = (slide, story)
+                && !crate::render::ember::is_title(slide, index)
+            {
+                let staged = story::stage(script, slide.layout, rect.width() / rect.height());
+                self.labels = staged.labels;
+                staged.scene
             } else if let Some(slide) = slide {
                 scenes::for_slide(slide, index as u64 + 1)
             } else {
@@ -131,6 +147,17 @@ impl EmberState {
         // During the intro the particles rush to their marks a little faster.
         field.tick(if show_logo { dt * 1.6 } else { dt }, reveal);
         field.paint(ui.painter(), rect, opacity);
+        if !self.labels.is_empty() {
+            story::draw_labels(
+                ui.painter(),
+                &self.labels,
+                field,
+                rect,
+                theme,
+                scale,
+                opacity,
+            );
+        }
         ui.ctx().request_repaint();
     }
 

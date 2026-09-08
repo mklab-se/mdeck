@@ -1,0 +1,553 @@
+# Story scenes for the Ember theme, written by `mdeck ai story`.
+# Hand edits are fine; a slide's entry goes stale when the slide changes.
+version: 1
+slides:
+- slide: 1
+  title: Light, held quietly
+  hash: 8abdd07735c9d1d4
+  generated: '1788875349'
+  scene:
+    cast:
+    - id: maya
+      kind: person
+      label: Maya
+      cell: left
+    - id: laptop
+      kind: laptop
+      label: Open deck
+      cell: center
+    - id: field
+      kind: cloud
+      label: Particle field
+      cell: right
+    flows:
+    - from: laptop
+      to: field
+      color: white
+      at: 1
+    - from: field
+      to: laptop
+      color: ember
+      at: 2
+    beats:
+    - show:
+      - maya
+      - laptop
+      say: Maya opens the deck before the room fills.
+    - show:
+      - field
+      say: A quiet field gathers behind the slide.
+    - hot:
+      - field
+      say: 'The light stays held: just enough motion to make the room feel alive.'
+- slide: 2
+  title: What you are looking at
+  hash: b839d948224e7552
+  generated: '1788875974'
+  scene:
+    cast:
+    - id: maya
+      kind: person
+      label: Maya
+      cell: left
+    - id: sofia
+      kind: person
+      label: Sofia
+      cell: right
+    - id: laptop
+      kind: laptop
+      label: Maya's laptop
+      cell: center-bottom
+    - id: slides
+      kind: docs
+      label: Slide deck
+      cell: center-top
+    - id: particles
+      kind: orb
+      label: Particle field
+      cell: right-top
+      fill: brain
+    - id: render
+      kind: box
+      label: Light pass
+      cell: right-bottom
+      fill: hot
+    flows:
+    - from: slides
+      to: particles
+      color: white
+      at: 1
+    - from: particles
+      to: render
+      color: ember
+      at: 2
+    - from: laptop
+      to: slides
+      color: candle
+      at: 3
+    beats:
+    - show:
+      - maya
+      - sofia
+      - laptop
+      - slides
+      say: Maya is walking Sofia through the deck on her laptop.
+    - show:
+      - particles
+      say: The particles migrate with the slides instead of cutting between them.
+    - hot:
+      - particles
+      - render
+      say: Overlapping lights burn hotter in a dedicated rendering pass.
+    - hot:
+      - slides
+      - particles
+      say: Each reveal step lights one cluster, while the type keeps its quiet hierarchy.
+- slide: 3
+  title: The rules of the room
+  hash: 774989710ce3b4e3
+  generated: '1788875380'
+  scene:
+    cast:
+    - id: maya
+      kind: person
+      label: Maya
+      cell: left
+    - id: laptop
+      kind: laptop
+      label: Quiet laptop
+      cell: left-top
+      fill: outline
+    - id: guide
+      kind: doc
+      label: Style guide
+      cell: center-top
+      fill: outline
+    - id: gate
+      kind: gate
+      label: Colour gate
+      cell: right
+      fill: outline
+    - id: orb
+      kind: orb
+      label: Quiet orb
+      cell: right-bottom
+      fill: outline
+    flows:
+    - from: laptop
+      to: guide
+      color: white
+      at: 1
+    - from: guide
+      to: gate
+      color: ember
+      at: 2
+    - from: gate
+      to: orb
+      color: pale
+      at: 3
+    beats:
+    - show:
+      - maya
+      - laptop
+      say: Maya reviews a working slide at her laptop.
+    - show:
+      - guide
+      say: 'She checks the style guide: ink stays quiet across a ladder of greys.'
+    - show:
+      - gate
+      hot:
+      - gate
+      say: Ember gets the one bright voice; nothing else is allowed to shout.
+    - show:
+      - orb
+      say: Particles take small steps and leave wakes; nothing rushes toward us.
+- slide: 4
+  title: Part two
+  hash: 0c2116f41ef14322
+  generated: '1788875386'
+  scene:
+    cast:
+    - id: maya
+      kind: person
+      label: Maya
+      cell: center
+    - id: laptop
+      kind: laptop
+      label: Work laptop
+      cell: right-top
+      fill: outline
+    - id: inbox
+      kind: inbox
+      label: Support inbox
+      cell: right-bottom
+      fill: outline
+    flows:
+    - from: inbox
+      to: laptop
+      color: candle
+      at: 2
+    beats:
+    - show:
+      - maya
+      - laptop
+      say: Maya opened her laptop and settled into the workday.
+    - show:
+      - inbox
+      say: Part two starts where the ordinary work is waiting.
+    - hot:
+      - inbox
+      say: The next story begins with what arrived, not what anyone planned.
+- slide: 6
+  title: The same day, done differently
+  hash: f1ea11c953d119d2
+  generated: '1788875400'
+  scene:
+    cast:
+    - id: sofia
+      kind: person
+      label: Sofia
+      cell: left
+    - id: laptop
+      kind: laptop
+      label: Her laptop
+      cell: left-bottom
+    - id: queue
+      kind: inbox
+      label: Support queue
+      cell: center-top
+    - id: assistant
+      kind: orb
+      label: The assistant
+      cell: center
+      fill: brain
+    - id: gate
+      kind: gate
+      label: Money gate
+      cell: right
+    - id: mail
+      kind: mail
+      label: Outgoing mail
+      cell: right-bottom
+    flows:
+    - from: queue
+      to: assistant
+      color: white
+      at: 1
+    - from: assistant
+      to: gate
+      color: candle
+      at: 2
+    - from: laptop
+      to: gate
+      color: candle
+      at: 3
+    - from: gate
+      to: assistant
+      color: pale
+      at: 3
+    - from: gate
+      to: mail
+      color: white
+      at: 4
+    beats:
+    - show:
+      - sofia
+      - laptop
+      - queue
+      - assistant
+      - gate
+      say: Sofia kept the assistant, and she kept reading every ticket.
+    - hot:
+      - assistant
+      say: The support queue fed the assistant, one ticket at a time.
+    - hot:
+      - gate
+      say: Every answer waited at the gate, with money mentions flagged.
+    - hot:
+      - laptop
+      - gate
+      say: Sofia reviewed the answers, and her changes taught the assistant.
+    - show:
+      - mail
+      say: Only after review did the calm, white mail leave.
+- slide: 7
+  hash: 7edab9fb7bd77341
+  generated: '1788875409'
+  scene:
+    cast:
+    - id: maya
+      kind: person
+      label: Maya
+      cell: left
+    - id: laptop
+      kind: laptop
+      label: Working screen
+      cell: center
+    - id: deck
+      kind: docs
+      label: Extra slides
+      cell: center-top
+      fill: cold
+    - id: sofia
+      kind: person
+      label: Sofia
+      cell: right
+    - id: gate
+      kind: gate
+      label: Decision gate
+      cell: right-bottom
+    flows:
+    - from: laptop
+      to: sofia
+      color: white
+      at: 1
+    - from: sofia
+      to: gate
+      color: ember
+      at: 2
+    beats:
+    - show:
+      - maya
+      - laptop
+      - deck
+      say: Maya opened the working deck and found too many ways to avoid the question.
+    - show:
+      - sofia
+      - gate
+      say: She kept one decision on screen and asked Sofia to choose.
+    - hot:
+      - gate
+      say: The presentation ended where the decision began.
+- slide: 8
+  title: Code keeps its own weather
+  hash: 5e226e603ec377a9
+  generated: '1788875418'
+  scene:
+    cast:
+    - id: maya
+      kind: person
+      label: Maya
+      cell: left
+    - id: laptop
+      kind: laptop
+      label: Work laptop
+      cell: left-bottom
+    - id: scene-code
+      kind: doc
+      label: Scene code
+      cell: center-top
+    - id: rules
+      kind: box
+      label: Scene rules
+      cell: center
+    - id: weather
+      kind: cloud
+      label: Code weather
+      cell: right
+    flows:
+    - from: scene-code
+      to: rules
+      color: white
+      at: 1
+    - from: rules
+      to: weather
+      color: candle
+      at: 2
+    beats:
+    - show:
+      - maya
+      - laptop
+      - scene-code
+      say: Maya is tuning the scene code at her desk.
+    - show:
+      - rules
+      say: The layout decides which atmosphere the slide gets.
+    - hot:
+      - weather
+      say: For code, the particles fall as rain—quietly, on cue.
+- slide: 9
+  title: Where the time goes
+  hash: 1846b277c0ead34f
+  generated: '1788875431'
+  scene:
+    cast:
+    - id: maya
+      kind: person
+      label: Maya
+      cell: left
+    - id: inbox
+      kind: inbox
+      label: Support inbox
+      cell: center-top
+      fill: cold
+    - id: laptop
+      kind: laptop
+      label: Work laptop
+      cell: center
+    - id: sofia
+      kind: person
+      label: Sofia
+      cell: right-bottom
+    - id: summary
+      kind: doc
+      label: Daily summary
+      cell: right-top
+    flows:
+    - from: inbox
+      to: laptop
+      color: white
+      at: 1
+    - from: laptop
+      to: summary
+      color: ember
+      at: 2
+    beats:
+    - show:
+      - maya
+      - inbox
+      - laptop
+      say: Maya's day was full—but most of it went into finding the next thing to do.
+    - hot:
+      - inbox
+      say: She spent the morning sorting tickets instead of solving them.
+    - show:
+      - sofia
+      - summary
+      say: By lunch, Sofia was still waiting for the useful part.
+- slide: 10
+  title: How a slide becomes a scene
+  hash: 14dc6505b538128d
+  generated: '1788875440'
+  scene:
+    cast:
+    - id: maya
+      kind: person
+      label: Maya
+      cell: left
+    - id: laptop
+      kind: laptop
+      label: Her laptop
+      cell: left-bottom
+    - id: slide
+      kind: doc
+      label: Slide copy
+      cell: center-top
+    - id: scene
+      kind: box
+      label: Stage scene
+      cell: center
+    - id: sofia
+      kind: person
+      label: Sofia
+      cell: right
+    flows:
+    - from: laptop
+      to: scene
+      color: white
+      at: 1
+    - from: scene
+      to: sofia
+      color: candle
+      at: 2
+    beats:
+    - show:
+      - maya
+      - laptop
+      - slide
+      say: Maya opens the deck before the morning review.
+    - show:
+      - scene
+      say: She gives the sentence a cast, a place, and a few beats.
+    - show:
+      - sofia
+      hot:
+      - scene
+      say: Sofia advances the scene one quiet action at a time.
+- slide: 11
+  title: Ordinary markdown still works
+  hash: f55c25136bf75c78
+  generated: '1788875449'
+  scene:
+    cast:
+    - id: maya
+      kind: person
+      label: Maya
+      cell: left
+    - id: laptop
+      kind: laptop
+      label: Working laptop
+      cell: left-bottom
+      fill: outline
+    - id: markdown
+      kind: doc
+      label: Markdown deck
+      cell: center-top
+      fill: outline
+    - id: sofia
+      kind: person
+      label: Sofia
+      cell: right-top
+    - id: theme
+      kind: box
+      label: Ember theme
+      cell: right
+      fill: hot
+    flows:
+    - from: markdown
+      to: theme
+      color: white
+      at: 1
+    - from: theme
+      to: laptop
+      color: candle
+      at: 2
+    beats:
+    - show:
+      - maya
+      - laptop
+      - markdown
+      say: Maya opens an ordinary markdown deck on her laptop.
+    - show:
+      - sofia
+      - theme
+      say: Sofia adds one line of frontmatter, and the structure stays intact.
+    - hot:
+      - theme
+      - laptop
+      say: Headings, lists, code, and charts keep their meaning while the palette is inferred.
+- slide: 12
+  title: Thank you
+  hash: 54e5e85acb8c4e02
+  generated: '1788875457'
+  scene:
+    cast:
+    - id: maya
+      kind: person
+      label: Maya
+      cell: left
+    - id: sofia
+      kind: person
+      label: Sofia
+      cell: center-bottom
+    - id: laptop
+      kind: laptop
+      label: Theme switch
+      cell: right
+      fill: outline
+    flows:
+    - from: maya
+      to: laptop
+      color: candle
+      at: 1
+    beats:
+    - show:
+      - maya
+      - laptop
+      say: Maya finishes the deck at her laptop; the quiet work is still here.
+    - show:
+      - sofia
+      say: 'Sofia knows the room can change: Shift+T, or set Ember in your frontmatter.'
+    - hot:
+      - laptop
+      say: Thank you for being here.

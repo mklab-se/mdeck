@@ -75,6 +75,16 @@ impl PresentationApp {
             author: self.presentation.meta.author.clone(),
             hold_copy: self.ember.intro_running(),
             animate: true,
+            beats: self.story(index).filter(|s| s.beats.len() > 1).map(|s| {
+                (
+                    self.reveal_steps.get(index).copied().unwrap_or(0),
+                    s.beats.len(),
+                )
+            }),
+            say: self.story(index).and_then(|s| {
+                s.line(self.reveal_steps.get(index).copied().unwrap_or(0))
+                    .map(str::to_string)
+            }),
         }
     }
 
@@ -458,6 +468,9 @@ impl PresentationApp {
                 );
             }
             if self.show_hud {
+                if let Some(line) = &self.slide_context(self.current_slide).say {
+                    render::ember::draw_say_line(ui.painter(), &self.theme, rect, line, scale);
+                }
                 let fps_text = format!("{:.0} fps", self.fps);
                 let fps_color = Theme::with_opacity(self.theme.foreground, 0.3);
                 let fps_galley = ui.painter().layout_no_wrap(
