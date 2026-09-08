@@ -3,11 +3,11 @@ use std::sync::{Arc, Mutex};
 
 use eframe::egui;
 
+use crate::app::ember::EmberState;
 use crate::commands::util::slide_number_width;
 use crate::parser::{self, Presentation};
 use crate::render;
 use crate::render::image_cache::ImageCache;
-use crate::render::particles::{self, Field};
 use crate::render::story::{self, sidecar::Resolved};
 use crate::theme::Theme;
 
@@ -127,13 +127,12 @@ struct ExportApp {
     /// First save error, shared with `run()` so the exit code reflects it.
     error: Arc<Mutex<Option<String>>>,
     /// Ember's particle field, settled per slide so exports are still frames.
-    field: Option<Field>,
-    /// (slide, step) the field was last settled for.
-    field_key: Option<(usize, usize)>,
-    /// Story per slide (sidecar or inline), for the Ember theme.
+    ember: EmberState,
+    /// Frames rendered for the current slide/step; content hints arrive one
+    /// frame late, so the screenshot waits for the second frame.
+    frames_on_slide: u32,
+    /// Story per slide (sidecar), for the Ember theme.
     stories: Vec<Option<Resolved>>,
-    /// Labels of the staged story on the current slide.
-    labels: Vec<story::Label>,
 }
 
 impl ExportApp {
@@ -204,10 +203,9 @@ impl ExportApp {
             debug,
             done: false,
             error,
-            field: None,
-            field_key: None,
+            ember: EmberState::new(),
+            frames_on_slide: 0,
             stories,
-            labels: Vec::new(),
         }
     }
 
@@ -307,6 +305,7 @@ impl eframe::App for ExportApp {
                 eprintln!("  Saved {filename}");
                 self.canvas.clear();
                 self.tile = (0, 0);
+                self.frames_on_slide = 0;
 
                 if !self.advance() {
                     self.done = true;
@@ -342,48 +341,27 @@ impl eframe::App for ExportApp {
                     };
                     if self.theme.is_ember() {
                         let slide = &self.presentation.slides[idx];
-                        let field = self.field.get_or_insert_with(|| {
-                            let mut f = Field::new(particles::DEFAULT_COUNT, 11);
-                            f.scatter(rect);
-                            f
-                        });
-                        if self.field_key != Some((idx, reveal)) {
-                            let story = self
-                                .stories
-                                .get(idx)
-                                .and_then(|r| r.as_ref())
-                                .filter(|_| !render::ember::is_title(slide, idx));
-                            let scene = match story {
-                                Some(r) => {
-                                    let staged = story::stage(
-                                        &r.script,
-                                        slide.layout,
-                                        rect.width() / rect.height(),
-                                    );
-                                    self.labels = staged.labels;
-                                    staged.scene
-                                }
-                                None => {
-                                    self.labels.clear();
-                                    particles::scenes::for_slide(slide, idx as u64 + 1)
-                                }
-                            };
-                            field.set_scene(scene, rect, idx as u64 + 1);
-                            field.settle(reveal);
-                            self.field_key = Some((idx, reveal));
-                        }
-                        field.paint(ui.painter(), rect, 1.0);
-                        if !self.labels.is_empty() {
-                            story::draw_labels(
-                                ui.painter(),
-                                &self.labels,
-                                field,
-                                rect,
-                                &self.theme,
-                                scale,
-                                1.0,
-                            );
-                        }
+                        let story = self
+                            .stories
+                            .get(idx)
+                            .and_then(|r| r.as_ref())
+                            .map(|r| r.script.clone());
+                        let theme = self.theme.clone();
+                        self.ember.frame(
+                            ui,
+                            rect,
+                            Some(slide),
+                            story.as_ref(),
+                            0,
+                            idx,
+                            reveal,
+                            false,
+                            None,
+                            &theme,
+                            scale,
+                            1.0,
+                            true,
+                        );
                     }
                     let cx = render::SlideContext {
                         index: idx,
@@ -411,8 +389,11 @@ impl eframe::App for ExportApp {
             });
 
         // Request screenshot after rendering (will arrive next frame), but not
-        // while images are still decoding in the background.
-        if !self.screenshot_requested && !self.image_cache.is_loading() {
+        // while images are still decoding in the background, and for Ember
+        // only once the field has seen the slide's geometry (second frame).
+        self.frames_on_slide += 1;
+        let settled = !self.theme.is_ember() || self.frames_on_slide >= 2;
+        if !self.screenshot_requested && !self.image_cache.is_loading() && settled {
             ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
             self.screenshot_requested = true;
         }

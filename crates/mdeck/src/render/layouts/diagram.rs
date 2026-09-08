@@ -22,6 +22,10 @@ pub fn render(
     scale: f32,
 ) {
     let padding = 60.0 * scale;
+    crate::render::hints::push(
+        ui.ctx(),
+        crate::render::hints::Hint::Frame(rect.shrink(padding * 0.5)),
+    );
     let content_width = rect.width() - padding * 2.0;
     let content_left = rect.left() + padding;
     let mut y = rect.top() + padding;

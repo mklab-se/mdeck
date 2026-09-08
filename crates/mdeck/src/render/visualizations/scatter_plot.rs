@@ -6,10 +6,10 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_FONT_AXIS_LABEL, VIZ_FONT_GRID_LABEL, VIZ_FONT_SECONDARY_LABEL, VIZ_LABEL_REVEAL_THRESHOLD,
-    VIZ_OPACITY_AXIS, VIZ_OPACITY_FILL, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL,
-    VIZ_OPACITY_LABEL, VIZ_SCATTER_RADIUS, VIZ_STROKE_AXIS, VIZ_STROKE_GRID, VizReveal,
-    assign_steps, draw_x_axis_label, draw_y_axis_label, format_axis_value, grid_range_values,
-    label_fade, nice_grid_step, parse_axis_label_directive, parse_reveal_prefix, parse_value,
+    VIZ_OPACITY_AXIS, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL,
+    VIZ_SCATTER_RADIUS, VIZ_STROKE_AXIS, VIZ_STROKE_GRID, VizReveal, assign_steps,
+    draw_x_axis_label, draw_y_axis_label, format_axis_value, grid_range_values, label_fade,
+    nice_grid_step, parse_axis_label_directive, parse_reveal_prefix, parse_value,
     reveal_anim_progress, strip_thousands_separators,
 };
 
@@ -157,8 +157,14 @@ pub fn draw_scatter_plot(
 
     let axis_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_AXIS);
     let grid_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
-    let grid_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
-    let label_font = FontId::proportional(theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale);
+    let grid_font = FontId::new(
+        theme.body_size * VIZ_FONT_GRID_LABEL * scale,
+        theme.body_family(),
+    );
+    let label_font = FontId::new(
+        theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale,
+        theme.body_family(),
+    );
 
     // Draw axes
     painter.line_segment(
@@ -217,7 +223,10 @@ pub fn draw_scatter_plot(
     }
 
     // Draw axis labels
-    let axis_label_font = FontId::proportional(theme.body_size * VIZ_FONT_AXIS_LABEL * scale);
+    let axis_label_font = FontId::new(
+        theme.body_size * VIZ_FONT_AXIS_LABEL * scale,
+        theme.body_family(),
+    );
     let axis_label_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
 
     if let Some(ref text) = data.x_label {
@@ -264,9 +273,13 @@ pub fn draw_scatter_plot(
         let py = chart_bottom - fy * chart_height;
 
         let radius = point.size.map_or(default_radius, |s| s * scale * 0.5) * anim;
-        let color = Theme::with_opacity(palette[i % palette.len()], opacity * VIZ_OPACITY_FILL);
+        let color = Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity());
 
         painter.circle_filled(Pos2::new(px, py), radius, color);
+        crate::render::hints::push(
+            ui.ctx(),
+            crate::render::hints::Hint::Point(Pos2::new(px, py)),
+        );
 
         // Label near the dot
         if anim > VIZ_LABEL_REVEAL_THRESHOLD {

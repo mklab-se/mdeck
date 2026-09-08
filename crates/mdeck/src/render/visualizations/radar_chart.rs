@@ -177,11 +177,21 @@ pub fn draw_radar_chart(
         let frac = level as f32 / grid_levels as f32;
         let r = radar_radius * frac;
         painter.circle_stroke(Pos2::new(cx, cy), r, Stroke::new(1.0 * scale, grid_color));
+        crate::render::hints::push(
+            ui.ctx(),
+            crate::render::hints::Hint::Circle {
+                center: Pos2::new(cx, cy),
+                radius: r,
+            },
+        );
     }
 
     // Draw axis lines (spokes of the spider web)
     let axis_line_color = Theme::with_opacity(theme.foreground, opacity * 0.3);
-    let axis_label_font = FontId::proportional(theme.body_size * VIZ_FONT_AXIS_LABEL * scale);
+    let axis_label_font = FontId::new(
+        theme.body_size * VIZ_FONT_AXIS_LABEL * scale,
+        theme.body_family(),
+    );
     let label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_LABEL);
 
     for (i, axis_name) in data.axes.iter().enumerate() {
@@ -261,7 +271,10 @@ pub fn draw_radar_chart(
     }
 
     // Draw legend at bottom
-    let legend_font = FontId::proportional(theme.body_size * VIZ_FONT_LEGEND * scale);
+    let legend_font = FontId::new(
+        theme.body_size * VIZ_FONT_LEGEND * scale,
+        theme.body_family(),
+    );
     let swatch_size = VIZ_SWATCH_SIZE * scale;
     let item_spacing = 28.0 * scale;
 

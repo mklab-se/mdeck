@@ -1,5 +1,5 @@
 mod drawing;
-mod ember;
+pub(crate) mod ember;
 mod helpers;
 mod input;
 pub mod keys;
@@ -1437,6 +1437,7 @@ impl eframe::App for PresentationApp {
                         &theme,
                         scale,
                         1.0,
+                        false,
                     );
                 }
 

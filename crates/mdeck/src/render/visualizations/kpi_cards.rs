@@ -106,9 +106,15 @@ pub fn draw_kpi_cards(
     let total_width = n as f32 * card_width + total_gaps;
     let start_x = pos.x + (max_width - total_width) / 2.0;
 
-    let value_font = FontId::proportional(theme.body_size * 2.0 * scale);
-    let label_font = FontId::proportional(theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale);
-    let trend_font = FontId::proportional(theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale);
+    let value_font = FontId::new(theme.body_size * 2.0 * scale, theme.body_family());
+    let label_font = FontId::new(
+        theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale,
+        theme.body_family(),
+    );
+    let trend_font = FontId::new(
+        theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale,
+        theme.body_family(),
+    );
 
     // Size cards to their content (value, label, optional trend) so the text
     // sits centered with even padding instead of floating in a tall box.
@@ -152,6 +158,7 @@ pub fn draw_kpi_cards(
             egui::vec2(card_width, card_height),
         );
         painter.rect_filled(card_rect, VIZ_CORNER_CARD * scale, bg_color);
+        crate::render::hints::push(ui.ctx(), crate::render::hints::Hint::Frame(card_rect));
 
         // Value text (centered, large, shrunk to fit the card)
         let text_color = Theme::with_opacity(theme.foreground, item_opacity);

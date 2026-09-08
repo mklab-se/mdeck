@@ -6,13 +6,14 @@ use std::time::Instant;
 use eframe::egui;
 
 use crate::parser::Slide;
+use crate::render::hints::{self, Hint};
 use crate::render::particles::{self, Field, scenes};
 use crate::render::story::{self, Script};
 use crate::theme::Theme;
 
 /// Where the opening countdown is, as seen by the particle field.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(super) enum CountPhase {
+pub(crate) enum CountPhase {
     /// Showing this digit (3, 2 or 1).
     Digit(u8),
     /// The last digit bursts into black.
@@ -20,11 +21,11 @@ pub(super) enum CountPhase {
 }
 
 /// How far the countdown is through its current phase (0..1), for pacing.
-pub(super) type CountProgress = f32;
+pub(crate) type CountProgress = f32;
 
 /// The end slide's choreography: the words, a swirl, a bang, then black.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(super) enum EndPhase {
+pub(crate) enum EndPhase {
     Words,
     Dance,
     Bang,
@@ -56,12 +57,15 @@ type Mask = (std::sync::Arc<Vec<[f32; 2]>>, f32);
 /// phase, story version and countdown phase.
 type SceneKey = (usize, usize, Option<EndPhase>, u64, Option<CountPhase>);
 
-pub(super) struct EmberState {
+pub(crate) struct EmberState {
     field: Option<Field>,
     /// What the current scene was built for.
     key: Option<SceneKey>,
     /// When the end slide was entered, for its choreography.
     end_started: Option<Instant>,
+    /// Geometry the current slide's renderers published, and its fingerprint.
+    hints: Vec<Hint>,
+    hints_key: u64,
     /// "THE END" as a mask, rasterised once.
     end_words: Option<Mask>,
     /// Labels of the staged story, if the current scene is one.
@@ -72,7 +76,7 @@ pub(super) struct EmberState {
 }
 
 impl EmberState {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             field: None,
             key: None,
@@ -80,12 +84,14 @@ impl EmberState {
             digits: Vec::new(),
             end_started: None,
             end_words: None,
+            hints: Vec::new(),
+            hints_key: 0,
             last_tick: None,
         }
     }
 
     /// Seconds since the end slide was entered (0 when not on it).
-    pub(super) fn end_elapsed(&self) -> f32 {
+    pub(crate) fn end_elapsed(&self) -> f32 {
         self.end_started
             .map(|t| t.elapsed().as_secs_f32())
             .unwrap_or(0.0)
@@ -106,9 +112,10 @@ impl EmberState {
     }
 
     /// Advance the field one frame for the slide about to be drawn and paint
-    /// it into `rect`. `end` selects the logo scene for the virtual end slide.
+    /// it into `rect`. `end` selects the end choreography. With `still` the
+    /// field settles instantly instead of animating (export).
     #[allow(clippy::too_many_arguments)]
-    pub(super) fn frame(
+    pub(crate) fn frame(
         &mut self,
         ui: &egui::Ui,
         rect: egui::Rect,
@@ -122,8 +129,28 @@ impl EmberState {
         theme: &Theme,
         scale: f32,
         opacity: f32,
+        still: bool,
     ) {
         let now = Instant::now();
+        // Renderers publish geometry while the slide draws (after this call),
+        // so what we read here is last frame's. Collection stays on only
+        // while Ember is drawing.
+        hints::set_enabled(ui.ctx(), true);
+        let fresh = hints::take(ui.ctx());
+        let slide_changed = self.key.is_some_and(|k| k.0 != index);
+        if slide_changed {
+            self.hints.clear();
+            self.hints_key = 0;
+        }
+        if !fresh.is_empty() {
+            let fp = hints::fingerprint(&fresh);
+            if fp != self.hints_key {
+                self.hints = fresh;
+                self.hints_key = fp;
+                // force a scene rebuild for hint-driven layouts
+                self.key = None;
+            }
+        }
         let dt = self
             .last_tick
             .map(|t| now.duration_since(t).as_secs_f32())
@@ -185,6 +212,11 @@ impl EmberState {
                 let staged = story::stage(script, slide.layout, rect.width() / rect.height());
                 self.labels = staged.labels;
                 staged.scene
+            } else if let Some(slide) = slide
+                && !self.hints.is_empty()
+                && uses_hints(slide)
+            {
+                scenes::from_hints(&self.hints, rect, index as u64 + 1)
             } else if let Some(slide) = slide {
                 scenes::for_slide(slide, index as u64 + 1)
             } else {
@@ -192,9 +224,27 @@ impl EmberState {
             };
             let field = self.field.as_mut().expect("field created above");
             field.set_scene(scene, rect, index as u64 + 1);
+            if still {
+                field.settle(reveal);
+            }
             self.key = Some(key);
         }
         let field = self.field.as_mut().expect("field created above");
+        if still {
+            field.paint(ui.painter(), rect, opacity);
+            if !self.labels.is_empty() {
+                story::draw_labels(
+                    ui.painter(),
+                    &self.labels,
+                    field,
+                    rect,
+                    theme,
+                    scale,
+                    opacity,
+                );
+            }
+            return;
+        }
         // Digits assemble briskly, the burst accelerates outward, slides
         // take their time.
         let speed = match (countdown, end_phase) {
@@ -221,6 +271,18 @@ impl EmberState {
         }
         ui.ctx().request_repaint();
     }
+}
+
+/// Layouts whose field follows the drawn content rather than a fixed scene.
+fn uses_hints(slide: &Slide) -> bool {
+    use crate::parser::Layout;
+    matches!(
+        slide.layout,
+        Layout::Visualization | Layout::Diagram | Layout::Image | Layout::Gallery
+    ) || slide
+        .blocks
+        .iter()
+        .any(|b| matches!(b, crate::parser::Block::Image { .. }))
 }
 
 /// Spectral's 1 wears a long flag. Keep only the half of it nearest the stem,

@@ -1,6 +1,7 @@
 pub mod diagram;
 pub mod ember;
 pub mod fonts;
+pub mod hints;
 pub mod image_cache;
 pub mod layouts;
 pub mod particles;

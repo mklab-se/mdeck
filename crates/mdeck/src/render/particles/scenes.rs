@@ -510,3 +510,337 @@ mod tests {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Content-aware scenes
+// ---------------------------------------------------------------------------
+
+use crate::render::hints::Hint;
+use eframe::egui::{Pos2, Rect};
+
+/// Turn the geometry a slide's renderers published into a scene that serves
+/// it: embers off bar tops, runners along paths, sparks circling rings,
+/// glints on points, and dust that keeps out of every frame.
+pub fn from_hints(hints: &[Hint], rect: Rect, seed: u64) -> Scene {
+    let mut rng = Rng::new(seed);
+    let to_u = |x: f32| ((x - rect.left()) / rect.width()).clamp(0.0, 1.0);
+    let to_v = |y: f32| ((y - rect.top()) / rect.height()).clamp(0.0, 1.0);
+    let min_side = rect.width().min(rect.height());
+
+    let mut groups: Vec<Group> = Vec::new();
+
+    // Bars: merge segments that share a column (stacked bars) into one top.
+    let mut bars: Vec<Rect> = Vec::new();
+    for h in hints {
+        if let Hint::Bar(r) = h
+            && r.width() > 2.0
+            && r.height() > 2.0
+        {
+            if let Some(existing) = bars
+                .iter_mut()
+                .find(|b| (b.left() - r.left()).abs() < 2.0 && (b.right() - r.right()).abs() < 2.0)
+            {
+                *existing = existing.union(*r);
+            } else {
+                bars.push(*r);
+            }
+        }
+    }
+    if !bars.is_empty() {
+        let total_w: f32 = bars.iter().map(|b| b.width()).sum::<f32>().max(1.0);
+        for b in &bars {
+            let horizontal =
+                b.width() > b.height() * 2.5 && b.left() < rect.left() + rect.width() * 0.45;
+            let share =
+                0.30 * b.width().min(b.height()).max(8.0) / total_w.max(bars.len() as f32 * 8.0);
+            let group = if horizontal {
+                // heat drifts off the right end of a horizontal bar
+                Group::new(
+                    share.max(0.02),
+                    Home::Field {
+                        u0: to_u(b.right()),
+                        v0: to_v(b.top()),
+                        u1: to_u(b.right() + b.height() * 1.8),
+                        v1: to_v(b.bottom()),
+                    },
+                )
+                .drift(Drift::Breathe {
+                    amp: 0.004,
+                    speed: 2.0,
+                })
+            } else {
+                Group::new(
+                    share.max(0.02),
+                    Home::Field {
+                        u0: to_u(b.left() + b.width() * 0.08),
+                        v0: to_v(b.top() - b.width().min(b.height()) * 0.9),
+                        u1: to_u(b.right() - b.width() * 0.08),
+                        v1: to_v(b.top()),
+                    },
+                )
+                .drift(Drift::Rise { speed: 0.55 })
+            };
+            groups.push(
+                group
+                    .palette(Palette::Warm)
+                    .alpha(0.25, 0.65)
+                    .size(0.35, 0.7),
+            );
+        }
+    }
+
+    // Paths: runners in the drawing direction.
+    let mut path_i = 0usize;
+    for h in hints {
+        if let Hint::Path(pts) = h
+            && pts.len() >= 2
+        {
+            let points: Vec<[f32; 2]> = pts.iter().map(|p| [to_u(p.x), to_v(p.y)]).collect();
+            let length: f32 = pts
+                .windows(2)
+                .map(|w| ((w[1].x - w[0].x).powi(2) + (w[1].y - w[0].y).powi(2)).sqrt())
+                .sum::<f32>()
+                / min_side;
+            let tint = [Tint::White, Tint::Ember, Tint::Candle, Tint::Pale][path_i % 4];
+            path_i += 1;
+            groups.push(
+                Group::new(
+                    (0.01 + length * 0.05).min(0.06),
+                    Home::Path {
+                        points,
+                        spread: 0.004,
+                    },
+                )
+                .palette(Palette::Solid(tint))
+                .alpha(0.3, 0.8)
+                .size(0.3, 0.6)
+                .drift(Drift::Flow { speed: 0.7 }),
+            );
+        }
+    }
+
+    // Circles: keep the largest per centre, sparks circle just outside it.
+    let mut circles: Vec<(Pos2, f32)> = Vec::new();
+    for h in hints {
+        if let Hint::Circle { center, radius } = h {
+            if let Some(c) = circles.iter_mut().find(|(c, _)| c.distance(*center) < 4.0) {
+                c.1 = c.1.max(*radius);
+            } else {
+                circles.push((*center, *radius));
+            }
+        }
+    }
+    for (i, (c, r)) in circles.iter().take(4).enumerate() {
+        groups.push(
+            Group::new(
+                0.14,
+                Home::Ring {
+                    u: to_u(c.x),
+                    v: to_v(c.y),
+                    r: r / min_side * 1.09,
+                    width: 0.022,
+                },
+            )
+            .palette(if i % 2 == 0 {
+                Palette::Warm
+            } else {
+                Palette::Cold
+            })
+            .alpha(0.3, 0.75)
+            .size(0.35, 0.65)
+            .drift(Drift::Orbit {
+                speed: if i % 2 == 0 { 0.35 } else { -0.28 },
+            }),
+        );
+    }
+
+    // Points: a glint on each.
+    let points: Vec<Pos2> = hints
+        .iter()
+        .filter_map(|h| {
+            if let Hint::Point(p) = h {
+                Some(*p)
+            } else {
+                None
+            }
+        })
+        .collect();
+    if !points.is_empty() {
+        let share = (0.20 / points.len() as f32).min(0.03);
+        for p in points.iter().take(40) {
+            groups.push(
+                Group::new(
+                    share,
+                    Home::Cluster {
+                        u: to_u(p.x),
+                        v: to_v(p.y),
+                        r: 0.012,
+                        falloff: 0.5,
+                    },
+                )
+                .palette(Palette::Site)
+                .alpha(0.25, 0.7)
+                .size(0.3, 0.55)
+                .drift(Drift::Breathe {
+                    amp: 0.003,
+                    speed: 2.4,
+                }),
+            );
+        }
+    }
+
+    // Dust everywhere the content is not: bands around the union of frames.
+    let frame = hints
+        .iter()
+        .filter_map(|h| {
+            if let Hint::Frame(r) = h {
+                Some(*r)
+            } else {
+                None
+            }
+        })
+        .reduce(|a, b| a.union(b));
+    let used: f32 = groups.iter().map(|g| g.share).sum();
+    let dust_share = (1.0 - used).max(0.25);
+    match frame {
+        Some(f) => {
+            // a very faint haze over everything, so the content never floats
+            // in dead black, plus slightly denser dust in the margins
+            groups.push(dust(dust_share * 0.45).alpha(0.03, 0.10));
+            let (l, t, r, b) = (
+                to_u(f.left()),
+                to_v(f.top()),
+                to_u(f.right()),
+                to_v(f.bottom()),
+            );
+            let bands = [
+                (0.02, 0.04, 0.98, t), // above
+                (0.02, b, 0.98, 0.96), // below
+                (0.02, t, l, b),       // left
+                (r, t, 0.98, b),       // right
+            ];
+            // slivers thinner than 5% of the slide get no dust of their own
+            let mut areas: Vec<f32> = bands
+                .iter()
+                .map(|(u0, v0, u1, v1)| {
+                    if u1 - u0 < 0.05 || v1 - v0 < 0.05 {
+                        0.0
+                    } else {
+                        (u1 - u0) * (v1 - v0)
+                    }
+                })
+                .collect();
+            let total: f32 = areas.iter().sum::<f32>().max(1e-3);
+            for a in &mut areas {
+                *a /= total;
+            }
+            for ((u0, v0, u1, v1), a) in bands.iter().zip(areas) {
+                if a > 0.02 {
+                    groups.push(
+                        Group::new(
+                            dust_share * 0.45 * a,
+                            Home::Field {
+                                u0: *u0,
+                                v0: *v0,
+                                u1: *u1,
+                                v1: *v1,
+                            },
+                        )
+                        .alpha(0.06, 0.20)
+                        .size(0.45, 0.9)
+                        .drift(Drift::Breathe {
+                            amp: 0.011,
+                            speed: 1.1,
+                        }),
+                    );
+                }
+            }
+            // a few soft lights in the corners, always outside the frame
+            // never the top-left, where the heading lives
+            let corners = [(0.95, 0.90), (0.06, 0.92), (0.95, 0.12)];
+            let (u, v) = corners[(rng.unit() * 2.99) as usize];
+            groups.push(
+                Group::new(
+                    0.06,
+                    Home::Cluster {
+                        u,
+                        v,
+                        r: 0.10,
+                        falloff: 0.6,
+                    },
+                )
+                .alpha(0.12, 0.4)
+                .size(0.6, 1.1)
+                .links(2),
+            );
+        }
+        None => groups.push(dust(dust_share)),
+    }
+
+    let mut scene = Scene::new(groups);
+    scene.link_alpha = 0.06;
+    scene
+}
+
+#[cfg(test)]
+mod hint_tests {
+    use super::*;
+
+    #[test]
+    fn bars_paths_circles_and_frames_each_get_groups() {
+        let rect = Rect::from_min_size(Pos2::ZERO, eframe::egui::vec2(1920.0, 1080.0));
+        let hints = vec![
+            Hint::Frame(Rect::from_min_max(
+                Pos2::new(100.0, 200.0),
+                Pos2::new(1800.0, 1000.0),
+            )),
+            Hint::Bar(Rect::from_min_max(
+                Pos2::new(300.0, 600.0),
+                Pos2::new(400.0, 900.0),
+            )),
+            // a stacked segment on the same column merges into the same bar
+            Hint::Bar(Rect::from_min_max(
+                Pos2::new(300.0, 400.0),
+                Pos2::new(400.0, 600.0),
+            )),
+            Hint::Path(vec![
+                Pos2::new(500.0, 800.0),
+                Pos2::new(900.0, 500.0),
+                Pos2::new(1300.0, 700.0),
+            ]),
+            Hint::Circle {
+                center: Pos2::new(1500.0, 600.0),
+                radius: 150.0,
+            },
+            Hint::Point(Pos2::new(700.0, 700.0)),
+        ];
+        let scene = from_hints(&hints, rect, 1);
+        let bars = scene
+            .groups
+            .iter()
+            .filter(|g| matches!(g.drift, Drift::Rise { .. }))
+            .count();
+        let paths = scene
+            .groups
+            .iter()
+            .filter(|g| matches!(g.home, Home::Path { .. }))
+            .count();
+        let rings = scene
+            .groups
+            .iter()
+            .filter(|g| matches!(g.home, Home::Ring { .. }))
+            .count();
+        assert_eq!(bars, 1, "stacked segments merge into one bar");
+        assert_eq!(paths, 1);
+        assert_eq!(rings, 1);
+        // dust bands exist above and below the frame
+        let fields = scene
+            .groups
+            .iter()
+            .filter(|g| matches!(g.home, Home::Field { .. }))
+            .count();
+        assert!(fields >= 3);
+        let total: f32 = scene.groups.iter().map(|g| g.share).sum();
+        assert!(total > 0.9 && total < 1.2, "shares sum to {total}");
+    }
+}

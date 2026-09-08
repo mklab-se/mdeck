@@ -6,8 +6,8 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_CORNER_NODE, VIZ_FONT_MIN, VIZ_FONT_SECONDARY_LABEL, VIZ_FONT_TITLE,
-    VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_FILL, VizReveal, assign_steps, fit_text, format_value,
-    label_fade, parse_label_value, parse_reveal_prefix, reveal_anim_progress,
+    VIZ_LABEL_REVEAL_THRESHOLD, VizReveal, assign_steps, fit_text, format_value, label_fade,
+    parse_label_value, parse_reveal_prefix, reveal_anim_progress,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -91,8 +91,14 @@ pub fn draw_funnel_chart(
     let min_width_ratio = 0.2; // narrowest trapezoid is at least 20% of max
     let center_x = pos.x + max_width / 2.0;
 
-    let label_font = FontId::proportional(theme.body_size * VIZ_FONT_TITLE * scale);
-    let value_font = FontId::proportional(theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale);
+    let label_font = FontId::new(
+        theme.body_size * VIZ_FONT_TITLE * scale,
+        theme.body_family(),
+    );
+    let value_font = FontId::new(
+        theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale,
+        theme.body_family(),
+    );
 
     let mut needs_repaint = false;
 
@@ -107,7 +113,7 @@ pub fn draw_funnel_chart(
             needs_repaint = true;
         }
 
-        let color = Theme::with_opacity(palette[i % palette.len()], opacity * VIZ_OPACITY_FILL);
+        let color = Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity());
 
         // Width proportional to value relative to max
         let width_frac = entry.value / max_value;

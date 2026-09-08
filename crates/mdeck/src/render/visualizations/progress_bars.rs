@@ -5,9 +5,9 @@ use eframe::egui::{self, FontId, Pos2, Stroke};
 use crate::theme::Theme;
 
 use super::{
-    VIZ_CORNER_TRACK, VIZ_FONT_MIN, VIZ_FONT_PRIMARY_LABEL, VIZ_FONT_TITLE, VIZ_OPACITY_FILL,
-    VIZ_OPACITY_GRID, VIZ_OPACITY_LABEL, VIZ_STROKE_BORDER, VizReveal, assign_steps, fit_font_size,
-    fit_text, parse_label_value, parse_reveal_prefix, reveal_anim_progress,
+    VIZ_CORNER_TRACK, VIZ_FONT_MIN, VIZ_FONT_PRIMARY_LABEL, VIZ_FONT_TITLE, VIZ_OPACITY_GRID,
+    VIZ_OPACITY_LABEL, VIZ_STROKE_BORDER, VizReveal, assign_steps, fit_font_size, fit_text,
+    parse_label_value, parse_reveal_prefix, reveal_anim_progress,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -75,8 +75,14 @@ pub fn draw_progress_bars(
     let painter = ui.painter();
 
     let n = entries.len();
-    let label_font = FontId::proportional(theme.body_size * VIZ_FONT_TITLE * scale);
-    let pct_font = FontId::proportional(theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale);
+    let label_font = FontId::new(
+        theme.body_size * VIZ_FONT_TITLE * scale,
+        theme.body_family(),
+    );
+    let pct_font = FontId::new(
+        theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale,
+        theme.body_family(),
+    );
 
     // Layout — use generous space for readability from distance
     let padding = 30.0 * scale;
@@ -96,13 +102,16 @@ pub fn draw_progress_bars(
 
     // All labels share one font size so rows read as a unit
     let label_texts: Vec<&str> = entries.iter().map(|e| e.label.as_str()).collect();
-    let label_font = FontId::proportional(fit_font_size(
-        painter,
-        &label_texts,
-        &label_font,
-        label_width,
-        theme.body_size * VIZ_FONT_MIN * scale,
-    ));
+    let label_font = FontId::new(
+        fit_font_size(
+            painter,
+            &label_texts,
+            &label_font,
+            label_width,
+            theme.body_size * VIZ_FONT_MIN * scale,
+        ),
+        theme.body_family(),
+    );
 
     let mut needs_repaint = false;
 
@@ -143,7 +152,7 @@ pub fn draw_progress_bars(
 
         // Fill bar
         let color = palette[i % palette.len()];
-        let fill_color = Theme::with_opacity(color, opacity * VIZ_OPACITY_FILL);
+        let fill_color = Theme::with_opacity(color, opacity * theme.fill_opacity());
         let fill_frac = (entry.value / 100.0) * anim;
         let fill_width = bar_width * fill_frac;
         if fill_width > 0.0 {
@@ -152,6 +161,7 @@ pub fn draw_progress_bars(
                 egui::vec2(fill_width, bar_height),
             );
             painter.rect_filled(fill_rect, VIZ_CORNER_TRACK * scale, fill_color);
+            crate::render::hints::push(ui.ctx(), crate::render::hints::Hint::Bar(fill_rect));
         }
 
         // Subtle border on track

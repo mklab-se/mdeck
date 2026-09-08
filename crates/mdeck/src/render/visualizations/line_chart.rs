@@ -6,11 +6,10 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_DOT_RADIUS, VIZ_FONT_AXIS_LABEL, VIZ_FONT_GRID_LABEL, VIZ_FONT_LEGEND, VIZ_OPACITY_AXIS,
-    VIZ_OPACITY_FILL, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_STROKE_AXIS,
-    VIZ_STROKE_DATA_LINE, VIZ_STROKE_GRID, VIZ_SWATCH_SIZE, VizReveal, assign_steps,
-    draw_x_axis_label, draw_y_axis_label, format_axis_value, grid_values, label_stride,
-    nice_axis_max, nice_grid_step, parse_axis_label_directive, parse_label_values,
-    parse_reveal_prefix, reveal_anim_progress,
+    VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_STROKE_AXIS, VIZ_STROKE_DATA_LINE,
+    VIZ_STROKE_GRID, VIZ_SWATCH_SIZE, VizReveal, assign_steps, draw_x_axis_label,
+    draw_y_axis_label, format_axis_value, grid_values, label_stride, nice_axis_max, nice_grid_step,
+    parse_axis_label_directive, parse_label_values, parse_reveal_prefix, reveal_anim_progress,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -156,7 +155,10 @@ pub fn draw_line_chart(
     // Draw grid lines with nice numbers
     let grid_step = nice_grid_step(max_value, 5);
     let grid_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
-    let grid_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
+    let grid_font = FontId::new(
+        theme.body_size * VIZ_FONT_GRID_LABEL * scale,
+        theme.body_family(),
+    );
     let grid_label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
 
     for grid_val in std::iter::once(0.0).chain(grid_values(max_value, grid_step)) {
@@ -201,7 +203,10 @@ pub fn draw_line_chart(
     );
 
     // Draw x-axis labels, thinning them out when they would overlap
-    let x_label_font = FontId::proportional(theme.body_size * VIZ_FONT_GRID_LABEL * scale);
+    let x_label_font = FontId::new(
+        theme.body_size * VIZ_FONT_GRID_LABEL * scale,
+        theme.body_family(),
+    );
     let x_label_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
     let x_galleys: Vec<_> = x_labels
         .iter()
@@ -241,7 +246,8 @@ pub fn draw_line_chart(
             needs_repaint = true;
         }
 
-        let color = Theme::with_opacity(palette[si % palette.len()], opacity * VIZ_OPACITY_FILL);
+        let color =
+            Theme::with_opacity(palette[si % palette.len()], opacity * theme.fill_opacity());
         let n_points = s.values.len();
         if n_points == 0 {
             continue;
@@ -293,10 +299,23 @@ pub fn draw_line_chart(
             }
             painter.circle_filled(pt, dot_radius, color);
         }
+        crate::render::hints::push(
+            ui.ctx(),
+            crate::render::hints::Hint::Path(
+                points
+                    .iter()
+                    .copied()
+                    .filter(|p| p.x <= clip_x + 0.5)
+                    .collect(),
+            ),
+        );
     }
 
     // Axis labels
-    let axis_label_font = FontId::proportional(theme.body_size * VIZ_FONT_AXIS_LABEL * scale);
+    let axis_label_font = FontId::new(
+        theme.body_size * VIZ_FONT_AXIS_LABEL * scale,
+        theme.body_family(),
+    );
     let axis_label_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
     if let Some(ref text) = data.x_label {
         draw_x_axis_label(
@@ -327,7 +346,10 @@ pub fn draw_line_chart(
 
     // Draw legend at top-right
     let legend_x = pos.x + max_width - legend_width;
-    let legend_font = FontId::proportional(theme.body_size * VIZ_FONT_LEGEND * scale);
+    let legend_font = FontId::new(
+        theme.body_size * VIZ_FONT_LEGEND * scale,
+        theme.body_family(),
+    );
     let legend_item_height = 32.0 * scale;
     let legend_start_y = chart_top;
     let swatch_width = VIZ_SWATCH_SIZE * scale;
@@ -339,7 +361,8 @@ pub fn draw_line_chart(
         }
 
         let ly = legend_start_y + si as f32 * legend_item_height;
-        let color = Theme::with_opacity(palette[si % palette.len()], opacity * VIZ_OPACITY_FILL);
+        let color =
+            Theme::with_opacity(palette[si % palette.len()], opacity * theme.fill_opacity());
         let text_color = Theme::with_opacity(theme.foreground, opacity);
 
         // Color swatch (line style)

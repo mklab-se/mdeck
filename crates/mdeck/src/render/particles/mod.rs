@@ -151,6 +151,8 @@ pub enum Home {
     /// Straight out from `(u, v)` along each particle's own direction, to a
     /// distance of `r` (fraction of min side): an explosion.
     Radial { u: f32, v: f32, r: f32 },
+    /// A thin ring of radius `r` and thickness `width` (fractions of min side).
+    Ring { u: f32, v: f32, r: f32, width: f32 },
 }
 
 /// Per-frame motion applied on top of the home.
@@ -546,7 +548,13 @@ impl Field {
                     p.alpha = p.base_alpha * (0.88 + 0.12 * (t * 2.0 + p.phase).sin());
                 }
                 Drift::Orbit { speed } => {
-                    let c = rect.center();
+                    let c = match &g.home {
+                        Home::Ring { u, v, .. } | Home::Cluster { u, v, .. } => Pos2::new(
+                            rect.left() + u * rect.width(),
+                            rect.top() + v * rect.height(),
+                        ),
+                        _ => rect.center(),
+                    };
                     let (dx, dy) = (p.hx - c.x, p.hy - c.y);
                     let a = t * speed * (0.6 + 0.8 * p.speed) + p.phase * 0.05;
                     let (s, co) = a.sin_cos();
@@ -726,6 +734,14 @@ fn home_point(home: &Home, rect: Rect, min_side: f32, rng: &mut Rng) -> (f32, f3
             rect.left() + rng.range(*u0, *u1) * rect.width(),
             rect.top() + rng.range(*v0, *v1) * rect.height(),
         ),
+        Home::Ring { u, v, r, width } => {
+            let a = rng.range(0.0, std::f32::consts::TAU);
+            let d = (r + rng.range(-0.5, 0.5) * width) * min_side;
+            (
+                rect.left() + u * rect.width() + a.cos() * d,
+                rect.top() + v * rect.height() + a.sin() * d,
+            )
+        }
         // Radial homes depend on the particle's position and are resolved in
         // `set_scene`; a bare call lands on the centre.
         Home::Radial { u, v, .. } => (

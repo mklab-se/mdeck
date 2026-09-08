@@ -100,9 +100,19 @@ pub fn draw_timeline(
         [line_start, line_end],
         Stroke::new(VIZ_STROKE_SEPARATOR * scale, line_color),
     );
+    crate::render::hints::push(
+        ui.ctx(),
+        crate::render::hints::Hint::Path(vec![line_start, line_end]),
+    );
 
-    let date_font = FontId::proportional(theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale);
-    let desc_font = FontId::proportional(theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale);
+    let date_font = FontId::new(
+        theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale,
+        theme.body_family(),
+    );
+    let desc_font = FontId::new(
+        theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale,
+        theme.body_family(),
+    );
     let dot_radius = VIZ_TIMELINE_DOT * scale;
 
     for (i, entry) in entries.iter().enumerate() {

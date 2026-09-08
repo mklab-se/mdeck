@@ -51,6 +51,16 @@ impl Theme {
         self.name == "ember"
     }
 
+    /// Opacity of filled chart shapes. Ember's fills are glassier so the
+    /// particle field shows through and bars read as lit panes.
+    pub fn fill_opacity(&self) -> f32 {
+        if self.is_ember() {
+            0.80
+        } else {
+            crate::render::visualizations::VIZ_OPACITY_FILL
+        }
+    }
+
     /// Font family for display headings.
     pub fn display_family(&self) -> egui::FontFamily {
         if self.is_ember() {

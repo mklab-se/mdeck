@@ -5,9 +5,9 @@ use eframe::egui::{self, FontId, Pos2, Stroke};
 use crate::theme::Theme;
 
 use super::{
-    LegendItem, VIZ_FONT_MIN, VIZ_OPACITY_BORDER_RING, VIZ_OPACITY_FILL, VIZ_STROKE_BORDER,
-    VIZ_STROKE_SEPARATOR, VizReveal, assign_steps, draw_legend_column, fit_text, parse_label_value,
-    parse_reveal_prefix, reveal_anim_progress, sector_mesh, side_legend_width,
+    LegendItem, VIZ_FONT_MIN, VIZ_OPACITY_BORDER_RING, VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR,
+    VizReveal, assign_steps, draw_legend_column, fit_text, parse_label_value, parse_reveal_prefix,
+    reveal_anim_progress, sector_mesh, side_legend_width,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -101,6 +101,13 @@ pub fn draw_donut_chart(
     let outer_radius = (donut_area_width.min(height) / 2.0 - 30.0 * scale).max(40.0 * scale);
     let inner_radius = outer_radius * 0.5; // 50% thickness (thick ring)
     let donut_cx = pos.x + donut_area_width / 2.0;
+    crate::render::hints::push(
+        ui.ctx(),
+        crate::render::hints::Hint::Circle {
+            center: Pos2::new(donut_cx, pos.y + height / 2.0),
+            radius: outer_radius,
+        },
+    );
     let donut_cy = pos.y + height / 2.0;
 
     // Draw donut slices
@@ -122,7 +129,7 @@ pub fn draw_donut_chart(
 
         let full_sweep = (entry.value / total) * 2.0 * std::f32::consts::PI;
         let sweep = full_sweep * anim;
-        let color = Theme::with_opacity(palette[i % palette.len()], opacity * VIZ_OPACITY_FILL);
+        let color = Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity());
 
         // Single mesh per slice: no anti-aliasing seams between segments
         painter.add(sector_mesh(
@@ -174,7 +181,7 @@ pub fn draw_donut_chart(
 
     // Draw center text, fitted inside the hole
     if let Some(ref text) = center_text {
-        let center_font = FontId::proportional(theme.body_size * 1.2 * scale);
+        let center_font = FontId::new(theme.body_size * 1.2 * scale, theme.body_family());
         let text_color = Theme::with_opacity(theme.foreground, opacity);
         let galley = fit_text(
             painter,
@@ -202,7 +209,7 @@ pub fn draw_donut_chart(
         .map(|(i, entry)| LegendItem {
             label: entry.label.clone(),
             suffix: format!(" ({:.0}%)", entry.value / total * 100.0),
-            color: Theme::with_opacity(palette[i % palette.len()], opacity * VIZ_OPACITY_FILL),
+            color: Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity()),
             visible: steps.get(i).copied().unwrap_or(0) <= reveal_step,
         })
         .collect();

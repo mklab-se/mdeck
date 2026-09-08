@@ -59,7 +59,7 @@ pub const VIZ_SCATTER_RADIUS: f32 = 8.0;
 pub const VIZ_TIMELINE_DOT: f32 = 8.0;
 
 // Opacity multipliers (applied to base opacity)
-pub const VIZ_OPACITY_FILL: f32 = 0.85;
+pub const VIZ_OPACITY_FILL: f32 = 0.85; // default; themes override via Theme::fill_opacity
 pub const VIZ_OPACITY_GRID: f32 = 0.08;
 pub const VIZ_OPACITY_AXIS: f32 = 0.2;
 pub const VIZ_OPACITY_LABEL: f32 = 0.8;
@@ -482,10 +482,14 @@ pub fn draw_legend_column(
         .map(|item| format!("{}{}", item.label, item.suffix))
         .collect();
     let refs: Vec<&str> = full_texts.iter().map(String::as_str).collect();
-    let base_font = FontId::proportional(theme.body_size * VIZ_FONT_LEGEND * scale);
-    let font = FontId::proportional(fit_font_size(
-        painter, &refs, &base_font, text_max_w, min_font,
-    ));
+    let base_font = FontId::new(
+        theme.body_size * VIZ_FONT_LEGEND * scale,
+        theme.body_family(),
+    );
+    let font = FontId::new(
+        fit_font_size(painter, &refs, &base_font, text_max_w, min_font),
+        theme.body_family(),
+    );
 
     for (i, item) in items.iter().enumerate() {
         let col = i / rows_per_col;

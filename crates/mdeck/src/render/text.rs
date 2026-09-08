@@ -1288,6 +1288,7 @@ pub fn draw_image_in_area(
         ImageState::Ready(texture) => {
             let tex_size = texture.size_vec2();
             let draw_rect = compute_image_rect(directives, tex_size, available, scale);
+            crate::render::hints::push(ui.ctx(), crate::render::hints::Hint::Frame(draw_rect));
             let alpha = (opacity * 255.0) as u8;
             let tint = Color32::from_rgba_unmultiplied(255, 255, 255, alpha);
             let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
@@ -1396,7 +1397,7 @@ pub fn draw_image_placeholder(
     };
     let galley = ui.painter().layout(
         label,
-        FontId::proportional(theme.body_size * 0.8 * scale),
+        FontId::new(theme.body_size * 0.8 * scale, theme.body_family()),
         color,
         max_width,
     );

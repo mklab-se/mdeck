@@ -222,8 +222,14 @@ pub fn draw_venn_diagram(
     };
 
     let mut needs_repaint = false;
-    let label_font = FontId::proportional(theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale);
-    let inter_font = FontId::proportional(theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale);
+    let label_font = FontId::new(
+        theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale,
+        theme.body_family(),
+    );
+    let inter_font = FontId::new(
+        theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale,
+        theme.body_family(),
+    );
 
     // Draw circles
     for (i, circle) in circles.iter().enumerate() {
@@ -244,6 +250,10 @@ pub fn draw_venn_diagram(
         let center = centers[i];
 
         painter.circle_filled(center, radius, fill_color);
+        crate::render::hints::push(
+            ui.ctx(),
+            crate::render::hints::Hint::Circle { center, radius },
+        );
         painter.circle_stroke(
             center,
             radius,
