@@ -130,6 +130,7 @@ mod tests {
             notes: None,
             story_hint: None,
             scene_script: None,
+            illustration: None,
         }
     }
 

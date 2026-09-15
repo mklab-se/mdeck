@@ -2,6 +2,7 @@ pub mod diagram;
 pub mod ember;
 pub mod fonts;
 pub mod hints;
+pub mod illustration;
 pub mod image_cache;
 pub mod layouts;
 pub mod particles;
@@ -213,6 +214,7 @@ mod tests {
             notes: None,
             story_hint: None,
             scene_script: None,
+            illustration: None,
         }
     }
 

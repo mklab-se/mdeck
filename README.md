@@ -214,12 +214,21 @@ each with a line you can say out loud (`H` shows it). Scripts land in
 `pinned: true` to keep it. Stories play on bullet, content, quote and section
 slides, where there is room beside the copy.
 
+**It can draw a thing.** Put `@illustration: server` at the top of a slide
+and the particles settle into a server beside the copy (behind it, faded, on
+a title slide). Twenty illustrations are built in, from `person` and `laptop`
+to `robot` and `rocket`; `mdeck illustration generate --name server
+--description "A server rack"` asks the image model for a new one and reduces
+it to a point cloud file you keep next to the deck or in your user library.
+Story casts draw from the same library, so a cloud you make can act in a
+story too.
+
 **It opens and closes.** A 3-2-1 countdown counted in particles (any key
 skips it, `@countdown: false` turns it off) and an ending where the field
 spells THE END before it bursts into black. Nord gets a plain countdown too.
 
-Try the decks in `samples/ember/`: plain text, visualizations, images, and
-stories. The format spec has the full vocabulary.
+Try the decks in `samples/ember/`: plain text, visualizations, images,
+illustrations, and stories. The format spec has the full vocabulary.
 
 ## Writing slides
 
@@ -429,6 +438,10 @@ agent to read.
 ```bash
 mdeck <file.md>                    # present (add --windowed, --slide N, --overview, --check)
 mdeck export <file.md>             # PNG export (--width, --height, --output-dir, --debug, --slide, --range)
+mdeck illustration generate --name <n> --description "..."  # New point cloud illustration via AI (--user, --force)
+mdeck illustration import <image> --name <n>                # Convert an image of light strokes on dark
+mdeck illustration list            # Every illustration visible from here (deck, user, built-in)
+mdeck illustration show <n>        # Preview an illustration
 mdeck spec                         # full format specification
 mdeck spec --short                 # quick reference card
 mdeck config show                  # show configuration

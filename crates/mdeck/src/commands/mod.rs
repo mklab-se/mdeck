@@ -5,6 +5,7 @@ pub mod config;
 pub mod create;
 pub mod export;
 pub mod generate;
+pub mod illustration;
 pub mod skill;
 pub mod spec;
 pub mod story;

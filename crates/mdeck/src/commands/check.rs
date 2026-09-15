@@ -93,6 +93,10 @@ pub fn run(file: PathBuf, verbose: u8, quiet: bool) -> anyhow::Result<()> {
         }
     }
 
+    for w in illustration_warnings(&presentation, &stories, base_path) {
+        report.add(w);
+    }
+
     if report.has_warnings() {
         if !quiet {
             report.print_detailed();
@@ -104,6 +108,76 @@ pub fn run(file: PathBuf, verbose: u8, quiet: bool) -> anyhow::Result<()> {
         }
         Ok(())
     }
+}
+
+/// Illustration warnings: names that do not resolve, layouts that never show
+/// one, illustrations shadowed by a story, story casts with unknown kinds,
+/// and unreadable cloud files (reported once, on slide 0).
+pub fn illustration_warnings(
+    presentation: &parser::Presentation,
+    stories: &[Option<render::story::sidecar::Resolved>],
+    base: &std::path::Path,
+) -> Vec<CheckWarning> {
+    let mut out = Vec::new();
+    let mut lib = render::illustration::Library::for_deck(Some(base));
+    for (i, slide) in presentation.slides.iter().enumerate() {
+        if let Some(name) = &slide.illustration {
+            if let Err(e) = render::illustration::validate_name(name) {
+                out.push(CheckWarning {
+                    slide: i + 1,
+                    category: CheckCategory::Illustration,
+                    message: format!("@illustration: {e}"),
+                });
+            } else if !lib.has(name) {
+                out.push(CheckWarning {
+                    slide: i + 1,
+                    category: CheckCategory::Illustration,
+                    message: format!(
+                        "no illustration named `{name}` (run `mdeck illustration list`, or \
+                         `mdeck illustration generate --name {name} --description \"...\"`)"
+                    ),
+                });
+            } else if !render::ember::handles(slide) {
+                out.push(CheckWarning {
+                    slide: i + 1,
+                    category: CheckCategory::Illustration,
+                    message: format!(
+                        "`{name}` is ignored: {} slides do not show an illustration",
+                        format!("{:?}", slide.layout).to_lowercase()
+                    ),
+                });
+            } else if stories.get(i).is_some_and(|r| r.is_some()) {
+                out.push(CheckWarning {
+                    slide: i + 1,
+                    category: CheckCategory::Illustration,
+                    message: format!(
+                        "`{name}` is ignored because the slide plays a story (cast it as a story kind instead)"
+                    ),
+                });
+            }
+        }
+        if let Some(r) = stories.get(i).and_then(|r| r.as_ref()) {
+            let unknown = r.script.unknown_kinds(&mut lib);
+            if !unknown.is_empty() {
+                out.push(CheckWarning {
+                    slide: i + 1,
+                    category: CheckCategory::Story,
+                    message: format!(
+                        "story casts unknown kind(s): {} (see `mdeck illustration list`)",
+                        unknown.join(", ")
+                    ),
+                });
+            }
+        }
+    }
+    for p in lib.take_problems() {
+        out.push(CheckWarning {
+            slide: 0,
+            category: CheckCategory::Illustration,
+            message: p,
+        });
+    }
+    out
 }
 
 /// One-line description of a slide for `--check -v`.
@@ -139,6 +213,76 @@ fn slide_summary(index: usize, slide: &parser::Slide) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn illustration_warnings_cover_missing_names_layouts_and_stories() {
+        let tmp = std::env::temp_dir().join(format!("mdeck-illu-check-{}", std::process::id()));
+        std::fs::create_dir_all(tmp.join("illustrations")).unwrap();
+        let cloud = render::illustration::Cloud {
+            version: render::illustration::VERSION,
+            name: "kettle".into(),
+            description: String::new(),
+            prompt: None,
+            generated: None,
+            aspect: 1.0,
+            points: std::sync::Arc::new(vec![[0.5, 0.5]]),
+        };
+        std::fs::write(tmp.join("illustrations/kettle.mdpc"), cloud.to_json()).unwrap();
+        std::fs::write(tmp.join("illustrations/broken.mdpc"), "{").unwrap();
+        let md = "@illustration: kettle\n\n## Fine\n\n- a\n\n---\n\n@illustration: nothing\n\n## Missing\n\n- a\n\n---\n\n@illustration: kettle\n\n## Code\n\n```rust\nfn main() {}\n```\n\n---\n\n@illustration: Bad Name\n\n## Bad\n\n- a\n\n---\n\n@illustration: broken\n\n## Broken\n\n- a\n";
+        let pres = parser::parse(md, &tmp);
+        let stories: Vec<Option<render::story::sidecar::Resolved>> = vec![None; pres.slides.len()];
+        let warnings = illustration_warnings(&pres, &stories, &tmp);
+        let by_slide: Vec<(usize, String)> = warnings
+            .iter()
+            .map(|w| (w.slide, w.message.clone()))
+            .collect();
+        assert!(!by_slide.iter().any(|(s, _)| *s == 1), "{by_slide:?}");
+        assert!(
+            by_slide
+                .iter()
+                .any(|(s, m)| *s == 2 && m.contains("no illustration named `nothing`")),
+            "{by_slide:?}"
+        );
+        assert!(
+            by_slide
+                .iter()
+                .any(|(s, m)| *s == 3 && m.contains("code slides do not show")),
+            "{by_slide:?}"
+        );
+        assert!(
+            by_slide
+                .iter()
+                .any(|(s, m)| *s == 4 && m.contains("lowercase")),
+            "{by_slide:?}"
+        );
+        assert!(
+            by_slide
+                .iter()
+                .any(|(s, m)| *s == 0 && m.contains("broken.mdpc")),
+            "{by_slide:?}"
+        );
+
+        // a story on the slide shadows the illustration; an unknown cast kind is reported
+        let script = render::story::Script::parse("cast:\n  - { id: a, kind: kettle, cell: left }\n  - { id: b, kind: zeppelin, cell: right }\n").unwrap();
+        let mut stories = stories;
+        stories[0] = Some(render::story::sidecar::Resolved {
+            script,
+            source: render::story::sidecar::Source::Sidecar,
+        });
+        let warnings = illustration_warnings(&pres, &stories, &tmp);
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.slide == 1 && w.message.contains("plays a story"))
+        );
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.slide == 1 && w.message.contains("zeppelin"))
+        );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
     use crate::parser::{Block, Inline, Layout, ListItem, ListMarker, Slide};
 
     fn slide(blocks: Vec<Block>, layout: Layout, notes: Option<&str>) -> Slide {
@@ -150,6 +294,7 @@ mod tests {
             notes: notes.map(String::from),
             story_hint: None,
             scene_script: None,
+            illustration: None,
         }
     }
 

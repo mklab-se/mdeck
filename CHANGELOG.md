@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Point cloud illustrations.** `@illustration: server` at the top of a slide makes the Ember
+  field settle into a server beside the copy (behind it, faded, on a title slide). Twenty
+  illustrations are built in: `person`, `hooded`, `box`, `orb`, `doc`, `docs`, `inbox`, `db`,
+  `cloud`, `laptop`, `folder`, `mail`, `gate`, `server`, `robot`, `phone`, `globe`, `lock`,
+  `gear`, `rocket`. A name resolves through the deck's `illustrations/` folder, then
+  `~/.config/mdeck/illustrations/`, then the built-in set, so decks and users can shadow
+  built-ins.
+- **`mdeck illustration`.** `generate --name <n> --description "..."` asks the image provider
+  for a sparse constellation of glowing particles and reduces it to an `.mdpc` file; `import
+  <image> --name <n>` converts any image of light strokes on a dark ground; `list` shows every
+  visible name and what shadows what; `show <n>` renders a preview. `--user` writes to the user
+  library, `--force` overwrites.
+- **The `.mdpc` format.** JSON with a name, description, prompt, aspect and up to 1500 points
+  in importance order (greedy farthest-point sampling weighted toward the silhouette), so a
+  prefix of any length is a spread-out sketch of the whole subject.
+- `mdeck --check` warns on illustrations that do not resolve, on layouts that cannot show one,
+  on slides where a story shadows the illustration, and on story casts with unknown kinds.
+
+### Changed
+
+- **Story casts are point clouds.** A cast member's `kind` is now an illustration name
+  resolved through the same library, so `kind: server` works once `server.mdpc` exists and
+  `mdeck ai story` offers the model the names the deck can resolve. The hand-drawn cast
+  silhouettes are gone; the thirteen former kinds are built-in clouds under the same names.
+- The field assigns mask points in order (a group of *n* particles takes the first *n*), so a
+  small cast member is a sketch of its subject rather than a random speckle; countdown digits
+  and the end words are shuffled once so they still fill evenly.
+
 ## [1.0.0] - 2026-09-08
 
 MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.

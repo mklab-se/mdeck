@@ -83,6 +83,87 @@ pub fn constellation(seed: u64) -> Scene {
     Scene::new(groups)
 }
 
+/// A point cloud illustration on the story stage (the right half of a copy
+/// slide): fitted into the stage box with breathing room, warm, and lit from
+/// the first step. `cloud_aspect` is the cloud's height over width.
+pub fn illustration_stage(
+    points: Arc<Vec<[f32; 2]>>,
+    cloud_aspect: f32,
+    layout: Layout,
+    rect_aspect: f32,
+) -> Scene {
+    let stage = crate::render::story::stage_box(layout);
+    let avail_w = stage.width() * 0.82;
+    let avail_h = stage.height() * 0.82;
+    // heights are slide-height fractions: h = w * aspect * (W / H)
+    let mut w = avail_w;
+    let mut h = w * cloud_aspect * rect_aspect;
+    if h > avail_h {
+        h = avail_h;
+        w = h / (cloud_aspect * rect_aspect);
+    }
+    let (cu, cv) = (stage.center().x, stage.center().y);
+    let mut scene = Scene::new(vec![
+        Group::new(
+            0.70,
+            Home::Mask {
+                points,
+                u: cu - w / 2.0,
+                v: cv - h / 2.0,
+                w,
+                h,
+            },
+        )
+        .palette(Palette::Warm)
+        .alpha(0.45, 0.95)
+        .size(0.42, 0.8)
+        .drift(Drift::Breathe {
+            amp: 0.0018,
+            speed: 0.7,
+        }),
+        dust(0.30).alpha(0.04, 0.16),
+    ]);
+    scene.link_alpha = 0.0;
+    scene
+}
+
+/// A point cloud illustration behind a title: large, dim and soft, breathing
+/// slowly under the centred copy, the way a backdrop is out of focus.
+pub fn illustration_backdrop(
+    points: Arc<Vec<[f32; 2]>>,
+    cloud_aspect: f32,
+    rect_aspect: f32,
+) -> Scene {
+    let mut h = 0.80;
+    let mut w = h / (cloud_aspect * rect_aspect);
+    if w > 0.72 {
+        w = 0.72;
+        h = w * cloud_aspect * rect_aspect;
+    }
+    let mut scene = Scene::new(vec![
+        Group::new(
+            0.72,
+            Home::Mask {
+                points,
+                u: 0.5 - w / 2.0,
+                v: 0.5 - h / 2.0,
+                w,
+                h,
+            },
+        )
+        .palette(Palette::Warm)
+        .alpha(0.12, 0.34)
+        .size(0.5, 1.0)
+        .drift(Drift::Breathe {
+            amp: 0.004,
+            speed: 0.5,
+        }),
+        dust(0.28).alpha(0.03, 0.12),
+    ]);
+    scene.link_alpha = 0.0;
+    scene
+}
+
 /// A countdown digit: the glyph mask, bright and tight, with a little dust.
 pub fn digit(points: Arc<Vec<[f32; 2]>>, glyph_aspect: f32, rect_aspect: f32) -> Scene {
     // The digit stands about half the slide tall and is stretched a quarter
@@ -447,6 +528,66 @@ mod tests {
         }
     }
 
+    fn ring_points() -> Arc<Vec<[f32; 2]>> {
+        Arc::new(
+            (0..32)
+                .map(|i| {
+                    let a = i as f32 / 32.0 * std::f32::consts::TAU;
+                    [0.5 + 0.5 * a.cos(), 0.5 + 0.5 * a.sin()]
+                })
+                .collect(),
+        )
+    }
+
+    #[test]
+    fn stage_illustration_fits_inside_the_stage_box() {
+        for (aspect, layout) in [
+            (0.5, Layout::Bullet),
+            (1.0, Layout::Quote),
+            (2.5, Layout::Section),
+        ] {
+            let scene = illustration_stage(ring_points(), aspect, layout, 16.0 / 9.0);
+            let stage = crate::render::story::stage_box(layout);
+            let Home::Mask { u, v, w, h, .. } = &scene.groups[0].home else {
+                panic!("first group is the mask");
+            };
+            assert!(
+                *u >= stage.left() - 1e-4 && u + w <= stage.right() + 1e-4,
+                "{layout:?} {aspect}: u {u} w {w}"
+            );
+            assert!(
+                *v >= stage.top() - 1e-4 && v + h <= stage.bottom() + 1e-4,
+                "{layout:?} {aspect}: v {v} h {h}"
+            );
+            // the cloud keeps its aspect on a 16:9 slide
+            let px_aspect = (h * 9.0) / (w * 16.0);
+            assert!(
+                (px_aspect - aspect).abs() < 0.02,
+                "{layout:?}: drawn aspect {px_aspect} vs {aspect}"
+            );
+        }
+    }
+
+    #[test]
+    fn backdrop_illustration_is_centred_and_dim() {
+        let scene = illustration_backdrop(ring_points(), 1.2, 16.0 / 9.0);
+        let Home::Mask { u, v, w, h, .. } = &scene.groups[0].home else {
+            panic!("first group is the mask");
+        };
+        assert!((u + w / 2.0 - 0.5).abs() < 1e-4 && (v + h / 2.0 - 0.5).abs() < 1e-4);
+        assert!(
+            scene.groups[0].alpha.1 < 0.5,
+            "backdrop is bright: {:?}",
+            scene.groups[0].alpha
+        );
+        // a very wide cloud is capped by width
+        let wide = illustration_backdrop(ring_points(), 0.2, 16.0 / 9.0);
+        let Home::Mask { w, .. } = &wide.groups[0].home else {
+            panic!()
+        };
+        assert!(*w <= 0.72 + 1e-4);
+    }
+
     #[test]
     fn bullet_scene_has_one_cluster_per_item_with_its_step() {
         let slide = Slide {
@@ -465,6 +606,7 @@ mod tests {
             notes: None,
             story_hint: None,
             scene_script: None,
+            illustration: None,
         };
         let scene = for_slide(&slide, 3);
         let steps: Vec<Option<usize>> = scene
@@ -499,6 +641,7 @@ mod tests {
                 notes: None,
                 story_hint: None,
                 scene_script: None,
+                illustration: None,
             };
             let scene = for_slide(&slide, 1);
             assert!(scene.groups.len() >= 2, "{layout:?} has too few groups");

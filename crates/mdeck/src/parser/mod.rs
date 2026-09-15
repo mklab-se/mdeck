@@ -46,6 +46,8 @@ pub struct Slide {
     pub story_hint: Option<String>,
     /// Hand-written scene script in YAML (a ```@scene fence).
     pub scene_script: Option<String>,
+    /// Name of the point cloud illustration for this slide (`@illustration`).
+    pub illustration: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -216,6 +218,11 @@ pub fn parse(content: &str, _base_path: &Path) -> Presentation {
             let (directives, content) = blocks::extract_directives(&content_part);
             let (blocks, story_hint, scene_script) = take_story_blocks(blocks::parse(&content));
             let layout = classify_layout(&directives, &blocks);
+            let illustration = directives
+                .iter()
+                .find(|d| d.name == "illustration")
+                .map(|d| d.value.trim().to_lowercase())
+                .filter(|v| !v.is_empty());
             Slide {
                 directives,
                 blocks,
@@ -224,6 +231,7 @@ pub fn parse(content: &str, _base_path: &Path) -> Presentation {
                 notes,
                 story_hint,
                 scene_script,
+                illustration,
             }
         })
         .collect();
@@ -520,6 +528,18 @@ fn inline_text_len(inline: &Inline) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn illustration_directive_names_a_cloud() {
+        let p = parse(
+            "@illustration: Server-Rack\n\n# Title\n\n- one\n\n---\n\n# Plain\n",
+            Path::new("."),
+        );
+        assert_eq!(p.slides[0].illustration.as_deref(), Some("server-rack"));
+        assert!(p.slides[1].illustration.is_none());
+        let empty = parse("@illustration:\n\n# T\n", Path::new("."));
+        assert!(empty.slides[0].illustration.is_none());
+    }
     use std::path::Path;
 
     #[test]

@@ -57,6 +57,7 @@ crates/
           extractors.rs # PDF/DOCX/text content extraction
         generate.rs  # AI image generation for presentations (mdeck ai generate)
         story.rs     # AI story scripts for the Ember theme (mdeck ai story): prompt, validation, sidecar
+        illustration.rs # mdeck illustration generate|import|list|show: AI image -> point cloud, previews
         completion.rs # Shell completion generation
         config.rs    # Config show/set
         export.rs    # Pixel-exact PNG export (1 pt/px, tiled screenshots stitched to the requested size)
@@ -69,7 +70,8 @@ crates/
         fonts.rs     # Bundled Spectral / Hanken Grotesk / JetBrains Mono (fonts/, OFL)
         hints.rs     # Geometry hints from renderers to the particle field
         particles/   # The particle field: Field/Scene/Group (mod.rs), additive GL sprites and wakes (gl.rs), inferred and hint-driven scenes (scenes.rs)
-        story/       # Story scripts: schema, staging and labels (mod.rs), cast silhouettes, sidecar with staleness
+        story/       # Story scripts: schema, staging and labels (mod.rs), sidecar with staleness; cast kinds are illustration names
+        illustration/ # Point cloud illustrations: .mdpc format, deck/user/built-in lookup and Library cache (mod.rs), image -> importance-ordered points (convert.rs)
         text.rs      # Block-level drawing (headings, lists, code, tables, diagrams, images)
         syntax.rs    # Syntax highlighting via syntect (LazyLock-cached SyntaxSet/ThemeSet)
         transition.rs # Slide transitions (fade, slide, spatial) with easing
@@ -85,6 +87,7 @@ crates/
         image_cache.rs # Background image decoding (worker thread) and texture caching
       theme.rs       # Theme definitions (light, dark, nord, ember) and per-theme font families
       prompt.rs      # AI prompt construction helpers (image/icon style + orientation)
+    illustrations/   # Built-in point clouds (*.mdpc, generated with `mdeck illustration generate`, embedded via include_str!)
     doc/
       mdeck-spec.md  # Markdown format specification (included via include_str!)
       ai-reference-supplement.md  # AI reference docs (CLI + image generation guide)
@@ -110,6 +113,10 @@ mdeck ai create --prompt "..." # With audience/purpose context
 mdeck ai generate <file.md>  # Generate all AI images in a presentation
 mdeck ai story <file.md> [--slide N | --range A-B] [--stale] [--force] [--dry-run]  # Write Ember story scripts to <file>.scenes.yaml
 mdeck ai generate-image --prompt "..." [--icon] [--output path] [--style name]
+mdeck illustration generate --name <n> --description "..." [--user] [--force]  # AI image -> ./illustrations/<n>.mdpc
+mdeck illustration import <image> --name <n> [--user] [--force]  # Convert light-on-dark image to a cloud
+mdeck illustration list      # Every illustration visible from cwd (deck, user, built-in; shadowing)
+mdeck illustration show <n> [--output preview.png]  # Preview a cloud
 mdeck ai style add <name> <desc> [--icon]  # Add named style
 mdeck ai style remove <name> [--icon]      # Remove named style
 mdeck ai style list          # List all styles
@@ -155,7 +162,8 @@ mdeck --help                 # Show help
 - FPS overlay in the top-right corner while the HUD (`H`) is shown
 - **Config precedence:** frontmatter > `~/.config/mdeck/config.yaml` defaults > built-in (theme, transition, start mode)
 - **Ember field:** `app/ember.rs` owns one `particles::Field`; each frame it picks a scene from the slide (countdown digit, end act, story, hints from renderers, or the inferred layout scene), ticks and paints it under the slide. Renderers publish geometry with `render::hints::push` (a no-op unless Ember is drawing). Export uses the same state with `still = true`.
-- **Stories:** `render::story` defines the script schema; `render::story::sidecar` resolves per slide (pinned by number, then by content hash, then stale). Beats extend `max_steps` only under Ember (`slide_max_steps`). The AI prompt and JSON handling live in `commands/story.rs`.
+- **Stories:** `render::story` defines the script schema; `render::story::sidecar` resolves per slide (pinned by number, then by content hash, then stale). Beats extend `max_steps` only under Ember (`slide_max_steps`). The AI prompt and JSON handling live in `commands/story.rs`. Cast `kind`s are illustration names resolved through the `Library`; `person` and `hooded` are the figures.
+- **Illustrations:** `render::illustration` owns the `.mdpc` format (`Cloud`, importance-ordered points, `aspect` = height/width), the lookup order (deck `illustrations/` > `~/.config/mdeck/illustrations/` > `BUILTIN`), and the per-deck `Library` cache the app, export and check pass into `EmberState::frame`. `convert.rs` turns an image into points: composite over black, dilate dots into strokes, threshold, greedy farthest-point ordering weighted toward silhouette edges. `Home::Mask` takes the first *n* points for a group of *n* particles, so glyph masks are shuffled once when built. Placement: `scenes::illustration_stage` (copy slides) and `scenes::illustration_backdrop` (title slides); only layouts `ember::handles` shows show one. Built-ins live in `crates/mdeck/illustrations/` and are listed in `BUILTIN`; regenerate with `mdeck illustration generate` run from `crates/mdeck/`.
 
 ## Releasing
 
@@ -234,7 +242,7 @@ Before every release, verify these are up to date:
   - **`samples/features/`** — feature-specific test files:
     - `notes.md` — speaker notes with `???` separator
   - **Top-level `samples/`** — showcase presentations: `gallery.md`, `introducing-mdeck.md`, `poker-night.md`, `saloon-workshop.md`, `continents.md`, `ember.md` (Ember showcase, with `ember.scenes.yaml`)
-  - **`samples/ember/`** — Ember decks: `plain-text.md` (no scenes), `visualizations.md` (content-aware field), `with-images.md`, `stories.md` (hinted slides with a generated `stories.scenes.yaml`)
+  - **`samples/ember/`** — Ember decks: `plain-text.md` (no scenes), `visualizations.md` (content-aware field), `with-images.md`, `illustrations.md` (`@illustration` on every layout that shows one), `stories.md` (hinted slides with a generated `stories.scenes.yaml`)
   When working on a specific visualization type, use its dedicated test file for faster iteration.
 - When fixing visual issues, export before and after to confirm the fix.
 

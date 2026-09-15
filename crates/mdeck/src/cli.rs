@@ -100,6 +100,12 @@ pub enum Commands {
         range: Option<String>,
     },
 
+    /// Point cloud illustrations for the particle field (generate, import, list, show)
+    Illustration {
+        #[command(subcommand)]
+        command: IllustrationCommands,
+    },
+
     /// Print the mdeck markdown format specification
     Spec {
         /// Print a concise quick-reference card instead of the full spec
@@ -273,6 +279,49 @@ pub enum StyleCommands {
 }
 
 #[derive(Subcommand)]
+pub enum IllustrationCommands {
+    /// Generate an illustration from a description with the AI image provider
+    Generate {
+        /// Name to save it under (lowercase letters, digits and hyphens)
+        #[arg(long)]
+        name: String,
+        /// What to draw, e.g. "A server, in a rack, in a datacenter"
+        #[arg(long)]
+        description: String,
+        /// Save to the user library (~/.config/mdeck/illustrations) instead of ./illustrations
+        #[arg(long)]
+        user: bool,
+        /// Overwrite an existing illustration of the same name
+        #[arg(long)]
+        force: bool,
+    },
+    /// Convert an image (light strokes on dark) into an illustration
+    Import {
+        /// Image file (PNG, JPEG or WebP)
+        image: PathBuf,
+        /// Name to save it under (lowercase letters, digits and hyphens)
+        #[arg(long)]
+        name: String,
+        /// Save to the user library instead of ./illustrations
+        #[arg(long)]
+        user: bool,
+        /// Overwrite an existing illustration of the same name
+        #[arg(long)]
+        force: bool,
+    },
+    /// List every illustration visible from the current directory
+    List,
+    /// Preview an illustration as an image
+    Show {
+        /// Illustration name
+        name: String,
+        /// Save the preview PNG here instead of a temporary file
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
 pub enum ConfigCommands {
     /// Display current configuration
     Show,
@@ -307,6 +356,12 @@ impl Cli {
                 rt.block_on(crate::commands::ai::run(command, self.quiet))
             }
             Some(Commands::Config { command }) => crate::commands::config::run(command),
+            Some(Commands::Illustration { command }) => {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()?;
+                rt.block_on(crate::commands::illustration::run(command, self.quiet))
+            }
             Some(Commands::Completion { shell }) => {
                 crate::commands::completion::run(shell);
                 Ok(())

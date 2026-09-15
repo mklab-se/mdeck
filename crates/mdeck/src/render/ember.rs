@@ -1197,6 +1197,7 @@ mod tests {
             notes: None,
             story_hint: None,
             scene_script: None,
+            illustration: None,
         };
         assert!(handles(&mk(Layout::Title, vec![])));
         assert!(handles(&mk(Layout::Bullet, vec![])));
