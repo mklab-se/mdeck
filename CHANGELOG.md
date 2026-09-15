@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- Dependencies: ailloy 2.1.0 → 2.1.1 (lockfile only; no API change). Every manifest requirement
+  was already at its latest stable line. `cargo audit bin` reports no vulnerabilities, only two
+  unmaintained-crate notices (bincode 1.3 via syntect, ttf-parser 0.25 via pdf-extract).
+- MSRV corrected to Rust 1.95: eframe 0.36 (adopted in 0.18.0) has required it all along, and the
+  declared 1.88 was stale.
+- CI and release workflows lint with `cargo clippy --workspace --all-targets`, matching the
+  template; the release skill watches the workflow and verifies the outputs before declaring
+  success. README gains a "Releasing" section.
+
 ## [1.2.2] - 2026-09-15
 
 ### Added

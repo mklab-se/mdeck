@@ -74,7 +74,7 @@ Install:
 
 ```bash
 brew install mklab-se/tap/mdeck      # macOS / Linux
-cargo install mdeck                  # anywhere with Rust 1.88+
+cargo install mdeck                  # anywhere with Rust 1.95+
 cargo binstall mdeck                 # pre-built binary via cargo-binstall
 ```
 
@@ -489,13 +489,39 @@ source <(COMPLETE=zsh mdeck)                  # dynamic (recommended)
 ```bash
 cargo build                                 # build
 cargo test --workspace                      # tests
-cargo clippy --workspace -- -D warnings     # lint (CI-enforced)
+cargo clippy --workspace --all-targets -- -D warnings   # lint (CI-enforced)
 cargo fmt --all -- --check                  # formatting (CI-enforced)
 cargo run -p mdeck -- samples/gallery.md    # run the app on a sample
 ```
 
 Sample decks live in `samples/`, with one file per layout and visualization
 type for quick visual checks.
+
+## Releasing
+
+Releases are driven by the [`/release`](.claude/skills/release/SKILL.md) skill (run it in Claude
+Code with `major`, `minor`, or `patch`). It updates the toolchain and dependencies, runs the CI
+gates, bumps the version, updates the changelog, then commits, pushes, and tags `vX.Y.Z`. Pushing
+the tag triggers `.github/workflows/release.yml`, which:
+
+1. Re-runs the full CI suite
+2. Builds [auditable](https://github.com/rust-secure-code/cargo-auditable) binaries for Linux, macOS
+   (Intel + ARM), and Windows, with a CycloneDX SBOM per target
+3. Creates a GitHub Release with the archives and SBOMs (see the
+   [SBOM notes](#sixty-second-start) above for how to read them)
+4. Publishes `mdeck` to crates.io
+5. Updates the Homebrew formula in [`mklab-se/homebrew-tap`](https://github.com/mklab-se/homebrew-tap)
+
+### Required secrets
+
+Configure these once on the GitHub repository (the same secrets are used by the other MKLab tools):
+
+| Secret | Where | Purpose | How to create |
+| --- | --- | --- | --- |
+| `CARGO_REGISTRY_TOKEN` | Environment **`crates-io`** | Publish to crates.io | [crates.io/settings/tokens](https://crates.io/settings/tokens) → new token with publish scope |
+| `HOMEBREW_TAP_TOKEN` | Repository secret | Push the formula to the tap | A GitHub PAT with `repo` scope for `mklab-se/homebrew-tap` |
+
+If `HOMEBREW_TAP_TOKEN` is missing, the release still succeeds — the Homebrew step just logs a warning.
 
 ---
 

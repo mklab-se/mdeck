@@ -10,7 +10,7 @@ edition = "2024"
 authors = ["Kristofer Liljeblad <kristofer@mklab.se>"]
 license = "MIT"
 repository = "https://github.com/mklab-se/mdeck"
-rust-version = "1.88"
+rust-version = "1.95"
 
 [workspace.dependencies]
 eframe = { version = "0.36", default-features = false, features = ["glow", "default_fonts", "links", "wayland", "x11"] }

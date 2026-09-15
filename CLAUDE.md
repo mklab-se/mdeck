@@ -193,7 +193,7 @@ Before every release, verify these are up to date:
 
 ## Code Style
 
-- Edition 2024, MSRV 1.88
+- Edition 2024, MSRV 1.95
 - `cargo clippy` with `-D warnings` (zero warnings policy)
 - `cargo fmt` enforced in CI
 - **File size guideline:** When a source file exceeds ~500 lines, evaluate whether it would benefit from being split into smaller modules (`mod` in Rust). Look for natural boundaries: distinct type groups, self-contained algorithms, test helpers, or feature areas that could live in their own files. Propose a split plan before refactoring.
