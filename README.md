@@ -204,7 +204,9 @@ behind every slide. Set `@theme: ember` and any deck you already have gets it.
 bullet slide lights one cluster per item as you reveal them. Quotes burn like
 a candle, code slides rain. On charts and diagrams the particles serve what is
 drawn: embers rise off bars, runners travel the edges of a diagram, sparks
-circle a pie. None of this needs a line of authoring.
+circle a pie. Behind it all the dark is space: a star field drifting slowly
+forward, dust, a galaxy, or a nebula, rotating by slide so a run of bullet
+slides never repeats itself. None of this needs a line of authoring.
 
 **It can tell a story.** Describe a scene in English in a ```` ```@story ````
 fence on a slide, run `mdeck ai story talk.md`, and the particles form a cast
