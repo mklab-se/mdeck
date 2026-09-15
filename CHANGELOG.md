@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- Circled numbers (①②③), circled letters, check marks, arrows and geometric shapes drew as
+  boxes in every theme ([#7](https://github.com/mklab-se/mdeck/issues/7)). Noto Sans Symbols
+  and DejaVu Sans are now bundled as the last fallback of every font family.
+- Code blocks taller than the slide were cut off in PNG export
+  ([#8](https://github.com/mklab-se/mdeck/issues/8)). Code now shrinks to fit the slide, in
+  height and in line width, down to 40% of the theme's code size (about 65 lines on a 16:9
+  slide); only past that does the slide scroll. Long lines shrink instead of wrapping.
+- Ember bullet slides: list items now step in from the copy edge with the dot in the gutter,
+  nested items a step further, and items are set in the regular face in a brighter ink than
+  the light paragraphs around them ([#9](https://github.com/mklab-se/mdeck/issues/9)).
+
 ## [1.2.0] - 2026-09-15
 
 ### Added

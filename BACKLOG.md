@@ -60,11 +60,6 @@ Bundling a family with bold/italic (e.g. Inter or IBM Plex) and Noto Color
 Emoji adds 1–3 MB to the binary. Decision: which family, and whether to allow
 `@font:` overrides.
 
-### 1.9 Code blocks: long lines — S, needs a decision
-Wrapped code is rarely what presenters want. Options: shrink the font until
-the longest line fits (down to a floor), then clip with a fade. Same for very
-long code blocks (already scrollable).
-
 ### 1.10 Crash recovery via re-exec — S
 The old "retry up to 5 times" loop never worked (winit refuses a second event
 loop per process) and has been removed. Real recovery would re-exec the binary

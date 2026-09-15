@@ -47,6 +47,66 @@ fn text_blocks(slide: &Slide) -> Vec<&Block> {
     image_split::split_image(&slide.blocks).0
 }
 
+/// Code never shrinks below this fraction of the theme's code size; past it
+/// the slide scrolls as before.
+pub const CODE_FIT_FLOOR: f32 = 0.4;
+
+/// The theme to lay the slide out with: the same theme, or a copy whose code
+/// size is reduced so the slide's code blocks fit the column, in height and
+/// in line width, down to [`CODE_FIT_FLOOR`]. Long code then shows whole on a
+/// still export instead of being cut off (GitHub issue 8), and long lines
+/// stop wrapping (backlog 1.9). Prose is never shrunk.
+fn fit_code(ui: &egui::Ui, blocks: &[&Block], theme: &Theme, column: &Column, scale: f32) -> Theme {
+    let code: Vec<(&str, Option<&str>)> = blocks
+        .iter()
+        .filter_map(|b| match b {
+            Block::CodeBlock { code, language, .. } => Some((code.as_str(), language.as_deref())),
+            _ => None,
+        })
+        .collect();
+    if code.is_empty() {
+        return theme.clone();
+    }
+    let measure =
+        |t: &Theme| text::measure_blocks_height(ui, blocks.iter().copied(), t, column.width, scale);
+    let total = measure(theme);
+    // the block padding does not scale with the font, so fit the text inside it
+    let padding = 2.0 * text::CODE_PADDING * scale * code.len() as f32;
+    let code_text: f32 = code
+        .iter()
+        .map(|(c, l)| text::measure_code_block_height(ui, c, *l, theme, column.width, scale))
+        .sum::<f32>()
+        - padding;
+    let budget = column.available - (total - code_text - padding) - padding;
+    let by_height = if code_text > 0.0 {
+        budget / code_text
+    } else {
+        1.0
+    };
+    let widest = code
+        .iter()
+        .map(|(c, _)| text::widest_code_line(ui, c, theme, scale))
+        .fold(0.0, f32::max);
+    let inner = column.width - 2.0 * text::CODE_PADDING * scale;
+    let by_width = if widest > 0.0 { inner / widest } else { 1.0 };
+    let mut factor = by_height.min(by_width);
+    if factor >= 1.0 {
+        return theme.clone();
+    }
+    let mut fitted = theme.clone();
+    // row heights round, so re-measure and nudge down until it truly fits
+    for _ in 0..3 {
+        factor = factor.max(CODE_FIT_FLOOR);
+        fitted.code_size = theme.code_size * factor;
+        let h = measure(&fitted);
+        if h <= column.available || factor <= CODE_FIT_FLOOR {
+            break;
+        }
+        factor *= (column.available / h) * 0.995;
+    }
+    fitted
+}
+
 /// Height of the text column content, laid out exactly as [`render`] draws it.
 pub fn measure_content_height(
     ui: &egui::Ui,
@@ -56,7 +116,9 @@ pub fn measure_content_height(
     scale: f32,
 ) -> f32 {
     let column = text_column(slide, rect, scale);
-    text::measure_blocks_height(ui, text_blocks(slide), theme, column.width, scale)
+    let blocks = text_blocks(slide);
+    let theme = fit_code(ui, &blocks, theme, &column, scale);
+    text::measure_blocks_height(ui, blocks, &theme, column.width, scale)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -72,6 +134,8 @@ pub fn render(
 ) {
     let column = text_column(slide, rect, scale);
     let blocks = text_blocks(slide);
+    let fitted = fit_code(ui, &blocks, theme, &column, scale);
+    let theme = &fitted;
 
     let total_height =
         text::measure_blocks_height(ui, blocks.iter().copied(), theme, column.width, scale);
@@ -149,6 +213,94 @@ mod tests {
                 })
                 .collect(),
         }
+    }
+
+    fn code_slide(lines: usize, line: &str) -> Slide {
+        let body: Vec<String> = (0..lines)
+            .map(|i| line.replace("{i}", &i.to_string()))
+            .collect();
+        slide(
+            Layout::Code,
+            vec![
+                Block::Heading {
+                    level: 1,
+                    inlines: vec![crate::parser::Inline::Text("Code".into())],
+                },
+                Block::CodeBlock {
+                    language: Some("rust".into()),
+                    code: body.join("\n"),
+                    highlight_lines: vec![],
+                },
+            ],
+        )
+    }
+
+    /// Regression for GitHub issue 8: a code block taller than the slide is
+    /// shrunk until it fits (down to the floor) instead of being cut off.
+    #[test]
+    fn long_code_shrinks_to_fit_the_slide() {
+        let ctx = egui::Context::default();
+        crate::render::fonts::install(&ctx);
+        let theme = Theme::light();
+        let rect = egui::Rect::from_min_size(Pos2::ZERO, egui::vec2(1920.0, 1080.0));
+        let mut output = ctx.run_ui(Default::default(), |ui| {
+            let short = code_slide(8, "let v{i} = {i};");
+            let column = text_column(&short, rect, 1.0);
+            let fitted = fit_code(ui, &text_blocks(&short), &theme, &column, 1.0);
+            assert_eq!(
+                fitted.code_size, theme.code_size,
+                "short code must not shrink"
+            );
+
+            let long = code_slide(32, "let value_{i} = compute({i}); // line {i}");
+            let fitted = fit_code(ui, &text_blocks(&long), &theme, &column, 1.0);
+            assert!(
+                fitted.code_size < theme.code_size,
+                "long code did not shrink"
+            );
+            assert!(fitted.code_size >= theme.code_size * CODE_FIT_FLOOR);
+            let height = measure_content_height(ui, &long, &theme, rect, 1.0);
+            assert!(
+                height <= column.available + 1.0,
+                "fitted code still overflows: {height} > {}",
+                column.available
+            );
+
+            // past the floor the slide scrolls, as before
+            let huge = code_slide(200, "let value_{i} = compute({i});");
+            let fitted = fit_code(ui, &text_blocks(&huge), &theme, &column, 1.0);
+            assert_eq!(fitted.code_size, theme.code_size * CODE_FIT_FLOOR);
+            assert!(measure_content_height(ui, &huge, &theme, rect, 1.0) > column.available);
+        });
+        output.textures_delta.clear();
+    }
+
+    #[test]
+    fn long_lines_shrink_instead_of_wrapping() {
+        let ctx = egui::Context::default();
+        crate::render::fonts::install(&ctx);
+        let theme = Theme::light();
+        let rect = egui::Rect::from_min_size(Pos2::ZERO, egui::vec2(1920.0, 1080.0));
+        let mut output = ctx.run_ui(Default::default(), |ui| {
+            let wide = code_slide(3, &format!("let x{{i}} = \"{}\";", "x".repeat(110)));
+            let column = text_column(&wide, rect, 1.0);
+            let fitted = fit_code(ui, &text_blocks(&wide), &theme, &column, 1.0);
+            assert!(
+                fitted.code_size < theme.code_size,
+                "long lines did not shrink"
+            );
+            let widest = text::widest_code_line(
+                ui,
+                &match &wide.blocks[1] {
+                    Block::CodeBlock { code, .. } => code.clone(),
+                    _ => unreachable!(),
+                },
+                &fitted,
+                1.0,
+            );
+            assert!(widest <= column.width - 2.0 * text::CODE_PADDING + 1.0);
+        });
+        output.textures_delta.clear();
     }
 
     #[test]

@@ -443,6 +443,8 @@ fn main() {
 
 The `{...}` is parsed as comma-separated line numbers and ranges (e.g., `3`, `5-7`). Highlighted lines receive a distinct background. Code blocks without a language identifier render as plain monospace text with no highlighting.
 
+Code shrinks to fit. When a slide's code blocks are taller than the slide, or a line is wider than the column, the code font is reduced until everything fits, down to 40% of the theme's code size (about 65 lines on a 16:9 slide). Only past that does the slide scroll. Long lines therefore shrink rather than wrap, and a PNG export shows the whole block. Prose is never shrunk.
+
 ### 5.6 Blockquotes
 
 Standard markdown blockquotes:
@@ -755,6 +757,8 @@ slide to slide and follows the content: a title slide opens on a constellation
 cluster per item as the items reveal, a quote slide burns like a candle, a
 code slide rains. Slides whose content fills the frame (code, tables, charts,
 diagrams, images) keep their regular layouts with the Ember palette.
+
+Every theme can draw the symbols text faces usually lack: circled numbers and letters (①②③, ⓐ), check marks, arrows, geometric shapes and stars. Noto Sans Symbols and DejaVu Sans are bundled as the last fallback of every font family, so such characters never render as boxes.
 
 Behind all of that, on every slide but the title, the dark is space. Slides
 walk through four backdrops by number, so neighbours never share one and a

@@ -459,7 +459,7 @@ pub fn measure_list_height(
 // Code blocks
 // ---------------------------------------------------------------------------
 
-const CODE_PADDING: f32 = 16.0;
+pub(crate) const CODE_PADDING: f32 = 16.0;
 
 /// Draw a code block with syntax highlighting. Returns height used.
 #[allow(clippy::too_many_arguments)]
@@ -530,8 +530,26 @@ pub fn draw_code_block(
     total_height
 }
 
+/// Width in points of the widest line of `code` at the theme's code size,
+/// unwrapped: what the block would need to show every line whole.
+pub(crate) fn widest_code_line(ui: &egui::Ui, code: &str, theme: &Theme, scale: f32) -> f32 {
+    let font = egui::FontId::new(theme.code_size * scale, theme.mono_family());
+    code.lines()
+        .map(|line| {
+            ui.painter()
+                .layout_no_wrap(
+                    line.replace('\t', "    "),
+                    font.clone(),
+                    egui::Color32::WHITE,
+                )
+                .rect
+                .width()
+        })
+        .fold(0.0, f32::max)
+}
+
 /// Measure a code block exactly as [`draw_code_block`] lays it out.
-fn measure_code_block_height(
+pub(crate) fn measure_code_block_height(
     ui: &egui::Ui,
     code: &str,
     language: Option<&str>,

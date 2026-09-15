@@ -12,7 +12,7 @@ use std::time::Instant;
 use eframe::egui::{self, Color32, Pos2, Rect};
 
 use crate::parser::{Block, Inline, Layout, ListItem, ListMarker, Slide};
-use crate::theme::{FONT_BODY_LIGHT, FONT_BODY_MEDIUM, Theme};
+use crate::theme::{FONT_BODY, FONT_BODY_LIGHT, FONT_BODY_MEDIUM, Theme};
 
 /// Facts about the deck that the eyebrow and chrome show.
 #[derive(Clone, Debug, Default)]
@@ -229,6 +229,27 @@ fn lead_job(
     job
 }
 
+/// A list item: the regular body face in a brighter ink than the light
+/// paragraphs around it.
+fn item_job(
+    inlines: &[Inline],
+    size: f32,
+    alpha: f32,
+    width: f32,
+    theme: &Theme,
+) -> egui::text::LayoutJob {
+    let mut job = egui::text::LayoutJob::default();
+    job.wrap.max_width = width;
+    let base = egui::text::TextFormat {
+        font_id: egui::FontId::new(size, egui::FontFamily::Name(FONT_BODY.into())),
+        color: fade(INK_100, alpha),
+        line_height: Some(size * 1.5),
+        ..Default::default()
+    };
+    append_lead(&mut job, inlines, &base, alpha, theme);
+    job
+}
+
 fn append_lead(
     job: &mut egui::text::LayoutJob,
     inlines: &[Inline],
@@ -415,7 +436,16 @@ struct Piece {
     dot: bool,
     /// Draw an ember hairline to the left spanning the piece (quotes).
     bar: bool,
+    /// Left inset of the text (list items step in from the copy edge).
+    indent: f32,
+    /// A nested list item: smaller dot.
+    nested: bool,
 }
+
+/// How far list items step in from the copy edge, at reference scale. The
+/// dot sits in the gutter this opens, so paragraphs and bullets read as two
+/// different things (GitHub issue 9).
+const ITEM_INDENT: f32 = 34.0;
 
 fn item_pieces(
     ui: &egui::Ui,
@@ -436,7 +466,8 @@ fn item_pieces(
             }
             ListMarker::WithPrev => counter,
         };
-        let job = lead_job(&item.inlines, sz.lead, 1.0, width - 34.0 * scale, theme);
+        let indent = ITEM_INDENT * scale;
+        let job = item_job(&item.inlines, sz.lead, 1.0, width - indent, theme);
         let galley = ui.painter().layout_job(job);
         pieces.push(Piece {
             galley,
@@ -444,17 +475,14 @@ fn item_pieces(
             step,
             dot: true,
             bar: false,
+            indent,
+            nested: false,
         });
-        // One level of nesting: same treatment, indented by the caller via dot spacing
+        // One level of nesting: a step further in, a little smaller.
         if !item.children.is_empty() {
+            let indent = 2.0 * ITEM_INDENT * scale;
             for child in &item.children {
-                let job = lead_job(
-                    &child.inlines,
-                    sz.lead * 0.9,
-                    0.85,
-                    width - 60.0 * scale,
-                    theme,
-                );
+                let job = item_job(&child.inlines, sz.lead * 0.9, 0.85, width - indent, theme);
                 let galley = ui.painter().layout_job(job);
                 pieces.push(Piece {
                     galley,
@@ -462,6 +490,8 @@ fn item_pieces(
                     step,
                     dot: true,
                     bar: false,
+                    indent,
+                    nested: true,
                 });
             }
         }
@@ -495,6 +525,8 @@ fn content_pieces(
                     step: 0,
                     dot: false,
                     bar: false,
+                    indent: 0.0,
+                    nested: false,
                 });
             }
             Block::Paragraph { inlines } => {
@@ -505,6 +537,8 @@ fn content_pieces(
                     step: 0,
                     dot: false,
                     bar: false,
+                    indent: 0.0,
+                    nested: false,
                 });
             }
             Block::List { items, .. } => {
@@ -521,6 +555,8 @@ fn content_pieces(
                     step: 0,
                     dot: false,
                     bar: true,
+                    indent: 0.0,
+                    nested: false,
                 });
             }
             Block::HorizontalRule => {}
@@ -566,7 +602,7 @@ fn draw_pieces(
         }
         let a = opacity * progress;
         let rise = (1.0 - progress) * 14.0 * scale;
-        let pos = Pos2::new(left, y + rise);
+        let pos = Pos2::new(left + piece.indent, y + rise);
         let color = piece
             .galley
             .job
@@ -585,11 +621,8 @@ fn draw_pieces(
                 .map(|r| r.rect().height())
                 .unwrap_or(20.0);
             let cy = pos.y + first_line_h * 0.55;
-            painter.circle_filled(
-                Pos2::new(left - 18.0 * scale, cy),
-                3.2 * scale,
-                fade(EMBER, a),
-            );
+            let r = if piece.nested { 2.4 } else { 3.2 } * scale;
+            painter.circle_filled(Pos2::new(pos.x - 18.0 * scale, cy), r, fade(EMBER, a));
         }
         if piece.bar {
             let h = piece.galley.rect.height();
@@ -1014,7 +1047,7 @@ fn render_copy(
     };
     let copy_w = pieces
         .iter()
-        .map(|p| p.galley.rect.width())
+        .map(|p| p.galley.rect.width() + p.indent)
         .fold(eyebrow.rect.width(), f32::max);
     let copy = Rect::from_min_size(
         Pos2::new(column.left(), top),

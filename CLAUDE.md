@@ -67,7 +67,7 @@ crates/
       render/          # Slide rendering engine
         mod.rs       # render_slide entry point, content height measurement
         ember.rs     # Ember layouts (copy column, eyebrow, title/section/quote), chrome, say line
-        fonts.rs     # Bundled Spectral / Hanken Grotesk / JetBrains Mono (fonts/, OFL)
+        fonts.rs     # Bundled Spectral / Hanken Grotesk / JetBrains Mono (fonts/, OFL) plus Noto Sans Symbols and DejaVu Sans as symbol fallbacks for every family
         hints.rs     # Geometry hints from renderers to the particle field
         particles/   # The particle field: Field/Scene/Group (mod.rs), additive GL sprites and wakes (gl.rs), inferred and hint-driven scenes (scenes.rs)
         story/       # Story scripts: schema, staging and labels (mod.rs), sidecar with staleness; cast kinds are illustration names
@@ -155,7 +155,7 @@ mdeck --help                 # Show help
 - **Syntax highlighting:** `syntect` with `LazyLock`-cached `SyntaxSet` / `ThemeSet`; theme maps to syntect theme via `Theme::syntect_theme_name()`; highlighted `LayoutJob`s are cached per (code, language, size, theme)
 - **PNG export:** eframe (glow renderer) window with `pixels_per_point` forced to 1; the slide is rendered in window-sized tiles via `ViewportCommand::Screenshot` / `Event::Screenshot` and stitched, so output is exactly `--width`×`--height` on any display. The glow renderer is required: wgpu's screenshot readback is asynchronous and never completes in this loop
 - **Transitions:** fade, horizontal slide, spatial (directional pan), with smooth easing; animated overview zoom in/out
-- **Scroll/overflow:** Per-slide smooth animated scroll with fade gradients; Up/Down keys; `scroll_targets` + lerp for animation
+- **Scroll/overflow:** Per-slide smooth animated scroll with fade gradients; Up/Down keys; `scroll_targets` + lerp for animation. Code blocks first shrink to fit (`layouts::stacked::fit_code`, height and line width, floor `CODE_FIT_FLOOR`); measurement and drawing share the fitted theme so scroll detection agrees.
 - **Keyboard:** one shared table in `app/keys.rs` (`SHORTCUTS`, `map_key`) drives key handling, the HUD and `mdeck spec --short`; add new bindings there. Space/N/Right/PageDown/Enter forward, P/Left/PageUp/Backspace back, Up/Down scroll, Home/End, G grid, T transition, Shift+T theme, F fullscreen, M next monitor, H HUD, `.`/B blackout, R debug overlay, Esc×2 / Q×2 / Ctrl+C×2 quit
 - **End slide:** Virtual "The End" slide with MDeck logo shown when navigating past the last slide
 - **Visualization helpers:** shared axis/value helpers live in `render/visualizations/mod.rs` (`nice_grid_step`, `nice_axis_max`, `format_value`, `sector_mesh`, `parse_value`); reuse them instead of re-implementing per chart
@@ -244,6 +244,7 @@ Before every release, verify these are up to date:
   - **`samples/transitions/`** — per-transition test files: `fade.md`, `slide.md`, `spatial.md`, `none.md`
   - **`samples/features/`** — feature-specific test files:
     - `notes.md` — speaker notes with `???` separator
+    - `symbols.md` — circled numbers, check marks, arrows and shapes in every theme (issue 7)
   - **Top-level `samples/`** — showcase presentations: `gallery.md`, `introducing-mdeck.md`, `poker-night.md`, `saloon-workshop.md`, `continents.md`, `ember.md` (Ember showcase, with `ember.scenes.yaml`)
   - **`samples/ember/`** — Ember decks: `plain-text.md` (no scenes), `visualizations.md` (content-aware field), `with-images.md`, `illustrations.md` (`@illustration` on every layout that shows one), `stories.md` (hinted slides with a generated `stories.scenes.yaml`)
   When working on a specific visualization type, use its dedicated test file for faster iteration.
