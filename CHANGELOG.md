@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Space backdrops.** On every Ember slide but the title, the dark behind the scene is one of
+  four backdrops chosen by slide number, so neighbouring slides never share one: a star field
+  drifting slowly forward with parallax (a new `Forward` drift), the original dust, a galaxy of
+  two spiral arms turning about the centre, and a nebula of large out-of-focus clouds.
+- **Formations.** A bullet slide's item clusters take a different formation on each slide (arc,
+  lazy S, ring, diagonal, scatter, column), so a run of three-bullet slides no longer looks like
+  the same picture three times.
+
 ## [1.1.0] - 2026-09-15
 
 ### Added
