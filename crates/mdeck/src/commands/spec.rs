@@ -58,7 +58,7 @@ EMBER (particle field)
                         deck illustrations/ > ~/.config/mdeck/illustrations > built-in
   ```@story             English hint for `mdeck ai story` (cast, flows, beats)
   mdeck illustration generate --name NAME --description "..."   New cloud via AI
-  mdeck illustration import IMAGE --name NAME | list | show NAME
+  mdeck illustration import IMAGE --name NAME | list | show NAME | contribute NAME
 
 KEYBOARD & MOUSE
 "#,
