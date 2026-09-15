@@ -562,6 +562,7 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 | `@countdown`   | global         | `true`, `false`: the 3-2-1 opener (Ember, Nord) | `true`   |
 | `@transition`  | global         | `fade`, `slide`, `spatial`, `none`        | `slide`        |
 | `@layout`      | slide          | layout name (see Section 4.1)             | auto-inferred  |
+| `@illustration`| slide          | point cloud illustration name (Ember)     | none           |
 | `@slide-level` | global         | `1`–`6`                                   | inferred       |
 | `@image-style` | global         | style name or description                 | none           |
 | `@icon-style`  | global         | style name or description                 | none           |
@@ -766,6 +767,61 @@ slide's scene assembles; in Nord the numerals simply fade. Any key or click
 cancels it, starting on a chosen slide (`--slide`, `--overview`) skips it, and
 `@countdown: false` in the frontmatter turns it off for a deck.
 
+#### Illustrations
+
+The field can draw a thing: a **point cloud illustration**, a named file of
+points the particles settle into. Ask for one on a slide with a block
+directive:
+
+```markdown
+@illustration: server
+
+## Our new server
+
+- 5 TB of RAM
+- 100 cores
+```
+
+Where it goes depends on the layout. Bullet, content, quote and section
+slides show it on the right, beside the copy, warm and lit from the first
+step. Title slides put it behind the centred copy, large, dim and slow: a
+backdrop rather than a picture. Code, chart, diagram, table, image and
+two-column slides never show one, and `mdeck --check` warns when a slide asks
+for an illustration it cannot show, or one that does not exist. A slide that
+plays a story keeps the story; cast the illustration as a story kind instead.
+Other themes ignore the directive.
+
+A name resolves through three places, first match wins: the deck's
+`illustrations/<name>.mdpc` next to the deck, the user library at
+`~/.config/mdeck/illustrations/`, and the set built into MDeck. So a deck can
+carry its own clouds, a user can keep favourites across decks, and either can
+shadow a built-in by using the same name. Names are lowercase letters, digits
+and hyphens. The built-in set: `person`, `hooded`, `box`, `orb`, `doc`,
+`docs`, `inbox`, `db`, `cloud`, `laptop`, `folder`, `mail`, `gate`,
+`server`, `robot`, `phone`, `globe`, `lock`, `gear`, `rocket`.
+
+New clouds come from the image model or from any image of light strokes on a
+dark ground:
+
+```bash
+mdeck illustration generate --name server --description "A server rack in a datacenter"
+mdeck illustration import sketch.png --name sketch
+mdeck illustration list          # every name visible from here, and what shadows what
+mdeck illustration show server   # a preview image
+```
+
+`generate` asks the configured image provider for a sparse constellation of
+glowing particles forming the subject, then reduces the image to a cloud.
+Both commands write `./illustrations/<name>.mdpc`; `--user` writes to the
+user library instead, and `--force` overwrites. A cloud is JSON: a name, a
+description, the prompt that made it, the bounding box's height over width,
+and up to 1500 points in the unit square, stored in **importance order** so
+that the first sixty points already sketch the whole subject and the first
+six hundred fill it in. The field takes as many as it has particles to
+spend, which is why the same file serves a small story cast member and a
+full-frame backdrop, and why an illustration hints at its subject rather than
+copying it.
+
 #### Ember stories
 
 With Ember, the particle field can tell the slide's story instead of only
@@ -806,8 +862,10 @@ beats:
   - { hot: [model],          say: "Nobody noticed what came back." }
 ```
 
-Kinds: `person`, `hooded`, `box`, `orb`, `doc`, `docs`, `inbox`, `db`,
-`cloud`, `laptop`, `folder`, `mail`, `gate`. Cells: `left-top`, `center-top`,
+Kinds are illustration names (see above): any built-in, user or deck cloud
+can be cast, and `mdeck ai story` offers the model exactly the names the
+deck can resolve. `person` and `hooded` are figures: sized as people and
+labelled in the brighter face. Cells: `left-top`, `center-top`,
 `right-top`, `left`, `center`, `right`, `left-bottom`, `center-bottom`,
 `right-bottom` (one member per cell). Fills: `outline`, `brain`, `hot`,
 `cold`. Flow colours: `white`, `ember`, `candle`, `pale`. At most seven cast

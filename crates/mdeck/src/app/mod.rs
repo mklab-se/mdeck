@@ -211,6 +211,8 @@ struct PresentationApp {
     ember: ember::EmberState,
     /// Resolved story per slide (inline `@scene`, sidecar, or none).
     stories: Vec<Option<Resolved>>,
+    /// Point cloud illustrations resolved for this deck.
+    illustrations: render::illustration::Library,
     /// Bumped whenever `stories` changes so cached scenes rebuild.
     story_version: u64,
     /// Background `S` generation in flight: receives (slide, result).
@@ -340,9 +342,11 @@ impl PresentationApp {
         let scroll_targets = vec![0.0; slide_count];
 
         let now = Instant::now();
+        let illustrations = render::illustration::Library::for_deck(file.parent());
         Self {
             presentation,
             file_path: file,
+            illustrations,
             current_slide: 0,
             watcher_rx,
             _watcher: watcher,
@@ -845,6 +849,7 @@ impl PresentationApp {
         // Recompute per-slide vectors, keeping the current slide's reveal
         // progress (clamped to the new step count) and scroll position.
         self.stories = load_stories(&self.file_path, &new_presentation, true);
+        self.illustrations.reset();
         self.story_version += 1;
         self.max_steps = slide_max_steps(&new_presentation, &self.stories, self.theme.is_ember());
         self.reveal_steps = vec![0; slide_count];
@@ -1445,6 +1450,7 @@ impl eframe::App for PresentationApp {
                         scale,
                         1.0,
                         false,
+                        &mut self.illustrations,
                     );
                 }
 
@@ -1852,6 +1858,7 @@ mod tests {
             notes: None,
             story_hint: None,
             scene_script: None,
+            illustration: None,
         }
     }
 

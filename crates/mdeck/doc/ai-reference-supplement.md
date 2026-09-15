@@ -40,6 +40,14 @@ Available config keys:
 - `mdeck ai story <deck.md> [--slide N | --range A-B] [--stale] [--force]` — write Ember story
   scripts (cast, flows, beats) into `<deck>.scenes.yaml`; ```` ```@story ```` fences are the
   author's hints, ```` ```@scene ```` fences are hand-written scripts and are left alone
+- `mdeck illustration generate --name <n> --description "..."` — make a point cloud
+  illustration for the Ember field (`--user` for the user library, `--force` to overwrite);
+  `mdeck illustration import <image> --name <n>` converts an existing image, `list` shows what
+  resolves from here, `show <n>` previews. A slide asks for one with `@illustration: <n>` at its
+  top; bullet, content, quote and section slides show it beside the copy, title slides behind
+  it, other layouts never. Built in: person, hooded, box, orb, doc, docs, inbox, db, cloud,
+  laptop, folder, mail, gate, server, robot, phone, globe, lock, gear, rocket. Story cast kinds
+  are the same names.
 - `defaults.transition` — default transition (`fade`, `slide`, `spatial`, `none`)
 - `defaults.start_mode` — `first`, `overview`, or a slide number
 - `defaults.image_style` / `defaults.icon_style` — default AI image / icon style names

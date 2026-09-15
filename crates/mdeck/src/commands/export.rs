@@ -133,6 +133,8 @@ struct ExportApp {
     frames_on_slide: u32,
     /// Story per slide (sidecar), for the Ember theme.
     stories: Vec<Option<Resolved>>,
+    /// Point cloud illustrations resolved for this deck.
+    illustrations: render::illustration::Library,
 }
 
 impl ExportApp {
@@ -183,10 +185,12 @@ impl ExportApp {
                 .sum();
             eprintln!("  {total} reveal steps in total (story beats included)");
         }
+        let illustrations = render::illustration::Library::for_deck(deck.parent());
         Self {
             presentation,
             theme,
             image_cache,
+            illustrations,
             output_dir,
             width,
             height,
@@ -361,6 +365,7 @@ impl eframe::App for ExportApp {
                             scale,
                             1.0,
                             true,
+                            &mut self.illustrations,
                         );
                     }
                     let cx = render::SlideContext {

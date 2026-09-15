@@ -7,6 +7,7 @@ use eframe::egui;
 
 use crate::parser::Slide;
 use crate::render::hints::{self, Hint};
+use crate::render::illustration::Library;
 use crate::render::particles::{self, Field, scenes};
 use crate::render::story::{self, Script};
 use crate::theme::Theme;
@@ -130,6 +131,7 @@ impl EmberState {
         scale: f32,
         opacity: f32,
         still: bool,
+        lib: &mut Library,
     ) {
         let now = Instant::now();
         // Renderers publish geometry while the slide draws (after this call),
@@ -209,9 +211,26 @@ impl EmberState {
             } else if let (Some(slide), Some(script)) = (slide, story)
                 && !crate::render::ember::is_title(slide, index)
             {
-                let staged = story::stage(script, slide.layout, rect.width() / rect.height());
+                let staged = story::stage(script, slide.layout, rect_aspect, lib);
                 self.labels = staged.labels;
                 staged.scene
+            } else if let Some(slide) = slide
+                && let Some(cloud) = illustration_for(slide, lib)
+            {
+                if crate::render::ember::is_title(slide, index) {
+                    scenes::illustration_backdrop(
+                        std::sync::Arc::clone(&cloud.points),
+                        cloud.aspect,
+                        rect_aspect,
+                    )
+                } else {
+                    scenes::illustration_stage(
+                        std::sync::Arc::clone(&cloud.points),
+                        cloud.aspect,
+                        slide.layout,
+                        rect_aspect,
+                    )
+                }
             } else if let Some(slide) = slide
                 && !self.hints.is_empty()
                 && uses_hints(slide)
@@ -271,6 +290,19 @@ impl EmberState {
         }
         ui.ctx().request_repaint();
     }
+}
+
+/// The slide's illustration, when it asks for one, the layout can show it
+/// (Ember draws the slide itself) and the name resolves.
+pub(crate) fn illustration_for(
+    slide: &Slide,
+    lib: &mut Library,
+) -> Option<std::sync::Arc<crate::render::illustration::Cloud>> {
+    let name = slide.illustration.as_deref()?;
+    if !crate::render::ember::handles(slide) {
+        return None;
+    }
+    lib.get(name)
 }
 
 /// Layouts whose field follows the drawn content rather than a fixed scene.
@@ -366,7 +398,19 @@ fn text_mask(ui: &egui::Ui, theme: &Theme, text: &str) -> Mask {
             }
         }
     }
+    // Masks are consumed in order (a group of n particles takes the first n
+    // points), and scanline order would light the top of the glyph first.
+    shuffle(&mut pts, 0x6C7F);
     (std::sync::Arc::new(pts), bw / bh)
+}
+
+/// Deterministic Fisher-Yates.
+fn shuffle(pts: &mut [[f32; 2]], seed: u64) {
+    let mut rng = particles::Rng::new(seed);
+    for i in (1..pts.len()).rev() {
+        let j = (rng.unit() * (i + 1) as f32) as usize;
+        pts.swap(i, j.min(i));
+    }
 }
 
 #[cfg(test)]

@@ -7,6 +7,8 @@ pub enum CheckCategory {
     DiagramRouting,
     /// Ember story scripts: invalid inline `@scene`, stale sidecar entries.
     Story,
+    /// `@illustration` names that do not resolve or layouts that cannot show one.
+    Illustration,
 }
 
 impl fmt::Display for CheckCategory {
@@ -14,6 +16,7 @@ impl fmt::Display for CheckCategory {
         match self {
             CheckCategory::DiagramRouting => write!(f, "architecture"),
             CheckCategory::Story => write!(f, "story"),
+            CheckCategory::Illustration => write!(f, "illustration"),
         }
     }
 }

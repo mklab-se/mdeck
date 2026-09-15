@@ -12,6 +12,7 @@ use anyhow::{Context, Result, bail};
 use colored::Colorize;
 
 use crate::parser::{self, Block, Inline, Presentation, Slide};
+use crate::render::illustration::Library;
 use crate::render::story::sidecar::{self, Entry, Sidecar};
 use crate::render::story::{self, Script};
 
@@ -22,7 +23,7 @@ The slide's copy is on the left. You direct a small scene on the stage to the ri
 Rules for good stories:
 - Lead with a person. Name them (a first name), give them an ordinary working situation. Never abstract labels for people.
 - A hooded figure is the attacker or the risk. Use it rarely; its absence is itself an argument.
-- Props are things the person touches: laptop, inbox, doc, db, cloud, mail, folder, orb (a model or assistant), box (a system), gate (a control).
+- Props are things the person touches: laptop, inbox, doc, db, cloud, mail, folder, orb (a model or assistant), box (a system), gate (a control), and whatever else the kinds list below offers (server, phone, robot, ...). Use only listed kinds.
 - Two to six cast members. Every cast member has a unique cell; spread them out.
 - Two to five beats. Each beat shows what appears or heats up, and has one short spoken line (max 140 characters) the presenter can say verbatim.
 - Beat 0 is what is visible when the slide appears. Flows start at the beat where the transfer happens.
@@ -160,8 +161,9 @@ pub async fn generate_script(
     pres: &Presentation,
     index: usize,
     cast_so_far: &[String],
+    lib: &mut Library,
 ) -> Result<Script> {
-    let system = format!("{SYSTEM_PROMPT}{}\n", story::vocabulary());
+    let system = format!("{SYSTEM_PROMPT}{}\n", story::vocabulary(&lib.names()));
     let mut history = vec![
         ailloy::Message::system(&system),
         ailloy::Message::user(user_prompt(pres, index, cast_so_far)),
@@ -172,7 +174,14 @@ pub async fn generate_script(
         let json = extract_json(&response.content).to_string();
         let parsed = Script::parse(&json).and_then(|script| {
             let layout = pres.slides[index].layout;
-            let staged = story::stage(&script, layout, 16.0 / 9.0);
+            let unknown = script.unknown_kinds(lib);
+            if !unknown.is_empty() {
+                return Err(format!(
+                    "unknown kinds: {}. Use only the listed kinds",
+                    unknown.join(", ")
+                ));
+            }
+            let staged = story::stage(&script, layout, 16.0 / 9.0, lib);
             let clashes = story::label_collisions(&staged, 16.0 / 9.0);
             if clashes.is_empty() {
                 Ok(script)
@@ -239,7 +248,8 @@ pub fn generate_one_blocking(deck: &Path, index: usize) -> Result<Script> {
             bail!("slide {} has a pinned (hand-written) story", index + 1);
         }
         let cast = known_cast(&sc);
-        let script = generate_script(&client, &pres, index, &cast).await?;
+        let mut lib = Library::for_deck(Some(base));
+        let script = generate_script(&client, &pres, index, &cast, &mut lib).await?;
         upsert(&mut sc, &pres, index, script.clone());
         sidecar::save(deck, &sc).map_err(|e| anyhow::anyhow!(e))?;
         Ok(script)
@@ -250,7 +260,7 @@ fn known_cast(sc: &Sidecar) -> Vec<String> {
     let mut names: Vec<String> = Vec::new();
     for e in &sc.slides {
         for m in &e.scene.cast {
-            if matches!(m.kind, story::Kind::Person)
+            if m.kind == "person"
                 && let Some(l) = &m.label
                 && !names.contains(l)
             {
@@ -277,7 +287,7 @@ fn upsert(sc: &mut Sidecar, pres: &Presentation, index: usize, script: Script) {
 }
 
 /// UTC timestamp as `YYYY-MM-DD HH:MM`, without a date crate.
-fn timestamp() -> String {
+pub(crate) fn timestamp() -> String {
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
@@ -407,13 +417,14 @@ pub async fn run(
     }
 
     let mut failures = 0usize;
+    let mut lib = Library::for_deck(Some(base));
     for i in targets {
         let title = slide_title(&pres.slides[i]).unwrap_or_default();
         if !quiet {
             eprint!("  slide {:>2}  {:<40} ", i + 1, truncate(&title, 40));
         }
         let cast = known_cast(&sc);
-        match generate_script(&client, &pres, i, &cast).await {
+        match generate_script(&client, &pres, i, &cast, &mut lib).await {
             Ok(script) => {
                 if !quiet {
                     eprintln!(

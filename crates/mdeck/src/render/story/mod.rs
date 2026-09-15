@@ -9,7 +9,6 @@
 //! placement are decided here, so a script can never draw off-brand.
 
 pub mod sidecar;
-pub mod silhouettes;
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -18,69 +17,20 @@ use eframe::egui::{Pos2, Rect};
 use serde::{Deserialize, Serialize};
 
 use crate::parser::Layout;
+use crate::render::illustration::Library;
 use crate::render::particles::{Drift, Group, Home, Palette, Scene, Tint};
 
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
 
-/// What a cast member looks like.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Kind {
-    Person,
-    Hooded,
-    Box,
-    Orb,
-    Doc,
-    Docs,
-    Inbox,
-    Db,
-    Cloud,
-    Laptop,
-    Folder,
-    Mail,
-    Gate,
-}
+/// A cast member's look is a point cloud illustration named by its `kind`,
+/// resolved through the illustration library (deck, user, built-in). These
+/// two are people: sized as figures and labelled in the brighter face.
+pub const FIGURES: [&str; 2] = ["person", "hooded"];
 
-impl Kind {
-    pub const ALL: [Kind; 13] = [
-        Kind::Person,
-        Kind::Hooded,
-        Kind::Box,
-        Kind::Orb,
-        Kind::Doc,
-        Kind::Docs,
-        Kind::Inbox,
-        Kind::Db,
-        Kind::Cloud,
-        Kind::Laptop,
-        Kind::Folder,
-        Kind::Mail,
-        Kind::Gate,
-    ];
-
-    pub fn name(self) -> &'static str {
-        match self {
-            Kind::Person => "person",
-            Kind::Hooded => "hooded",
-            Kind::Box => "box",
-            Kind::Orb => "orb",
-            Kind::Doc => "doc",
-            Kind::Docs => "docs",
-            Kind::Inbox => "inbox",
-            Kind::Db => "db",
-            Kind::Cloud => "cloud",
-            Kind::Laptop => "laptop",
-            Kind::Folder => "folder",
-            Kind::Mail => "mail",
-            Kind::Gate => "gate",
-        }
-    }
-
-    fn is_figure(self) -> bool {
-        matches!(self, Kind::Person | Kind::Hooded)
-    }
+pub fn is_figure(kind: &str) -> bool {
+    FIGURES.contains(&kind)
 }
 
 /// Where on the stage a cast member stands. The stage is the part of the
@@ -168,7 +118,8 @@ pub enum FlowColor {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Member {
     pub id: String,
-    pub kind: Kind,
+    /// Illustration name (`person`, `laptop`, `server`, ...).
+    pub kind: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
     pub cell: Cell,
@@ -249,6 +200,8 @@ impl Script {
             if !ids.insert(m.id.as_str()) {
                 return Err(format!("duplicate cast id `{}`", m.id));
             }
+            crate::render::illustration::validate_name(&m.kind)
+                .map_err(|e| format!("cast `{}`: kind {e}", m.id))?;
             if !cells.insert(m.cell) {
                 return Err(format!(
                     "two cast members share the cell `{}`",
@@ -288,6 +241,17 @@ impl Script {
             }
         }
         Ok(())
+    }
+
+    /// Kinds that do not resolve in `lib`, each once, in cast order.
+    pub fn unknown_kinds(&self, lib: &mut Library) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        for m in &self.cast {
+            if !lib.has(&m.kind) && !out.contains(&m.kind) {
+                out.push(m.kind.clone());
+            }
+        }
+        out
     }
 
     /// Number of extra reveal steps the story adds to its slide.
@@ -361,6 +325,7 @@ pub fn stage_box(layout: Layout) -> Rect {
 /// Geometry of a staged cast member, as slide fractions.
 struct Placed<'a> {
     member: &'a Member,
+    cloud: Option<Arc<crate::render::illustration::Cloud>>,
     /// Centre.
     u: f32,
     v: f32,
@@ -384,8 +349,10 @@ impl Placed<'_> {
 }
 
 /// Turn a script into a particle scene for a slide of `layout`, drawn in a
-/// rect with the given width/height `aspect`.
-pub fn stage(script: &Script, layout: Layout, aspect: f32) -> Staged {
+/// rect with the given width/height `aspect`. Cast looks come from `lib`; a
+/// kind that does not resolve is drawn as a faint ring so its label still
+/// stands (`mdeck --check` reports it).
+pub fn stage(script: &Script, layout: Layout, aspect: f32, lib: &mut Library) -> Staged {
     let stage = stage_box(layout);
     let sw = stage.width();
     let sh = stage.height();
@@ -401,8 +368,9 @@ pub fn stage(script: &Script, layout: Layout, aspect: f32) -> Staged {
         .iter()
         .map(|m| {
             let (cu, cv) = m.cell.uv();
-            let w = if m.kind.is_figure() { fig_w } else { prop_w };
-            let ratio = silhouettes::aspect(m.kind); // height / width in a square space
+            let cloud = lib.get(&m.kind);
+            let w = if is_figure(&m.kind) { fig_w } else { prop_w };
+            let ratio = cloud.as_ref().map(|c| c.aspect).unwrap_or(1.0); // height / width
             let mut hw = w / 2.0;
             let mut hh = w * ratio / 2.0 * aspect;
             if hh > max_hh {
@@ -412,6 +380,7 @@ pub fn stage(script: &Script, layout: Layout, aspect: f32) -> Staged {
             }
             Placed {
                 member: m,
+                cloud,
                 u: stage.left() + cu * sw,
                 v: stage.top() + cv * sh,
                 hw,
@@ -426,28 +395,33 @@ pub fn stage(script: &Script, layout: Layout, aspect: f32) -> Staged {
 
     for p in &placed {
         let m = p.member;
-        let points: Arc<Vec<[f32; 2]>> = silhouettes::outline(m.kind);
         let step = script.show_step(&m.id);
-        let mut g = Group::new(
-            0.60 / cast_n,
-            Home::Mask {
-                points,
+        let home = match &p.cloud {
+            Some(c) => Home::Mask {
+                points: Arc::clone(&c.points),
                 u: p.u - p.hw,
                 v: p.v - p.hh,
                 w: p.hw * 2.0,
                 h: p.hh * 2.0,
             },
-        )
-        .drift(Drift::Breathe {
-            amp: 0.0015,
-            speed: 0.6,
-        })
-        .size(0.42, 0.78)
-        .dim(0.0)
-        .step(step);
-        g = match m.kind {
-            Kind::Hooded => g.palette(Palette::Solid(Tint::Pale)).alpha(0.45, 0.9),
-            Kind::Person => g.palette(Palette::Site).alpha(0.6, 1.0),
+            None => Home::Ring {
+                u: p.u,
+                v: p.v,
+                r: p.hw * aspect * 0.8,
+                width: 0.01,
+            },
+        };
+        let mut g = Group::new(0.60 / cast_n, home)
+            .drift(Drift::Breathe {
+                amp: 0.0015,
+                speed: 0.6,
+            })
+            .size(0.42, 0.78)
+            .dim(0.0)
+            .step(step);
+        g = match m.kind.as_str() {
+            "hooded" => g.palette(Palette::Solid(Tint::Pale)).alpha(0.45, 0.9),
+            "person" => g.palette(Palette::Site).alpha(0.6, 1.0),
             _ => g.palette(Palette::Cold).alpha(0.5, 0.95),
         };
         if let Some(h) = script.hot_step(&m.id) {
@@ -458,7 +432,7 @@ pub fn stage(script: &Script, layout: Layout, aspect: f32) -> Staged {
             u: p.u,
             v: p.v + p.hh + 0.012 * aspect,
             group: groups.len(),
-            figure: m.kind.is_figure(),
+            figure: is_figure(&m.kind),
         });
         groups.push(g);
 
@@ -672,9 +646,10 @@ pub fn draw_labels(
     }
 }
 
-/// Human-readable vocabulary, embedded in the AI prompt and the spec.
-pub fn vocabulary() -> String {
-    let kinds: Vec<&str> = Kind::ALL.iter().map(|k| k.name()).collect();
+/// Human-readable vocabulary for the AI prompt: the kinds a deck can cast
+/// (its resolved illustration library) and the fixed cells, fills and colours.
+pub fn vocabulary(kinds: &[String]) -> String {
+    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
     let cells: Vec<&str> = Cell::ALL.iter().map(|c| c.name()).collect();
     format!(
         "kinds: {}\ncells: {}\nfills: outline, brain, hot, cold\nflow colors: white, ember, candle, pale",
@@ -686,6 +661,30 @@ pub fn vocabulary() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::render::illustration::{Cloud, VERSION};
+
+    /// A library with a ring-shaped cloud for every kind the tests cast.
+    pub(crate) fn test_library() -> Library {
+        let mut lib = Library::with_dirs(None, None);
+        for name in ["person", "hooded", "inbox", "orb", "box", "laptop"] {
+            let points: Vec<[f32; 2]> = (0..64)
+                .map(|i| {
+                    let a = i as f32 / 64.0 * std::f32::consts::TAU;
+                    [0.5 + 0.5 * a.cos(), 0.5 + 0.5 * a.sin()]
+                })
+                .collect();
+            lib.insert(Cloud {
+                version: VERSION,
+                name: name.into(),
+                description: String::new(),
+                prompt: None,
+                generated: None,
+                aspect: if is_figure(name) { 1.35 } else { 1.0 },
+                points: Arc::new(points),
+            });
+        }
+        lib
+    }
 
     const SAMPLE: &str = r#"
 cast:
@@ -723,26 +722,41 @@ beats:
         let dup = "cast:\n  - { id: a, kind: person, cell: left }\n  - { id: b, kind: box, cell: left }\n";
         assert!(Script::parse(dup).unwrap_err().contains("share the cell"));
         assert!(Script::parse("cast: []\n").is_err());
+        let bad_kind = "cast:\n  - { id: a, kind: 'Big Server', cell: left }\n";
+        assert!(Script::parse(bad_kind).unwrap_err().contains("kind"));
+    }
+
+    #[test]
+    fn unknown_kinds_are_reported_and_staged_as_rings() {
+        let s = Script::parse("cast:\n  - { id: a, kind: person, cell: left }\n  - { id: b, kind: zeppelin, cell: right }\n").unwrap();
+        let mut lib = test_library();
+        assert_eq!(s.unknown_kinds(&mut lib), vec!["zeppelin".to_string()]);
+        let staged = stage(&s, Layout::Bullet, 16.0 / 9.0, &mut lib);
+        assert_eq!(staged.labels.len(), 2);
+        assert!(matches!(staged.scene.groups[1].home, Home::Ring { .. }));
+        assert!(matches!(staged.scene.groups[0].home, Home::Mask { .. }));
     }
 
     #[test]
     fn labels_in_neighbouring_cells_do_not_collide() {
         let s = Script::parse(SAMPLE).unwrap();
-        let staged = stage(&s, Layout::Bullet, 16.0 / 9.0);
+        let mut lib = test_library();
+        let staged = stage(&s, Layout::Bullet, 16.0 / 9.0, &mut lib);
         assert!(label_collisions(&staged, 16.0 / 9.0).is_empty());
         // two long labels in adjacent cells on the same row do collide
         let tight = Script::parse(
             "cast:\n  - { id: a, kind: box, label: 'A rather long label here', cell: left }\n  - { id: b, kind: box, label: 'Another rather long label', cell: center }\n",
         )
         .unwrap();
-        let staged = stage(&tight, Layout::Bullet, 16.0 / 9.0);
+        let staged = stage(&tight, Layout::Bullet, 16.0 / 9.0, &mut lib);
         assert!(!label_collisions(&staged, 16.0 / 9.0).is_empty());
     }
 
     #[test]
     fn staging_makes_a_group_per_member_plus_flows_and_labels() {
         let s = Script::parse(SAMPLE).unwrap();
-        let staged = stage(&s, Layout::Bullet, 16.0 / 9.0);
+        let mut lib = test_library();
+        let staged = stage(&s, Layout::Bullet, 16.0 / 9.0, &mut lib);
         assert_eq!(staged.labels.len(), 3);
         // 3 outlines + 1 brain fill + 2 flows + dust
         assert_eq!(staged.scene.groups.len(), 7);

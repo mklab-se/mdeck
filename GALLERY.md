@@ -11,8 +11,9 @@ A visual showcase of what you can create with MDeck — layouts, charts, diagram
 ## Ember
 
 The Ember theme puts a living field of glowing particles behind every slide.
-These stills are from `samples/ember.md`, `samples/ember/stories.md` and
-`samples/ember/visualizations.md`; the field moves in the presentation.
+These stills are from `samples/ember.md`, `samples/ember/stories.md`,
+`samples/ember/illustrations.md` and `samples/ember/visualizations.md`; the
+field moves in the presentation.
 
 ### Title
 
@@ -39,6 +40,14 @@ On charts and diagrams the field serves the content: here runners travel the
 routed edges in their direction while dust keeps to the margins.
 
 <img src="media/gallery/ember-diagram.png" width="720">
+
+### An illustration
+
+`@illustration: robot` at the top of the slide, and the particles settle into a
+point cloud beside the copy: a hint of the thing, never a picture of it. Twenty
+are built in; `mdeck illustration generate` makes more from a description.
+
+<img src="media/gallery/ember-illustration.png" width="720">
 
 ---
 

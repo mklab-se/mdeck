@@ -246,6 +246,18 @@ per deck would make that explicit and editable.
 ### 6.7 Content-aware fields for the remaining visualizations — S each
 Funnel, word cloud and git graph only get the quiet frame today.
 
+### 6.8 `mdeck illustration contribute` — M, needs a decision
+Point clouds carry their description and prompt, so a generated `.mdpc` could
+be offered back to the built-in library from the CLI. Open questions: lean on
+the `gh` CLI (fork, branch, pull request) or open a prefilled issue in the
+browser; how to review quality before merging; whether the source image travels
+with it. Deferred until the library has been used in real decks.
+
+### 6.9 Illustrations in stories with beats — S
+A slide with both an illustration and a story keeps the story (`--check`
+warns). Letting an illustration stand as a silent backdrop behind a cast, or
+enter on a beat, would remove the either/or.
+
 ## 7. Documentation and onboarding
 
 - Generate the keyboard-shortcut table for the HUD, README, spec and

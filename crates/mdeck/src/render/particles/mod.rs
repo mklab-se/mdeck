@@ -425,7 +425,7 @@ impl Field {
         let min_side = rect.width().min(rect.height());
         for (gi, g) in scene.groups.iter().enumerate() {
             let (s, e) = ranges[gi];
-            for &pi in &order[s..e] {
+            for (j, &pi) in order[s..e].iter().enumerate() {
                 let p = &mut self.particles[pi];
                 p.group = gi;
                 p.tint = g.palette.pick(&mut self.rng);
@@ -441,6 +441,21 @@ impl Field {
                         let len = (dx * dx + dy * dy).sqrt().max(1.0);
                         let d = r * min_side * self.rng.range(0.7, 1.3);
                         (cx + dx / len * d, cy + dy / len * d)
+                    }
+                    // Mask points are in importance order: a group of n
+                    // particles takes the first n, so a small group is a
+                    // sketch of the whole shape rather than a random speckle.
+                    Home::Mask { points, u, v, w, h } if !points.is_empty() => {
+                        let q = points[j % points.len()];
+                        let jitter = 0.0015 * min_side;
+                        (
+                            rect.left()
+                                + (u + q[0] * w) * rect.width()
+                                + self.rng.range(-jitter, jitter),
+                            rect.top()
+                                + (v + q[1] * h) * rect.height()
+                                + self.rng.range(-jitter, jitter),
+                        )
                     }
                     home => home_point(home, rect, min_side, &mut self.rng),
                 };
@@ -754,23 +769,43 @@ fn home_point(home: &Home, rect: Rect, min_side: f32, rng: &mut Rng) -> (f32, f3
             let off = rng.range(-1.0, 1.0) * spread * min_side;
             (px + nx * off, py + ny * off)
         }
-        Home::Mask { points, u, v, w, h } => {
-            if points.is_empty() {
-                return (rect.center().x, rect.center().y);
-            }
-            let q = points[(rng.unit() * (points.len() - 1) as f32) as usize];
-            let jitter = 0.0015 * min_side;
-            (
-                rect.left() + (u + q[0] * w) * rect.width() + rng.range(-jitter, jitter),
-                rect.top() + (v + q[1] * h) * rect.height() + rng.range(-jitter, jitter),
-            )
-        }
+        // Masks are assigned in `set_scene` (first-n rule); an empty mask
+        // collapses to the centre of its box.
+        Home::Mask { u, v, w, h, .. } => (
+            rect.left() + (u + w / 2.0) * rect.width(),
+            rect.top() + (v + h / 2.0) * rect.height(),
+        ),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_mask_group_takes_the_first_points_in_order() {
+        let mut field = Field::new(4, 1);
+        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1000.0, 1000.0));
+        field.scatter(rect);
+        let points: Vec<[f32; 2]> = (0..10).map(|i| [i as f32 / 10.0, 0.5]).collect();
+        let scene = Scene::new(vec![Group::new(
+            1.0,
+            Home::Mask {
+                points: Arc::new(points),
+                u: 0.0,
+                v: 0.0,
+                w: 1.0,
+                h: 1.0,
+            },
+        )]);
+        field.set_scene(scene, rect, 3);
+        let mut xs: Vec<f32> = field.particles.iter().map(|p| p.hx).collect();
+        xs.sort_by(f32::total_cmp);
+        // four particles, so the first four points (x = 0, 100, 200, 300)
+        for (x, want) in xs.iter().zip([0.0, 100.0, 200.0, 300.0]) {
+            assert!((x - want).abs() < 3.0, "homes {xs:?}");
+        }
+    }
 
     #[test]
     fn shares_cover_every_particle_and_groups_light_by_step() {
