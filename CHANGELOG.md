@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Fourteen built-in illustrations: `man`, `woman`, `thermographer`, `presenter-up`,
+  `presenter-down`, `agent-friendly`, `agent-evil`, `ai`, `camera`, `gauge`, `glasses`, `eyes`,
+  `flag` and `blackhole`. The set is now thirty-five.
+- Story figures: `man`, `woman`, `thermographer`, `presenter-up` and `presenter-down` are cast
+  as people, sized and labelled like `person`.
+
 ## [1.2.1] - 2026-09-15
 
 ### Fixed

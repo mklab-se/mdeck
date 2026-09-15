@@ -44,7 +44,7 @@ routed edges in their direction while dust keeps to the margins.
 ### An illustration
 
 `@illustration: robot` at the top of the slide, and the particles settle into a
-point cloud beside the copy: a hint of the thing, never a picture of it. Twenty-one
+point cloud beside the copy: a hint of the thing, never a picture of it. Thirty-five
 are built in; `mdeck illustration generate` makes more from a description.
 
 <img src="media/gallery/ember-illustration.png" width="720">

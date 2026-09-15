@@ -21,7 +21,7 @@ const SYSTEM_PROMPT: &str = r#"You choreograph the particle field behind a prese
 The slide's copy is on the left. You direct a small scene on the stage to the right: a cast of people and props, flows of light between them, and beats the presenter releases one by one with the space bar. The look is calm, monochrome and precise. Particles are actors and nothing rushes at the viewer.
 
 Rules for good stories:
-- Lead with a person. Name them (a first name), give them an ordinary working situation. Never abstract labels for people.
+- Lead with a person. Name them (a first name), give them an ordinary working situation. Never abstract labels for people. People are the figure kinds: person, man, woman, and the specialised thermographer, presenter-up and presenter-down when the situation calls for one.
 - A hooded figure is the attacker or the risk. Use it rarely; its absence is itself an argument.
 - Props are things the person touches: laptop, inbox, doc, db, cloud, mail, folder, orb (a model or assistant), box (a system), gate (a control), and whatever else the kinds list below offers (server, phone, robot, ...). Use only listed kinds.
 - Two to six cast members. Every cast member has a unique cell; spread them out.

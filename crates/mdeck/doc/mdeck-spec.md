@@ -809,9 +809,12 @@ A name resolves through three places, first match wins: the deck's
 `~/.config/mdeck/illustrations/`, and the set built into MDeck. So a deck can
 carry its own clouds, a user can keep favourites across decks, and either can
 shadow a built-in by using the same name. Names are lowercase letters, digits
-and hyphens. The built-in set: `person`, `hooded`, `box`, `orb`, `doc`,
+and hyphens. The built-in set: `person`, `hooded`, `man`, `woman`,
+`thermographer`, `presenter-up`, `presenter-down`, `box`, `orb`, `doc`,
 `docs`, `inbox`, `db`, `cloud`, `laptop`, `folder`, `mail`, `gate`,
-`server`, `robot`, `phone`, `globe`, `lock`, `gear`, `rocket`, `punchcard`.
+`server`, `robot`, `agent-friendly`, `agent-evil`, `ai`, `phone`, `globe`,
+`lock`, `gear`, `rocket`, `punchcard`, `camera`, `gauge`, `glasses`, `eyes`,
+`flag`, `blackhole`.
 
 New clouds come from the image model or from any image of light strokes on a
 dark ground:
@@ -884,7 +887,8 @@ beats:
 
 Kinds are illustration names (see above): any built-in, user or deck cloud
 can be cast, and `mdeck ai story` offers the model exactly the names the
-deck can resolve. `person` and `hooded` are figures: sized as people and
+deck can resolve. `person`, `hooded`, `man`, `woman`, `thermographer`,
+`presenter-up` and `presenter-down` are figures: sized as people and
 labelled in the brighter face. Cells: `left-top`, `center-top`,
 `right-top`, `left`, `center`, `right`, `left-bottom`, `center-bottom`,
 `right-bottom` (one member per cell). Fills: `outline`, `brain`, `hot`,

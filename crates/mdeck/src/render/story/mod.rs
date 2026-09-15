@@ -26,8 +26,16 @@ use crate::render::particles::{Drift, Group, Home, Palette, Scene, Tint};
 
 /// A cast member's look is a point cloud illustration named by its `kind`,
 /// resolved through the illustration library (deck, user, built-in). These
-/// two are people: sized as figures and labelled in the brighter face.
-pub const FIGURES: [&str; 2] = ["person", "hooded"];
+/// are people: sized as figures and labelled in the brighter face.
+pub const FIGURES: [&str; 7] = [
+    "person",
+    "hooded",
+    "man",
+    "woman",
+    "thermographer",
+    "presenter-up",
+    "presenter-down",
+];
 
 pub fn is_figure(kind: &str) -> bool {
     FIGURES.contains(&kind)
@@ -421,7 +429,7 @@ pub fn stage(script: &Script, layout: Layout, aspect: f32, lib: &mut Library) ->
             .step(step);
         g = match m.kind.as_str() {
             "hooded" => g.palette(Palette::Solid(Tint::Pale)).alpha(0.45, 0.9),
-            "person" => g.palette(Palette::Site).alpha(0.6, 1.0),
+            k if is_figure(k) => g.palette(Palette::Site).alpha(0.6, 1.0),
             _ => g.palette(Palette::Cold).alpha(0.5, 0.95),
         };
         if let Some(h) = script.hot_step(&m.id) {

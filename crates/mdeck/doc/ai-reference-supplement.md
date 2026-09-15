@@ -45,9 +45,10 @@ Available config keys:
   `mdeck illustration import <image> --name <n>` converts an existing image, `list` shows what
   resolves from here, `show <n>` previews. A slide asks for one with `@illustration: <n>` at its
   top; bullet, content, quote and section slides show it beside the copy, title slides behind
-  it, other layouts never. Built in: person, hooded, box, orb, doc, docs, inbox, db, cloud,
-  laptop, folder, mail, gate, server, robot, phone, globe, lock, gear, rocket, punchcard. Story
-  cast kinds are the same names. `mdeck illustration contribute <n>` offers a deck or user cloud
+  it, other layouts never. Built in: person, hooded, man, woman, thermographer, presenter-up,
+  presenter-down, box, orb, doc, docs, inbox, db, cloud, laptop, folder, mail, gate, server,
+  robot, agent-friendly, agent-evil, ai, phone, globe, lock, gear, rocket, punchcard, camera,
+  gauge, glasses, eyes, flag, blackhole. Story cast kinds are the same names. `mdeck illustration contribute <n>` offers a deck or user cloud
   to the built-in set through a prefilled GitHub issue (`--no-open` prints the link).
 - `defaults.transition` — default transition (`fade`, `slide`, `spatial`, `none`)
 - `defaults.start_mode` — `first`, `overview`, or a slide number
