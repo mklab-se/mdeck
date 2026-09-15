@@ -171,6 +171,12 @@ pub enum Drift {
     /// Circles the slide centre at its home's radius; `speed` in radians per
     /// second, scaled per particle so the field swirls rather than rotates.
     Orbit { speed: f32 },
+    /// Moving forward through space: each particle slides away from the
+    /// vanishing point `(u, v)` along the line through its home, gaining
+    /// speed as it nears the edge (parallax: bigger, brighter ones run
+    /// faster), fades out, and is reborn near the centre. `speed` is
+    /// crossings per second for an average particle.
+    Forward { u: f32, v: f32, speed: f32 },
 }
 
 #[derive(Clone, Debug)]
@@ -597,6 +603,26 @@ impl Field {
                         p.alpha = p.base_alpha;
                     }
                 }
+                Drift::Forward { u, v, speed } => {
+                    let cx = rect.left() + u * rect.width();
+                    let cy = rect.top() + v * rect.height();
+                    let before = p.along;
+                    let rate = speed * (0.5 + p.speed) * (0.5 + p.size_mul);
+                    p.along = (p.along + rate * dt).rem_euclid(1.0);
+                    // distance grows with the square of progress: slow near
+                    // the vanishing point, quick past the edge
+                    let f = 0.06 + p.along * p.along * 1.5;
+                    p.tx = cx + (p.hx - cx) * f;
+                    p.ty = cy + (p.hy - cy) * f;
+                    let fade_in = (p.along / 0.15).min(1.0);
+                    let fade_out = ((1.0 - p.along) / 0.2).min(1.0);
+                    p.alpha = p.base_alpha * fade_in * fade_out;
+                    // reborn: snap so it does not streak back to the centre
+                    if p.along < before {
+                        p.x = p.tx;
+                        p.y = p.ty;
+                    }
+                }
                 Drift::Fall { speed } | Drift::Rise { speed } => {
                     let (v0, v1) = field_v_range(&g.home);
                     let span = (v1 - v0) * rect.height();
@@ -781,6 +807,59 @@ fn home_point(home: &Home, rect: Rect, min_side: f32, rng: &mut Rng) -> (f32, f3
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn forward_drift_moves_outward_and_is_reborn_near_the_centre() {
+        let mut field = Field::new(50, 5);
+        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1600.0, 900.0));
+        field.scatter(rect);
+        let scene = Scene::new(vec![
+            Group::new(
+                1.0,
+                Home::Field {
+                    u0: 0.0,
+                    v0: 0.0,
+                    u1: 1.0,
+                    v1: 1.0,
+                },
+            )
+            .drift(Drift::Forward {
+                u: 0.5,
+                v: 0.5,
+                speed: 0.05,
+            }),
+        ]);
+        field.set_scene(scene, rect, 1);
+        field.settle(0);
+        let c = rect.center();
+        let dist = |p: &Particle| ((p.tx - c.x).powi(2) + (p.ty - c.y).powi(2)).sqrt();
+        let start: Vec<f32> = field.particles.iter().map(dist).collect();
+        // one second later every particle that did not wrap is farther out
+        for _ in 0..60 {
+            field.tick(1.0 / 60.0, 0);
+        }
+        let mut farther = 0;
+        for (p, s0) in field.particles.iter().zip(&start) {
+            assert!(p.tx.is_finite() && p.ty.is_finite());
+            assert!(p.alpha >= 0.0 && p.alpha <= 1.0);
+            if dist(p) > *s0 {
+                farther += 1;
+            }
+        }
+        assert!(farther > 40, "only {farther} of 50 moved outward");
+        // after a long while everything has wrapped at least once and is
+        // still inside a sane radius
+        for _ in 0..60 * 60 {
+            field.tick(1.0 / 60.0, 0);
+        }
+        for p in &field.particles {
+            assert!(
+                dist(p) < rect.width() * 2.0,
+                "particle ran away: {}",
+                dist(p)
+            );
+        }
+    }
 
     #[test]
     fn a_mask_group_takes_the_first_points_in_order() {

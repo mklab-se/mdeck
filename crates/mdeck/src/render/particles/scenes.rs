@@ -49,6 +49,226 @@ fn bokeh(share: f32) -> Group {
     })
 }
 
+// ---------------------------------------------------------------------------
+// Backdrops: what fills the dark on a slide without an illustration
+// ---------------------------------------------------------------------------
+
+/// The field behind a slide's own scene. Slides walk this list by number, so
+/// neighbours never share one and a run of look-alike bullet slides still
+/// differs from one to the next.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Backdrop {
+    /// A star field drifting slowly forward.
+    Stars,
+    /// The original soft dust and bokeh.
+    Dust,
+    /// Two spiral arms turning about the centre.
+    Galaxy,
+    /// A few large clouds, out of focus.
+    Nebula,
+}
+
+const BACKDROPS: [Backdrop; 4] = [
+    Backdrop::Stars,
+    Backdrop::Dust,
+    Backdrop::Galaxy,
+    Backdrop::Nebula,
+];
+
+/// The backdrop for a slide (`seed` is the 1-based slide number).
+pub fn backdrop_for(seed: u64) -> Backdrop {
+    BACKDROPS[(seed as usize) % BACKDROPS.len()]
+}
+
+/// Groups that fill `share` of the pool with the slide's backdrop.
+fn backdrop(seed: u64, share: f32) -> Vec<Group> {
+    match backdrop_for(seed) {
+        Backdrop::Dust => vec![dust(share * 0.80), bokeh(share * 0.20)],
+        Backdrop::Stars => vec![
+            Group::new(
+                share * 0.85,
+                Home::Field {
+                    u0: 0.0,
+                    v0: 0.0,
+                    u1: 1.0,
+                    v1: 1.0,
+                },
+            )
+            .alpha(0.06, 0.34)
+            .size(0.3, 1.0)
+            .drift(Drift::Forward {
+                u: 0.5,
+                v: 0.5,
+                speed: 0.02,
+            }),
+            bokeh(share * 0.15).alpha(0.03, 0.08),
+        ],
+        Backdrop::Galaxy => {
+            let mut groups: Vec<Group> = (0..2)
+                .map(|arm| {
+                    Group::new(
+                        share * 0.36,
+                        Home::Path {
+                            points: spiral_arm(arm as f32 * std::f32::consts::PI),
+                            spread: 0.032,
+                        },
+                    )
+                    .alpha(0.16, 0.5)
+                    .size(0.4, 1.1)
+                    .drift(Drift::Orbit { speed: 0.012 })
+                })
+                .collect();
+            groups.push(
+                Group::new(
+                    share * 0.15,
+                    Home::Cluster {
+                        u: 0.5,
+                        v: 0.5,
+                        r: 0.07,
+                        falloff: 0.5,
+                    },
+                )
+                .palette(Palette::Warm)
+                .alpha(0.12, 0.34)
+                .size(0.5, 1.2)
+                .drift(Drift::Orbit { speed: 0.02 }),
+            );
+            groups.push(dust(share * 0.13).alpha(0.03, 0.12));
+            groups
+        }
+        Backdrop::Nebula => {
+            let mut rng = Rng::new(seed ^ 0x4E45_4255);
+            let mut groups: Vec<Group> = (0..3)
+                .map(|_| {
+                    Group::new(
+                        share * 0.22,
+                        Home::Cluster {
+                            u: rng.range(0.15, 0.85),
+                            v: rng.range(0.2, 0.8),
+                            r: rng.range(0.18, 0.30),
+                            falloff: 0.5,
+                        },
+                    )
+                    .palette(if rng.unit() < 0.5 {
+                        Palette::Warm
+                    } else {
+                        Palette::Cold
+                    })
+                    .alpha(0.03, 0.11)
+                    .size(2.0, 3.6)
+                    .drift(Drift::Breathe {
+                        amp: 0.02,
+                        speed: 0.4,
+                    })
+                })
+                .collect();
+            groups.push(dust(share * 0.34).alpha(0.04, 0.16));
+            groups
+        }
+    }
+}
+
+/// One arm of an Archimedean spiral about the slide centre, as slide
+/// fractions (heights stretched for a wide slide), starting at `phase`.
+fn spiral_arm(phase: f32) -> Vec<[f32; 2]> {
+    (0..48)
+        .map(|i| {
+            let t = i as f32 / 47.0;
+            let theta = 0.5 + t * 2.2 * std::f32::consts::PI;
+            let r = 0.015 + 0.046 * theta;
+            let a = theta + phase;
+            [0.5 + r * a.cos() * 1.15, 0.5 + r * a.sin() * 1.45]
+        })
+        .collect()
+}
+
+// ---------------------------------------------------------------------------
+// Formations: how a bullet slide's item clusters are arranged
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Formation {
+    Arc,
+    Lazy,
+    Ring,
+    Diagonal,
+    Scatter,
+    Column,
+}
+
+const FORMATIONS: [Formation; 6] = [
+    Formation::Arc,
+    Formation::Lazy,
+    Formation::Ring,
+    Formation::Diagonal,
+    Formation::Scatter,
+    Formation::Column,
+];
+
+/// The formation for a slide (`seed` is the 1-based slide number).
+pub fn formation_for(seed: u64) -> Formation {
+    FORMATIONS[(seed as usize) % FORMATIONS.len()]
+}
+
+/// Centres for `n` item clusters in the right half, in slide fractions.
+fn formation_points(formation: Formation, n: usize, rng: &mut Rng) -> Vec<(f32, f32)> {
+    use std::f32::consts::PI;
+    let f_of = |i: usize| {
+        if n == 1 {
+            0.5
+        } else {
+            i as f32 / (n - 1) as f32
+        }
+    };
+    let jitter = |rng: &mut Rng, (u, v): (f32, f32)| {
+        (u + rng.range(-0.02, 0.02), v + rng.range(-0.015, 0.015))
+    };
+    let pts: Vec<(f32, f32)> = match formation {
+        Formation::Lazy => (0..n)
+            .map(|i| {
+                let wobble = ((i as f32) * 1.7).sin() * 0.08;
+                (0.70 + wobble, 0.16 + f_of(i) * 0.68)
+            })
+            .collect(),
+        Formation::Arc => (0..n)
+            .map(|i| {
+                let f = f_of(i);
+                (0.62 + 0.20 * (PI * f).sin(), 0.16 + f * 0.68)
+            })
+            .collect(),
+        Formation::Diagonal => (0..n)
+            .map(|i| {
+                let f = f_of(i);
+                (0.58 + 0.30 * f, 0.18 + f * 0.64)
+            })
+            .collect(),
+        Formation::Column => (0..n).map(|i| (0.75, 0.16 + f_of(i) * 0.68)).collect(),
+        Formation::Ring if n >= 3 => (0..n)
+            .map(|i| {
+                let a = -PI / 2.0 + 2.0 * PI * i as f32 / n as f32;
+                (0.74 + 0.15 * a.cos(), 0.50 + 0.30 * a.sin())
+            })
+            .collect(),
+        Formation::Ring => (0..n).map(|i| (0.75, 0.16 + f_of(i) * 0.68)).collect(),
+        Formation::Scatter => {
+            // golden-ratio strides across, evenly spaced down in a shuffled
+            // order, so no two items share a column or a row
+            let mut rows: Vec<usize> = (0..n).collect();
+            for i in (1..n).rev() {
+                let j = (rng.unit() * (i + 1) as f32) as usize;
+                rows.swap(i, j.min(i));
+            }
+            (0..n)
+                .map(|i| {
+                    let u = 0.58 + 0.32 * ((i as f32 * 0.618_034 + 0.3) % 1.0);
+                    (u, 0.16 + f_of(rows[i]) * 0.68)
+                })
+                .collect()
+        }
+    };
+    pts.into_iter().map(|p| jitter(rng, p)).collect()
+}
+
 /// The site's homepage: clusters hugging the flanks, copy in the dark middle.
 pub fn constellation(seed: u64) -> Scene {
     let mut rng = Rng::new(seed);
@@ -300,8 +520,8 @@ pub fn end_bang() -> Scene {
 }
 
 /// A section divider: one warm mass on the right and slow rising embers.
-fn section() -> Scene {
-    let mut scene = Scene::new(vec![
+fn section(seed: u64) -> Scene {
+    let mut groups = vec![
         Group::new(
             0.40,
             Home::Cluster {
@@ -328,16 +548,16 @@ fn section() -> Scene {
         .alpha(0.15, 0.5)
         .size(0.4, 0.9)
         .drift(Drift::Rise { speed: 0.6 }),
-        dust(0.32),
-        bokeh(0.10),
-    ]);
+    ];
+    groups.extend(backdrop(seed, 0.42));
+    let mut scene = Scene::new(groups);
     scene.link_alpha = 0.07;
     scene
 }
 
 /// A quote: a candle pool low in the frame with embers drifting up.
-fn candle() -> Scene {
-    let mut scene = Scene::new(vec![
+fn candle(seed: u64) -> Scene {
+    let mut groups = vec![
         Group::new(
             0.30,
             Home::Cluster {
@@ -363,16 +583,16 @@ fn candle() -> Scene {
         .alpha(0.10, 0.45)
         .size(0.35, 0.8)
         .drift(Drift::Rise { speed: 0.45 }),
-        dust(0.38).palette(Palette::Cold),
-        bokeh(0.10),
-    ]);
+    ];
+    groups.extend(backdrop(seed, 0.48));
+    let mut scene = Scene::new(groups);
     scene.link_alpha = 0.0;
     scene
 }
 
 /// A code slide: pale rain on the right, dust elsewhere.
-fn rain() -> Scene {
-    let mut scene = Scene::new(vec![
+fn rain(seed: u64) -> Scene {
+    let mut groups = vec![
         Group::new(
             0.42,
             Home::Field {
@@ -399,9 +619,9 @@ fn rain() -> Scene {
         .alpha(0.15, 0.5)
         .size(0.3, 0.6)
         .drift(Drift::Fall { speed: 1.6 }),
-        dust(0.40),
-        bokeh(0.10),
-    ]);
+    ];
+    groups.extend(backdrop(seed, 0.50));
+    let mut scene = Scene::new(groups);
     scene.link_alpha = 0.0;
     scene
 }
@@ -429,8 +649,10 @@ fn quiet(seed: u64) -> Scene {
             .links(2),
         );
     }
-    groups.push(dust(0.66).alpha(0.04, 0.16));
-    groups.push(bokeh(0.10).alpha(0.03, 0.09));
+    groups.extend(backdrop(seed, 0.76).into_iter().map(|g| {
+        let (lo, hi) = g.alpha;
+        g.alpha(lo * 0.6, hi * 0.6)
+    }));
     let mut scene = Scene::new(groups);
     scene.link_alpha = 0.06;
     scene
@@ -466,17 +688,10 @@ fn clusters(slide: &Slide, seed: u64) -> Scene {
         })
         .unwrap_or_else(|| vec![0, 0, 0]);
     let n = steps.len().clamp(1, 9);
-    let mut groups = Vec::with_capacity(n + 3);
-    // Items arranged on a lazy S through the right half, top to bottom.
+    let mut groups = Vec::with_capacity(n + 4);
+    let points = formation_points(formation_for(seed), n, &mut rng);
     for (i, &step) in steps.iter().take(n).enumerate() {
-        let f = if n == 1 {
-            0.5
-        } else {
-            i as f32 / (n - 1) as f32
-        };
-        let wobble = ((i as f32) * 1.7).sin() * 0.08;
-        let u = 0.70 + wobble + rng.range(-0.03, 0.03);
-        let v = 0.16 + f * 0.68 + rng.range(-0.02, 0.02);
+        let (u, v) = points[i];
         let r = (0.075 - 0.004 * n as f32).max(0.045);
         groups.push(
             Group::new(
@@ -494,22 +709,19 @@ fn clusters(slide: &Slide, seed: u64) -> Scene {
             .step(step),
         );
     }
-    groups.push(dust(0.38));
-    groups.push(bokeh(0.10));
+    groups.extend(backdrop(seed, 0.48));
     Scene::new(groups)
 }
 
-/// The scene for a slide. `seed` keeps a slide's scene stable between frames
-/// and reloads; different slides get different seeds.
 pub fn for_slide(slide: &Slide, seed: u64) -> Scene {
     if seed == 1 && crate::render::ember::is_title(slide, 0) {
         return constellation(seed);
     }
     match slide.layout {
         Layout::Title => constellation(seed),
-        Layout::Section => section(),
-        Layout::Quote => candle(),
-        Layout::Code => rain(),
+        Layout::Section => section(seed),
+        Layout::Quote => candle(seed),
+        Layout::Code => rain(seed),
         Layout::Bullet | Layout::Content | Layout::TwoColumn => clusters(slide, seed),
         Layout::Image | Layout::Gallery | Layout::Diagram | Layout::Visualization => quiet(seed),
     }
@@ -612,10 +824,97 @@ mod tests {
         let steps: Vec<Option<usize>> = scene
             .groups
             .iter()
-            .filter(|g| matches!(g.home, Home::Cluster { .. }))
+            // item clusters carry a reveal step; backdrop clusters never do
+            .filter(|g| matches!(g.home, Home::Cluster { .. }) && g.step.is_some())
             .map(|g| g.step)
             .collect();
         assert_eq!(steps, vec![Some(0), Some(1), Some(1), Some(2)]);
+    }
+
+    fn bullets(n: usize) -> Slide {
+        Slide {
+            directives: vec![],
+            blocks: vec![Block::List {
+                ordered: false,
+                items: (0..n).map(|_| item(ListMarker::Static)).collect(),
+            }],
+            layout: Layout::Bullet,
+            raw_source: String::new(),
+            notes: None,
+            story_hint: None,
+            scene_script: None,
+            illustration: None,
+        }
+    }
+
+    fn cluster_centres(scene: &Scene) -> Vec<(f32, f32)> {
+        scene
+            .groups
+            .iter()
+            .filter(|g| g.step.is_some())
+            .filter_map(|g| match g.home {
+                Home::Cluster { u, v, .. } => Some((u, v)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn consecutive_bullet_slides_differ_in_formation_and_backdrop() {
+        for i in 1..=12u64 {
+            assert_ne!(formation_for(i), formation_for(i + 1));
+            assert_ne!(backdrop_for(i), backdrop_for(i + 1));
+        }
+        let a = cluster_centres(&for_slide(&bullets(3), 1));
+        let b = cluster_centres(&for_slide(&bullets(3), 2));
+        let moved: f32 = a
+            .iter()
+            .zip(&b)
+            .map(|(p, q)| ((p.0 - q.0).powi(2) + (p.1 - q.1).powi(2)).sqrt())
+            .sum();
+        assert!(
+            moved > 0.15,
+            "identical slides look the same: {a:?} vs {b:?}"
+        );
+    }
+
+    #[test]
+    fn every_formation_keeps_items_in_the_right_half_and_apart() {
+        for f in FORMATIONS {
+            for n in [1, 2, 3, 5, 9] {
+                let mut rng = Rng::new(3);
+                let pts = formation_points(f, n, &mut rng);
+                assert_eq!(pts.len(), n);
+                for (u, v) in &pts {
+                    assert!(*u > 0.52 && *u < 0.96, "{f:?} n={n}: u {u}");
+                    assert!(*v > 0.08 && *v < 0.92, "{f:?} n={n}: v {v}");
+                }
+                for i in 0..n {
+                    for j in i + 1..n {
+                        let d =
+                            ((pts[i].0 - pts[j].0).powi(2) + (pts[i].1 - pts[j].1).powi(2)).sqrt();
+                        assert!(d > 0.06, "{f:?} n={n}: items {i} and {j} overlap ({d})");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn every_backdrop_fills_its_share() {
+        for (i, kind) in BACKDROPS.iter().enumerate() {
+            let groups = backdrop(i as u64, 0.5);
+            assert_eq!(backdrop_for(i as u64), *kind);
+            let total: f32 = groups.iter().map(|g| g.share).sum();
+            assert!((total - 0.5).abs() < 0.01, "{kind:?} fills {total}");
+            if *kind == Backdrop::Stars {
+                assert!(
+                    groups
+                        .iter()
+                        .any(|g| matches!(g.drift, Drift::Forward { .. }))
+                );
+            }
+        }
     }
 
     #[test]

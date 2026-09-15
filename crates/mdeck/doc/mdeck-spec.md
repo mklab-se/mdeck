@@ -754,7 +754,16 @@ slide to slide and follows the content: a title slide opens on a constellation
 (after the particles assemble into the logo), a bullet slide lights one
 cluster per item as the items reveal, a quote slide burns like a candle, a
 code slide rains. Slides whose content fills the frame (code, tables, charts,
-diagrams, images) keep their regular layouts with the Ember palette. Every
+diagrams, images) keep their regular layouts with the Ember palette.
+
+Behind all of that, on every slide but the title, the dark is space. Slides
+walk through four backdrops by number, so neighbours never share one and a
+run of look-alike bullet slides still changes from one to the next: a star
+field drifting slowly forward (the bigger, brighter stars pass faster), soft
+dust, a galaxy of two spiral arms turning about the centre, and a nebula of
+large clouds out of focus. A bullet slide's item clusters likewise take a
+different formation on each slide: an arc, a lazy S, a ring, a diagonal, a
+scatter, a column. Every
 slide gets a tracked eyebrow with its roman numeral and the deck title, and
 the presenter chrome is a counter and a progress hairline.
 
