@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Built-in illustration `punchcard`.
+- `mdeck illustration contribute <name>` offers a deck or user illustration to the built-in set:
+  it writes a `.mdpc.json` copy GitHub accepts as an attachment and opens a prefilled issue
+  (name, description, prompt, braille sketch); `--no-open` prints the link instead.
 - Built-in illustrations are registered by a build script from `crates/mdeck/illustrations/`,
   so adding one is a single file; the `/include-illustrations` skill does the bookkeeping.
 

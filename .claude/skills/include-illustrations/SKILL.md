@@ -77,8 +77,22 @@ trailers. Do not release; Kristofer decides that separately.
 
 ## Contributed clouds
 
-If the cloud arrives from someone else (a pull request touching
-`crates/mdeck/illustrations/`, or a file attached to an issue), the same steps apply
-from Step 2. For a pull request: `gh pr checkout <n>` and review with Step 3. For an
-issue attachment: download it with `gh api` or the browser, rename to `<name>.mdpc`,
-and validate it with `mdeck illustration show` before anything else.
+Contributions arrive as GitHub issues labelled `illustration`, filed by
+`mdeck illustration contribute` with a `<name>.mdpc.json` attachment. To include one:
+
+```bash
+gh issue list --label illustration
+gh issue view <n> --json title,body -q '.body'          # description, prompt, braille sketch
+```
+
+Find the attachment link in the body (`https://github.com/user-attachments/files/...`),
+download it, and rename it:
+
+```bash
+curl -sL -o illustrations/<name>.mdpc "<attachment url>"
+mdeck illustration show <name> --output /tmp/<name>.png --quiet
+```
+
+Then continue from Step 2. Close the issue with a short note either way (`gh issue
+close <n> --comment "..."`): included and in which release, or why not. If the same name
+is already built in, it is a replacement and needs the side-by-side look from Step 2.

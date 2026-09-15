@@ -118,6 +118,7 @@ mdeck illustration generate --name <n> --description "..." [--user] [--force]  #
 mdeck illustration import <image> --name <n> [--user] [--force]  # Convert light-on-dark image to a cloud
 mdeck illustration list      # Every illustration visible from cwd (deck, user, built-in; shadowing)
 mdeck illustration show <n> [--output preview.png]  # Preview a cloud
+mdeck illustration contribute <n> [--no-open]  # Prefilled GitHub issue + .mdpc.json attachment copy
 mdeck ai style add <name> <desc> [--icon]  # Add named style
 mdeck ai style remove <name> [--icon]      # Remove named style
 mdeck ai style list          # List all styles

@@ -319,6 +319,14 @@ pub enum IllustrationCommands {
         #[arg(long)]
         output: Option<PathBuf>,
     },
+    /// Offer one of your illustrations to MDeck's built-in set (opens a prefilled GitHub issue)
+    Contribute {
+        /// Illustration name (a deck or user illustration, not a built-in)
+        name: String,
+        /// Print the issue link instead of opening it in the browser
+        #[arg(long)]
+        no_open: bool,
+    },
 }
 
 #[derive(Subcommand)]

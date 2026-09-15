@@ -223,7 +223,8 @@ to `robot` and `rocket`; `mdeck illustration generate --name server
 --description "A server rack"` asks the image model for a new one and reduces
 it to a point cloud file you keep next to the deck or in your user library.
 Story casts draw from the same library, so a cloud you make can act in a
-story too.
+story too. Made one worth sharing? `mdeck illustration contribute <name>`
+opens a prefilled issue; drag the file in and it can become a built-in.
 
 **It opens and closes.** A 3-2-1 countdown counted in particles (any key
 skips it, `@countdown: false` turns it off) and an ending where the field
@@ -444,6 +445,7 @@ mdeck illustration generate --name <n> --description "..."  # New point cloud il
 mdeck illustration import <image> --name <n>                # Convert an image of light strokes on dark
 mdeck illustration list            # Every illustration visible from here (deck, user, built-in)
 mdeck illustration show <n>        # Preview an illustration
+mdeck illustration contribute <n>  # Offer one to the built-in set (prefilled GitHub issue, --no-open)
 mdeck spec                         # full format specification
 mdeck spec --short                 # quick reference card
 mdeck config show                  # show configuration

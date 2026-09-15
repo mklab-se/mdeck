@@ -246,12 +246,12 @@ per deck would make that explicit and editable.
 ### 6.7 Content-aware fields for the remaining visualizations — S each
 Funnel, word cloud and git graph only get the quiet frame today.
 
-### 6.8 `mdeck illustration contribute` — M, needs a decision
-Point clouds carry their description and prompt, so a generated `.mdpc` could
-be offered back to the built-in library from the CLI. Open questions: lean on
-the `gh` CLI (fork, branch, pull request) or open a prefilled issue in the
-browser; how to review quality before merging; whether the source image travels
-with it. Deferred until the library has been used in real decks.
+### 6.8 A shared illustration library — L
+`mdeck illustration contribute` files a prefilled issue and the
+`/include-illustrations` skill folds accepted clouds into the built-in set at
+the next release. If contributions pile up, a separate `mdeck-illustrations`
+repository that `mdeck illustration get <name>` fetches from would make a cloud
+usable the day it is merged.
 
 ### 6.9 Illustrations in stories with beats — S
 A slide with both an illustration and a story keeps the story (`--check`

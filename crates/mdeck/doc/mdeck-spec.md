@@ -831,6 +831,13 @@ spend, which is why the same file serves a small story cast member and a
 full-frame backdrop, and why an illustration hints at its subject rather than
 copying it.
 
+A cloud worth sharing can be offered to the built-in set without installing
+anything: `mdeck illustration contribute <name>` writes a `.json` copy GitHub
+accepts as an attachment and opens a new issue on the MDeck repository with
+the name, description, prompt and a braille sketch filled in. Drag the file
+onto the issue and submit; if it is accepted it ships as a built-in in the
+next release.
+
 #### Ember stories
 
 With Ember, the particle field can tell the slide's story instead of only
