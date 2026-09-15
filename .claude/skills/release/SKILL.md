@@ -33,7 +33,7 @@ $ARGUMENTS must be one of: `major`, `minor`, `patch`. If empty or invalid, stop 
 
 - **`crates/mdeck/doc/mdeck-spec.md`**: Review the format spec against current features. Run `cargo run -p mdeck -- spec` and `cargo run -p mdeck -- spec --short` to verify the output looks correct and covers all implemented features. If new visualizations, layouts, directives, or keyboard shortcuts have been added since the last release, update the spec (and the short reference in `commands/spec.rs`) before proceeding.
 - **`README.md`**: Verify features list, command reference, visualization table, and gallery preview images are current.
-- **`GALLERY.md`**: If rendering has changed, re-export gallery slides (`cargo run -p mdeck -- export sample-presentations/gallery.md --output-dir media/gallery`) and verify screenshots reflect current rendering.
+- **`GALLERY.md`**: If rendering has changed, re-export gallery slides (`cargo run -p mdeck -- export samples/gallery.md --output-dir media/gallery`) and verify screenshots reflect current rendering.
 - **`CLAUDE.md`**: Verify architecture, commands, and patterns sections are accurate.
 - If any documentation is out of date, update it now before proceeding to the version bump.
 
