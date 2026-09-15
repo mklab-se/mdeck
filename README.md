@@ -218,7 +218,7 @@ slides, where there is room beside the copy.
 
 **It can draw a thing.** Put `@illustration: server` at the top of a slide
 and the particles settle into a server beside the copy (behind it, faded, on
-a title slide). Twenty illustrations are built in, from `person` and `laptop`
+a title slide). Twenty-one illustrations are built in, from `person` and `laptop`
 to `robot` and `rocket`; `mdeck illustration generate --name server
 --description "A server rack"` asks the image model for a new one and reduces
 it to a point cloud file you keep next to the deck or in your user library.

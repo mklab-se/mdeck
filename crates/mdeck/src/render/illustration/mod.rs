@@ -196,30 +196,7 @@ pub fn user_dir() -> Option<PathBuf> {
     dirs::config_dir().map(|d| d.join("mdeck").join("illustrations"))
 }
 
-/// Built-in clouds: (name, document). Generated with
-/// `mdeck illustration generate` and checked in under `illustrations/`.
-const BUILTIN: &[(&str, &str)] = &[
-    ("box", include_str!("../../../illustrations/box.mdpc")),
-    ("cloud", include_str!("../../../illustrations/cloud.mdpc")),
-    ("db", include_str!("../../../illustrations/db.mdpc")),
-    ("doc", include_str!("../../../illustrations/doc.mdpc")),
-    ("docs", include_str!("../../../illustrations/docs.mdpc")),
-    ("folder", include_str!("../../../illustrations/folder.mdpc")),
-    ("gate", include_str!("../../../illustrations/gate.mdpc")),
-    ("gear", include_str!("../../../illustrations/gear.mdpc")),
-    ("globe", include_str!("../../../illustrations/globe.mdpc")),
-    ("hooded", include_str!("../../../illustrations/hooded.mdpc")),
-    ("inbox", include_str!("../../../illustrations/inbox.mdpc")),
-    ("laptop", include_str!("../../../illustrations/laptop.mdpc")),
-    ("lock", include_str!("../../../illustrations/lock.mdpc")),
-    ("mail", include_str!("../../../illustrations/mail.mdpc")),
-    ("orb", include_str!("../../../illustrations/orb.mdpc")),
-    ("person", include_str!("../../../illustrations/person.mdpc")),
-    ("phone", include_str!("../../../illustrations/phone.mdpc")),
-    ("robot", include_str!("../../../illustrations/robot.mdpc")),
-    ("rocket", include_str!("../../../illustrations/rocket.mdpc")),
-    ("server", include_str!("../../../illustrations/server.mdpc")),
-];
+include!(concat!(env!("OUT_DIR"), "/builtin_illustrations.rs"));
 
 type ParsedBuiltins = Mutex<Vec<(&'static str, Arc<Cloud>)>>;
 
@@ -559,9 +536,7 @@ mod tests {
             );
             assert!(cloud.prompt.is_some(), "built-in `{name}` lost its prompt");
         }
-        let mut sorted = builtin_names();
-        sorted.sort();
-        assert_eq!(sorted, builtin_names(), "keep BUILTIN sorted by name");
+        assert!(builtin_names().len() >= 20, "the built-in set shrank");
     }
 
     #[test]

@@ -46,7 +46,8 @@ Available config keys:
   resolves from here, `show <n>` previews. A slide asks for one with `@illustration: <n>` at its
   top; bullet, content, quote and section slides show it beside the copy, title slides behind
   it, other layouts never. Built in: person, hooded, box, orb, doc, docs, inbox, db, cloud,
-  laptop, folder, mail, gate, server, robot, phone, globe, lock, gear, rocket. Story cast kinds
+  laptop, folder, mail, gate, server, robot, phone, globe, lock, gear, rocket, punchcard. Story
+  cast kinds
   are the same names.
 - `defaults.transition` — default transition (`fade`, `slide`, `spatial`, `none`)
 - `defaults.start_mode` — `first`, `overview`, or a slide number

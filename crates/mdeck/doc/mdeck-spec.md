@@ -807,7 +807,7 @@ carry its own clouds, a user can keep favourites across decks, and either can
 shadow a built-in by using the same name. Names are lowercase letters, digits
 and hyphens. The built-in set: `person`, `hooded`, `box`, `orb`, `doc`,
 `docs`, `inbox`, `db`, `cloud`, `laptop`, `folder`, `mail`, `gate`,
-`server`, `robot`, `phone`, `globe`, `lock`, `gear`, `rocket`.
+`server`, `robot`, `phone`, `globe`, `lock`, `gear`, `rocket`, `punchcard`.
 
 New clouds come from the image model or from any image of light strokes on a
 dark ground:

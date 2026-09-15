@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Built-in illustration `punchcard`.
+- Built-in illustrations are registered by a build script from `crates/mdeck/illustrations/`,
+  so adding one is a single file; the `/include-illustrations` skill does the bookkeeping.
+
 ## [1.1.1] - 2026-09-15
 
 ### Added
