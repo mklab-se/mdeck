@@ -814,7 +814,8 @@ and hyphens. The built-in set: `person`, `hooded`, `man`, `woman`,
 `docs`, `inbox`, `db`, `cloud`, `laptop`, `folder`, `mail`, `gate`,
 `server`, `robot`, `agent-friendly`, `agent-evil`, `ai`, `phone`, `globe`,
 `lock`, `gear`, `rocket`, `punchcard`, `camera`, `gauge`, `glasses`, `eyes`,
-`flag`, `blackhole`.
+`flag`, `blackhole`, `account` (a bank building, for finance topics),
+`lightbulb` (ideas), `question` (a question mark).
 
 New clouds come from the image model or from any image of light strokes on a
 dark ground:

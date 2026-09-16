@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Three built-in illustrations: `account` (a classical bank building, for finance topics),
+  `lightbulb` (ideas) and `question` (a question mark), bringing the set to thirty-eight.
+
 ## [1.2.3] - 2026-09-16
 
 ### Changed

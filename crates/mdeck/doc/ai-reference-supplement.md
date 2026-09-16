@@ -48,7 +48,7 @@ Available config keys:
   it, other layouts never. Built in: person, hooded, man, woman, thermographer, presenter-up,
   presenter-down, box, orb, doc, docs, inbox, db, cloud, laptop, folder, mail, gate, server,
   robot, agent-friendly, agent-evil, ai, phone, globe, lock, gear, rocket, punchcard, camera,
-  gauge, glasses, eyes, flag, blackhole. Story cast kinds are the same names. `mdeck illustration contribute <n>` offers a deck or user cloud
+  gauge, glasses, eyes, flag, blackhole, account, lightbulb, question. Story cast kinds are the same names. `mdeck illustration contribute <n>` offers a deck or user cloud
   to the built-in set through a prefilled GitHub issue (`--no-open` prints the link).
 - `defaults.transition` — default transition (`fade`, `slide`, `spatial`, `none`)
 - `defaults.start_mode` — `first`, `overview`, or a slide number
