@@ -69,10 +69,15 @@ with `--slide N`.
 
 ## 2. Export and sharing
 
-### 2.1 PDF export — M, recommended
-Reuse the PNG export pipeline (now pixel-exact and tiled) and write one page
-per slide with `printpdf` or `pdf-writer`. Speaker notes as PDF annotations or
-a "notes" variant with two slides per page.
+### 2.1 PDF and PPTX export — M, recommended (#10)
+Reuse the PNG export pipeline (now pixel-exact and tiled; it already renders the
+last reveal step of each slide) and add `--format pdf|pptx`. PDF: one page per
+slide with `pdf-writer`, plus a `--notes` variant (slide above, speaker notes
+below). PPTX: a zip of OOXML templates with one full-bleed picture per slide
+(`zip` is already a dependency) and the `???` notes in PowerPoint's notes pane.
+Not an editable PPTX: shapes and text boxes would be a second renderer to keep
+in sync and would still not look like mdeck. Do PDF first; PPTX shares the
+page renderer.
 
 ### 2.2 HTML export / `mdeck serve` — L
 A static HTML export (images + navigation) or a local web server so decks can
@@ -166,6 +171,17 @@ Both reveal instantly; every other visualization animates.
 Every `draw_*` re-parses the block text, rebuilds vectors, and lays out labels
 every frame. Parsing into typed data in the parser removes all of it and
 enables `--check` validation of chart data.
+
+### 4.12 Architecture diagram layouts: layered auto layout and `radial` — M (#3, #4)
+Auto layout ignores edges: up to five nodes go in one row in declaration order,
+more in a square grid, so a producer -> service -> consumer chain only comes out
+right with explicit `pos:`. Rank nodes by longest path from a source, one
+column per rank, rows ordered to keep edges short (a light Sugiyama). Second, a
+`radial` qualifier (`@architecture radial`): first component is the centre,
+drawn larger; petals evenly on a circle in declaration order; centre-to-petal
+edges implicit and radial; explicit petal-to-petal edges drawn as chords.
+Both requests were filed as new visualization types; one diagram type with
+layouts keeps the syntax, icons, arrow types and reveal shared.
 
 ---
 
