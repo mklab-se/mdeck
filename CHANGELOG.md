@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- Dependencies: ailloy 2.1.1 → 2.1.2 (lockfile refresh + CI/release-process migration only, no
+  API change). eframe stays on 0.36 (0.36.2, no newer stable major). Every other manifest
+  requirement was already at its latest stable line; `cargo update` refreshed transitive patch
+  versions only.
+
 ## [1.2.4] - 2026-09-16
 
 ### Added
