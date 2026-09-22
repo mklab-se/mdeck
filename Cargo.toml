@@ -58,7 +58,7 @@ rayon = "1.12"
 notify-debouncer-mini = "0.7"
 
 # AI integration
-ailloy = { version = "2.1", default-features = false, features = ["config-tui"] }
+ailloy = { version = "2.2", default-features = false, features = ["config-tui"] }
 futures = "0.3"
 tokio = { version = "1.53", features = ["rt", "macros"] }
 
