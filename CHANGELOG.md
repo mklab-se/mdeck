@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- Dependencies: ailloy 2.1.2 → 2.2.0, which brings `reqwest` 0.13 in transitively (mdeck itself has
+  no direct `reqwest` dependency — it uses `ureq`). No API or behavior change for mdeck's own
+  surface.
+- Building from source on Windows now needs [NASM](https://www.nasm.us/) and
+  [CMake](https://cmake.org/) on `PATH` to compile `aws-lc-rs`'s optimized assembly routines; macOS
+  and Linux need nothing extra. `cargo binstall` and Homebrew are unaffected (pre-built binaries).
+  The release workflow's Windows build installs NASM via `ilammy/setup-nasm@v1`.
+
 ## [1.2.5] - 2026-09-22
 
 ### Changed

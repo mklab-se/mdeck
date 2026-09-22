@@ -200,7 +200,22 @@ Before every release, verify these are up to date:
 - Edition 2024, MSRV 1.95
 - `cargo clippy` with `-D warnings` (zero warnings policy)
 - `cargo fmt` enforced in CI
+- Building from source on Windows needs NASM and CMake on `PATH` — `aws-lc-rs` (the TLS crypto
+  backend pulled in transitively via `ailloy`) compiles optimized assembly routines at build time.
+  macOS and Linux need nothing extra. The release workflow's Windows leg installs NASM via
+  `ilammy/setup-nasm@v1`; CMake and MSVC are already on the `windows-latest` image.
 - **File size guideline:** When a source file exceeds ~500 lines, evaluate whether it would benefit from being split into smaller modules (`mod` in Rust). Look for natural boundaries: distinct type groups, self-contained algorithms, test helpers, or feature areas that could live in their own files. Propose a split plan before refactoring.
+
+## Dependency Policy
+
+We keep this tool's dependencies at their latest compatible versions, not just the versions that
+happen to still compile. Staying current is the default, not something we get to eventually —
+letting dependencies drift is how technical debt accumulates unnoticed until a security advisory or
+a forced breaking upgrade makes it urgent. When a newer major is available and there's no concrete,
+documented reason not to take it (see any `# Stays on ...` comments in `Cargo.toml` for the current
+exceptions and why), take it during the next maintenance round rather than deferring it. The
+cross-repo `maintaining-rust-tools` skill drives this for the whole fleet (ailloy + cosq + deemer +
+mdeck + pidge + rigg + rusty-tmpl).
 
 ## Quality Requirements
 

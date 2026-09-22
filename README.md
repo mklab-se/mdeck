@@ -81,6 +81,12 @@ cargo binstall mdeck                 # pre-built binary via cargo-binstall
 Or download a binary for macOS (Intel and Apple Silicon), Linux, or Windows
 from [GitHub Releases](https://github.com/mklab-se/mdeck/releases).
 
+`cargo install` builds from source; on Windows that needs [NASM](https://www.nasm.us/) and
+[CMake](https://cmake.org/) on `PATH` (plus the Visual Studio Build Tools most Rust installs already
+have) to compile [`aws-lc-rs`](https://github.com/aws/aws-lc-rs), the TLS crypto backend used
+transitively via `ailloy`. macOS and Linux need nothing extra, and `brew install` / `cargo binstall`
+skip this entirely by using a pre-built binary.
+
 <details>
 <summary>Software bill of materials (SBOM)</summary>
 
