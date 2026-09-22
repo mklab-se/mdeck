@@ -55,6 +55,13 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
+      # aws-lc-sys (reqwest's default TLS crypto provider) needs NASM to
+      # assemble its optimized routines on Windows; CMake and MSVC are
+      # already on the windows-latest image.
+      - name: Install NASM (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/setup-nasm@v1
+
       # cargo-auditable embeds the dependency list into the binary itself
       # (readable with `cargo audit bin` or syft); cargo-cyclonedx emits a
       # standalone CycloneDX SBOM that ships next to the binary as a release asset.
