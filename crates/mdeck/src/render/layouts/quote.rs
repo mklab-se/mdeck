@@ -123,8 +123,12 @@ fn render_quote_content(
     // Draw heading if present
     if let Some((level, galley)) = heading_galley {
         let h = galley.rect.height();
-        ui.painter()
-            .galley(Pos2::new(content_rect.left(), y), galley, heading_color);
+        crate::render::math::galley(
+            ui.painter(),
+            Pos2::new(content_rect.left(), y),
+            galley,
+            heading_color,
+        );
         y += h + text::heading_spacing(theme, level, scale);
     }
 
@@ -138,8 +142,7 @@ fn render_quote_content(
         let text_x = quote_x + (quote_width - text_width) / 2.0;
         quote_right = text_x + text_width;
 
-        ui.painter()
-            .galley(Pos2::new(text_x, y), galley, quote_color);
+        crate::render::math::galley(ui.painter(), Pos2::new(text_x, y), galley, quote_color);
 
         // Left accent bar spanning the quote text
         let bar_width = 4.0 * scale;
@@ -155,7 +158,7 @@ fn render_quote_content(
     if let Some(galley) = attr_galley {
         y += quote_gap;
         let x = quote_right - galley.rect.width();
-        ui.painter().galley(Pos2::new(x, y), galley, attr_color);
+        crate::render::math::galley(ui.painter(), Pos2::new(x, y), galley, attr_color);
     }
 }
 

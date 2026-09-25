@@ -33,6 +33,88 @@ static JETBRAINS_REGULAR: &[u8] = include_bytes!("../../../fonts/JetBrainsMono-R
 static NOTO_SYMBOLS: &[u8] = include_bytes!("../../../fonts/NotoSansSymbols.ttf");
 static DEJAVU_SANS: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
 
+/// The KaTeX faces RaTeX lays math out with (OFL, `fonts/katex/OFL-KaTeX.txt`),
+/// by the font name its display list uses. Each is its own family,
+/// `katex-<name>`, falling back to the proportional chain.
+pub const KATEX_FACES: [(&str, &[u8]); 19] = [
+    (
+        "AMS-Regular",
+        include_bytes!("../../../fonts/katex/KaTeX_AMS-Regular.ttf"),
+    ),
+    (
+        "Caligraphic-Regular",
+        include_bytes!("../../../fonts/katex/KaTeX_Caligraphic-Regular.ttf"),
+    ),
+    (
+        "Fraktur-Regular",
+        include_bytes!("../../../fonts/katex/KaTeX_Fraktur-Regular.ttf"),
+    ),
+    (
+        "Fraktur-Bold",
+        include_bytes!("../../../fonts/katex/KaTeX_Fraktur-Bold.ttf"),
+    ),
+    (
+        "Main-Bold",
+        include_bytes!("../../../fonts/katex/KaTeX_Main-Bold.ttf"),
+    ),
+    (
+        "Main-BoldItalic",
+        include_bytes!("../../../fonts/katex/KaTeX_Main-BoldItalic.ttf"),
+    ),
+    (
+        "Main-Italic",
+        include_bytes!("../../../fonts/katex/KaTeX_Main-Italic.ttf"),
+    ),
+    (
+        "Main-Regular",
+        include_bytes!("../../../fonts/katex/KaTeX_Main-Regular.ttf"),
+    ),
+    (
+        "Math-BoldItalic",
+        include_bytes!("../../../fonts/katex/KaTeX_Math-BoldItalic.ttf"),
+    ),
+    (
+        "Math-Italic",
+        include_bytes!("../../../fonts/katex/KaTeX_Math-Italic.ttf"),
+    ),
+    (
+        "SansSerif-Bold",
+        include_bytes!("../../../fonts/katex/KaTeX_SansSerif-Bold.ttf"),
+    ),
+    (
+        "SansSerif-Italic",
+        include_bytes!("../../../fonts/katex/KaTeX_SansSerif-Italic.ttf"),
+    ),
+    (
+        "SansSerif-Regular",
+        include_bytes!("../../../fonts/katex/KaTeX_SansSerif-Regular.ttf"),
+    ),
+    (
+        "Script-Regular",
+        include_bytes!("../../../fonts/katex/KaTeX_Script-Regular.ttf"),
+    ),
+    (
+        "Size1-Regular",
+        include_bytes!("../../../fonts/katex/KaTeX_Size1-Regular.ttf"),
+    ),
+    (
+        "Size2-Regular",
+        include_bytes!("../../../fonts/katex/KaTeX_Size2-Regular.ttf"),
+    ),
+    (
+        "Size3-Regular",
+        include_bytes!("../../../fonts/katex/KaTeX_Size3-Regular.ttf"),
+    ),
+    (
+        "Size4-Regular",
+        include_bytes!("../../../fonts/katex/KaTeX_Size4-Regular.ttf"),
+    ),
+    (
+        "Typewriter-Regular",
+        include_bytes!("../../../fonts/katex/KaTeX_Typewriter-Regular.ttf"),
+    ),
+];
+
 /// The symbol fallback faces, in the order they are tried.
 const FONT_SYMBOLS: [&str; 2] = ["NotoSansSymbols", "DejaVuSans"];
 
@@ -101,6 +183,18 @@ pub fn install(ctx: &egui::Context) {
         FontFamily::Name(FONT_MONO.into()),
         family("JetBrainsMono-Regular", &monospace_fallback),
     );
+
+    // Math: one family per KaTeX face, each falling back to the proportional
+    // chain so `\text{...}` in any script still draws.
+    for (name, bytes) in KATEX_FACES {
+        let key = format!("KaTeX_{name}");
+        defs.font_data
+            .insert(key.clone(), Arc::new(FontData::from_static(bytes)));
+        defs.families.insert(
+            FontFamily::Name(format!("katex-{name}").into()),
+            family(&key, &proportional_fallback),
+        );
+    }
 
     // The system CJK faces, when there are any, close every chain.
     let families: Vec<FontFamily> = defs.families.keys().cloned().collect();

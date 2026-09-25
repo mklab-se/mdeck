@@ -53,6 +53,7 @@ fn slide_text(slide: &Slide) -> String {
                 Inline::Text(s) | Inline::Code(s) => s.clone(),
                 Inline::Bold(c) | Inline::Italic(c) | Inline::Strikethrough(c) => inlines(c),
                 Inline::Link { text, .. } => inlines(text),
+                Inline::Math { tex, .. } => tex.clone(),
             })
             .collect()
     }

@@ -75,13 +75,13 @@ pub fn render(
     if let Some(galley) = title_galley {
         let x = content_rect.left() + (content_rect.width() - galley.rect.width()) / 2.0;
         let h = galley.rect.height();
-        ui.painter().galley(Pos2::new(x, y), galley, title_color);
+        crate::render::math::galley(ui.painter(), Pos2::new(x, y), galley, title_color);
         y += h + gap;
     }
 
     // Draw subtitle centred
     if let Some(galley) = subtitle_galley {
         let x = content_rect.left() + (content_rect.width() - galley.rect.width()) / 2.0;
-        ui.painter().galley(Pos2::new(x, y), galley, subtitle_color);
+        crate::render::math::galley(ui.painter(), Pos2::new(x, y), galley, subtitle_color);
     }
 }

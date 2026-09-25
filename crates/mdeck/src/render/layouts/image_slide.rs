@@ -174,8 +174,12 @@ pub fn render(
         let galley = ui.painter().layout_job(job);
         let caption_x =
             image_drawn_rect.left() + (image_drawn_rect.width() - galley.rect.width()) / 2.0;
-        ui.painter()
-            .galley(Pos2::new(caption_x, caption_y), galley, caption_color);
+        crate::render::math::galley(
+            ui.painter(),
+            Pos2::new(caption_x, caption_y),
+            galley,
+            caption_color,
+        );
     }
 }
 

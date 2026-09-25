@@ -106,6 +106,7 @@ pub fn inlines_to_job(
     job.wrap.max_width = max_width;
     let style = InlineStyle::new(theme, color);
     append_inlines(&mut job, inlines, font_size, &style, false, false);
+    crate::render::math::finish(&mut job);
     job
 }
 
@@ -183,6 +184,15 @@ fn append_inlines(
                 };
                 append_inlines(job, text, font_size, &link_style, bold, italic);
             }
+            Inline::Math { tex, display } => {
+                let format = egui::text::TextFormat {
+                    font_id: FontId::new(font_size, style.body_family.clone()),
+                    color: style.color,
+                    line_height: style.line_height.map(|lh| lh * font_size),
+                    ..Default::default()
+                };
+                crate::render::math::append(job, tex, *display, &format);
+            }
         }
     }
 }
@@ -213,7 +223,7 @@ pub fn draw_inlines(
     let job = inlines_to_job(inlines, font_size, color, max_width, theme);
     let galley = ui.painter().layout_job(job);
     let height = galley.rect.height();
-    ui.painter().galley(pos, galley, color);
+    crate::render::math::galley(ui.painter(), pos, galley, color);
     height
 }
 
@@ -252,7 +262,7 @@ pub fn draw_heading(
         .painter()
         .layout_job(heading_job(inlines, level, theme, color, max_width, scale));
     let height = galley.rect.height();
-    ui.painter().galley(pos, galley, color);
+    crate::render::math::galley(ui.painter(), pos, galley, color);
     height
 }
 
@@ -381,7 +391,7 @@ fn draw_list_inner(
             FontId::new(font_size, theme.body_family()),
             color,
         );
-        ui.painter().galley(marker_pos, marker_galley, color);
+        crate::render::math::galley(ui.painter(), marker_pos, marker_galley, color);
 
         // Draw item text
         let text_pos = Pos2::new(pos.x + indent + marker_width, pos.y + y_offset);
@@ -525,7 +535,7 @@ pub fn draw_code_block(
     // Draw code
     let code_pos = Pos2::new(pos.x + padding, pos.y + padding);
     let fallback = Theme::with_opacity(theme.code_foreground, opacity);
-    ui.painter().galley(code_pos, code_galley, fallback);
+    crate::render::math::galley(ui.painter(), code_pos, code_galley, fallback);
 
     total_height
 }
@@ -1423,7 +1433,7 @@ pub fn draw_image_placeholder(
         pos.x + (max_width - galley.rect.width()) / 2.0,
         pos.y + (height - galley.rect.height()) / 2.0,
     );
-    ui.painter().galley(text_pos, galley, color);
+    crate::render::math::galley(ui.painter(), text_pos, galley, color);
 
     height
 }

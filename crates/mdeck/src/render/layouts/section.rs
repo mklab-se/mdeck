@@ -31,7 +31,7 @@ pub fn render(
             let x = content_rect.left() + (content_rect.width() - galley.rect.width()) / 2.0;
             let y = content_rect.center().y - galley.rect.height() / 2.0;
             let pos = Pos2::new(x, y);
-            ui.painter().galley(pos, galley, color);
+            crate::render::math::galley(ui.painter(), pos, galley, color);
             return;
         }
     }

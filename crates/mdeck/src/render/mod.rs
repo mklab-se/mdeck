@@ -5,6 +5,7 @@ pub mod hints;
 pub mod illustration;
 pub mod image_cache;
 pub mod layouts;
+pub mod math;
 pub mod particles;
 pub mod story;
 pub mod syntax;

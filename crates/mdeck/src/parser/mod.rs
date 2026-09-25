@@ -169,6 +169,11 @@ pub enum Inline {
     Italic(Vec<Inline>),
     Strikethrough(Vec<Inline>),
     Code(String),
+    /// LaTeX math: `$...$` inline, `$$...$$` display.
+    Math {
+        tex: String,
+        display: bool,
+    },
     Link {
         text: Vec<Inline>,
         #[allow(dead_code)]
@@ -507,6 +512,7 @@ pub fn inlines_to_text(inlines: &[Inline]) -> String {
             }
             Inline::Code(s) => text.push_str(s),
             Inline::Link { text: t, .. } => text.push_str(&inlines_to_text(t)),
+            Inline::Math { tex, .. } => text.push_str(tex),
         }
     }
     text
@@ -522,6 +528,8 @@ fn inline_text_len(inline: &Inline) -> usize {
         }
         Inline::Code(s) => s.chars().count(),
         Inline::Link { text, .. } => text.iter().map(inline_text_len).sum(),
+        // roughly what the formula occupies on the line
+        Inline::Math { tex, .. } => tex.chars().count().div_ceil(2),
     }
 }
 

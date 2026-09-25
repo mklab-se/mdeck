@@ -177,6 +177,7 @@ pub fn display_job(
         ..Default::default()
     };
     append_display(&mut job, inlines, &base, color, theme);
+    crate::render::math::finish(&mut job);
     job
 }
 
@@ -204,6 +205,7 @@ fn append_display(
                 job.append(s, 0.0, f);
             }
             Inline::Link { text, .. } => append_display(job, text, base, color, theme),
+            Inline::Math { tex, display } => crate::render::math::append(job, tex, *display, base),
         }
     }
 }
@@ -226,6 +228,7 @@ fn lead_job(
         ..Default::default()
     };
     append_lead(&mut job, inlines, &base, alpha, theme);
+    crate::render::math::finish(&mut job);
     job
 }
 
@@ -247,6 +250,7 @@ fn item_job(
         ..Default::default()
     };
     append_lead(&mut job, inlines, &base, alpha, theme);
+    crate::render::math::finish(&mut job);
     job
 }
 
@@ -292,6 +296,7 @@ fn append_lead(
                 f.underline = egui::Stroke::new(1.0, fade(EMBER_SOFT, alpha * 0.5));
                 append_lead(job, text, &f, alpha, theme);
             }
+            Inline::Math { tex, display } => crate::render::math::append(job, tex, *display, base),
         }
     }
 }
@@ -611,7 +616,7 @@ fn draw_pieces(
             .map(|s| s.format.color)
             .unwrap_or(INK_200);
         let tint = fade(Color32::WHITE, a);
-        painter.galley_with_override_text_color(pos, piece.galley.clone(), tint);
+        crate::render::math::galley_tinted(painter, pos, piece.galley.clone(), tint);
         let _ = color;
         if piece.dot {
             let first_line_h = piece
@@ -770,7 +775,8 @@ fn render_title(
     let centered = |g: &egui::Galley| rect.center().x - g.rect.width() / 2.0;
 
     let p0 = stagger(age, 0);
-    painter.galley_with_override_text_color(
+    crate::render::math::galley_tinted(
+        painter,
         Pos2::new(centered(&eyebrow), y + (1.0 - p0) * 14.0 * scale),
         eyebrow.clone(),
         fade(Color32::WHITE, opacity * p0),
@@ -778,7 +784,8 @@ fn render_title(
     y += eyebrow.rect.height() + gap1;
     if let Some(g) = title {
         let p = stagger(age, 1);
-        painter.galley_with_override_text_color(
+        crate::render::math::galley_tinted(
+            painter,
             Pos2::new(centered(&g), y + (1.0 - p) * 14.0 * scale),
             g.clone(),
             fade(Color32::WHITE, opacity * p),
@@ -787,7 +794,8 @@ fn render_title(
     }
     if let Some(g) = sub {
         let p = stagger(age, 2);
-        painter.galley_with_override_text_color(
+        crate::render::math::galley_tinted(
+            painter,
             Pos2::new(centered(&g), y + (1.0 - p) * 14.0 * scale),
             g.clone(),
             fade(Color32::WHITE, opacity * p),
@@ -804,7 +812,8 @@ fn render_title(
             sz.eyebrow * 0.85,
             1.0,
         ));
-        painter.galley_with_override_text_color(
+        crate::render::math::galley_tinted(
+            painter,
             Pos2::new(
                 rect.center().x - hint.rect.width() / 2.0,
                 rect.bottom() - 62.0 * scale,
@@ -855,14 +864,16 @@ fn render_section(
 
     let painter = ui.painter();
     let p0 = stagger(age, 0);
-    painter.galley_with_override_text_color(
+    crate::render::math::galley_tinted(
+        painter,
         Pos2::new(column.left(), top + (1.0 - p0) * 14.0 * scale),
         eyebrow.clone(),
         fade(Color32::WHITE, opacity * p0),
     );
     if let Some(g) = title {
         let p = stagger(age, 1);
-        painter.galley_with_override_text_color(
+        crate::render::math::galley_tinted(
+            painter,
             Pos2::new(
                 column.left(),
                 top + eyebrow.rect.height() + gap + (1.0 - p) * 14.0 * scale,
@@ -957,6 +968,7 @@ fn render_quote(
                         }
                     })
                     .collect(),
+                Inline::Math { tex, .. } => tex.clone(),
             })
             .collect();
         ui.painter()
@@ -986,7 +998,8 @@ fn render_quote(
     let mut place = |g: std::sync::Arc<egui::Galley>, y: &mut f32, extra: f32| {
         let p = stagger(age, nth);
         nth += 1;
-        painter.galley_with_override_text_color(
+        crate::render::math::galley_tinted(
+            painter,
             Pos2::new(x, *y + (1.0 - p) * 14.0 * scale),
             g.clone(),
             fade(Color32::WHITE, opacity * p),
@@ -1056,7 +1069,8 @@ fn render_copy(
     pillow(ui.painter(), copy, opacity * ease_out(age / 0.9));
 
     let p0 = stagger(age, 0);
-    ui.painter().galley_with_override_text_color(
+    crate::render::math::galley_tinted(
+        ui.painter(),
         Pos2::new(column.left(), top + (1.0 - p0) * 14.0 * scale),
         eyebrow.clone(),
         fade(Color32::WHITE, opacity * p0),
@@ -1117,7 +1131,8 @@ pub fn draw_chrome(
     job.append(&format!("{:02}", index + 1), 0.0, fmt(INK_100));
     job.append(&format!(" · {:02}", count), 0.0, fmt(INK_300));
     let galley = painter.layout_job(job);
-    painter.galley(
+    crate::render::math::galley(
+        painter,
         Pos2::new(
             rect.right() - 32.0 * scale - galley.rect.width(),
             rect.bottom() - 26.0 * scale - galley.rect.height(),
@@ -1197,7 +1212,7 @@ pub fn draw_say_line(painter: &egui::Painter, theme: &Theme, rect: Rect, line: &
     );
     let bg = Rect::from_min_size(pos, galley.rect.size()).expand(10.0 * scale);
     painter.rect_filled(bg, 4.0 * scale, fade(Color32::from_rgb(5, 5, 5), 0.7));
-    painter.galley(pos, galley, CANDLE);
+    crate::render::math::galley(painter, pos, galley, CANDLE);
 }
 
 #[cfg(test)]

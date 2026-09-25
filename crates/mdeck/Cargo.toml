@@ -37,6 +37,9 @@ futures.workspace = true
 tokio.workspace = true
 pdf-extract.workspace = true
 zip.workspace = true
+ratex-parser.workspace = true
+ratex-layout.workspace = true
+ratex-types.workspace = true
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/mdeck-v{ version }-{ target }.{ archive-format }"
