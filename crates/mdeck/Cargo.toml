@@ -40,6 +40,8 @@ zip.workspace = true
 ratex-parser.workspace = true
 ratex-layout.workspace = true
 ratex-types.workspace = true
+pdf-writer.workspace = true
+flate2.workspace = true
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/mdeck-v{ version }-{ target }.{ archive-format }"

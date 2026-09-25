@@ -75,9 +75,17 @@ pub enum Commands {
         /// Markdown file to export
         file: PathBuf,
 
-        /// Output directory for PNG files
+        /// Output directory (PNG files, or the PDF)
         #[arg(short, long, default_value = "export")]
         output_dir: PathBuf,
+
+        /// Output format: png (one file per slide) or pdf (one document)
+        #[arg(long, value_enum, default_value_t = crate::commands::export::Format::Png)]
+        format: crate::commands::export::Format,
+
+        /// PDF only: add speaker notes pages (slide on top, notes below)
+        #[arg(long)]
+        notes: bool,
 
         /// Export width in pixels
         #[arg(long, default_value = "1920")]
@@ -382,9 +390,11 @@ impl Cli {
                 debug,
                 slide,
                 range,
-            }) => {
-                crate::commands::export::run(file, output_dir, width, height, debug, slide, range)
-            }
+                format,
+                notes,
+            }) => crate::commands::export::run(
+                file, output_dir, width, height, debug, slide, range, format, notes,
+            ),
             Some(Commands::Spec { short }) => {
                 crate::commands::spec::run(short);
                 Ok(())

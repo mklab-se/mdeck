@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- PDF export ([#10](https://github.com/mklab-se/mdeck/issues/10)): `mdeck export deck.md
+  --format pdf` writes `export/deck.pdf` with one page per slide, each exactly as presented
+  (final reveal step, Ember field frozen), at PowerPoint's widescreen page size with a
+  bookmark per slide and the deck's title and author as PDF metadata. `--notes` writes
+  `deck-notes.pdf` instead: printable notes pages with the slide on top and its `???` speaker
+  notes below, dark on white in every theme, in A4 proportions; long notes continue on the
+  next page. `--slide`, `--range`, `--width`/`--height` and `--debug` (a page per reveal step)
+  work with PDF too. Pages are images, so PDF text is not selectable.
+
+### Changed
+
+- Exports and slide thumbnails no longer show Ember's "Space to begin" hint on the title
+  slide; it only appears while presenting.
+
 ## [1.4.0] - 2026-09-25
 
 ### Added
