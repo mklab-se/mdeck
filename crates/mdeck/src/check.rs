@@ -9,6 +9,8 @@ pub enum CheckCategory {
     Story,
     /// `@illustration` names that do not resolve or layouts that cannot show one.
     Illustration,
+    /// Text the available fonts cannot draw (CJK without a system CJK face).
+    Fonts,
 }
 
 impl fmt::Display for CheckCategory {
@@ -17,6 +19,7 @@ impl fmt::Display for CheckCategory {
             CheckCategory::DiagramRouting => write!(f, "architecture"),
             CheckCategory::Story => write!(f, "story"),
             CheckCategory::Illustration => write!(f, "illustration"),
+            CheckCategory::Fonts => write!(f, "fonts"),
         }
     }
 }

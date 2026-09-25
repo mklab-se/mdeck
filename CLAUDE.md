@@ -67,7 +67,7 @@ crates/
       render/          # Slide rendering engine
         mod.rs       # render_slide entry point, content height measurement
         ember.rs     # Ember layouts (copy column, eyebrow, title/section/quote), chrome, say line
-        fonts.rs     # Bundled Spectral / Hanken Grotesk / JetBrains Mono (fonts/, OFL) plus Noto Sans Symbols and DejaVu Sans as symbol fallbacks for every family
+        fonts.rs     # Bundled Spectral / Hanken Grotesk / JetBrains Mono (fonts/, OFL) plus Noto Sans Symbols and DejaVu Sans as symbol fallbacks for every family; system CJK faces (per-script candidates, MDECK_CJK_FONT) appended on each family's baseline
         hints.rs     # Geometry hints from renderers to the particle field
         particles/   # The particle field: Field/Scene/Group (mod.rs), additive GL sprites and wakes (gl.rs), inferred and hint-driven scenes (scenes.rs)
         story/       # Story scripts: schema, staging and labels (mod.rs), sidecar with staleness; cast kinds are illustration names
@@ -264,6 +264,7 @@ mdeck + pidge + rigg + rusty-tmpl).
   - **`samples/features/`** — feature-specific test files:
     - `notes.md` — speaker notes with `???` separator
     - `symbols.md` — circled numbers, check marks, arrows and shapes in every theme (issue 7)
+    - `cjk.md`: Chinese, Japanese and Korean in headings, bullets, code and tables (issue 11)
   - **Top-level `samples/`** — showcase presentations: `gallery.md`, `introducing-mdeck.md`, `poker-night.md`, `saloon-workshop.md`, `continents.md`, `ember.md` (Ember showcase, with `ember.scenes.yaml`)
   - **`samples/ember/`** — Ember decks: `plain-text.md` (no scenes), `visualizations.md` (content-aware field), `with-images.md`, `illustrations.md` (`@illustration` on every layout that shows one), `stories.md` (hinted slides with a generated `stories.scenes.yaml`)
   When working on a specific visualization type, use its dedicated test file for faster iteration.

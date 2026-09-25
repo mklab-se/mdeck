@@ -327,7 +327,9 @@ that avoid nodes and each other. Node icons can also be AI-generated.
 
 Built-in themes **light**, **dark**, **nord** and **ember**; transitions
 **slide**, **fade**, **spatial**, and **none**. Set them in the frontmatter or cycle them
-live with `Shift+T` and `T`:
+live with `Shift+T` and `T`. Every theme draws symbols (①, ✓, →) from bundled fallback
+faces, and Chinese, Japanese and Korean from a font on your system (`mdeck --check` tells
+you if none was found):
 
 ```yaml
 ---

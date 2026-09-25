@@ -460,6 +460,7 @@ pub fn run(
     if presentation.slides.is_empty() {
         anyhow::bail!("No slides found in {}", file.display());
     }
+    crate::commands::check::warn_missing_cjk_font(&presentation);
 
     std::fs::create_dir_all(&output_dir)?;
 

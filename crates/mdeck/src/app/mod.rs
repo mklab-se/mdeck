@@ -1662,6 +1662,10 @@ pub fn run(
         anyhow::bail!("No slides found in {}", file.display());
     }
 
+    if !quiet {
+        crate::commands::check::warn_missing_cjk_font(&presentation);
+    }
+
     // Warn about ungenerated AI images
     if !quiet {
         let ungenerated = presentation

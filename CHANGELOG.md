@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- Chinese, Japanese and Korean text drew as boxes in every theme
+  ([#11](https://github.com/mklab-se/mdeck/issues/11)). The bundled faces carry no CJK glyphs,
+  and a face that does is too large to ship, so mdeck now borrows one from the system at
+  startup: PingFang, Hiragino or Arial Unicode on macOS, Microsoft YaHei, Yu Gothic or Malgun
+  Gothic on Windows, Noto Sans CJK, WenQuanYi or Droid Sans Fallback on Linux. The borrowed
+  faces close every font family's fallback chain, shifted onto the family's own baseline, so
+  mixed lines such as "English 和 中文" sit level. `MDECK_CJK_FONT=/path/to/font.ttc` names a
+  font file explicitly. When no font covers a script a deck uses, `mdeck --check` warns (new
+  `fonts` category) and presenting or exporting prints the same warning.
+  `samples/features/cjk.md` covers Chinese, Japanese and Korean in headings, bullets, code and
+  tables.
+
 ## [1.3.0] - 2026-09-22
 
 ### Changed
