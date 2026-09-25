@@ -118,6 +118,15 @@ test-suite as the safety net.
 Task lists (`- [ ] item`) as checkboxes, hard line breaks (trailing two spaces
 or `\`), ordered list start numbers (`5.`), nested blockquotes, footnotes.
 
+### 3.4 LaTeX math (`$x^2$`, `$$...$$`): L, needs a decision (#11)
+Requested with the CJK report. `$...$` is passed through as text today. Real
+typesetting means a math layout engine in egui (ReX with an OpenType MATH
+font such as Latin Modern Math, tessellated into meshes), which is a big
+dependency and a new rendering path. A cheap partial step maps simple
+super- and subscripts (`$x^2$`, `$H_2O$`) to their Unicode forms and covers
+exponents and indices only. Decision: whether mdeck wants math at all, and
+if so full typesetting or the Unicode subset first.
+
 ---
 
 ## 4. Visualizations
