@@ -35,9 +35,12 @@ $ARGUMENTS must be one of: `major`, `minor`, `patch`. If empty or invalid, stop 
 ### 3. Verify documentation and spec are up to date
 
 - **`crates/mdeck/doc/mdeck-spec.md`**: Review the format spec against current features. Run `cargo run -p mdeck -- spec` and `cargo run -p mdeck -- spec --short` to verify the output looks correct and covers all implemented features. If new visualizations, layouts, directives, or keyboard shortcuts have been added since the last release, update the spec (and the short reference in `commands/spec.rs`) before proceeding.
-- **`README.md`**: Verify features list, command reference, visualization table, and gallery preview images are current.
-- **`GALLERY.md`**: If rendering has changed, re-export gallery slides (`cargo run -p mdeck -- export samples/gallery.md --output-dir media/gallery`) and verify screenshots reflect current rendering.
-- **`CLAUDE.md`**: Verify architecture, commands, and patterns sections are accurate.
+- **`README.md`**: Verify features list, command reference, visualization table, AI section (image generation, style management, diagram icon generation, with clear examples) and gallery preview images are current. The README is the first thing users see; it must provide an excellent experience.
+- **`GALLERY.md`**: If rendering has changed, re-export gallery slides (`cargo run -p mdeck -- export samples/gallery.md --output-dir media/gallery`) and verify screenshots reflect current rendering. If new visualization types, layouts, or features have been added, add them to `samples/gallery.md` and regenerate.
+- **`BACKLOG.md`**: Deferred ideas and decisions; move items out when implemented.
+- **Dependencies**: Run `cargo audit`; bump major versions when the audit or `cargo info <crate>` shows a newer line.
+- **`samples/`**: Test presentations cover all features; dedicated test files exist for each visualization type.
+- **`CLAUDE.md`** (and `crates/mdeck/src/render/CLAUDE.md`): Verify patterns and conventions are accurate.
 - If any documentation is out of date, update it now before proceeding to the version bump.
 
 ### 4. Bump version numbers
@@ -77,4 +80,4 @@ $ARGUMENTS must be one of: `major`, `minor`, `patch`. If empty or invalid, stop 
 - Tell the user the release is tagged, pushed, and the workflow is green — auditable binaries and
   SBOMs are attached to the GitHub Release, crates.io is published, and the Homebrew tap is updated
 - The publish jobs require the `CARGO_REGISTRY_TOKEN` (in the `crates-io` environment) and
-  `HOMEBREW_TAP_TOKEN` (repo secret) to be configured — see README.md
+  `HOMEBREW_TAP_TOKEN` (repo secret, a GitHub PAT with repo scope for `mklab-se/homebrew-tap`) to be configured (see README.md)
