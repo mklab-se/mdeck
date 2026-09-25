@@ -119,6 +119,16 @@ test-suite as the safety net.
 Task lists (`- [ ] item`) as checkboxes, hard line breaks (trailing two spaces
 or `\`), ordered list start numbers (`5.`), nested blockquotes, footnotes.
 
+### 3.4 Slide directives under the heading (S to M, decided, #12)
+`@layout` and `@illustration` only work as the first thing in a slide, which on
+a heading-split slide means above the heading; written under the heading they
+render as text. Decision (2026-09-25): document directives directly under the
+slide's heading, and let the parser honour a known slide directive on its own
+line anywhere at the top level of the slide (existing placements keep working).
+`--check` warns on unknown names (with "did you mean"), directive-looking lines
+that were not applied, global directives inside a slide, and duplicates. The
+HTML comment form (`<!-- @illustration: x -->`) is left out for now.
+
 ---
 
 ## 4. Visualizations
