@@ -124,8 +124,12 @@ typesetting means a math layout engine in egui (ReX with an OpenType MATH
 font such as Latin Modern Math, tessellated into meshes), which is a big
 dependency and a new rendering path. A cheap partial step maps simple
 super- and subscripts (`$x^2$`, `$H_2O$`) to their Unicode forms and covers
-exponents and indices only. Decision: whether mdeck wants math at all, and
-if so full typesetting or the Unicode subset first.
+exponents and indices only. Next step (agreed 2026-09-25): a spike with
+RaTeX (pure Rust, KaTeX-level coverage, 0.1.x) to see whether it can hand
+back glyph positions for epaint at presentation sizes and in export, and
+what it costs in dependencies and build time. ReX is unmaintained since
+2020 and the `rex` crate is unrelated. Decide after the spike whether to
+implement LaTeX at all, then full typesetting or the Unicode subset.
 
 ---
 
