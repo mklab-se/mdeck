@@ -172,13 +172,13 @@ Every `draw_*` re-parses the block text, rebuilds vectors, and lays out labels
 every frame. Parsing into typed data in the parser removes all of it and
 enables `--check` validation of chart data.
 
-### 4.12 Architecture diagram: edge-aware auto layout — M
+### 4.12 Architecture diagram: edge-aware auto layout (M)
 Auto layout ignores edges: up to five nodes go in one row in declaration order,
 more in a square grid, so a producer -> service -> consumer chain only comes out
 right with explicit `pos:`. Rank nodes by longest path from a source, one
 column per rank, rows ordered to keep edges short (a light Sugiyama).
 
-### 4.13 Radial ecosystem and producer/consumer flow visualizations — M each (#3, #4)
+### 4.13 Radial ecosystem and producer/consumer flow visualizations (M each, #3, #4)
 Two new, purpose-built visualizations, each designed from scratch for what it
 shows, not layouts bolted onto the architecture diagram (see the "Purpose-built
 over reused" principle in CLAUDE.md). #3: a platform at the centre with its
