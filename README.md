@@ -385,10 +385,20 @@ mdeck export talk.md --output-dir slides/         # choose the folder
 mdeck export talk.md --debug                      # one PNG per reveal step
 mdeck export talk.md --slide 7                    # just slide 7 (file names keep the deck numbering)
 mdeck export talk.md --range 3-5 --debug          # slides 3 to 5, every step
+mdeck export talk.md --format pdf                 # export/talk.pdf, one page per slide
+mdeck export talk.md --format pdf --notes         # export/talk-notes.pdf, slide + speaker notes
 ```
 
 Output is always exactly the requested size, independent of your screen's
 size or DPI: slides larger than the display are rendered in tiles and stitched.
+
+A PDF is the answer to "can I have the slides?": every page is the slide
+exactly as presented (final reveal step, Ember field frozen), 13.33 x 7.5 in
+like a widescreen PowerPoint deck, with a bookmark per slide. `--notes` makes
+printable notes pages instead: the slide on top and its `???` speaker notes
+below, dark on white whatever the theme, in A4 proportions; long notes
+continue on the next page. Pages are images, so text in the PDF is not
+selectable.
 
 ---
 

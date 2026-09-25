@@ -60,7 +60,7 @@ crates/
         illustration.rs # mdeck illustration generate|import|list|show: AI image -> point cloud, previews
         completion.rs # Shell completion generation
         config.rs    # Config show/set
-        export.rs    # Pixel-exact PNG export (1 pt/px, tiled screenshots stitched to the requested size)
+        export/      # `mdeck export`: CLI entry, slide selection, file names (mod.rs); tiled 1 pt/px render loop and outputs (app.rs); tile stitching (canvas.rs); PDF assembly with pdf-writer, a page image + bookmark per slide (pdf.rs); printable notes pages, pagination and slide compositing (notes.rs)
         skill.rs     # AI agent skill setup, emit, and reference output
         spec.rs      # Format specification printer
         check/       # `--check`: deck walk and report (mod.rs); CJK font and math parse warnings (content.rs)
@@ -138,6 +138,7 @@ mdeck export <file.md>       # Export slides as PNG images (1920x1080 default)
 mdeck export <file.md> --slide 7          # Export one slide (add --debug for its reveal steps)
 mdeck export <file.md> --range 3-5        # Export a range of slides
 mdeck export <file.md> --width 3840 --height 2160  # Export at custom resolution
+mdeck export <file.md> --format pdf [--notes]   # One PDF (page per slide); --notes: slide + speaker notes pages
 mdeck completion <shell>     # Generate shell completions (bash, zsh, fish, powershell)
 mdeck spec                   # Print format specification
 mdeck spec --short           # Print quick reference card
@@ -155,6 +156,7 @@ mdeck --help                 # Show help
 - **Error handling:** `anyhow` for ergonomic error propagation
 - **Rendering:** Scale factor `min(w/1920, h/1080)` applied to all pixel sizes for resolution independence
 - **Syntax highlighting:** `syntect` with `LazyLock`-cached `SyntaxSet` / `ThemeSet`; theme maps to syntect theme via `Theme::syntect_theme_name()`; highlighted `LayoutJob`s are cached per (code, language, size, theme)
+- **PDF export:** `--format pdf` feeds the same rendered canvases to `export::pdf::PdfDoc` (Flate-compressed RGB image per page, 0.5 pt per px, outline entry per slide). `--notes` adds a second pass per slide that draws a portrait notes page in the light theme (`export::notes`), then composites the slide image into it; notes paginate by block, never shrink.
 - **PNG export:** eframe (glow renderer) window with `pixels_per_point` forced to 1; the slide is rendered in window-sized tiles via `ViewportCommand::Screenshot` / `Event::Screenshot` and stitched, so output is exactly `--width`×`--height` on any display. The glow renderer is required: wgpu's screenshot readback is asynchronous and never completes in this loop
 - **Transitions:** fade, horizontal slide, spatial (directional pan), with smooth easing; animated overview zoom in/out
 - **Scroll/overflow:** Per-slide smooth animated scroll with fade gradients; Up/Down keys; `scroll_targets` + lerp for animation. Code blocks first shrink to fit (`layouts::stacked::fit_code`, height and line width, floor `CODE_FIT_FLOOR`); measurement and drawing share the fitted theme so scroll detection agrees.

@@ -26,6 +26,8 @@ mdeck export <file.md> --width 3840 --height 2160  # Export at custom resolution
 mdeck export <file.md> --output-dir ./slides    # Export to specific directory
 mdeck export <file.md> --slide 7 --debug        # One slide, every reveal step (fast way to check a slide)
 mdeck export <file.md> --range 3-5              # A range of slides
+mdeck export <file.md> --format pdf             # One PDF, a page per slide (export/<file>.pdf)
+mdeck export <file.md> --format pdf --notes     # PDF of notes pages: slide on top, speaker notes below
 ```
 
 ### Configuration

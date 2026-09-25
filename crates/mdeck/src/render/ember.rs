@@ -802,8 +802,9 @@ fn render_title(
         );
     }
 
-    // "Space to begin" hint, as on the site, on the very first slide only.
-    if cx.index == 0 {
+    // "Space to begin" hint, as on the site, on the very first slide only,
+    // and only live: exports and thumbnails are stills, not waiting for a key.
+    if cx.index == 0 && cx.animate {
         let p = stagger(age, 6);
         let hint = painter.layout_job(eyebrow_job(
             theme,

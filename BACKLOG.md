@@ -69,15 +69,16 @@ with `--slide N`.
 
 ## 2. Export and sharing
 
-### 2.1 PDF and PPTX export — M, recommended (#10)
-Reuse the PNG export pipeline (now pixel-exact and tiled; it already renders the
-last reveal step of each slide) and add `--format pdf|pptx`. PDF: one page per
-slide with `pdf-writer`, plus a `--notes` variant (slide above, speaker notes
-below). PPTX: a zip of OOXML templates with one full-bleed picture per slide
-(`zip` is already a dependency) and the `???` notes in PowerPoint's notes pane.
-Not an editable PPTX: shapes and text boxes would be a second renderer to keep
-in sync and would still not look like mdeck. Do PDF first; PPTX shares the
-page renderer.
+### 2.1 PowerPoint export: decided against (#10)
+PDF export shipped (`--format pdf`, `--notes`). PPTX is not planned: mdeck
+exists because good-looking PowerPoint decks are hard to generate, and an
+export would either be an image-per-slide file that only pretends to be a
+deck or a second renderer that cannot look like mdeck. The PDF is the handout.
+
+### 2.1b Selectable text in PDF export (M)
+PDF pages are images, so text cannot be searched or copied. An invisible text
+layer (render mode 3) with each block's text at its position would fix that;
+it needs positions from the renderers and a font with a Unicode mapping.
 
 ### 2.2 HTML export / `mdeck serve` — L
 A static HTML export (images + navigation) or a local web server so decks can

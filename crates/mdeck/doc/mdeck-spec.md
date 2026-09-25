@@ -175,6 +175,8 @@ Ask the audience: "How many of you have migrated from a monolith?"
 
 Notes content supports full markdown formatting (bold, italic, code, links) and is stored as raw text on the slide. Notes are stripped before layout classification, so they do not affect the inferred layout.
 
+**Printing notes:** `mdeck export deck.md --format pdf --notes` writes `deck-notes.pdf` with one notes page per slide: the slide on top and its notes below, dark text on white in any theme, in A4 proportions. Notes that do not fit continue on the next page. Headings, paragraphs, lists, code, quotes, tables and math in notes are printed; charts, diagrams and images in notes are left out. Without `--notes`, `--format pdf` writes `deck.pdf` with one page per slide.
+
 **Graceful degradation:** In a standard markdown viewer, `???` renders as visible text, acting as a natural separator between slide content and notes. This keeps notes readable in raw form — important for AI-generated presentations where notes explain slide intent and delivery guidance.
 
 ---
