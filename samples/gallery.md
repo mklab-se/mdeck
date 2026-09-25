@@ -379,3 +379,14 @@ def present(slides):
 ```
 
 Split content with the `+++` separator.
+
+---
+
+## Math
+
+The roots of $ax^2 + bx + c = 0$ are
+
+$$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
+
+- Euler: $e^{i\pi} + 1 = 0$
+- Gaussian integral: $\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}$

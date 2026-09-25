@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- LaTeX math ([#11](https://github.com/mklab-se/mdeck/issues/11)): `$...$` inline and
+  `$$...$$` display formulas in paragraphs, lists, headings, quotes and table cells. Layout is
+  done by [RaTeX](https://github.com/erweixin/RaTeX) (KaTeX syntax: fractions, roots, sums,
+  integrals, matrices, cases, accents, braces, `\mathbb`, `\text`, ...) and drawn by mdeck with
+  the bundled KaTeX fonts, so formulas are sharp at any resolution and in PNG export, in the
+  slide's text colour in every theme. Inline formulas sit on the text baseline; display
+  formulas are centred on their own line, and a formula wider than its column shrinks to fit.
+  Dollar amounts stay text (`$5 and $10`, `($K) and ($M)`), and `\$` is a literal dollar.
+  A formula that does not parse shows as its source and `mdeck --check` reports it under a new
+  `math` category. Sample: `samples/features/math.md`.
+
+### Changed
+
+- The binary is about 4 MB larger (RaTeX and the KaTeX fonts).
+
+### Fixed
+
+- A list item whose first line is taller than usual (an inline fraction or sum) now keeps its
+  bullet on the text baseline instead of at the top of the line.
+
 ## [1.3.1] - 2026-09-25
 
 ### Fixed

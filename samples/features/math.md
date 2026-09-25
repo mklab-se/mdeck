@@ -40,3 +40,12 @@ $$\overbrace{a + b + c}^{\text{three}} \quad \vec{v} \quad \widehat{xyz} \quad \
 | Newton | $F = ma$ |
 | Ohm | $V = IR$ |
 | Pythagoras | $a^2 + b^2 = c^2$ |
+
+---
+
+## Long formulas shrink to fit
+
+$$\left( \sum_{k=1}^{n} a_k b_k \right)^2 \leq \left( \sum_{k=1}^{n} a_k^2 \right) \left( \sum_{k=1}^{n} b_k^2 \right) \quad \text{for all real } a_k, b_k \text{ and every } n \geq 1$$
+
+- $x^2$ starts this item, and the bullet sits on its baseline
+- $\frac{a}{b}$ is a tall first item

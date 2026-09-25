@@ -342,7 +342,9 @@ by a space (`#hashtag`, `#include`) is ordinary text, as in CommonMark.
 | `` `inline code` ``             | `inline code`     |
 | ``` ``code with ` inside`` ```  | code span with a backtick |
 | `[text](url)`                   | hyperlink         |
-| `\*literal\*`                   | backslash escapes |
+| `$E = mc^2$`                    | inline math (see 5.9) |
+| `$$\frac{a}{b}$$`               | display math (see 5.9) |
+| `\*literal\*`, `\$5`            | backslash escapes |
 
 Emphasis follows CommonMark flanking rules: `snake_case_name` and `5 * 3 * 2`
 stay literal. Links are rendered visually but are not clickable during
@@ -482,6 +484,38 @@ Phase 1: Research
 
 Phase 2: Implementation
 ```
+
+### 5.9 Math (LaTeX)
+
+Formulas use LaTeX syntax between dollar signs, anywhere text goes: paragraphs,
+list items, headings, blockquotes and table cells.
+
+```markdown
+The roots of $ax^2 + bx + c = 0$ are
+
+$$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
+
+- Einstein: $E = mc^2$
+```
+
+- `$...$` is inline math, typeset in text style on the line's baseline.
+- `$$...$$` is display math: centred on a line of its own, in display style
+  (larger fractions, limits above and below sums). It may span several lines of
+  the paragraph, but not a blank line.
+- The supported LaTeX is KaTeX's: fractions, roots, sub- and superscripts, sums,
+  integrals and limits, Greek letters, `\mathbb`, `\mathcal` and other fonts,
+  matrices (`pmatrix`, `bmatrix`, ...), `cases`, `aligned`, accents (`\vec`,
+  `\hat`, `\overrightarrow`), braces (`\overbrace`), `\left`/`\right`
+  delimiters and `\text{...}`.
+- Formulas are drawn with the bundled KaTeX fonts in the slide's text colour,
+  sharp at any resolution. A formula wider than its column shrinks to fit.
+- Dollar amounts stay text: `$` followed by a space never opens a formula, and
+  `$` followed by a letter or digit never closes one, so `$5 and $10` and
+  `Revenue ($K) and cost ($M)` render as written. Write `\$` for a literal
+  dollar sign anywhere else.
+- A formula that does not parse is shown as its source, and `mdeck --check`
+  reports it (`math` category) with the parser's reason.
+- Math is not rendered inside code, charts or diagrams.
 
 ---
 

@@ -276,6 +276,19 @@ together with the previous `+` item. The same markers work inside every
 visualization, so a bar chart can grow bar by bar and a diagram can build up
 connection by connection.
 
+### Math
+
+Formulas are LaTeX between dollar signs, typeset with KaTeX's fonts and sharp
+at any resolution: `$E = mc^2$` inline, `$$...$$` centred on its own line.
+
+```markdown
+The roots of $ax^2 + bx + c = 0$ are
+
+$$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
+```
+
+Dollar amounts such as `$5 and $10` stay text.
+
 ### Visualizations
 
 Fenced code blocks with an `@` tag become charts:

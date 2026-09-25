@@ -109,6 +109,12 @@ Split content into two columns using the `+++` separator.
 
 <img src="media/gallery/slide-29.png" width="720">
 
+### Math
+
+LaTeX between dollar signs: `$...$` inline on the text baseline, `$$...$$` centred on its own line.
+
+<img src="media/gallery/slide-30.png" width="720">
+
 ---
 
 ## Diagrams

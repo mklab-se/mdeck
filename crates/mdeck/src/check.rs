@@ -11,6 +11,8 @@ pub enum CheckCategory {
     Illustration,
     /// Text the available fonts cannot draw (CJK without a system CJK face).
     Fonts,
+    /// `$...$` / `$$...$$` formulas that do not parse.
+    Math,
 }
 
 impl fmt::Display for CheckCategory {
@@ -20,6 +22,7 @@ impl fmt::Display for CheckCategory {
             CheckCategory::Story => write!(f, "story"),
             CheckCategory::Illustration => write!(f, "illustration"),
             CheckCategory::Fonts => write!(f, "fonts"),
+            CheckCategory::Math => write!(f, "math"),
         }
     }
 }

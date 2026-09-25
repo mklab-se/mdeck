@@ -385,25 +385,25 @@ fn draw_list_inner(
             }
         };
 
-        let marker_pos = Pos2::new(pos.x + indent, pos.y + y_offset);
         let marker_galley = ui.painter().layout_no_wrap(
             marker_text,
             FontId::new(font_size, theme.body_family()),
             color,
         );
+        let job = inlines_to_job(&item.inlines, font_size, color, text_width, theme);
+        let text_galley = ui.painter().layout_job(job);
+        // Sit the marker on the first line's baseline, which a tall inline
+        // formula pushes down.
+        let marker_dy = crate::render::math::first_baseline(&text_galley)
+            .zip(crate::render::math::first_baseline(&marker_galley))
+            .map_or(0.0, |(t, m)| (t - m).max(0.0));
+        let marker_pos = Pos2::new(pos.x + indent, pos.y + y_offset + marker_dy);
         crate::render::math::galley(ui.painter(), marker_pos, marker_galley, color);
 
         // Draw item text
         let text_pos = Pos2::new(pos.x + indent + marker_width, pos.y + y_offset);
-        let text_height = draw_inlines(
-            ui,
-            &item.inlines,
-            text_pos,
-            font_size,
-            color,
-            text_width,
-            theme,
-        );
+        let text_height = text_galley.rect.height();
+        crate::render::math::galley(ui.painter(), text_pos, text_galley, color);
 
         y_offset += text_height + item_spacing;
 

@@ -1,6 +1,7 @@
 pub mod blocks;
 pub mod frontmatter;
 pub mod inline;
+mod math;
 pub mod splitter;
 
 use std::path::Path;

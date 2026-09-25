@@ -4,6 +4,9 @@ use crate::check::{CheckCategory, CheckReport, CheckWarning};
 use crate::parser;
 use crate::render;
 
+mod content;
+pub use content::{cjk_font_warning, math_warnings, warn_missing_cjk_font};
+
 pub fn run(file: PathBuf, verbose: u8, quiet: bool) -> anyhow::Result<()> {
     let content = std::fs::read_to_string(&file)?;
     let base_path = file.parent().unwrap_or(std::path::Path::new("."));
@@ -99,6 +102,9 @@ pub fn run(file: PathBuf, verbose: u8, quiet: bool) -> anyhow::Result<()> {
     if let Some(w) = cjk_font_warning(&presentation, render::fonts::cjk_coverage()) {
         report.add(w);
     }
+    for w in math_warnings(&presentation) {
+        report.add(w);
+    }
 
     if report.has_warnings() {
         if !quiet {
@@ -181,63 +187,6 @@ pub fn illustration_warnings(
         });
     }
     out
-}
-
-/// Chinese, Japanese or Korean text needs system CJK faces mdeck does not
-/// bundle (GitHub issue 11). One warning, on the first slide whose text is
-/// not covered by `covered` (the scripts the faces on this machine draw).
-pub fn cjk_font_warning(
-    presentation: &parser::Presentation,
-    covered: render::fonts::Scripts,
-) -> Option<CheckWarning> {
-    use render::fonts::Scripts;
-    let missing = |text: &str| Scripts::of(text).minus(covered);
-    let title = presentation
-        .meta
-        .title
-        .as_deref()
-        .map(missing)
-        .unwrap_or_default();
-    let slides: Vec<(usize, Scripts)> = presentation
-        .slides
-        .iter()
-        .enumerate()
-        .map(|(i, s)| (i + 1, missing(&s.raw_source)))
-        .filter(|(_, m)| !m.is_empty())
-        .collect();
-    let what = match (title.is_empty(), slides.len()) {
-        (true, 0) => return None,
-        (false, 0) => "the deck title uses".to_string(),
-        (_, 1) => "1 slide uses".to_string(),
-        (_, n) => format!("{n} slides use"),
-    };
-    let scripts = slides
-        .iter()
-        .fold(title, |acc, (_, m)| acc.union(*m))
-        .names()
-        .join(" and ");
-    let hint = if cfg!(all(unix, not(target_os = "macos"))) {
-        "install one (e.g. the `fonts-noto-cjk` package) "
-    } else {
-        "install one "
-    };
-    Some(CheckWarning {
-        slide: if title.is_empty() { slides[0].0 } else { 1 },
-        category: CheckCategory::Fonts,
-        message: format!(
-            "{what} {scripts} text but no system font covers it, so it will draw as boxes; \
-             {hint}or set {}=/path/to/font.ttc",
-            render::fonts::CJK_FONT_ENV
-        ),
-    })
-}
-
-/// Print the CJK font warning for a deck about to be presented or exported.
-pub fn warn_missing_cjk_font(presentation: &parser::Presentation) {
-    if let Some(w) = cjk_font_warning(presentation, render::fonts::cjk_coverage()) {
-        use colored::Colorize;
-        eprintln!("{} {}", "Warning:".yellow().bold(), w.message);
-    }
 }
 
 /// One-line description of a slide for `--check -v`.
@@ -404,59 +353,5 @@ mod tests {
         assert!(line.contains("0 steps"), "{line}");
         assert!(!line.contains('"'), "{line}");
         assert!(!line.contains("[notes]"), "{line}");
-    }
-
-    #[test]
-    fn cjk_warning_names_the_first_slide_and_counts_the_rest_when_no_font() {
-        let md = "---\ntitle: Plain\n---\n\n# Hello\n\n- one\n\n---\n\n# 中文标题\n\n- 第一点\n\n---\n\n# Also\n\n- 日本語\n";
-        let pres = parser::parse(md, std::path::Path::new("."));
-        let w = cjk_font_warning(&pres, render::fonts::Scripts::NONE)
-            .expect("CJK text without a font warns");
-        assert_eq!(w.slide, 2);
-        assert_eq!(w.category, CheckCategory::Fonts);
-        assert!(
-            w.message.contains("2 slides use Chinese text"),
-            "{}",
-            w.message
-        );
-        assert!(w.message.contains("MDECK_CJK_FONT"), "{}", w.message);
-
-        // a Chinese-only font leaves the kana slide uncovered, and the
-        // warning moves to it and names only what is missing
-        let md = "# 中文\n\n---\n\n# ひらがな と 漢字\n";
-        let pres = parser::parse(md, std::path::Path::new("."));
-        let han_only = render::fonts::Scripts {
-            han: true,
-            ..render::fonts::Scripts::NONE
-        };
-        let w = cjk_font_warning(&pres, han_only).unwrap();
-        assert_eq!(w.slide, 2);
-        assert!(
-            w.message.contains("1 slide uses Japanese kana text"),
-            "{}",
-            w.message
-        );
-    }
-
-    #[test]
-    fn cjk_warning_covers_the_frontmatter_title() {
-        let md = "---\ntitle: 中文测试\n---\n\n# Hello\n\n- one\n";
-        let pres = parser::parse(md, std::path::Path::new("."));
-        let w = cjk_font_warning(&pres, render::fonts::Scripts::NONE)
-            .expect("a CJK title without a font warns");
-        assert_eq!(w.slide, 1);
-        assert!(
-            w.message.starts_with("the deck title uses Chinese"),
-            "{}",
-            w.message
-        );
-    }
-
-    #[test]
-    fn cjk_warning_is_silent_with_a_font_or_without_cjk_text() {
-        let cjk = parser::parse("# 中文", std::path::Path::new("."));
-        assert!(cjk_font_warning(&cjk, render::fonts::Scripts::ALL).is_none());
-        let plain = parser::parse("# Hello\n\n- Räksmörgås ①", std::path::Path::new("."));
-        assert!(cjk_font_warning(&plain, render::fonts::Scripts::NONE).is_none());
     }
 }

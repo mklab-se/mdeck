@@ -73,6 +73,8 @@ LAYOUT VARIETY — this is critical for visual impact:
 - Use `visualization` whenever data can be charted, compared, or structured visually.
 - Reserve plain `bullet` layout for when bullets truly are the best format.
 - Tables (within any layout) are excellent for feature comparisons and side-by-side data.
+- Math: formulas are typeset from LaTeX, `$...$` inline and `$$...$$` on their own line. \
+  Use them whenever the source contains equations or quantitative relationships.
 
 VISUAL RHYTHM — alternate between dense and sparse slides:
 - After a data-heavy or text-heavy slide, follow with a sparser visual slide.
@@ -194,6 +196,8 @@ pub fn generation_system_prompt(style: &Option<String>) -> String {
         - Use visualization code blocks where the outline specifies them.\n\
         - Keep slide text concise — the presentation supports the presenter.\n\
         - Use **bold** and *italic* for emphasis.\n\
+        - Write formulas in LaTeX: `$E = mc^2$` inline, `$$\\frac{{a}}{{b}}$$` on its own line \
+          (KaTeX syntax). Write a literal dollar sign before a letter as `\\$`.\n\
         - NEVER use Unicode arrow characters (→, ←, ⇒, ⇐), checkmarks (✓, ✗), or other \
           special Unicode symbols — they render as □ in mdeck. Use plain text alternatives \
           instead: --, ->, <-, =>, \"leads to\", \"results in\", etc.\n\

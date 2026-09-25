@@ -166,5 +166,6 @@ In architecture diagrams, use `icon: generate-image` with a `prompt` to mark a n
 - Architecture diagrams with `+`/`*` markers create animated build-up sequences
 - Use `@gitgraph` for git branching diagrams — declare lanes, add commits, fork with `branch source -> target`, merge with `merge source -> target`, and tag with `tag branch: "label"`; supports progressive reveal
 - Use `@layout: two-column` with `+++` separator for side-by-side comparisons
+- Write formulas in LaTeX (KaTeX syntax): `$E = mc^2$` inline, `$$\frac{-b \pm \sqrt{b^2-4ac}}{2a}$$` on a line of its own; run `mdeck <file> --check` to catch formulas that do not parse
 - Add speaker notes after `???` on every slide — explain the slide's intent and delivery guidance
 - Use `mdeck ai create` to generate presentations from any content, then refine with an AI agent

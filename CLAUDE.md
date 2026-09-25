@@ -63,7 +63,8 @@ crates/
         export.rs    # Pixel-exact PNG export (1 pt/px, tiled screenshots stitched to the requested size)
         skill.rs     # AI agent skill setup, emit, and reference output
         spec.rs      # Format specification printer
-      parser/          # Markdown-to-slide parser (frontmatter, blocks, inlines, splitter)
+        check/       # `--check`: deck walk and report (mod.rs); CJK font and math parse warnings (content.rs)
+      parser/          # Markdown-to-slide parser (frontmatter, blocks, inlines, `$` math, splitter)
       render/          # Slide rendering engine
         mod.rs       # render_slide entry point, content height measurement
         ember.rs     # Ember layouts (copy column, eyebrow, title/section/quote), chrome, say line
@@ -72,6 +73,7 @@ crates/
         particles/   # The particle field: Field/Scene/Group (mod.rs), additive GL sprites and wakes (gl.rs), inferred and hint-driven scenes (scenes.rs)
         story/       # Story scripts: schema, staging and labels (mod.rs), sidecar with staleness; cast kinds are illustration names
         illustration/ # Point cloud illustrations: .mdpc format, deck/user/built-in lookup and Library cache (mod.rs), image -> importance-ordered points (convert.rs)
+        math/        # LaTeX math: RaTeX layout cache, inline placeholders in LayoutJobs, galley painting helpers (mod.rs); display list to epaint glyphs/rules/ear-clipped paths (paint.rs)
         text.rs      # Block-level drawing (headings, lists, code, tables, diagrams, images)
         syntax.rs    # Syntax highlighting via syntect (LazyLock-cached SyntaxSet/ThemeSet)
         transition.rs # Slide transitions (fade, slide, spatial) with easing
@@ -158,6 +160,7 @@ mdeck --help                 # Show help
 - **Scroll/overflow:** Per-slide smooth animated scroll with fade gradients; Up/Down keys; `scroll_targets` + lerp for animation. Code blocks first shrink to fit (`layouts::stacked::fit_code`, height and line width, floor `CODE_FIT_FLOOR`); measurement and drawing share the fitted theme so scroll detection agrees.
 - **Keyboard:** one shared table in `app/keys.rs` (`SHORTCUTS`, `map_key`) drives key handling, the HUD and `mdeck spec --short`; add new bindings there. Space/N/Right/PageDown/Enter forward, P/Left/PageUp/Backspace back, Up/Down scroll, Home/End, G grid, T transition, Shift+T theme, F fullscreen, M next monitor, H HUD, `.`/B blackout, R debug overlay, Esc×2 / Q×2 / Ctrl+C×2 quit
 - **End slide:** Virtual "The End" slide with MDeck logo shown when navigating past the last slide
+- **Math:** `$...$` / `$$...$$` parse to `Inline::Math`. `render::math::append` lays the formula out with RaTeX (KaTeX fonts in `fonts/katex/`, one egui family each) and reserves its width in the text job with an invisible placeholder (word joiner + invisible id digits + an end char carrying the width as letter spacing); `render::math::galley`/`galley_tinted` paint a galley and then its formulas on the row's text baseline. Paint any galley that may hold markdown inlines through these helpers, never `painter.galley` directly.
 - **Visualization helpers:** shared axis/value helpers live in `render/visualizations/mod.rs` (`nice_grid_step`, `nice_axis_max`, `format_value`, `sector_mesh`, `parse_value`); reuse them instead of re-implementing per chart
 - **Diagrams:** Grid layout (when `pos:` specified) or auto-layout; geometric fallback icons; AI-generated icon images from `media/diagram-icons/`; 5 arrow types (`->`, `<-`, `<->`, `--`, `-->`)
 - **AI integration:** `ailloy` crate for unified AI access (chat + image generation); config via `~/.config/ailloy/config.yaml`; async via `tokio`
@@ -264,6 +267,7 @@ mdeck + pidge + rigg + rusty-tmpl).
   - **`samples/features/`** — feature-specific test files:
     - `notes.md` — speaker notes with `???` separator
     - `symbols.md` — circled numbers, check marks, arrows and shapes in every theme (issue 7)
+    - `math.md`: LaTeX math inline, display, in bullets and tables, shrink-to-fit, dollar amounts (issue 11)
     - `cjk.md`: Chinese, Japanese and Korean in headings, bullets, code and tables (issue 11)
   - **Top-level `samples/`** — showcase presentations: `gallery.md`, `introducing-mdeck.md`, `poker-night.md`, `saloon-workshop.md`, `continents.md`, `ember.md` (Ember showcase, with `ember.scenes.yaml`)
   - **`samples/ember/`** — Ember decks: `plain-text.md` (no scenes), `visualizations.md` (content-aware field), `with-images.md`, `illustrations.md` (`@illustration` on every layout that shows one), `stories.md` (hinted slides with a generated `stories.scenes.yaml`)

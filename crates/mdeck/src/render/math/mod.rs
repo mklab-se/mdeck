@@ -14,11 +14,13 @@
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex};
 
-use eframe::egui::{self, Color32, FontFamily, FontId, Pos2, Stroke, pos2, vec2};
+use eframe::egui::{self, Color32, Pos2, Stroke, vec2};
 use ratex_layout::{LayoutOptions, layout, to_display_list};
-use ratex_types::display_item::{DisplayItem, DisplayList};
+use ratex_types::display_item::DisplayList;
 use ratex_types::math_style::MathStyle;
-use ratex_types::path_command::PathCommand;
+
+mod paint;
+pub use paint::paint_list;
 
 /// Formula size relative to the surrounding text (KaTeX uses 1.21).
 pub const EM_SCALE: f32 = 1.15;
@@ -41,7 +43,8 @@ pub type Laid = Result<Arc<DisplayList>, String>;
 #[derive(Default)]
 struct Registry {
     ids: HashMap<(String, bool), usize>,
-    formulas: Vec<Laid>,
+    /// Each formula and whether it is display math.
+    formulas: Vec<(Laid, bool)>,
 }
 
 static REGISTRY: LazyLock<Mutex<Registry>> = LazyLock::new(Default::default);
@@ -50,7 +53,7 @@ static REGISTRY: LazyLock<Mutex<Registry>> = LazyLock::new(Default::default);
 pub fn lay_out(tex: &str, display: bool) -> (usize, Laid) {
     let mut reg = REGISTRY.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(&id) = reg.ids.get(&(tex.to_string(), display)) {
-        return (id, reg.formulas[id].clone());
+        return (id, reg.formulas[id].0.clone());
     }
     let laid = ratex_parser::parse(tex)
         .map_err(|e| e.to_string())
@@ -66,14 +69,19 @@ pub fn lay_out(tex: &str, display: bool) -> (usize, Laid) {
             Arc::new(to_display_list(&layout(&nodes, &opts)))
         });
     let id = reg.formulas.len();
-    reg.formulas.push(laid.clone());
+    reg.formulas.push((laid.clone(), display));
     reg.ids.insert((tex.to_string(), display), id);
     (id, laid)
 }
 
+fn is_display(id: usize) -> bool {
+    let reg = REGISTRY.lock().unwrap_or_else(|e| e.into_inner());
+    reg.formulas.get(id).is_some_and(|f| f.1)
+}
+
 fn formula(id: usize) -> Option<Laid> {
     let reg = REGISTRY.lock().unwrap_or_else(|e| e.into_inner());
-    reg.formulas.get(id).cloned()
+    reg.formulas.get(id).map(|f| f.0.clone())
 }
 
 fn placeholder(id: usize) -> String {
@@ -111,7 +119,14 @@ pub fn append(
         return;
     };
     let size = format.font_id.size;
-    let em = size * EM_SCALE;
+    // A formula wider than the text column shrinks to fit rather than wrap.
+    let column = job.wrap.max_width;
+    let natural = dl.width as f32 * size * EM_SCALE;
+    let em = if column.is_finite() && natural > column && dl.width > 0.0 {
+        column / dl.width as f32
+    } else {
+        size * EM_SCALE
+    };
     let (h, d) = (dl.height as f32 * em, dl.depth as f32 * em);
     let text = placeholder(id);
     let mut f = format.clone();
@@ -188,11 +203,7 @@ pub fn paint_galley(
     });
     for placed in &galley.rows {
         let glyphs = &placed.row.glyphs;
-        // the row's text baseline, from a glyph that is not part of a placeholder
-        let text_baseline = glyphs
-            .iter()
-            .find(|g| g.chr != MARK && g.chr != END && digit_value(g.chr).is_none())
-            .map(|g| g.pos.y);
+        let text_baseline = text_baseline(&placed.row);
         for (i, g) in glyphs.iter().enumerate().filter(|(_, g)| g.chr == MARK) {
             let Some((id, format, width)) = sections.next() else {
                 return;
@@ -210,10 +221,32 @@ pub fn paint_galley(
                 .filter(|e| e.chr == END)
                 .map_or(g.pos.x + width, |e| e.pos.x);
             let baseline = text_baseline.unwrap_or(g.pos.y);
-            let origin = pos + placed.pos.to_vec2() + vec2(right - width, baseline);
+            let mut left = right - width;
+            // Display formulas are centred in a left-aligned column.
+            if is_display(id) && job.halign == egui::Align::LEFT && job.wrap.max_width.is_finite() {
+                left = ((job.wrap.max_width - width) / 2.0).max(0.0) - placed.pos.x;
+            }
+            let origin = pos + placed.pos.to_vec2() + vec2(left, baseline);
             paint_list(painter, origin, em, tint.unwrap_or(format.color), &dl);
         }
     }
+}
+
+/// The baseline of a row's text, from a glyph that is not part of a formula
+/// placeholder; `None` when the row holds only formulas.
+fn text_baseline(row: &egui::epaint::text::Row) -> Option<f32> {
+    row.glyphs
+        .iter()
+        .find(|g| g.chr != MARK && g.chr != END && digit_value(g.chr).is_none())
+        .map(|g| g.pos.y)
+}
+
+/// Distance from a galley's top to the baseline its first line's text (or
+/// formula) sits on.
+pub fn first_baseline(galley: &egui::Galley) -> Option<f32> {
+    let row = galley.rows.first()?;
+    let y = text_baseline(&row.row).or_else(|| row.row.glyphs.first().map(|g| g.pos.y))?;
+    Some(row.pos.y + y)
 }
 
 /// `painter.galley` plus the formulas inside it.
@@ -226,224 +259,6 @@ pub fn galley(painter: &egui::Painter, pos: Pos2, galley: Arc<egui::Galley>, fal
 pub fn galley_tinted(painter: &egui::Painter, pos: Pos2, galley: Arc<egui::Galley>, tint: Color32) {
     painter.galley_with_override_text_color(pos, galley.clone(), tint);
     paint_galley(painter, pos, &galley, Some(tint));
-}
-
-/// Paint `dl` with its baseline-left corner at `baseline`, `em` pixels per em.
-pub fn paint_list(
-    painter: &egui::Painter,
-    baseline: Pos2,
-    em: f32,
-    color: Color32,
-    dl: &DisplayList,
-) {
-    let top = baseline.y - dl.height as f32 * em;
-    let at = |x: f64, y: f64| pos2(baseline.x + x as f32 * em, top + y as f32 * em);
-    for item in &dl.items {
-        match item {
-            DisplayItem::GlyphPath {
-                x,
-                y,
-                scale,
-                font,
-                char_code,
-                ..
-            } => {
-                let Some(ch) = char::from_u32(*char_code) else {
-                    continue;
-                };
-                let family = katex_family(font);
-                let size = em * *scale as f32;
-                let galley =
-                    painter.layout_no_wrap(ch.to_string(), FontId::new(size, family), color);
-                let Some(row) = galley.rows.first() else {
-                    continue;
-                };
-                let Some(glyph) = row.row.glyphs.first() else {
-                    continue;
-                };
-                let ascent = row.pos.y + glyph.pos.y;
-                let p = at(*x, *y);
-                painter.galley(pos2(p.x, p.y - ascent), galley, color);
-            }
-            DisplayItem::Line {
-                x,
-                y,
-                width,
-                thickness,
-                ..
-            } => {
-                let t = (*thickness as f32 * em).max(1.0);
-                let p = at(*x, *y);
-                let rect = egui::Rect::from_min_size(
-                    pos2(p.x, p.y - t / 2.0),
-                    vec2(*width as f32 * em, t),
-                );
-                painter.rect_filled(rect, 0.0, color);
-            }
-            DisplayItem::Rect {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => {
-                let rect = egui::Rect::from_min_size(
-                    at(*x, *y),
-                    vec2(*width as f32 * em, *height as f32 * em),
-                );
-                painter.rect_filled(rect, 0.0, color);
-            }
-            DisplayItem::Path {
-                x,
-                y,
-                commands,
-                fill,
-                ..
-            } => {
-                let origin = at(*x, *y);
-                for poly in flatten(commands, origin, em) {
-                    if *fill {
-                        painter.add(egui::Shape::mesh(fill_mesh(&poly, color)));
-                    } else {
-                        painter.add(egui::Shape::line(
-                            poly,
-                            Stroke::new((em * 0.04).max(1.0), color),
-                        ));
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// The registered family for a RaTeX font name; CJK and unknown faces fall
-/// back to the proportional family (which ends in the system CJK faces).
-fn katex_family(font: &str) -> FontFamily {
-    if crate::render::fonts::KATEX_FACES
-        .iter()
-        .any(|(name, _)| *name == font)
-    {
-        FontFamily::Name(format!("katex-{font}").into())
-    } else {
-        FontFamily::Proportional
-    }
-}
-
-/// Flatten path commands (em units, relative to `origin`) into polygons.
-fn flatten(commands: &[PathCommand], origin: Pos2, em: f32) -> Vec<Vec<Pos2>> {
-    let p = |x: f64, y: f64| pos2(origin.x + x as f32 * em, origin.y + y as f32 * em);
-    let mut polys: Vec<Vec<Pos2>> = Vec::new();
-    let mut cur: Vec<Pos2> = Vec::new();
-    for c in commands {
-        match *c {
-            PathCommand::MoveTo { x, y } => {
-                if cur.len() > 2 {
-                    polys.push(std::mem::take(&mut cur));
-                }
-                cur.clear();
-                cur.push(p(x, y));
-            }
-            PathCommand::LineTo { x, y } => cur.push(p(x, y)),
-            PathCommand::QuadTo { x1, y1, x, y } => {
-                let a = *cur.last().unwrap_or(&p(x1, y1));
-                let (b, e) = (p(x1, y1), p(x, y));
-                for k in 1..=8 {
-                    let t = k as f32 / 8.0;
-                    let u = 1.0 - t;
-                    cur.push(pos2(
-                        u * u * a.x + 2.0 * u * t * b.x + t * t * e.x,
-                        u * u * a.y + 2.0 * u * t * b.y + t * t * e.y,
-                    ));
-                }
-            }
-            PathCommand::CubicTo {
-                x1,
-                y1,
-                x2,
-                y2,
-                x,
-                y,
-            } => {
-                let a = *cur.last().unwrap_or(&p(x1, y1));
-                let (b, c2, e) = (p(x1, y1), p(x2, y2), p(x, y));
-                for k in 1..=10 {
-                    let t = k as f32 / 10.0;
-                    let u = 1.0 - t;
-                    let (w0, w1, w2, w3) = (u * u * u, 3.0 * u * u * t, 3.0 * u * t * t, t * t * t);
-                    cur.push(pos2(
-                        w0 * a.x + w1 * b.x + w2 * c2.x + w3 * e.x,
-                        w0 * a.y + w1 * b.y + w2 * c2.y + w3 * e.y,
-                    ));
-                }
-            }
-            PathCommand::Close => {
-                if cur.len() > 2 {
-                    polys.push(std::mem::take(&mut cur));
-                }
-            }
-        }
-    }
-    if cur.len() > 2 {
-        polys.push(cur);
-    }
-    polys
-}
-
-/// Fill a simple (possibly concave) polygon by ear clipping.
-fn fill_mesh(poly: &[Pos2], color: Color32) -> egui::Mesh {
-    let mut mesh = egui::Mesh::default();
-    for &p in poly {
-        mesh.colored_vertex(p, color);
-    }
-    let area: f32 = (0..poly.len())
-        .map(|i| {
-            let (a, b) = (poly[i], poly[(i + 1) % poly.len()]);
-            a.x * b.y - b.x * a.y
-        })
-        .sum();
-    let ccw = area > 0.0;
-    let cross = |a: Pos2, b: Pos2, c: Pos2| (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-    let mut idx: Vec<usize> = (0..poly.len()).collect();
-    let mut guard = 0;
-    while idx.len() > 3 && guard < poly.len() * poly.len() {
-        guard += 1;
-        let n = idx.len();
-        let mut clipped = false;
-        for k in 0..n {
-            let (ia, ib, ic) = (idx[(k + n - 1) % n], idx[k], idx[(k + 1) % n]);
-            let (a, b, c) = (poly[ia], poly[ib], poly[ic]);
-            let turn = cross(a, b, c);
-            if (turn > 0.0) != ccw || turn.abs() < 1e-6 {
-                continue;
-            }
-            let inside = idx.iter().any(|&j| {
-                if j == ia || j == ib || j == ic {
-                    return false;
-                }
-                let p = poly[j];
-                let (d1, d2, d3) = (cross(a, b, p), cross(b, c, p), cross(c, a, p));
-                if ccw {
-                    d1 > 0.0 && d2 > 0.0 && d3 > 0.0
-                } else {
-                    d1 < 0.0 && d2 < 0.0 && d3 < 0.0
-                }
-            });
-            if inside {
-                continue;
-            }
-            mesh.add_triangle(ia as u32, ib as u32, ic as u32);
-            idx.remove(k);
-            clipped = true;
-            break;
-        }
-        if !clipped {
-            break;
-        }
-    }
-    if idx.len() == 3 {
-        mesh.add_triangle(idx[0] as u32, idx[1] as u32, idx[2] as u32);
-    }
-    mesh
 }
 
 #[cfg(test)]
@@ -476,20 +291,5 @@ mod tests {
         assert!(lay_out(r"\frac{1}{", false).1.is_err());
         // cached: same id twice
         assert_eq!(lay_out("x^2", false).0, lay_out("x^2", false).0);
-    }
-
-    #[test]
-    fn ear_clipping_fills_a_concave_polygon() {
-        // an L shape: 6 vertices, 4 triangles
-        let l = [
-            pos2(0.0, 0.0),
-            pos2(2.0, 0.0),
-            pos2(2.0, 1.0),
-            pos2(1.0, 1.0),
-            pos2(1.0, 2.0),
-            pos2(0.0, 2.0),
-        ];
-        let mesh = fill_mesh(&l, Color32::WHITE);
-        assert_eq!(mesh.indices.len(), 4 * 3);
     }
 }

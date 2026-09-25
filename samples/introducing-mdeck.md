@@ -134,6 +134,17 @@ MDeck renders charts directly from your markdown. Here's project status at a gla
 
 ---
 
+# Math
+
+Formulas are plain LaTeX between dollar signs.
+
+$$\hat{f}(\xi) = \int_{-\infty}^{\infty} f(x)\, e^{-2\pi i x \xi}\, dx$$
+
+- Inline, on the baseline: $E = mc^2$, $\alpha + \beta = \gamma$
+- Dollar amounts like $5 stay text
+
+---
+
 # Architecture
 
 ```@architecture

@@ -50,6 +50,11 @@ INCREMENTAL REVEAL (list markers)
   +   Next step (appears on forward press)
   *   Same step as previous +
 
+MATH (LaTeX, KaTeX syntax)
+  $E = mc^2$            Inline, on the text baseline
+  $$\frac{a}{b}$$       Display: own line, centred
+  \$5                   Literal dollar sign ($5 and $10 stay text anyway)
+
 IMAGE DIRECTIVES (in alt text)
   @fill  @fit  @width:80%  @height:100px  @left  @right  @center
 
