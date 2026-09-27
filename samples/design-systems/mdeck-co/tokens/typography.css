@@ -1,0 +1,68 @@
+/* ============================================================
+   MDeck Co: Typography
+   Editorial luxury: a refined serif for display gravitas,
+   a precise grotesque for UI + body, mono for the fine print.
+   Fonts load from Google Fonts (see fonts.css).
+   ============================================================ */
+
+:root {
+  /* Families */
+  --font-display: "Spectral", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Weights */
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Type scale: fluid-ready px values (1.250 major-third-ish) */
+  --text-3xs: 10px;
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 17px;
+  --text-lg: 20px;
+  --text-xl: 25px;
+  --text-2xl: 32px;
+  --text-3xl: 42px;
+  --text-4xl: 56px;
+  --text-5xl: 76px;
+  --text-6xl: 104px;
+
+  /* Line heights */
+  --leading-tight: 1.05;
+  --leading-snug: 1.2;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  /* Letter spacing: luxury lives in the tracking */
+  --tracking-tighter: -0.03em;
+  --tracking-tight: -0.015em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-wider: 0.12em;   /* tracked uppercase labels */
+  --tracking-widest: 0.22em;  /* the "eyebrow" treatment */
+
+  /* Semantic roles */
+  --type-display: var(--weight-light) var(--text-5xl)/var(--leading-tight) var(--font-display);
+  --type-title: var(--weight-regular) var(--text-3xl)/var(--leading-snug) var(--font-display);
+  --type-heading: var(--weight-semibold) var(--text-xl)/var(--leading-snug) var(--font-sans);
+  --type-body: var(--weight-regular) var(--text-base)/var(--leading-relaxed) var(--font-sans);
+  --type-body-sm: var(--weight-regular) var(--text-sm)/var(--leading-normal) var(--font-sans);
+  --type-label: var(--weight-medium) var(--text-xs)/1 var(--font-mono);
+}
+
+/* Eyebrow / kicker utility: the tracked, uppercase mono label
+   that signals precision throughout the brand. */
+.mdc-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}

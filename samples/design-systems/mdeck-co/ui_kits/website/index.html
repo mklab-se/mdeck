@@ -1,0 +1,48 @@
+<!-- @dsCard group="Website" viewport="1360x760" name="MDeck Co: Consulting website" subtitle="Interactive: home → request access flow → confirmation" -->
+<!-- @startingPoint section="Website" subtitle="Full MDeck Co consulting site with gated access flow" viewport="1360x760" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>MDeck Co</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html, body { margin: 0; background: var(--surface-base); color: var(--text-primary); font-family: var(--font-sans); }
+  * { box-sizing: border-box; }
+  a { color: var(--ember-500); text-decoration: none; }
+  a:hover { color: var(--ember-600); }
+  ::selection { background: var(--accent-quiet); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel" src="Chrome.jsx" data-presets="react"></script>
+<script type="text/babel" src="Home.jsx" data-presets="react"></script>
+<script type="text/babel" src="Apply.jsx" data-presets="react"></script>
+<script type="text/babel" data-presets="react">
+function App() {
+  const [route, setRoute] = React.useState("home");
+  React.useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
+  if (route === "apply") {
+    return <Apply onBack={() => setRoute("home")} />;
+  }
+  return (
+    <div>
+      <Nav onApply={() => setRoute("apply")} onNav={setRoute} active={route} />
+      <Hero onApply={() => setRoute("apply")} />
+      <Work />
+      <Ethos />
+      <AccessBand onApply={() => setRoute("apply")} />
+      <Footer />
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

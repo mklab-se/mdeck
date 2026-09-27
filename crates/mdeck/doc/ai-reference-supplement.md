@@ -28,7 +28,28 @@ mdeck export <file.md> --slide 7 --debug        # One slide, every reveal step (
 mdeck export <file.md> --range 3-5              # A range of slides
 mdeck export <file.md> --format pdf             # One PDF, a page per slide (export/<file>.pdf)
 mdeck export <file.md> --format pdf --notes     # PDF of notes pages: slide on top, speaker notes below
+mdeck export <file.md> --theme winter           # In another theme, without editing the deck
 ```
+
+### Themes
+
+```bash
+mdeck theme list                        # Every theme visible from here (deck, user, built-in)
+mdeck theme new <name>                  # Commented starter theme in ./themes/<name>.yaml
+mdeck theme new <name> --from <dir>     # Convert a design system folder with AI (copies fonts and logos)
+mdeck theme check <name>                # Errors, fallbacks, weak contrast (exit 1 when invalid)
+mdeck theme preview <name> -o <dir>     # Sampler deck in the theme, as PNGs to look at
+```
+
+Custom themes are YAML files (spec section 9.4): `themes/<name>.yaml` or
+`themes/<name>/theme.yaml` next to the deck, or in the user folder. Unset keys
+come from `extends` (default `dark`); unknown keys are errors. To turn a design
+system into a theme yourself: read its rules and tokens, map its roles to slide
+roles with the table in spec section 9.4, write the file, run `mdeck theme
+check`, then `mdeck theme preview` and look at the PNGs; repeat until it looks
+like the brand. Logos (spec section 9.5): a theme's `logo:` block, or
+`@logo: file.svg` (plus `@logo-position`, `@logo-opacity`, `@logo-height`) in
+any deck's frontmatter; PNG with transparency or SVG.
 
 ### Configuration
 
@@ -38,7 +59,8 @@ mdeck config set <key> <value> # Set a config value
 ```
 
 Available config keys:
-- `defaults.theme` — default theme (`light`, `dark`, `nord`, `ember`)
+- `defaults.theme`: default theme, a built-in (`light`, `dark`, `nord`, `ember`,
+  `spring`, `summer`, `autumn`, `winter`) or a user theme
 - `mdeck ai story <deck.md> [--slide N | --range A-B] [--stale] [--force]` — write Ember story
   scripts (cast, flows, beats) into `<deck>.scenes.yaml`; ```` ```@story ```` fences are the
   author's hints, ```` ```@scene ```` fences are hand-written scripts and are left alone

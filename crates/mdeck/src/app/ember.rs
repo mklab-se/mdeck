@@ -1,4 +1,4 @@
-//! The Ember theme's live state inside the presentation window: the particle
+//! The particles engine's live state inside the presentation window: the particle
 //! field, which scene it is showing, and the opening countdown's digits.
 
 use std::time::Instant;
@@ -249,6 +249,13 @@ impl EmberState {
             self.key = Some(key);
         }
         let field = self.field.as_mut().expect("field created above");
+        field.set_tints([
+            theme.accent,
+            theme.accent_soft,
+            theme.particle_light,
+            theme.secondary,
+            theme.particle_cool,
+        ]);
         if still {
             field.paint(ui.painter(), rect, opacity, false);
             if !self.labels.is_empty() {

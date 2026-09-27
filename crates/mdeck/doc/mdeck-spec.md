@@ -55,11 +55,15 @@ date: 2026-02-28
 
 | Field         | Type   | Default   | Description                                        |
 |---------------|--------|-----------|----------------------------------------------------|
-| `@theme`      | string | `"light"` | Global theme: `"light"`, `"dark"`, `"nord"`, `"ember"` |
+| `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`), a custom theme name, or a path to a theme file (section 9.4) |
 | `@transition` | string | `"slide"` | Default transition: `"fade"`, `"slide"`, `"spatial"`, `"none"` |
 | `@image-style` | string | none      | Default AI image generation style (name or description) |
 | `@icon-style`  | string | none      | Default AI icon generation style (name or description)  |
 | `@slide-level` | integer | (inferred) | Heading level that triggers slide breaks (1–6). E.g., `2` means H1 and H2 both split. When omitted, inferred from content. |
+| `@logo`        | string | (theme's)  | A PNG or SVG shown in a corner of every slide, relative to the deck; `none` hides the theme's logo (section 9.5) |
+| `@logo-position` | string | `top-right` | `top-left`, `top-right`, `bottom-left`, `bottom-right` |
+| `@logo-opacity` | number | `0.6` | 0 to 1, or a percentage (`40%`) |
+| `@logo-height` | number | `56` | Height in px on a 1920x1080 slide (8 to 400) |
 
 Reserved fields that are parsed but not yet applied: `@aspect`, `@code-theme`,
 `@footer`. They are accepted so that files stay forward compatible; see
@@ -595,15 +599,17 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 
 | Directive      | Scope          | Values                                    | Default        |
 |----------------|----------------|-------------------------------------------|----------------|
-| `@theme`       | global         | `light`, `dark`, `nord`, `ember`          | `light`        |
+| `@theme`       | global         | a built-in or custom theme (section 9)    | `light`        |
 | `@story`       | global         | English direction for AI stories (Ember) | none           |
-| `@countdown`   | global         | `true`, `false`: the 3-2-1 opener (Ember, Nord) | `true`   |
+| `@countdown`   | global         | `true`, `false`: the 3-2-1 opener (themes with a `countdown`) | `true`   |
 | `@transition`  | global         | `fade`, `slide`, `spatial`, `none`        | `slide`        |
 | `@layout`      | slide          | layout name (see Section 4.1)             | auto-inferred  |
 | `@illustration`| slide          | point cloud illustration name (Ember)     | none           |
 | `@slide-level` | global         | `1`–`6`                                   | inferred       |
 | `@image-style` | global         | style name or description                 | none           |
 | `@icon-style`  | global         | style name or description                 | none           |
+| `@logo`        | global         | PNG or SVG path, or `none` (section 9.5)  | the theme's    |
+| `@logo-position` / `@logo-opacity` / `@logo-height` | global | see section 9.5 | the theme's |
 
 **Reserved directives** are parsed and accepted but not applied yet:
 `@background`, `@footer`, `@class`, `@code-theme`, `@aspect`, and per-slide
@@ -773,6 +779,18 @@ An unrecognized icon name falls back to `box`. Icons are simple and clear line d
 | Code background | `#3B4252`       |
 | Quote border    | accent color    |
 
+**`spring`**, **`summer`**, **`autumn`** and **`winter`**
+
+Four seasonal themes, written as plain theme files (section 9.4) like every
+built-in:
+
+| Theme | Feel | Engine | Background | Accent |
+|---|---|---|---|---|
+| `spring` | cherry blossom and new leaves on a pale morning | plain | `#F7FAF2` | `#C73E6B` |
+| `summer` | sun on sand and a deep blue sea | plain | `#FFFAF0` | `#0072B1` |
+| `autumn` | dark bark and maple amber, the particle field glowing in amber, rust and gold | particles | `#17110D` | `#E0782A` |
+| `winter` | a clear night over snow, the particle field glowing ice-blue and white | particles | `#0A1220` | `#7CC4FA` |
+
 **`ember`** (experimental)
 
 | Property        | Value           |
@@ -784,7 +802,8 @@ An unrecognized icon name falls back to `box`. Icons are simple and clear line d
 | Code background | `#101012`       |
 | Quote border    | accent color    |
 
-Ember is MKLab's brand theme and goes further than a palette. It bundles its
+Ember is MKLab's brand theme and goes further than a palette: it runs on the
+**particles engine** (section 9.4), which any custom theme can use too. It bundles its
 own typefaces (Spectral for headings, Hanken Grotesk for copy, JetBrains Mono
 for labels), lays text slides out as a copy column on the left, and draws a
 living field of glowing particles behind every slide. The field morphs from
@@ -811,7 +830,8 @@ the presenter chrome is a counter and a progress hairline.
 
 #### The countdown
 
-Ember and Nord open with a three-second countdown before the first slide.
+Ember and Nord open with a three-second countdown before the first slide
+(any theme can, with the `countdown` key of section 9.4).
 In Ember the particles form the digits 3, 2 and 1 in the display face, morph
 from one to the next, and the 1 bursts outward into black before the first
 slide's scene assembles; in Nord the numerals simply fade. Any key or click
@@ -940,32 +960,17 @@ A story needs a stage: the right half of a slide whose copy sits on the left
 (bullet, content, quote and section slides). Code, chart, diagram, table,
 image, two-column and title slides never play a story, whatever a sidecar
 says; their field stays the quiet, content-aware one, and `mdeck ai story`
-skips them. Beats are an Ember feature: under any other theme a slide steps
-through its own `+` reveals only.
+skips them. Beats are a feature of the particles engine: under a theme on
+the plain engine a slide steps through its own `+` reveals only.
 
 All themes meet WCAG AA contrast requirements. Cycle themes during a
 presentation with `Shift+T`.
 
 ### 9.2 Theme properties
 
-A theme defines:
-
-| Property          | Description                               |
-|-------------------|-------------------------------------------|
-| `background`      | Slide background color or gradient        |
-| `foreground`      | Primary text color                        |
-| `heading-color`   | Heading color                             |
-| `accent`          | Links, quote borders, highlights          |
-| `code-background` | Code block background                     |
-| `code-foreground` | Code block text color                     |
-| `code-theme`      | Syntax highlighting theme name            |
-| `font-family`     | Primary font                              |
-| `font-family-mono`| Monospace font for code                   |
-| `font-size-h1`    | H1 size                                   |
-| `font-size-h2`    | H2 size                                   |
-| `font-size-body`  | Body text size                            |
-| `icon-set`        | Icon set for diagrams                     |
-| `diagram-colors`  | Color palette for diagram components      |
+A theme is data: colours, type roles, sizes and a syntax theme, plus the
+**engine** that draws it (`plain` or `particles`). The four built-in themes are
+written in exactly the format of section 9.4, which lists every key.
 
 ### 9.3 Per-slide theme override (reserved)
 
@@ -975,7 +980,234 @@ Use the global `@theme` in frontmatter, or `Shift+T` while presenting.
 
 ### 9.4 Custom themes
 
-Custom themes (defined as external files) are reserved for a future version. The `@theme` field accepts arbitrary strings in anticipation of this.
+A custom theme is a YAML file. Put it next to a deck or in your user folder,
+name it in the frontmatter, and it works like a built-in one: when presenting,
+in `Shift+T` cycling, in PNG and PDF export, and in `--check`. Themes are data
+only; a theme can never make MDeck run code.
+
+```markdown
+---
+@theme: acme
+---
+```
+
+**Where themes live.** A theme is `<name>.yaml` or `<name>/theme.yaml` (a
+folder, so it can carry font files). MDeck looks in this order and the first
+match wins:
+
+1. `themes/` next to the deck
+2. the user folder: `~/.config/mdeck/themes/` on Linux,
+   `~/Library/Application Support/mdeck/themes/` on macOS,
+   `%APPDATA%\mdeck\themes\` on Windows
+3. the built-in themes (`dark`, `light`, `nord`, `ember`, `spring`, `summer`,
+   `autumn`, `winter`)
+
+`@theme` may also be a path to a file (`@theme: brand/acme.yaml`), relative
+to the deck. A user or deck theme may reuse a built-in name to replace it.
+Theme names are lowercase letters, digits, `-` and `_`. `defaults.theme` in
+the config accepts built-in and user themes. An unknown name or an invalid
+theme file is reported (by `--check`, and as a warning when presenting or
+exporting) and the deck falls back to `light`.
+
+**The format.** Every key is optional. Unset keys come from the theme named by
+`extends`, which is `dark` when the file does not say. So a brand theme can be
+ten lines:
+
+```yaml
+# themes/acme.yaml
+name: Acme                 # display name (default: the file name)
+extends: dark              # any built-in or custom theme
+colors:
+  background: "#0b1020"
+  text: "#c9d1e3"
+  heading: "#ffffff"
+  accent: "#ffb400"
+```
+
+The full set of keys:
+
+```yaml
+name: Acme
+extends: dark
+engine: plain              # plain | particles
+countdown: none            # none | plain | burst (burst needs the particles engine)
+colors:                    # #rgb, #rrggbb or #rrggbbaa
+  background: "#0b1020"    # slide background
+  text: "#c9d1e3"          # body text
+  heading: "#ffffff"       # headings
+  muted: "#7d869c"         # captions, eyebrows, slide numbers (default: text toward background)
+  strong: "#ffffff"        # **bold** text (default: heading, or accent on light themes)
+  rule: "#232a3d"          # hairlines and inactive markers (default: derived)
+  accent: "#ffb400"        # links, quote bars, highlights, the one thing to look at
+  accent-soft: "#ffd166"   # lighter accent for emphasis and glows (default: derived)
+  secondary: "#ff7a59"     # a second, rarer highlight (default: accent-soft)
+  code-background: "#141a2e"
+  code-text: "#d6dcf0"
+  positive: "#3ecf8e"      # KPI trend up
+  negative: "#ff5c5c"      # KPI trend down
+  series:                  # charts and diagrams, in order; 1 to 8 colours, cycled
+    - "#ffb400"
+    - "#4ea8ff"
+    - "#3ecf8e"
+annotations:               # the presenter's pen (drag) and arrow (Shift+drag) tools
+  pen: "#50c8ff"
+  pen-outline: "#1e82b4"
+  arrow: "#ffc832"
+  arrow-outline: "#c88c00"
+particles:                 # particles engine only: particle tints besides the accents
+  light: "#d7d7e1"
+  cool: "#afc3f0"
+fonts:                     # a bundled face, or a .ttf/.otf file in the theme folder
+  display: fonts/Acme-Display.ttf   # headings
+  body: hanken-regular     # body text and list items
+  lead: hanken-light       # lead paragraphs in the particles copy column (default: body)
+  strong: hanken-medium    # **bold** runs (default: body)
+  mono: jetbrains-mono     # code, labels, eyebrows
+sizes:                     # px on a 1920x1080 slide; everything scales with the window
+  h1: 96
+  h2: 72
+  h3: 52
+  body: 44
+  code: 30
+text:
+  line-height: 1.45        # multiple of the font size (default: the face's own)
+charts:
+  fill-opacity: 0.85       # opacity of filled chart shapes, 0 to 1
+code:
+  syntax: base16-ocean.dark   # a bundled syntax theme, or a .tmTheme file in the theme folder
+logo:                      # a logo in a corner of every slide (section 9.5)
+  file: logo.svg           # PNG (with transparency) or SVG, in the theme folder
+  position: top-right      # top-left | top-right | bottom-left | bottom-right
+  height: 56               # px on a 1920x1080 slide
+  opacity: 0.6             # 0 to 1
+```
+
+Unknown keys are errors, so a typo never goes unnoticed.
+
+**Engines.** The engine decides what a theme does beyond colours and type.
+`plain` draws slides on a flat background. `particles` adds the living
+particle field, the editorial copy column for text slides, story beats and
+point cloud illustrations (the Ember theme in section 9.1 shows it all); it
+takes its colours from the theme, so a brand theme on the particles engine gets
+Ember's motion in its own palette, as `autumn` and `winter` do. The engines
+are part of MDeck; a theme picks one by name. Building MDeck with
+`--no-default-features` leaves the particles engine out (and with it the
+`ember`, `autumn` and `winter` themes and the built-in illustrations); themes
+that ask for it then use `plain`, with a warning.
+
+**Fonts.** Fonts are named by *role*, not weight, because a slide draws each
+role with one face. A value is either a bundled face or a TTF/OTF file inside
+the theme's folder (WOFF and WOFF2 web fonts do not work; download the TTF or
+OTF from the type foundry or Google Fonts). The bundled faces:
+
+| Name | Face |
+|---|---|
+| `sans` | egui's default sans (Ubuntu Light) |
+| `mono` | egui's default monospace (Hack) |
+| `spectral-light` | Spectral Light, an editorial serif |
+| `hanken-light` | Hanken Grotesk Light |
+| `hanken-regular` | Hanken Grotesk Regular |
+| `hanken-medium` | Hanken Grotesk Medium |
+| `jetbrains-mono` | JetBrains Mono Regular |
+
+A font file that is missing, unreadable or outside the theme folder falls back
+to the inherited face with a warning.
+
+**Syntax themes.** `code.syntax` names one of the bundled syntax themes
+(`base16-ocean.dark`, `base16-eighties.dark`, `base16-mocha.dark`,
+`base16-ocean.light`, `InspiredGitHub`, `Solarized (dark)`,
+`Solarized (light)`) or a `.tmTheme` file in the theme folder.
+
+#### From a design system to a theme
+
+Design systems (a Claude Design export, CSS custom properties, a Tailwind
+config, W3C design tokens, Figma variables) describe web interfaces, not
+slides; none of them says which colour is body text on a slide or in what
+order chart series come. Map their roles like this:
+
+| Design system role | Theme key |
+|---|---|
+| page or base surface (`surface.base`, `--bg`, `background`) | `colors.background` |
+| primary text (`text.primary`, `foreground`) | `colors.heading` |
+| a step quieter than primary text (`text.secondary`) | `colors.text` |
+| tertiary or muted text, captions | `colors.muted` |
+| hairline or subtle border | `colors.rule` |
+| primary accent, brand colour, primary action | `colors.accent` |
+| lighter accent tint (the 300 step) | `colors.accent-soft` |
+| secondary brand colour | `colors.secondary` |
+| raised surface or card | `colors.code-background` |
+| text on that surface | `colors.code-text` |
+| success / positive status | `colors.positive` |
+| error / critical status | `colors.negative` |
+| data-visualisation or categorical palette (accent first) | `colors.series` |
+| display or heading family | `fonts.display` |
+| body or UI family (regular weight) | `fonts.body` |
+| body family, light weight | `fonts.lead` |
+| body family, medium or semibold weight | `fonts.strong` |
+| monospace family | `fonts.mono` |
+
+Then decide what the web system cannot tell you:
+
+- **Body text is quieter than headings.** On a slide the body copy is one step
+  below the brightest text, so it does not compete with the title.
+- **Sizes are for a room, not a page.** Keep the built-in slide sizes
+  (`extends` gives them to you) unless the brand has a reason; web type scales
+  (15 px body) are far too small.
+- **Resolve every alias.** `var(--ink-950)` becomes the hex it points to;
+  `rgba(...)` becomes `#rrggbbaa`.
+- **Fonts become files or bundled faces.** Use a bundled face when the design
+  system names the same family (Spectral, Hanken Grotesk, JetBrains Mono);
+  otherwise put TTF/OTF files in the theme folder.
+- **Pick the engine.** A dark, atmospheric brand can use `engine: particles` and
+  `countdown: burst`; most brands want `plain`.
+- **Check contrast.** `mdeck theme check` flags text that is hard to read.
+
+Tools for the loop of converting, looking and adjusting:
+
+| Command | What it does |
+|---|---|
+| `mdeck theme list` | every theme visible from here, and where it comes from |
+| `mdeck theme new <name>` | writes a commented starter theme to `themes/<name>.yaml` |
+| `mdeck theme new <name> --from <dir>` | reads a design system folder (`SKILL.md`, `readme.md`, CSS tokens, `*.tokens.json`, Tailwind config) and writes the theme with AI (see `mdeck ai`); font files and logos (PNG or SVG files with "logo" in their path) found there are copied into the theme folder |
+| `mdeck theme check <name>` | reports errors, fallbacks and weak contrast |
+| `mdeck theme preview <name> --output-dir <dir>` | exports a sampler deck (title, bullets, code, chart, diagram, table, quote) in the theme, as PNGs to look at |
+
+`new` takes `--user` to write to the user folder and `--force` to overwrite.
+`mdeck export <deck> --theme <name>` renders any deck in a theme without
+editing it.
+
+**For AI agents converting a design system:** read the design system's rules
+and tokens, write `themes/<name>.yaml` with the mapping above, run
+`mdeck theme check <name>`, then `mdeck theme preview <name> --output-dir
+<dir>` and look at the PNGs; adjust and repeat until the slides look like the
+brand.
+
+### 9.5 Logos
+
+A logo sits in a corner of every slide, drawn the same way when presenting
+and in PNG and PDF export. It stays put while slides transition under it,
+and it is hidden during the opening countdown and on the end slide. PNG
+(with a transparent background) and SVG files work; an SVG is rasterised
+sharply at any size (convert text in it to paths first).
+
+A **theme** carries its brand's logo in its `logo:` block (section 9.4), with
+the file in the theme folder. A **deck** can add a logo without any custom
+theme, or replace or hide the theme's:
+
+```markdown
+---
+@theme: dark
+@logo: brand/logo-white.svg     # relative to the deck
+@logo-position: bottom-right    # top-left | top-right (default) | bottom-left | bottom-right
+@logo-opacity: 40%              # 0 to 1, or a percentage (default 0.6)
+@logo-height: 48                # px on a 1920x1080 slide (default 56)
+---
+```
+
+The deck's keys override the theme's one by one, so `@logo-opacity` alone
+tones down a theme's logo. `@logo: none` hides it. Use a light logo on dark
+themes and a dark one on light themes. A missing or unreadable file is
+reported by `--check` and the slides show no logo.
 
 ---
 
@@ -1624,7 +1856,7 @@ in-app HUD (`H`) show the same table.
 | Home, End | First / last slide |
 | G | Grid overview; arrows move the selection, Enter / E / click opens it |
 | T | Cycle transition (slide, fade, spatial, none) |
-| Shift+T | Cycle theme (light, dark, nord, ember) |
+| Shift+T | Cycle theme (the built-ins, then user and deck themes) |
 | F | Toggle fullscreen |
 | M | Move the fullscreen window to the next monitor (remembered in config) |
 | H | Toggle the presenter HUD |

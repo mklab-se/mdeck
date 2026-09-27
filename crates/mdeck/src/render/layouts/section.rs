@@ -24,7 +24,7 @@ pub fn render(
                 theme.h2_size * 1.1 * scale
             };
             let color = Theme::with_opacity(theme.heading_color, opacity);
-            let job = text::inlines_to_job(inlines, size, color, content_rect.width(), theme);
+            let job = text::display_inlines_job(inlines, size, color, content_rect.width(), theme);
             let galley = ui.painter().layout_job(job);
 
             // Center both horizontally and vertically

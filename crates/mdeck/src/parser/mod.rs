@@ -30,6 +30,14 @@ pub struct PresentationMeta {
     pub story: Option<String>,
     /// `@countdown: false` turns off the opening countdown (Ember and Nord).
     pub countdown: Option<bool>,
+    /// `@logo`: a PNG or SVG shown on every slide (`none` hides a theme's logo).
+    pub logo: Option<String>,
+    /// `@logo-position`: top-left, top-right, bottom-left or bottom-right.
+    pub logo_position: Option<String>,
+    /// `@logo-opacity`: 0 to 1, or a percentage.
+    pub logo_opacity: Option<String>,
+    /// `@logo-height`: height in px on a 1920x1080 slide.
+    pub logo_height: Option<String>,
 }
 
 #[derive(Debug, Clone)]

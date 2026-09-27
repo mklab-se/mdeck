@@ -1,0 +1,63 @@
+<!-- @dsCard group="Components" viewport="700x420" name="Core: Buttons, Cards, Badges" subtitle="The signature ember controls and graphite surfaces" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body { margin: 0; background: var(--surface-base); color: var(--text-primary); font-family: var(--font-sans); padding: 28px; }
+  .row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
+  .lbl { font: var(--type-label); font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: var(--tracking-widest); text-transform: uppercase; color: var(--text-tertiary); width: 100%; margin-bottom: 2px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel" data-presets="react">
+const { Button, IconButton, Card, Badge, Tag, Divider, Icon } = window.MDeckCoDesignSystem_4d3c0a;
+function Demo() {
+  return (
+    <div>
+      <div className="row"><span className="lbl">Buttons</span>
+        <Button variant="primary">Request access</Button>
+        <Button variant="secondary">Secondary</Button>
+        <Button variant="outline">Outline</Button>
+        <Button variant="ghost" iconRight={<Icon name="arrow-right" size={16} />}>Ghost</Button>
+        <Button variant="primary" loading>Loading</Button>
+        <Button variant="primary" disabled>Disabled</Button>
+      </div>
+      <div className="row"><span className="lbl">Sizes & icon buttons</span>
+        <Button size="sm" variant="secondary">Small</Button>
+        <Button size="md" variant="secondary">Medium</Button>
+        <Button size="lg" variant="secondary">Large</Button>
+        <IconButton name="search" aria-label="Search" />
+        <IconButton name="settings" variant="secondary" aria-label="Settings" />
+        <IconButton name="arrow-up-right" variant="primary" aria-label="Go" />
+      </div>
+      <div className="row"><span className="lbl">Badges & tags</span>
+        <Badge tone="accent" dot>Invited</Badge>
+        <Badge tone="positive">Active</Badge>
+        <Badge tone="warning">Pending</Badge>
+        <Badge tone="critical">Closed</Badge>
+        <Badge tone="neutral" variant="solid">Tier I</Badge>
+        <Tag selected>Private Equity</Tag>
+        <Tag onRemove={()=>{}}>Nordics</Tag>
+      </div>
+      <div className="grid">
+        <Card><div className="lbl" style={{marginBottom:8}}>Default</div><div style={{color:'var(--text-secondary)',fontSize:13}}>Graphite panel with soft depth.</div></Card>
+        <Card variant="outline"><div className="lbl" style={{marginBottom:8}}>Outline</div><div style={{color:'var(--text-secondary)',fontSize:13}}>Hairline only.</div></Card>
+        <Card variant="glow"><div className="lbl" style={{marginBottom:8}}>Glow</div><div style={{color:'var(--text-secondary)',fontSize:13}}>The one you look at first.</div></Card>
+      </div>
+      <div style={{marginTop:22}}><Divider label="Membership" /></div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body>
+</html>

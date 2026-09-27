@@ -624,11 +624,11 @@ pub fn draw_labels(
         }
         let heat = field.group_heat(l.group);
         let base = if l.figure {
-            Color32::from_rgb(0xD6, 0xD6, 0xDB)
+            theme.code_foreground
         } else {
-            Color32::from_rgb(0x8F, 0x8F, 0x98)
+            theme.muted
         };
-        let ember = Color32::from_rgb(0xFF, 0x8A, 0x66);
+        let ember = theme.accent_soft;
         let mix = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * heat) as u8;
         let color = Color32::from_rgba_unmultiplied(
             mix(base.r(), ember.r()),

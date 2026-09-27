@@ -169,7 +169,7 @@ $$\hat{f}(\xi) = \int_{-\infty}^{\infty} f(x)\, e^{-2\pi i x \xi}\, dx$$
 | Space / N / Right | Next slide |
 | P / Left | Previous slide |
 | G | Grid overview |
-| D | Cycle theme |
+| Shift+T | Cycle theme |
 | T | Cycle transition |
 | F | Toggle fullscreen |
 | Up / Down | Scroll overflowed content |
@@ -187,9 +187,27 @@ Set a theme globally in frontmatter:
 ---
 ```
 
-Built-in themes: **light**, **dark**, and **nord**.
+Built-in themes: **light**, **dark**, **nord**, **ember**, and the four
+seasons **spring**, **summer**, **autumn** and **winter**.
 
 Cycle themes live with `Shift+T`, and transitions with `T`.
+
+---
+
+# Your Own Theme
+
+A theme is a YAML file next to the deck, `themes/acme.yaml`:
+
+```yaml
+extends: light
+colors:
+  accent: "#e85d04"
+logo:
+  file: logo.svg
+```
+
+Add a logo to any deck with `@logo: logo.svg`, or turn a design system into a
+theme with `mdeck theme new acme --from ./brand`.
 
 ---
 

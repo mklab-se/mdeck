@@ -85,7 +85,8 @@ fn render_quote_content(
     let heading_color = Theme::with_opacity(theme.heading_color, opacity);
     let heading_galley = heading.map(|(level, inlines)| {
         let size = theme.heading_size(level) * scale;
-        let job = text::inlines_to_job(inlines, size, heading_color, content_rect.width(), theme);
+        let job =
+            text::display_inlines_job(inlines, size, heading_color, content_rect.width(), theme);
         (level, ui.painter().layout_job(job))
     });
 

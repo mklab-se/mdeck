@@ -28,7 +28,8 @@ SLIDE SEPARATION
 
 FRONTMATTER (YAML at top of file)
   title, author, date     Standard metadata
-  @theme: dark|light|nord|ember  Global theme
+  @theme: name            Theme: dark, light, nord, ember, spring, summer,
+                          autumn, winter, or a custom one (see THEMES)
   @transition: slide|fade|spatial|none
   @aspect: 16:9|4:3|16:10
   @footer: "text"         Footer on every slide
@@ -58,7 +59,7 @@ MATH (LaTeX, KaTeX syntax)
 IMAGE DIRECTIVES (in alt text)
   @fill  @fit  @width:80%  @height:100px  @left  @right  @center
 
-EMBER (particle field)
+PARTICLES ENGINE (ember, autumn, winter, and custom themes on it)
   @illustration: name   Point cloud beside the copy (title: behind it)
                         deck illustrations/ > ~/.config/mdeck/illustrations > built-in
   ```@story             English hint for `mdeck ai story` (cast, flows, beats)
@@ -110,6 +111,14 @@ CHART AXIS LABELS
   # x-label: text    Horizontal axis label (centered below)
   # y-label: text    Vertical axis label (rotated 90° CCW)
   Supported by: @barchart, @linechart, @scatter, @stackedbar
+
+THEMES (custom themes are YAML files; mdeck spec, section 9.4)
+  themes/<name>.yaml     Next to the deck (or <name>/theme.yaml with fonts)
+  user folder            ~/.config/mdeck/themes (macOS: ~/Library/Application Support)
+  extends: dark          Unset keys come from another theme
+  engine: plain|particles  Flat slides, or the living particle field
+  mdeck theme list | check <n> | preview <n> -o <dir>
+  mdeck theme new <n> [--from <design system folder>]
 "#,
     );
     out

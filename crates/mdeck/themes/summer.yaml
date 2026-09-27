@@ -1,0 +1,38 @@
+# Summer: sun on sand and a deep blue sea. Bright and warm, with an ocean
+# accent and a sunlit secondary.
+name: Summer
+extends: light
+colors:
+  background: "#fffaf0"      # sand in the sun
+  text: "#3b2f22"            # driftwood
+  heading: "#123e5c"         # deep sea
+  muted: "#7c6f5f"
+  accent: "#0072b1"          # ocean
+  accent-soft: "#48b7e0"
+  secondary: "#f29e0c"       # sun
+  code-background: "#fbf0dc"
+  code-text: "#3b2f22"
+  positive: "#1f8a7a"
+  negative: "#d62839"
+  series:
+    - "#0072b1" # ocean
+    - "#f29e0c" # sun
+    - "#e76f51" # coral
+    - "#1f8a7a" # lagoon
+    - "#fb5607" # sunset
+    - "#48b7e0" # shallows
+    - "#9d4edd" # dusk
+    - "#d62839" # watermelon
+annotations:
+  pen: "#0072b1"
+  pen-outline: "#00456b"
+  arrow: "#e76f51"
+  arrow-outline: "#9a3b22"
+fonts:
+  display: hanken-medium
+  body: hanken-regular
+  lead: hanken-light
+  strong: hanken-medium
+  mono: jetbrains-mono
+sizes: { h1: 100, h2: 72, h3: 52, body: 42, code: 30 }
+code: { syntax: "Solarized (light)" }

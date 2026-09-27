@@ -1,0 +1,9 @@
+/* ============================================================
+   MDeck Co: Fonts
+   Loaded from Google Fonts. If you need fully offline assets,
+   swap these @import lines for local @font-face declarations.
+   NOTE: Spectral / Hanken Grotesk / JetBrains Mono were chosen
+   fresh for this brand (no source font files were provided).
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Hanken+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");

@@ -13,6 +13,8 @@ pub enum CheckCategory {
     Fonts,
     /// `$...$` / `$$...$$` formulas that do not parse.
     Math,
+    /// The deck's theme: unknown name, invalid file, fallbacks, weak contrast.
+    Theme,
 }
 
 impl fmt::Display for CheckCategory {
@@ -23,6 +25,7 @@ impl fmt::Display for CheckCategory {
             CheckCategory::Illustration => write!(f, "illustration"),
             CheckCategory::Fonts => write!(f, "fonts"),
             CheckCategory::Math => write!(f, "math"),
+            CheckCategory::Theme => write!(f, "theme"),
         }
     }
 }

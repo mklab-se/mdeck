@@ -69,6 +69,10 @@ fn parse_frontmatter(yaml_str: &str) -> PresentationMeta {
         slide_level: get_u8(&map, "@slide-level"),
         story: get_string(&map, "@story"),
         countdown: get_string(&map, "@countdown").map(|v| parse_switch(&v)),
+        logo: get_string(&map, "@logo"),
+        logo_position: get_string(&map, "@logo-position"),
+        logo_opacity: get_string(&map, "@logo-opacity"),
+        logo_height: get_string(&map, "@logo-height"),
     }
 }
 
@@ -114,6 +118,10 @@ fn parse_frontmatter_manual(yaml_str: &str) -> PresentationMeta {
                 "@slide-level" => meta.slide_level = value.parse().ok(),
                 "@story" => meta.story = Some(value.to_string()),
                 "@countdown" => meta.countdown = Some(parse_switch(value)),
+                "@logo" => meta.logo = Some(value.to_string()),
+                "@logo-position" => meta.logo_position = Some(value.to_string()),
+                "@logo-opacity" => meta.logo_opacity = Some(value.to_string()),
+                "@logo-height" => meta.logo_height = Some(value.to_string()),
                 _ => {}
             }
         }
@@ -124,6 +132,17 @@ fn parse_frontmatter_manual(yaml_str: &str) -> PresentationMeta {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn logo_keys_are_read() {
+        let (meta, _) = extract(
+            "---\n@logo: brand/logo.svg\n@logo-position: bottom-left\n@logo-opacity: 40%\n@logo-height: 72\n---\n# A\n",
+        );
+        assert_eq!(meta.logo.as_deref(), Some("brand/logo.svg"));
+        assert_eq!(meta.logo_position.as_deref(), Some("bottom-left"));
+        assert_eq!(meta.logo_opacity.as_deref(), Some("40%"));
+        assert_eq!(meta.logo_height.as_deref(), Some("72"));
+    }
 
     #[test]
     fn countdown_switch_parses_common_spellings() {

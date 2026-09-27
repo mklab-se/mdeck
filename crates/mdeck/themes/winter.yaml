@@ -1,0 +1,32 @@
+# Winter: a clear night over snow. Deep blue-black, ice-blue accents and a
+# particle field glowing ice-blue and white (particles engine).
+name: Winter
+extends: ember
+colors:
+  background: "#0a1220"      # polar night
+  text: "#c3cfdd"            # frost
+  heading: "#f1f6fb"         # fresh snow
+  muted: "#7f8ea3"
+  rule: "#1d2b40"
+  accent: "#7cc4fa"          # ice
+  accent-soft: "#b9e2ff"
+  secondary: "#e3ecf6"       # snow
+  code-background: "#111c2e"
+  code-text: "#d7e1ec"
+  positive: "#6fcf97"
+  negative: "#f28b82"
+  series:
+    - "#7cc4fa" # ice
+    - "#b8a1ff" # aurora violet
+    - "#6fcf97" # aurora green
+    - "#f2c14e" # lantern
+    - "#f28b82" # frostbite
+    - "#4fd1c5" # glacier
+    - "#e3ecf6" # snow
+    - "#5b8def" # twilight
+particles:
+  light: "#f4f8ff"
+  cool: "#b9e2ff"
+annotations:
+  arrow: "#f2c14e"
+  arrow-outline: "#a67c1a"

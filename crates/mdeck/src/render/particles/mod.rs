@@ -63,16 +63,27 @@ pub enum Tint {
 }
 
 impl Tint {
-    fn rgb(self) -> [f32; 3] {
+    fn index(self) -> usize {
         match self {
-            Tint::Ember => [1.0, 0.302, 0.110],    // #ff4d1c
-            Tint::Flame => [1.0, 0.541, 0.400],    // #ff8a66
-            Tint::White => [0.843, 0.843, 0.882],  // #d7d7e1
-            Tint::Candle => [0.961, 0.651, 0.137], // #f5a623
-            Tint::Pale => [0.686, 0.765, 0.941],   // #afc3f0
+            Tint::Ember => 0,
+            Tint::Flame => 1,
+            Tint::White => 2,
+            Tint::Candle => 3,
+            Tint::Pale => 4,
         }
     }
 }
+
+/// The colour of each [`Tint`], in `Tint::index` order. The theme sets them
+/// (accent, soft accent, particle light, secondary, particle cool); these are
+/// Ember's.
+pub const DEFAULT_TINTS: [Color32; 5] = [
+    Color32::from_rgb(0xFF, 0x4D, 0x1C),
+    Color32::from_rgb(0xFF, 0x8A, 0x66),
+    Color32::from_rgb(0xD7, 0xD7, 0xE1),
+    Color32::from_rgb(0xF5, 0xA6, 0x23),
+    Color32::from_rgb(0xAF, 0xC3, 0xF0),
+];
 
 /// Colour mix of a group.
 #[derive(Clone, Copy, Debug)]
@@ -330,9 +341,24 @@ pub struct Field {
     scene_fade: f32,
     time: f32,
     renderer: gl::GlowRenderer,
+    /// Linear-ish RGB per tint, from the theme.
+    tints: [[f32; 3]; 5],
+}
+
+fn rgb(c: Color32) -> [f32; 3] {
+    [
+        c.r() as f32 / 255.0,
+        c.g() as f32 / 255.0,
+        c.b() as f32 / 255.0,
+    ]
 }
 
 impl Field {
+    /// Set the particle colours, in [`Tint`] order (see [`DEFAULT_TINTS`]).
+    pub fn set_tints(&mut self, tints: [Color32; 5]) {
+        self.tints = tints.map(rgb);
+    }
+
     pub fn new(count: usize, seed: u64) -> Self {
         let mut rng = Rng::new(seed);
         let particles = (0..count)
@@ -367,6 +393,7 @@ impl Field {
             scene_fade: 1.0,
             time: 0.0,
             renderer: gl::GlowRenderer::default(),
+            tints: DEFAULT_TINTS.map(rgb),
         }
     }
 
@@ -678,9 +705,9 @@ impl Field {
             .iter()
             .filter(|p| p.alpha > 0.003)
             .map(|p| {
-                let [r, g, b] = p.tint.rgb();
+                let [r, g, b] = self.tints[p.tint.index()];
                 let heat = self.heat.get(p.group).copied().unwrap_or(0.0) * 0.75;
-                let [er, eg, eb] = Tint::Ember.rgb();
+                let [er, eg, eb] = self.tints[Tint::Ember.index()];
                 Sprite {
                     x: p.x,
                     y: p.y,

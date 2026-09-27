@@ -1,0 +1,27 @@
+# Light: dark text on white.
+name: Light
+extends: dark
+colors:
+  background: "#ffffff"
+  text: "#1a1a2e"
+  heading: "#16213e"
+  accent: "#0f3460"
+  code-background: "#f5f5f5"
+  code-text: "#333333"
+  positive: "#167a3e"
+  negative: "#b92d2d"
+  series:
+    - "#1a6bb5" # deep blue
+    - "#c73e1d" # brick red
+    - "#1e8a5a" # forest green
+    - "#b87b0a" # dark amber
+    - "#7b3fa0" # purple
+    - "#188a8d" # teal
+    - "#c43b7a" # magenta
+    - "#5a7a2b" # olive
+annotations:
+  pen: "#1e50c8"
+  pen-outline: "#0f2882"
+  arrow: "#dc2828"
+  arrow-outline: "#961414"
+code: { syntax: InspiredGitHub }

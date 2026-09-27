@@ -86,7 +86,7 @@ pub fn load(deck: &Path) -> Result<Option<Sidecar>, String> {
 pub fn save(deck: &Path, sidecar: &Sidecar) -> Result<PathBuf, String> {
     let (path, _) = resolve_path(deck);
     let text = serde_yaml::to_string(sidecar).map_err(|e| e.to_string())?;
-    let header = "# Story scenes for the Ember theme, written by `mdeck ai story`.\n# Hand edits are fine; a slide's entry goes stale when the slide changes.\n";
+    let header = "# Story scenes for the particles engine (the Ember theme and others), written by `mdeck ai story`.\n# Hand edits are fine; a slide's entry goes stale when the slide changes.\n";
     std::fs::write(&path, format!("{header}{text}"))
         .map_err(|e| format!("{}: {e}", path.display()))?;
     Ok(path)

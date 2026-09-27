@@ -10,7 +10,9 @@ use std::path::PathBuf;
     mdeck slides.md              Launch presentation (fullscreen)\n  \
     mdeck slides.md --windowed   Launch in a window\n  \
     mdeck spec                   Print format specification\n  \
-    mdeck spec --short           Print quick reference card")]
+    mdeck spec --short           Print quick reference card\n  \
+    mdeck theme list             Themes you can use (built-in and your own)\n  \
+    mdeck theme new acme         Start a custom theme in ./themes")]
 #[command(propagate_version = true)]
 #[command(args_conflicts_with_subcommands = true)]
 pub struct Cli {
@@ -70,7 +72,7 @@ pub enum Commands {
         shell: Shell,
     },
 
-    /// Export slides as PNG images
+    /// Export slides as PNG images or a PDF
     Export {
         /// Markdown file to export
         file: PathBuf,
@@ -106,12 +108,22 @@ pub enum Commands {
         /// Export only these slides, e.g. 3-7 (1-based, inclusive)
         #[arg(long)]
         range: Option<String>,
+
+        /// Theme to export with, overriding @theme and the config default
+        #[arg(long)]
+        theme: Option<String>,
     },
 
     /// Point cloud illustrations for the particle field (generate, import, list, show)
     Illustration {
         #[command(subcommand)]
         command: IllustrationCommands,
+    },
+
+    /// Custom themes: list, check, create (optionally from a design system) and preview
+    Theme {
+        #[command(subcommand)]
+        command: ThemeCommands,
     },
 
     /// Print the mdeck markdown format specification
@@ -158,7 +170,7 @@ pub enum AiCommands {
     },
     /// Create a presentation from content using AI
     Create(CreateArgs),
-    /// Write particle stories for the Ember theme (saved next to the deck as <deck>.scenes.yaml)
+    /// Write particle stories for themes on the particles engine, like Ember (saved next to the deck as <deck>.scenes.yaml)
     Story {
         /// Markdown file to process
         file: PathBuf,
@@ -338,13 +350,52 @@ pub enum IllustrationCommands {
 }
 
 #[derive(Subcommand)]
+pub enum ThemeCommands {
+    /// List every theme visible from the current directory
+    List,
+    /// Check a theme for errors, fallbacks and hard-to-read colours
+    Check {
+        /// Theme name, or a path to a theme file
+        name: String,
+    },
+    /// Write a new theme to ./themes (a commented starter, or from a design system with AI)
+    New {
+        /// Theme name (lowercase letters, digits, '-' and '_')
+        name: String,
+        /// Design system folder to convert with AI (SKILL.md, readme.md, CSS tokens, *.tokens.json); its fonts and logos are copied into the theme
+        #[arg(long)]
+        from: Option<PathBuf>,
+        /// Write to the user theme folder instead of ./themes
+        #[arg(long)]
+        user: bool,
+        /// Overwrite an existing theme of the same name
+        #[arg(long)]
+        force: bool,
+    },
+    /// Export a sampler deck in a theme, to look at
+    Preview {
+        /// Theme name, or a path to a theme file
+        name: String,
+        /// Output directory for the PNGs
+        #[arg(long, short = 'o')]
+        output_dir: PathBuf,
+        /// Width in pixels
+        #[arg(long, default_value = "1920")]
+        width: u32,
+        /// Height in pixels
+        #[arg(long, default_value = "1080")]
+        height: u32,
+    },
+}
+
+#[derive(Subcommand)]
 pub enum ConfigCommands {
     /// Display current configuration
     Show,
 
     /// Set a configuration value
     Set {
-        /// Configuration key: defaults.theme (light|dark|nord), defaults.transition
+        /// Configuration key: defaults.theme (a built-in or user theme), defaults.transition
         /// (slide|fade|spatial|none), defaults.aspect (16:9|4:3|16:10),
         /// defaults.start_mode (first|overview|<slide number>)
         key: String,
@@ -392,9 +443,27 @@ impl Cli {
                 range,
                 format,
                 notes,
+                theme,
             }) => crate::commands::export::run(
-                file, output_dir, width, height, debug, slide, range, format, notes,
+                file,
+                output_dir,
+                width,
+                height,
+                debug,
+                slide,
+                range,
+                format,
+                notes,
+                theme.map_or(crate::commands::export::ThemeChoice::Deck, |name| {
+                    crate::commands::export::ThemeChoice::Named(name)
+                }),
             ),
+            Some(Commands::Theme { command }) => {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()?;
+                rt.block_on(crate::commands::theme::run(command, self.quiet))
+            }
             Some(Commands::Spec { short }) => {
                 crate::commands::spec::run(short);
                 Ok(())

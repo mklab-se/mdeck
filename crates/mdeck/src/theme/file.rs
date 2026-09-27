@@ -1,0 +1,261 @@
+//! The theme file format (`theme.yaml`): every key optional, unknown keys
+//! rejected, and `extends` merged key by key before a [`super::Theme`] is
+//! built from the result.
+
+use serde::Deserialize;
+
+/// One theme file as written. Colours are `#rgb`, `#rrggbb` or `#rrggbbaa`.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct ThemeFile {
+    /// Display name; defaults to the file name.
+    pub name: Option<String>,
+    /// Theme to inherit unset keys from (default: `dark`).
+    pub extends: Option<String>,
+    /// `plain` or `particles`.
+    pub engine: Option<String>,
+    /// `none`, `plain` or `burst`.
+    pub countdown: Option<String>,
+    #[serde(default)]
+    pub colors: Colors,
+    #[serde(default)]
+    pub annotations: Annotations,
+    #[serde(default)]
+    pub particles: Particles,
+    #[serde(default)]
+    pub fonts: Fonts,
+    #[serde(default)]
+    pub sizes: Sizes,
+    #[serde(default)]
+    pub text: Text,
+    #[serde(default)]
+    pub charts: Charts,
+    #[serde(default)]
+    pub code: Code,
+    #[serde(default)]
+    pub logo: Logo,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Colors {
+    pub background: Option<String>,
+    pub text: Option<String>,
+    pub heading: Option<String>,
+    pub muted: Option<String>,
+    pub strong: Option<String>,
+    pub rule: Option<String>,
+    pub accent: Option<String>,
+    pub accent_soft: Option<String>,
+    pub secondary: Option<String>,
+    pub code_background: Option<String>,
+    pub code_text: Option<String>,
+    pub positive: Option<String>,
+    pub negative: Option<String>,
+    pub series: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Annotations {
+    pub pen: Option<String>,
+    pub pen_outline: Option<String>,
+    pub arrow: Option<String>,
+    pub arrow_outline: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Particles {
+    pub light: Option<String>,
+    pub cool: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Fonts {
+    pub display: Option<String>,
+    pub body: Option<String>,
+    pub lead: Option<String>,
+    pub strong: Option<String>,
+    pub mono: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Sizes {
+    pub h1: Option<f32>,
+    pub h2: Option<f32>,
+    pub h3: Option<f32>,
+    pub body: Option<f32>,
+    pub code: Option<f32>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Text {
+    pub line_height: Option<f32>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Charts {
+    pub fill_opacity: Option<f32>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Code {
+    pub syntax: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Logo {
+    /// A PNG or SVG in the theme folder.
+    pub file: Option<String>,
+    /// `top-left`, `top-right`, `bottom-left` or `bottom-right`.
+    pub position: Option<String>,
+    /// Height in px on a 1920x1080 slide.
+    pub height: Option<f32>,
+    /// 0 to 1.
+    pub opacity: Option<f32>,
+}
+
+/// `child` wins wherever it sets a key.
+fn pick<T: Clone>(child: &Option<T>, parent: &Option<T>) -> Option<T> {
+    child.clone().or_else(|| parent.clone())
+}
+
+impl ThemeFile {
+    pub fn parse(yaml: &str) -> Result<Self, String> {
+        serde_yaml::from_str(yaml).map_err(|e| e.to_string())
+    }
+
+    /// This file with every unset key taken from `parent`. `name` and
+    /// `extends` are the child's own.
+    pub fn over(&self, parent: &ThemeFile) -> ThemeFile {
+        let (c, p) = (&self.colors, &parent.colors);
+        let (a, pa) = (&self.annotations, &parent.annotations);
+        let (f, pf) = (&self.fonts, &parent.fonts);
+        let (s, ps) = (&self.sizes, &parent.sizes);
+        ThemeFile {
+            name: self.name.clone(),
+            extends: self.extends.clone(),
+            engine: pick(&self.engine, &parent.engine),
+            countdown: pick(&self.countdown, &parent.countdown),
+            colors: Colors {
+                background: pick(&c.background, &p.background),
+                text: pick(&c.text, &p.text),
+                heading: pick(&c.heading, &p.heading),
+                muted: pick(&c.muted, &p.muted),
+                strong: pick(&c.strong, &p.strong),
+                rule: pick(&c.rule, &p.rule),
+                accent: pick(&c.accent, &p.accent),
+                accent_soft: pick(&c.accent_soft, &p.accent_soft),
+                secondary: pick(&c.secondary, &p.secondary),
+                code_background: pick(&c.code_background, &p.code_background),
+                code_text: pick(&c.code_text, &p.code_text),
+                positive: pick(&c.positive, &p.positive),
+                negative: pick(&c.negative, &p.negative),
+                series: pick(&c.series, &p.series),
+            },
+            annotations: Annotations {
+                pen: pick(&a.pen, &pa.pen),
+                pen_outline: pick(&a.pen_outline, &pa.pen_outline),
+                arrow: pick(&a.arrow, &pa.arrow),
+                arrow_outline: pick(&a.arrow_outline, &pa.arrow_outline),
+            },
+            particles: Particles {
+                light: pick(&self.particles.light, &parent.particles.light),
+                cool: pick(&self.particles.cool, &parent.particles.cool),
+            },
+            fonts: Fonts {
+                display: pick(&f.display, &pf.display),
+                body: pick(&f.body, &pf.body),
+                lead: pick(&f.lead, &pf.lead),
+                strong: pick(&f.strong, &pf.strong),
+                mono: pick(&f.mono, &pf.mono),
+            },
+            sizes: Sizes {
+                h1: pick(&s.h1, &ps.h1),
+                h2: pick(&s.h2, &ps.h2),
+                h3: pick(&s.h3, &ps.h3),
+                body: pick(&s.body, &ps.body),
+                code: pick(&s.code, &ps.code),
+            },
+            text: Text {
+                line_height: pick(&self.text.line_height, &parent.text.line_height),
+            },
+            charts: Charts {
+                fill_opacity: pick(&self.charts.fill_opacity, &parent.charts.fill_opacity),
+            },
+            code: Code {
+                syntax: pick(&self.code.syntax, &parent.code.syntax),
+            },
+            logo: Logo {
+                file: pick(&self.logo.file, &parent.logo.file),
+                position: pick(&self.logo.position, &parent.logo.position),
+                height: pick(&self.logo.height, &parent.logo.height),
+                opacity: pick(&self.logo.opacity, &parent.logo.opacity),
+            },
+        }
+    }
+}
+
+/// Parse `#rgb`, `#rrggbb` or `#rrggbbaa` (the `#` is optional).
+pub fn parse_color(s: &str) -> Option<[u8; 4]> {
+    let h = s.trim().trim_start_matches('#');
+    let hex = |i: usize, n: usize| u8::from_str_radix(&h[i..i + n], 16).ok();
+    if !h.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    match h.len() {
+        3 => {
+            let d = |i| hex(i, 1).map(|v| v * 17);
+            Some([d(0)?, d(1)?, d(2)?, 255])
+        }
+        6 => Some([hex(0, 2)?, hex(2, 2)?, hex(4, 2)?, 255]),
+        8 => Some([hex(0, 2)?, hex(2, 2)?, hex(4, 2)?, hex(6, 2)?]),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn colors_parse_in_every_form() {
+        assert_eq!(parse_color("#ff4d1c"), Some([0xff, 0x4d, 0x1c, 255]));
+        assert_eq!(parse_color("FF4D1C"), Some([0xff, 0x4d, 0x1c, 255]));
+        assert_eq!(parse_color("#fff"), Some([255, 255, 255, 255]));
+        assert_eq!(parse_color("#00000080"), Some([0, 0, 0, 0x80]));
+        assert_eq!(parse_color("#12345"), None);
+        assert_eq!(parse_color("#gggggg"), None);
+        assert_eq!(parse_color("rgb(1,2,3)"), None);
+    }
+
+    #[test]
+    fn unknown_keys_are_rejected() {
+        let err = ThemeFile::parse("colors:\n  backgorund: '#000'\n").unwrap_err();
+        assert!(err.contains("backgorund"), "{err}");
+        let err = ThemeFile::parse("colour: {}\n").unwrap_err();
+        assert!(err.contains("colour"), "{err}");
+    }
+
+    #[test]
+    fn child_keys_win_and_the_rest_is_inherited() {
+        let parent = ThemeFile::parse(
+            "engine: particles\ncolors: { background: '#000', accent: '#f00' }\nsizes: { h1: 90 }\n",
+        )
+        .unwrap();
+        let child = ThemeFile::parse("name: x\ncolors: { accent: '#0f0' }\n").unwrap();
+        let m = child.over(&parent);
+        assert_eq!(m.name.as_deref(), Some("x"));
+        assert_eq!(m.engine.as_deref(), Some("particles"));
+        assert_eq!(m.colors.background.as_deref(), Some("#000"));
+        assert_eq!(m.colors.accent.as_deref(), Some("#0f0"));
+        assert_eq!(m.sizes.h1, Some(90.0));
+    }
+}

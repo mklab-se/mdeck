@@ -146,7 +146,7 @@ impl PresentationApp {
     }
 
     pub(super) fn draw_end_slide(&mut self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
-        if self.theme.is_ember() {
+        if self.theme.engine.draws_field() {
             self.draw_end_slide_ember(ui, rect, scale);
             return;
         }
@@ -463,7 +463,13 @@ impl PresentationApp {
     }
 
     pub(super) fn draw_presentation_chrome(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
-        if self.theme.is_ember() {
+        // The logo stays put while slides move under it.
+        if let Some(logo) = &self.logo
+            && !self.countdown_running()
+        {
+            render::logo::draw(ui.painter(), rect, logo, scale, 1.0);
+        }
+        if self.theme.engine.draws_field() {
             if !self.countdown_running() {
                 render::ember::draw_chrome(
                     ui.painter(),
@@ -895,40 +901,24 @@ impl PresentationApp {
         ctx.request_repaint();
     }
 
-    /// Pen color: cyan/blue tones
+    /// Pen colour, from the theme's `annotations.pen`.
     pub(super) fn pen_color(&self, opacity: f32) -> egui::Color32 {
-        if self.theme.name == "dark" {
-            egui::Color32::from_rgba_unmultiplied(80, 200, 255, (opacity * 230.0) as u8)
-        } else {
-            egui::Color32::from_rgba_unmultiplied(30, 80, 200, (opacity * 230.0) as u8)
-        }
+        Theme::with_opacity(self.theme.pen, opacity * (230.0 / 255.0))
     }
 
-    /// Pen outline color: darker cyan/blue
+    /// Pen outline colour (`annotations.pen-outline`).
     pub(super) fn pen_outline_color(&self, opacity: f32) -> egui::Color32 {
-        if self.theme.name == "dark" {
-            egui::Color32::from_rgba_unmultiplied(30, 130, 180, (opacity * 140.0) as u8)
-        } else {
-            egui::Color32::from_rgba_unmultiplied(15, 40, 130, (opacity * 140.0) as u8)
-        }
+        Theme::with_opacity(self.theme.pen_outline, opacity * (140.0 / 255.0))
     }
 
-    /// Arrow color: yellow-orange / red tones
+    /// Arrow colour (`annotations.arrow`).
     pub(super) fn arrow_color(&self, opacity: f32) -> egui::Color32 {
-        if self.theme.name == "dark" {
-            egui::Color32::from_rgba_unmultiplied(255, 200, 50, (opacity * 230.0) as u8)
-        } else {
-            egui::Color32::from_rgba_unmultiplied(220, 40, 40, (opacity * 230.0) as u8)
-        }
+        Theme::with_opacity(self.theme.arrow, opacity * (230.0 / 255.0))
     }
 
-    /// Arrow outline color: darker orange / red
+    /// Arrow outline colour (`annotations.arrow-outline`).
     pub(super) fn arrow_outline_color(&self, opacity: f32) -> egui::Color32 {
-        if self.theme.name == "dark" {
-            egui::Color32::from_rgba_unmultiplied(200, 140, 0, (opacity * 140.0) as u8)
-        } else {
-            egui::Color32::from_rgba_unmultiplied(150, 20, 20, (opacity * 140.0) as u8)
-        }
+        Theme::with_opacity(self.theme.arrow_outline, opacity * (140.0 / 255.0))
     }
 
     /// Compute fade opacity for an annotation (1.0 for most of its life, fading in last 2s)

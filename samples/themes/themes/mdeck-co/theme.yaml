@@ -1,0 +1,41 @@
+# Generated from the sample design system with
+#   mdeck theme new mdeck-co --from ../design-systems/mdeck-co
+# (a Claude Design export, see samples/design-systems/), which also copied
+# its logos into logos/. Left as the model wrote it, so it shows what the
+# conversion produces.
+name: MDeck Co
+extends: dark
+engine: particles
+countdown: burst
+colors:
+  background: "#050505"
+  text: "#8f8f98"
+  heading: "#ececef"
+  muted: "#6b6b74"
+  rule: "#ffffff0f" # Judgement call: subtle 6% hairlines preserve the quiet structure.
+  accent: "#ff4d1c"
+  accent-soft: "#ff8a66"
+  secondary: "#f5a623"
+  code-background: "#101012"
+  code-text: "#ececef"
+  positive: "#4fb477"
+  negative: "#e8341c"
+  series:
+    - "#ff4d1c"
+    - "#ffb02e"
+    - "#e8341c"
+    - "#4fb477"
+    - "#2f9bd8"
+    - "#a24bd8"
+    - "#d9b46a"
+fonts:
+  display: spectral-light
+  body: hanken-regular
+  lead: hanken-light
+  strong: hanken-medium
+  mono: jetbrains-mono
+logo:
+  file: logos/mdeckco-white.svg
+  position: top-right
+  height: 56
+  opacity: 0.4 # Judgement call: the brand calls for a quiet, low-opacity mark.

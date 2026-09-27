@@ -1,4 +1,4 @@
-//! `mdeck ai story`: write story scripts for the Ember theme with AI.
+//! `mdeck ai story`: write story scripts for the particles engine with AI.
 //!
 //! For each target slide the model receives the story vocabulary, the deck's
 //! outline and cast so far, the slide's copy and notes, and the author's

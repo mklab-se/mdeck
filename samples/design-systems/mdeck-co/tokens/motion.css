@@ -1,0 +1,26 @@
+/* ============================================================
+   MDeck Co: Motion
+   Restrained, precise, expensive. Nothing bounces.
+   Slow, confident easing. Things glow in, not pop in.
+   ============================================================ */
+
+:root {
+  /* Durations */
+  --dur-instant: 80ms;  /* @kind other */
+  --dur-fast: 140ms;    /* @kind other */
+  --dur-base: 220ms;    /* @kind other */
+  --dur-slow: 380ms;    /* @kind other */
+  --dur-slower: 600ms;  /* @kind other */
+
+  /* Easing: the "expensive" curves. No overshoot. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);    /* @kind other */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);/* @kind other */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);/* @kind other */
+
+  /* Composed transitions */
+  --transition-control: background-color var(--dur-fast) var(--ease-standard),
+                         border-color var(--dur-fast) var(--ease-standard),
+                         box-shadow var(--dur-base) var(--ease-out),
+                         color var(--dur-fast) var(--ease-standard),
+                         transform var(--dur-fast) var(--ease-out);
+}

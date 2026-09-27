@@ -27,7 +27,7 @@ use crate::render;
 use crate::render::image_cache::ImageCache;
 use crate::render::story::sidecar::{self as story_sidecar, Resolved};
 use crate::render::transition::{ActiveTransition, TransitionDirection, TransitionKind};
-use crate::theme::Theme;
+use crate::theme::{Countdown as ThemeCountdown, Theme, lookup};
 
 const OVERVIEW_TRANSITION_DURATION: f32 = 0.4;
 const DRAW_FADE_DURATION: f32 = 8.0;
@@ -143,6 +143,16 @@ struct PresentationApp {
     _watcher: Option<Debouncer<notify::RecommendedWatcher>>,
     mode: AppMode,
     theme: Theme,
+    /// The name the theme was looked up by (for `Shift+T` cycling).
+    theme_key: String,
+    /// Where themes are looked up for this deck.
+    themes: lookup::Lookup,
+    /// A theme waiting for its font faces to become drawable (one frame).
+    pending_theme: Option<Theme>,
+    /// Keeps the context's fonts in step with theme font files.
+    font_sync: render::fonts::FontSync,
+    /// The logo on every slide (theme `logo:` or the deck's `@logo`).
+    logo: Option<render::logo::Logo>,
     default_transition: TransitionKind,
     transition: Option<ActiveTransition>,
     image_cache: ImageCache,
@@ -207,7 +217,7 @@ struct PresentationApp {
     incident_log: Arc<IncidentLog>,
     /// Timestamp of the previous frame, used to detect power-state time jumps.
     last_frame: Instant,
-    /// Ember theme: particle field and logo intro.
+    /// Particles engine: particle field and logo intro.
     ember: ember::EmberState,
     /// Resolved story per slide (inline `@scene`, sidecar, or none).
     stories: Vec<Option<Resolved>>,
@@ -313,12 +323,21 @@ impl PresentationApp {
         defaults: &DefaultsConfig,
     ) -> Self {
         // Precedence: frontmatter > config defaults > built-in
-        let theme_name = resolve_setting(
+        let theme_key = lookup::select(
             presentation.meta.theme.as_deref(),
             defaults.theme.as_deref(),
-            "light",
         );
-        let theme = Theme::from_name(&theme_name);
+        let themes = lookup::Lookup::for_deck(file.parent());
+        let (resolved, problems) = lookup::resolve_or_default(&themes, &theme_key);
+        report_theme_problems(&problems);
+        // `run` preloads every theme's fonts before installing them; should a
+        // face still be new, start on the default theme for the frame it takes.
+        let font_sync = render::fonts::FontSync::installed();
+        let (theme, pending_theme) = if font_sync.ready() {
+            (resolved, None)
+        } else {
+            (Theme::light(), Some(resolved))
+        };
 
         let transition_name = resolve_setting(
             presentation.meta.transition.as_deref(),
@@ -334,7 +353,8 @@ impl PresentationApp {
         let image_cache = ImageCache::new(base_path);
 
         let stories = load_stories(&file, &presentation, quiet);
-        let max_steps: Vec<usize> = slide_max_steps(&presentation, &stories, theme.is_ember());
+        let max_steps: Vec<usize> =
+            slide_max_steps(&presentation, &stories, theme.engine.plays_stories());
         let slide_count = presentation.slides.len();
         let reveal_steps = vec![0; slide_count];
         let reveal_timestamps = vec![None; slide_count];
@@ -343,7 +363,7 @@ impl PresentationApp {
 
         let now = Instant::now();
         let illustrations = render::illustration::Library::for_deck(file.parent());
-        Self {
+        let mut app = Self {
             presentation,
             file_path: file,
             illustrations,
@@ -352,6 +372,11 @@ impl PresentationApp {
             _watcher: watcher,
             mode: AppMode::Presentation,
             theme,
+            theme_key,
+            themes,
+            pending_theme,
+            font_sync,
+            logo: None,
             default_transition,
             transition: None,
             image_cache,
@@ -399,7 +424,9 @@ impl PresentationApp {
             story_version: 0,
             story_rx: None,
             countdown: None,
-        }
+        };
+        app.refresh_logo();
+        app
     }
 
     /// Start the opening countdown if the theme has one and the deck did not
@@ -408,10 +435,10 @@ impl PresentationApp {
         if self.presentation.meta.countdown == Some(false) {
             return;
         }
-        let burst = match self.theme.name.as_str() {
-            "ember" => true,
-            "nord" => false,
-            _ => return,
+        let burst = match self.theme.countdown {
+            ThemeCountdown::Burst => true,
+            ThemeCountdown::Plain => false,
+            ThemeCountdown::None => return,
         };
         self.countdown = Some(Countdown { start: None, burst });
     }
@@ -458,7 +485,11 @@ impl PresentationApp {
     /// Re-read the sidecar and rebuild per-slide stories and step counts.
     fn reload_stories(&mut self) {
         self.stories = load_stories(&self.file_path, &self.presentation, true);
-        self.max_steps = slide_max_steps(&self.presentation, &self.stories, self.theme.is_ember());
+        self.max_steps = slide_max_steps(
+            &self.presentation,
+            &self.stories,
+            self.theme.engine.plays_stories(),
+        );
         for (i, r) in self.reveal_steps.iter_mut().enumerate() {
             *r = (*r).min(self.max_steps[i]);
         }
@@ -467,8 +498,10 @@ impl PresentationApp {
 
     /// `S`: write a story for the current slide with AI, in the background.
     fn generate_story(&mut self) {
-        if !self.theme.is_ember() {
-            self.toast = Some(Toast::new("Stories need the ember theme (Shift+T)".into()));
+        if !self.theme.engine.plays_stories() {
+            self.toast = Some(Toast::new(
+                "Stories need a theme on the particles engine (Shift+T)".into(),
+            ));
             return;
         }
         if self.story_rx.is_some() {
@@ -760,11 +793,61 @@ impl PresentationApp {
         }
     }
 
+    /// `Shift+T`: the next theme visible from this deck (built-ins, then
+    /// user and deck themes by name).
     fn toggle_theme(&mut self) {
-        self.theme = self.theme.next();
-        // Story beats are an Ember feature: other themes step through the
-        // content's own reveals only.
-        self.max_steps = slide_max_steps(&self.presentation, &self.stories, self.theme.is_ember());
+        let names: Vec<String> = self
+            .themes
+            .available()
+            .into_iter()
+            .map(|f| f.name)
+            .collect();
+        if names.is_empty() {
+            return;
+        }
+        let next = names
+            .iter()
+            .position(|n| *n == self.theme_key)
+            .map(|i| (i + 1) % names.len())
+            .unwrap_or(0);
+        let key = names[next].clone();
+        match self.themes.load(&key) {
+            Ok(built) => {
+                report_theme_problems(&built.warnings);
+                self.theme_key = key;
+                self.pending_theme = Some(built.theme);
+            }
+            Err(e) => {
+                // Skip a broken theme rather than getting stuck on it.
+                report_theme_problems(std::slice::from_ref(&e));
+                self.theme_key = key;
+                self.toast = Some(Toast::new(format!("Theme {}: {e}", names[next])));
+            }
+        }
+    }
+
+    /// Resolve the logo from the theme and the deck's `@logo` keys.
+    fn refresh_logo(&mut self) {
+        let dir = self
+            .file_path
+            .parent()
+            .unwrap_or(std::path::Path::new("."))
+            .to_path_buf();
+        let (logo, problems) = render::logo::resolve(&self.theme, &self.presentation.meta, &dir);
+        report_theme_problems(&problems);
+        self.logo = logo;
+    }
+
+    /// Switch to `theme` now: step counts follow its engine (story beats are
+    /// an ember feature; other engines step through the content's own reveals).
+    fn apply_theme(&mut self, theme: Theme) {
+        self.theme = theme;
+        self.refresh_logo();
+        self.max_steps = slide_max_steps(
+            &self.presentation,
+            &self.stories,
+            self.theme.engine.plays_stories(),
+        );
         for (i, r) in self.reveal_steps.iter_mut().enumerate() {
             *r = (*r).min(self.max_steps[i]);
         }
@@ -851,7 +934,11 @@ impl PresentationApp {
         self.stories = load_stories(&self.file_path, &new_presentation, true);
         self.illustrations.reset();
         self.story_version += 1;
-        self.max_steps = slide_max_steps(&new_presentation, &self.stories, self.theme.is_ember());
+        self.max_steps = slide_max_steps(
+            &new_presentation,
+            &self.stories,
+            self.theme.engine.plays_stories(),
+        );
         self.reveal_steps = vec![0; slide_count];
         self.reveal_timestamps = vec![None; slide_count];
         self.scroll_offsets = vec![0.0; slide_count];
@@ -861,15 +948,20 @@ impl PresentationApp {
         self.scroll_targets[cur] = old_scroll;
         self.scroll_offsets[cur] = old_scroll;
 
-        // Update theme/transition from new frontmatter
+        // Update theme/transition from new frontmatter (and pick up edits to
+        // the theme file itself)
         if let Some(name) = &new_presentation.meta.theme {
-            self.theme = Theme::from_name(name);
+            let (theme, problems) = lookup::resolve_or_default(&self.themes, name);
+            report_theme_problems(&problems);
+            self.theme_key = name.trim().to_ascii_lowercase();
+            self.pending_theme = Some(theme);
         }
         if let Some(name) = &new_presentation.meta.transition {
             self.default_transition = TransitionKind::from_name(name);
         }
 
         self.presentation = new_presentation;
+        self.refresh_logo();
         self.image_cache.clear();
         self.precache_cancel.store(true, Ordering::Relaxed);
         render::diagram::clear_route_cache();
@@ -1245,6 +1337,15 @@ impl PresentationApp {
 impl eframe::App for PresentationApp {
     fn ui(&mut self, root_ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = &root_ui.ctx().clone();
+        // Theme font files registered since last frame become drawable one
+        // frame after they are installed; a waiting theme switches then.
+        self.font_sync.sync(ctx);
+        if self.pending_theme.is_some() && self.font_sync.ready() {
+            let theme = self.pending_theme.take().expect("checked");
+            self.apply_theme(theme);
+        } else if self.pending_theme.is_some() {
+            ctx.request_repaint();
+        }
         self.update_fps();
         self.preload_upcoming_images(ctx);
 
@@ -1413,7 +1514,7 @@ impl eframe::App for PresentationApp {
                 let scale = Self::compute_scale(rect);
 
                 // Ember: the living particle field goes under everything.
-                if self.theme.is_ember() && matches!(self.mode, AppMode::Presentation) {
+                if self.theme.engine.draws_field() && matches!(self.mode, AppMode::Presentation) {
                     let target = self
                         .transition
                         .as_ref()
@@ -1455,7 +1556,7 @@ impl eframe::App for PresentationApp {
                 }
 
                 // Nord's countdown: numerals on the bare background, no slide yet.
-                if self.countdown_running() && !self.theme.is_ember() {
+                if self.countdown_running() && !self.theme.engine.draws_field() {
                     self.draw_countdown_numeral(ui, rect, scale);
                     return;
                 }
@@ -1588,7 +1689,14 @@ fn load_stories(
 }
 
 /// Reveal steps per slide: the content's own steps, extended by story beats
-/// when the Ember theme is showing them.
+/// when a theme on the particles engine is showing them.
+/// Print theme problems (unknown name, invalid file, fallbacks) to stderr.
+fn report_theme_problems(problems: &[String]) {
+    for p in problems {
+        eprintln!("warning: theme: {p}");
+    }
+}
+
 fn slide_max_steps(
     presentation: &Presentation,
     stories: &[Option<Resolved>],
@@ -1738,6 +1846,9 @@ pub fn run(
     let log_clone = incident_log.clone();
     // winit allows exactly one event loop per process, so there is no point
     // retrying `run_native` after a display error: run once, log, and bail.
+    // Theme font files must be registered before the window installs fonts.
+    lookup::preload(&lookup::Lookup::for_deck(file.parent()));
+
     let result = eframe::run_native(
         &title,
         options,

@@ -1,0 +1,12 @@
+# Acme: a hand-written custom theme. Ten lines are enough: everything not
+# set here comes from `extends`.
+name: Acme
+extends: light
+colors:
+  background: "#fbfaf7"
+  text: "#2b2d42"
+  heading: "#14213d"
+  accent: "#e85d04"
+  series: ["#e85d04", "#14213d", "#2a9d8f", "#e9c46a"]
+fonts:
+  display: spectral-light

@@ -52,6 +52,10 @@ install in your document and nothing to learn beyond a handful of conventions.
 - **Ember.** A theme with a living field of glowing particles behind every
   slide that follows your content, tells stories you describe in English, and
   opens with a countdown. See [Ember](#ember) below.
+- **Your brand as a theme.** Eight built-in themes, and your own in a few
+  lines of YAML: colours, fonts, sizes and even the particle field, kept next
+  to the deck or in your user folder. `mdeck theme new --from` turns a design
+  system into one. See [Themes](#themes-and-transitions).
 - **Built in Rust.** A single fast binary, GPU-accelerated rendering, 60 fps
   animations, no runtime dependencies.
 
@@ -165,12 +169,12 @@ current slide.
 | Home, End | First / last slide |
 | G | Grid overview (click a slide to jump to it) |
 | T | Cycle transition (slide, fade, spatial, none) |
-| Shift+T | Cycle theme (light, dark, nord, ember) |
+| Shift+T | Cycle theme (the built-ins, then your own) |
 | F | Toggle fullscreen |
 | M | Move to the next monitor |
 | `.` or B | Blackout |
 | H | Presenter HUD with shortcuts (and the current story beat's line) |
-| S | Ember: write an AI story for this slide |
+| S | Particles engine: write an AI story for this slide |
 | Esc | Clear drawings; press twice to quit (Q twice and Ctrl+C twice also quit) |
 
 | Mouse | Action |
@@ -200,6 +204,8 @@ mdeck talk.md --check        # validate the deck without opening a window
 Ember is MKLab's brand as a theme: graphite on near-black, one ember accent,
 an editorial serif for headings, and a living field of glowing particles
 behind every slide. Set `@theme: ember` and any deck you already have gets it.
+The field is the **particles engine**, and any theme can run on it: the
+built-in `autumn` and `winter` do, in their own colours, and so can yours.
 
 <p align="center">
   <img src="media/gallery/ember-bullets.png" width="45%">&nbsp;&nbsp;
@@ -234,7 +240,8 @@ opens a prefilled issue; drag the file in and it can become a built-in.
 
 **It opens and closes.** A 3-2-1 countdown counted in particles (any key
 skips it, `@countdown: false` turns it off) and an ending where the field
-spells THE END before it bursts into black. Nord gets a plain countdown too.
+spells THE END before it bursts into black. Nord gets a plain countdown too,
+and any theme can ask for one.
 
 Try the decks in `samples/ember/`: plain text, visualizations, images,
 illustrations, and stories. The format spec has the full vocabulary.
@@ -338,18 +345,84 @@ that avoid nodes and each other. Node icons can also be AI-generated.
 
 ### Themes and transitions
 
-Built-in themes **light**, **dark**, **nord** and **ember**; transitions
-**slide**, **fade**, **spatial**, and **none**. Set them in the frontmatter or cycle them
-live with `Shift+T` and `T`. Every theme draws symbols (①, ✓, →) from bundled fallback
-faces, and Chinese, Japanese and Korean from a font on your system (`mdeck --check` tells
-you if none was found):
+Eight built-in themes: **light**, **dark**, **nord**, **ember**, and four
+seasons, **spring**, **summer**, **autumn** and **winter**. Transitions are
+**slide**, **fade**, **spatial**, and **none**. Set them in the frontmatter or
+cycle them live with `Shift+T` and `T`. Every theme draws symbols (①, ✓, →) from
+bundled fallback faces, and Chinese, Japanese and Korean from a font on your
+system (`mdeck --check` tells you if none was found):
+
+```yaml
+---
+@theme: winter
+@transition: spatial
+---
+```
+
+<p align="center">
+  <img src="media/gallery/theme-spring.png" width="45%">&nbsp;&nbsp;
+  <img src="media/gallery/theme-summer.png" width="45%">
+</p>
+<p align="center">
+  <img src="media/gallery/theme-autumn.png" width="45%">&nbsp;&nbsp;
+  <img src="media/gallery/theme-winter.png" width="45%">
+</p>
+
+**Your own themes are YAML files**, and the built-in ones are written the same
+way. Put `themes/acme.yaml` next to a deck (or in `~/.config/mdeck/themes/`) and
+set `@theme: acme`; everything you leave out comes from the theme it extends:
+
+```yaml
+name: Acme
+extends: light
+colors:
+  background: "#fbfaf7"
+  text: "#2b2d42"
+  heading: "#14213d"
+  accent: "#e85d04"
+  series: ["#e85d04", "#14213d", "#2a9d8f", "#e9c46a"]
+fonts:
+  display: spectral-light      # a bundled face, or a .ttf/.otf in the theme folder
+engine: plain                  # or particles, for Ember's living field in your colours
+```
+
+A theme sets colours, the chart palette, fonts by role, sizes, the syntax
+theme, the countdown, the engine and a **logo**. Themes are data only, so a deck can never
+run code. Custom themes work everywhere a built-in one does: presenting,
+`Shift+T`, PNG and PDF export, and `--check`.
+
+**Logos.** A PNG (with transparency) or SVG in a corner of every slide, in
+presenting and in export. A theme carries its brand's logo (`logo:` with
+`file`, `position`, `height` and `opacity`), and any deck can add or replace
+one without a custom theme:
 
 ```yaml
 ---
 @theme: dark
-@transition: spatial
+@logo: brand/logo-white.svg
+@logo-position: bottom-right   # default top-right
+@logo-opacity: 40%             # default 60%
 ---
 ```
+
+**From a design system.** If your brand already lives in a design system (a
+Claude Design export, CSS tokens, a Tailwind config, W3C design tokens),
+`mdeck theme new acme --from path/to/design-system` reads its rules and tokens,
+copies its fonts and logos into the theme folder, and writes the theme with AI.
+Then look at it and adjust:
+
+```bash
+mdeck theme new acme                       # a commented starter theme in themes/
+mdeck theme new acme --from ./brand        # convert a design system (AI)
+mdeck theme check acme                     # errors, fallbacks, hard-to-read colours
+mdeck theme preview acme -o /tmp/acme      # a sampler deck as PNGs
+mdeck theme list                           # every theme visible from here
+mdeck export talk.md --theme acme          # any deck in any theme
+```
+
+Section 9.4 of the spec (`mdeck spec`) documents every key and the mapping
+from design-system roles to slide roles, so an AI agent can do the conversion
+too. `samples/themes/` has a converted design system and a hand-written theme.
 
 ### Speaker notes
 
@@ -387,6 +460,7 @@ mdeck export talk.md --slide 7                    # just slide 7 (file names kee
 mdeck export talk.md --range 3-5 --debug          # slides 3 to 5, every step
 mdeck export talk.md --format pdf                 # export/talk.pdf, one page per slide
 mdeck export talk.md --format pdf --notes         # export/talk-notes.pdf, slide + speaker notes
+mdeck export talk.md --theme winter               # in another theme, without editing the deck
 ```
 
 Output is always exactly the requested size, independent of your screen's
@@ -471,7 +545,11 @@ agent to read.
 
 ```bash
 mdeck <file.md>                    # present (add --windowed, --slide N, --overview, --check)
-mdeck export <file.md>             # PNG export (--width, --height, --output-dir, --debug, --slide, --range)
+mdeck export <file.md>             # PNG or PDF export (--width, --height, --output-dir, --debug, --slide, --range, --format, --notes, --theme)
+mdeck theme list                   # Every theme visible from here (deck, user, built-in)
+mdeck theme new <n>                # Starter theme in ./themes (--from <design system> with AI, --user, --force)
+mdeck theme check <n>              # Errors, fallbacks and weak contrast in a theme
+mdeck theme preview <n> -o <dir>   # Sampler deck in a theme, as PNGs
 mdeck illustration generate --name <n> --description "..."  # New point cloud illustration via AI (--user, --force)
 mdeck illustration import <image> --name <n>                # Convert an image of light strokes on dark
 mdeck illustration list            # Every illustration visible from here (deck, user, built-in)

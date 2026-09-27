@@ -5,6 +5,7 @@ pub mod hints;
 pub mod illustration;
 pub mod image_cache;
 pub mod layouts;
+pub mod logo;
 pub mod math;
 pub mod particles;
 pub mod story;
@@ -37,7 +38,7 @@ pub fn measure_slide_content_height(
     let padding = layouts::SLIDE_PADDING * scale;
     let available_height = rect.height() - padding * 2.0;
 
-    if theme.is_ember() && ember::handles(slide) {
+    if theme.engine.lays_out(slide) {
         let h = ember::measure_content_height(ui, slide, theme, rect, scale);
         return (h, rect.height() * 0.80);
     }
@@ -72,7 +73,7 @@ pub fn render_slide(
     scale: f32,
     cx: &SlideContext,
 ) {
-    if theme.is_ember() && ember::handles(slide) {
+    if theme.engine.lays_out(slide) {
         ember::render(
             ui,
             slide,

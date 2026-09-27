@@ -1,0 +1,37 @@
+# Spring: new leaves and cherry blossom on a pale morning. Light, fresh and
+# gentle, with a blossom-pink accent and young greens.
+name: Spring
+extends: light
+colors:
+  background: "#f7faf2"      # morning haze
+  text: "#34402f"            # moss
+  heading: "#1e3a1b"         # deep leaf
+  muted: "#6f7d67"
+  accent: "#c73e6b"          # cherry blossom
+  accent-soft: "#ec9ab5"
+  secondary: "#5f9e3a"       # new leaf
+  code-background: "#ecf2e3"
+  code-text: "#2f3b2a"
+  positive: "#3f8f3a"
+  negative: "#c2410c"
+  series:
+    - "#c73e6b" # blossom
+    - "#5f9e3a" # leaf
+    - "#d9a21b" # daffodil
+    - "#3f7cc0" # forget-me-not
+    - "#9b5fc0" # lilac
+    - "#2a9d8f" # stream
+    - "#e07a5f" # tulip
+    - "#6b8e23" # fern
+annotations:
+  pen: "#3f7cc0"
+  pen-outline: "#234a78"
+  arrow: "#c73e6b"
+  arrow-outline: "#7d2342"
+fonts:
+  display: spectral-light
+  body: hanken-regular
+  lead: hanken-light
+  strong: hanken-medium
+  mono: jetbrains-mono
+text: { line-height: 1.4 }

@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Custom themes ([#14](https://github.com/mklab-se/mdeck/issues/14)): a theme is a YAML file,
+  `themes/<name>.yaml` (or `themes/<name>/theme.yaml` with its fonts and logo) next to the
+  deck or in the user folder, selected with `@theme: <name>` like a built-in one. It sets
+  colours, the chart and diagram series, fonts by role (a bundled face or a TTF/OTF file in
+  the theme folder), sizes, line height, chart fill opacity, the syntax theme (bundled or a
+  `.tmTheme` file), the opening countdown, a logo and the engine. `extends` inherits every
+  unset key from another theme, so a brand theme can be ten lines. Custom themes work when
+  presenting, in `Shift+T` cycling, in PNG and PDF export and in `--check`. Themes are data
+  only: a deck or theme folder can never make MDeck run code, and theme file paths cannot
+  leave the theme folder. Spec section 9.4; samples in `samples/themes/`.
+- Engines: what a theme does beyond colours and type. `plain` draws slides on a flat
+  background; `particles` is Ember's living particle field, editorial copy layouts, story
+  beats and illustrations, now in any theme's own colours.
+- Four seasonal built-in themes, written as theme files like every built-in: `spring` and
+  `summer` (light, plain engine), `autumn` and `winter` (dark, particles engine).
+- Logos (spec section 9.5): a PNG with transparency or an SVG in a corner of every slide,
+  when presenting and in PNG and PDF export. A theme carries one in its `logo:` block, and any
+  deck can add, replace or hide one with `@logo`, `@logo-position`, `@logo-opacity` and
+  `@logo-height`, no custom theme needed.
+- `mdeck theme`: `list` (every theme visible from here), `check` (errors, fallbacks, hard to
+  read colours), `new` (a commented starter theme) and `preview` (a sampler deck as PNGs).
+  `mdeck theme new <name> --from <folder>` turns a design system (a Claude Design export, CSS
+  tokens, W3C design tokens, a Tailwind config) into a theme with AI, copying its fonts and
+  logos into the theme folder. The spec documents the mapping from design-system roles to
+  slide roles, so any AI agent can do the conversion too. Sample input:
+  `samples/design-systems/mdeck-co`.
+- `mdeck export --theme <name>` renders a deck in any theme without editing it.
+- `mdeck --check` reports theme problems under a new `theme` category: an unknown name, an
+  invalid theme file (unknown keys are errors, so typos surface), a font or logo that fell
+  back, and text with too little contrast against its background.
+
+### Changed
+
+- The built-in themes are defined as embedded theme files instead of code. They render as
+  before, except that Nord and Ember now use the dark themes' pen and arrow annotation colours
+  (they used the light theme's).
+- An unknown `@theme` name is reported when presenting, exporting and checking; it used to
+  fall back to `light` silently. `mdeck config set defaults.theme` accepts user themes.
+- `mdeck export` now honours the configured `defaults.theme`, as presenting always did.
+- The cargo feature `particles` (on by default) holds the particles engine, the themes that
+  use it and the built-in illustrations; `--no-default-features` builds without them.
+
 ## [1.5.0] - 2026-09-25
 
 ### Added

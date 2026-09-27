@@ -1,0 +1,49 @@
+<!-- @dsCard group="Components" viewport="700x460" name="Forms: Inputs & Controls" subtitle="Inset wells that light an ember hairline on focus" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body { margin: 0; background: var(--surface-base); color: var(--text-primary); font-family: var(--font-sans); padding: 28px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel" data-presets="react">
+const { Input, Textarea, Select, Checkbox, Radio, Switch, Icon } = window.MDeckCoDesignSystem_4d3c0a;
+function Demo() {
+  const [a,setA]=React.useState(true);const [b,setB]=React.useState(false);
+  const [t,setT]=React.useState('a');const [on,setOn]=React.useState(true);
+  return (
+    <div className="grid">
+      <div className="stack">
+        <Input label="Work email" placeholder="you@firm.com" iconLeft={<Icon name="mail" size={16} />} />
+        <Input label="Passcode" defaultValue="expired" error="That passcode has expired." />
+        <Select label="Region" placeholder="Choose one" options={["Nordics","DACH","Benelux","UK & Ireland"]} />
+        <Textarea label="Brief" rows={3} placeholder="What decision are you facing?" />
+      </div>
+      <div className="stack">
+        <Checkbox label="I meet the seniority bar" description="10+ years, P&L ownership." checked={a} onChange={e=>setA(e.target.checked)} />
+        <Checkbox label="Open to relocation" checked={b} onChange={e=>setB(e.target.checked)} />
+        <div className="stack" style={{gap:10}}>
+          <Radio name="tier" label="Advisory" checked={t==='a'} onChange={()=>setT('a')} />
+          <Radio name="tier" label="Embedded" checked={t==='e'} onChange={()=>setT('e')} />
+          <Radio name="tier" label="Interim leadership" checked={t==='i'} onChange={()=>setT('i')} />
+        </div>
+        <Switch label="Confidential engagement" description="Hide from public case index." checked={on} onChange={e=>setOn(e.target.checked)} />
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body>
+</html>

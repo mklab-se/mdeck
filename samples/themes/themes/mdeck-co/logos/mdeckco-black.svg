@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!-- MDeck Co mark: three cards of a deck, the front one solid. -->
+  <g fill="none" stroke="#050505" stroke-width="4" stroke-linejoin="round">
+    <rect x="40" y="14" width="66" height="46" rx="5" opacity="0.45"/>
+    <rect x="27" y="37" width="66" height="46" rx="5" opacity="0.72"/>
+  </g>
+  <rect x="14" y="60" width="66" height="46" rx="5" fill="#050505"/>
+</svg>

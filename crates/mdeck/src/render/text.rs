@@ -53,21 +53,21 @@ struct InlineStyle {
 
 impl InlineStyle {
     fn new(theme: &Theme, color: Color32) -> Self {
+        Self::with_body(theme, color, theme.body_family())
+    }
+
+    /// The same style with `body` as the family for ordinary runs.
+    fn with_body(theme: &Theme, color: Color32, body: FontFamily) -> Self {
         let alpha = color.a();
-        let strong_family = if theme.is_ember() {
-            FontFamily::Name(crate::theme::FONT_BODY_MEDIUM.into())
-        } else {
-            theme.body_family()
-        };
         Self {
             color,
             strong: with_alpha(strong_color(theme), alpha),
             link: with_alpha(theme.accent, alpha),
             code_bg: with_alpha(theme.accent, (alpha as f32 * 0.12) as u8),
-            body_family: theme.body_family(),
-            strong_family,
+            body_family: body,
+            strong_family: theme.strong_family(),
             mono_family: theme.mono_family(),
-            line_height: theme.is_ember().then_some(1.45),
+            line_height: theme.line_height,
         }
     }
 }
@@ -76,22 +76,11 @@ fn with_alpha(c: Color32, a: u8) -> Color32 {
     Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), a)
 }
 
-/// Relative luminance (0..1) of a colour, ignoring alpha.
-fn luminance(c: Color32) -> f32 {
-    (0.2126 * c.r() as f32 + 0.7152 * c.g() as f32 + 0.0722 * c.b() as f32) / 255.0
-}
-
-/// Colour used to emphasise bold text. The heading colour is used when it is
-/// visibly brighter than the body colour (dark themes); otherwise the accent
-/// colour is used so bold still stands out (light theme, where heading and body
-/// colours are nearly identical).
+/// Colour used to emphasise bold text: the theme's `colors.strong`, which
+/// defaults to the heading colour when it is visibly brighter than body text
+/// (dark themes) and to the accent otherwise (light themes).
 pub fn strong_color(theme: &Theme) -> Color32 {
-    let diff = luminance(theme.heading_color) - luminance(theme.foreground);
-    if diff > 0.08 {
-        theme.heading_color
-    } else {
-        theme.accent
-    }
+    theme.strong
 }
 
 /// Create a LayoutJob from inline elements.
@@ -238,11 +227,27 @@ pub fn heading_job(
     scale: f32,
 ) -> egui::text::LayoutJob {
     let size = theme.heading_size(level) * scale;
-    if theme.is_ember() {
-        crate::render::ember::display_job(inlines, size, color, max_width, theme)
-    } else {
-        inlines_to_job(inlines, size, color, max_width, theme)
+    if theme.engine == crate::theme::Engine::Particles {
+        return crate::render::ember::display_job(inlines, size, color, max_width, theme);
     }
+    display_inlines_job(inlines, size, color, max_width, theme)
+}
+
+/// Headline text (title, section and quote headings) in the theme's
+/// display face; runs otherwise styled like body text.
+pub fn display_inlines_job(
+    inlines: &[Inline],
+    size: f32,
+    color: Color32,
+    max_width: f32,
+    theme: &Theme,
+) -> egui::text::LayoutJob {
+    let mut job = egui::text::LayoutJob::default();
+    job.wrap.max_width = max_width;
+    let style = InlineStyle::with_body(theme, color, theme.display_family());
+    append_inlines(&mut job, inlines, size, &style, false, false);
+    crate::render::math::finish(&mut job);
+    job
 }
 
 /// Draw a heading block. Returns height used.

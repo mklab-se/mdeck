@@ -51,6 +51,31 @@ are built in; `mdeck illustration generate` makes more from a description.
 
 ---
 
+## Themes
+
+Eight built-in themes, all written as theme files, and your own in a few lines
+of YAML (spec section 9.4). These stills are from `samples/themes/`.
+
+### The four seasons
+
+`spring` and `summer` on the plain engine, `autumn` and `winter` on the
+particles engine in their own colours. The same slide in each:
+
+<img src="media/gallery/theme-spring.png" width="360"> <img src="media/gallery/theme-summer.png" width="360">
+<img src="media/gallery/theme-autumn.png" width="360"> <img src="media/gallery/theme-winter.png" width="360">
+
+<img src="media/gallery/theme-winter-title.png" width="720">
+
+### From a design system
+
+`mdeck theme new mdeck-co --from samples/design-systems/mdeck-co` read a Claude
+Design export and wrote this theme: the brand's palette, type and particle
+field, and its logo quiet in the corner.
+
+<img src="media/gallery/theme-from-design-system.png" width="720">
+
+---
+
 ## Layouts
 
 MDeck automatically infers the right layout from your content structure. No configuration needed.

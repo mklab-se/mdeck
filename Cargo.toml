@@ -36,8 +36,16 @@ regex = "1.13"
 # Image loading
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 
+# Theme font validation. Stays on the skrifa version egui's epaint uses, so a
+# theme font is checked by the same parser that will load it (and one copy is built).
+skrifa = "0.44"
+
+# Logos: SVG files are rasterised with resvg (no text or embedded raster
+# support needed: logos are paths)
+resvg = { version = "0.48", default-features = false }
+
 # Syntax highlighting
-syntect = { version = "5", default-features = false, features = ["default-syntaxes", "default-themes", "regex-onig"] }
+syntect = { version = "5", default-features = false, features = ["default-syntaxes", "default-themes", "plist-load", "regex-onig"] }
 
 # Directories
 dirs = "7.0"

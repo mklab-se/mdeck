@@ -18,6 +18,9 @@
 
 use std::sync::Arc;
 
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use eframe::egui::{self, FontData, FontDefinitions, FontFamily};
 
 use crate::theme::{FONT_BODY, FONT_BODY_LIGHT, FONT_BODY_MEDIUM, FONT_DISPLAY, FONT_MONO};
@@ -118,8 +121,87 @@ pub const KATEX_FACES: [(&str, &[u8]); 19] = [
 /// The symbol fallback faces, in the order they are tried.
 const FONT_SYMBOLS: [&str; 2] = ["NotoSansSymbols", "DejaVuSans"];
 
-/// Register the bundled families on `ctx`, keeping egui's defaults as
-/// fallbacks so glyphs missing from a face (symbols, emoji) still render.
+/// A font file a theme ships, registered as its own family.
+struct ThemeFace {
+    family: String,
+    bytes: Arc<[u8]>,
+    mono: bool,
+}
+
+/// Faces from theme files, added by [`register_file_face`] and installed on
+/// every context by [`install`]. `GENERATION` counts additions, so a context
+/// can tell it needs new fonts.
+static THEME_FACES: Mutex<Vec<ThemeFace>> = Mutex::new(Vec::new());
+static GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// Check `bytes` parse as a TTF/OTF font (egui panics on a broken one) and
+/// register them as a family. The same file registers once.
+pub fn register_file_face(bytes: Vec<u8>, mono: bool) -> Result<FontFamily, String> {
+    use skrifa::MetadataProvider;
+    let font = skrifa::FontRef::from_index(&bytes, 0)
+        .map_err(|e| format!("not a readable TTF/OTF font ({e})"))?;
+    if font.charmap().map('a').is_none() {
+        return Err("the font has no Latin letters".into());
+    }
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    std::hash::Hash::hash(&bytes, &mut h);
+    let family = format!("theme-face-{:016x}", std::hash::Hasher::finish(&h));
+    let mut faces = THEME_FACES.lock().unwrap_or_else(|p| p.into_inner());
+    if !faces.iter().any(|f| f.family == family) {
+        faces.push(ThemeFace {
+            family: family.clone(),
+            bytes: bytes.into(),
+            mono,
+        });
+        GENERATION.fetch_add(1, Ordering::SeqCst);
+    }
+    Ok(FontFamily::Name(family.into()))
+}
+
+/// How many theme faces have been registered so far.
+pub fn generation() -> u64 {
+    GENERATION.load(Ordering::SeqCst)
+}
+
+/// Keeps a context's fonts in step with the theme faces. egui applies
+/// `set_fonts` at the start of the next pass, so a face registered now can
+/// be drawn with from the frame after [`FontSync::sync`] saw it.
+#[derive(Debug, Default)]
+pub struct FontSync {
+    requested: u64,
+    active: u64,
+}
+
+impl FontSync {
+    /// A sync for a context `install` has just run on.
+    pub fn installed() -> Self {
+        let g = generation();
+        FontSync {
+            requested: g,
+            active: g,
+        }
+    }
+
+    /// Call at the start of every frame: fonts asked for last frame are
+    /// active now, and newly registered faces are asked for.
+    pub fn sync(&mut self, ctx: &egui::Context) {
+        self.active = self.requested;
+        let g = generation();
+        if g != self.requested {
+            install(ctx);
+            self.requested = g;
+        }
+    }
+
+    /// Whether every face registered so far can be drawn this frame.
+    pub fn ready(&self) -> bool {
+        self.active == generation()
+    }
+}
+
+/// Register the bundled families (and every theme face) on `ctx`, keeping
+/// egui's defaults as fallbacks so glyphs missing from a face (symbols,
+/// emoji) still render.
 pub fn install(ctx: &egui::Context) {
     let mut defs = FontDefinitions::default();
 
@@ -184,6 +266,23 @@ pub fn install(ctx: &egui::Context) {
         family("JetBrainsMono-Regular", &monospace_fallback),
     );
 
+    // Theme faces: each its own family over the matching fallback chain.
+    for face in THEME_FACES.lock().unwrap_or_else(|p| p.into_inner()).iter() {
+        defs.font_data.insert(
+            face.family.clone(),
+            Arc::new(FontData::from_owned(face.bytes.to_vec())),
+        );
+        let fallback = if face.mono {
+            &monospace_fallback
+        } else {
+            &proportional_fallback
+        };
+        defs.families.insert(
+            FontFamily::Name(face.family.as_str().into()),
+            family(&face.family, fallback),
+        );
+    }
+
     // Math: one family per KaTeX face, each falling back to the proportional
     // chain so `\text{...}` in any script still draws.
     for (name, bytes) in KATEX_FACES {
@@ -245,6 +344,27 @@ mod tests {
                     }
                 }
             });
+        });
+        output.textures_delta.clear();
+    }
+
+    #[test]
+    fn theme_font_files_are_checked_before_egui_sees_them() {
+        assert!(register_file_face(b"not a font".to_vec(), false).is_err());
+        let fam = register_file_face(HANKEN_MEDIUM.to_vec(), false).unwrap();
+        // The same bytes register once.
+        assert_eq!(
+            register_file_face(HANKEN_MEDIUM.to_vec(), false).unwrap(),
+            fam
+        );
+        let ctx = egui::Context::default();
+        install(&ctx);
+        let mut output = ctx.run_ui(Default::default(), |ui| {
+            let id = egui::FontId::new(40.0, fam.clone());
+            let g = ui
+                .painter()
+                .layout_no_wrap("Theme".into(), id, egui::Color32::WHITE);
+            assert!(g.rect.width() > 0.0);
         });
         output.textures_delta.clear();
     }

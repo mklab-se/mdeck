@@ -40,7 +40,7 @@ pub fn render(
 
     // Lay both out first so centring uses the real (possibly wrapped) heights
     let title_galley = heading_inlines.map(|inlines| {
-        let job = text::inlines_to_job(
+        let job = text::display_inlines_job(
             inlines,
             title_size,
             title_color,

@@ -1,0 +1,30 @@
+# Autumn: embers of the year. Dark bark and warm amber, with the particle
+# field glowing in amber, rust and gold (particles engine).
+name: Autumn
+extends: ember
+colors:
+  background: "#17110d"      # wet bark at dusk
+  text: "#d6c4ae"            # dry grass
+  heading: "#f5e8d6"         # candlelit paper
+  muted: "#9c8671"
+  rule: "#33271e"
+  accent: "#e0782a"          # maple amber
+  accent-soft: "#f2b36b"
+  secondary: "#c0452b"       # rust
+  code-background: "#241a14"
+  code-text: "#e8d9c5"
+  positive: "#9aab44"        # moss
+  negative: "#d24a3a"
+  series:
+    - "#e0782a" # amber
+    - "#e5b34b" # gold
+    - "#9aab44" # moss
+    - "#c0452b" # rust
+    - "#b5653c" # chestnut
+    - "#d4957a" # clay
+    - "#7e8c9a" # autumn sky
+    - "#d6c4ae" # dry grass
+particles:
+  light: "#f5e3c8"
+  cool: "#e5b34b"
+code: { syntax: base16-mocha.dark }

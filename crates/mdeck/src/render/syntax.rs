@@ -14,6 +14,34 @@ use crate::theme::Theme;
 static SYNTAX_SET: LazyLock<SyntaxSet> = LazyLock::new(SyntaxSet::load_defaults_newlines);
 static THEME_SET: LazyLock<ThemeSet> = LazyLock::new(ThemeSet::load_defaults);
 
+/// Syntax themes loaded from theme folders (`.tmTheme` files), by key.
+static FILE_THEMES: LazyLock<Mutex<HashMap<String, Arc<syntect::highlighting::Theme>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// The syntax theme a theme gets when it names none.
+pub const DEFAULT_THEME: &str = "base16-ocean.dark";
+
+/// Whether `name` is one of syntect's bundled syntax themes.
+pub fn has_theme(name: &str) -> bool {
+    THEME_SET.themes.contains_key(name)
+}
+
+/// The bundled syntax theme names, sorted.
+pub fn bundled_theme_names() -> Vec<String> {
+    THEME_SET.themes.keys().cloned().collect()
+}
+
+/// Load a `.tmTheme` file and return the key to highlight with.
+pub fn register_tm_theme(path: &std::path::Path) -> Result<String, String> {
+    let theme = ThemeSet::get_theme(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let key = format!("file:{}", path.display());
+    FILE_THEMES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(key.clone(), Arc::new(theme));
+    Ok(key)
+}
+
 /// A run of source text with the colour syntect assigned to it.
 struct Span {
     rgb: [u8; 3],
@@ -65,10 +93,19 @@ fn highlight_spans(code: &str, language: Option<&str>, theme_name: &str) -> Arc<
         .and_then(|lang| ss.find_syntax_by_token(lang))
         .unwrap_or_else(|| ss.find_syntax_plain_text());
 
-    let syntect_theme = ts
-        .themes
+    let from_file = FILE_THEMES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
         .get(theme_name)
-        .unwrap_or_else(|| ts.themes.values().next().unwrap());
+        .cloned();
+    let syntect_theme = match &from_file {
+        Some(t) => t.as_ref(),
+        None => ts
+            .themes
+            .get(theme_name)
+            .or_else(|| ts.themes.get(DEFAULT_THEME))
+            .unwrap_or_else(|| ts.themes.values().next().unwrap()),
+    };
 
     let mut highlighter = HighlightLines::new(syntax, syntect_theme);
     let mut spans = Vec::new();

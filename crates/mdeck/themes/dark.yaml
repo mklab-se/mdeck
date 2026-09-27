@@ -1,0 +1,35 @@
+# Dark: the default dark theme. Every built-in theme is written in the same
+# format as user themes; see `mdeck spec`, section 9.4.
+name: Dark
+engine: plain
+countdown: none
+colors:
+  background: "#1e1e1e"
+  text: "#c8c8c8"
+  heading: "#ffffff"
+  accent: "#5294e2"
+  code-background: "#2d2d2d"
+  code-text: "#d4d4d4"
+  positive: "#5cdb95"
+  negative: "#ff6b6b"
+  series:
+    - "#5cb8ff" # bright blue
+    - "#ff7e67" # coral
+    - "#5cdb95" # mint green
+    - "#e8a838" # amber
+    - "#c07ef1" # purple
+    - "#4ed4d4" # teal
+    - "#f06eaa" # pink
+    - "#a3be58" # olive green
+annotations:
+  pen: "#50c8ff"
+  pen-outline: "#1e82b4"
+  arrow: "#ffc832"
+  arrow-outline: "#c88c00"
+fonts:
+  display: sans
+  body: sans
+  mono: mono
+sizes: { h1: 96, h2: 72, h3: 52, body: 44, code: 30 }
+charts: { fill-opacity: 0.85 }
+code: { syntax: base16-ocean.dark }

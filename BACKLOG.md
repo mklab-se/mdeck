@@ -36,8 +36,8 @@ from the spec for good. `@aspect` (letterboxing 4:3) is a separate decision.
 ### 1.4 Warn on unknown / unsupported directives in `--check` — S
 The spec says unknown directives warn; nothing does. `--check` only validates
 diagram routing. Extend it to unknown directives, unresolved image paths,
-values that failed to parse in visualizations, and theme-name typos
-(`Theme::from_name` silently falls back to light).
+and values that failed to parse in visualizations. (Theme-name typos and
+invalid theme files are reported since custom themes, #14.)
 
 ### 1.5 Laser pointer — S
 The annotation system (pen, arrow) already exists; a laser dot mode
@@ -215,8 +215,9 @@ edges), `DiagramReveal` = `VizReveal`, diagram step assignment = `assign_steps`,
 routing setup built twice (`check_diagram_routes` vs `draw_diagram_sized`),
 pie and donut are ~90% identical.
 
-### 5.3 Theme as an enum — S
-Theme identity is a string compared in six places.
+### 5.3 Theme as an enum (done)
+Done with custom themes (#14): themes are data files and behaviour goes
+through `Engine`; nothing compares theme names any more.
 
 ### 5.4 Test coverage — ongoing
 Layouts (`render/layouts/*`) and `render/text.rs` have few tests; `config.rs`
@@ -254,12 +255,12 @@ A `--reduced-motion` flag (and the OS setting where egui exposes it) that
 lowers particle count, disables wakes and shortens the countdown; a budget
 that scales with window size and drops on slow GPUs.
 
-### 6.3 Theme as an enum — S
-Theme identity is still a string compared in a handful of places (backlog 5.3);
-Ember added `is_ember()` and per-theme font/fill accessors rather than fixing it.
+### 6.3 Theme as an enum (done)
+See 5.3: `is_ember()` and the name comparisons are gone.
 
 ### 6.4 Bundled fonts for every theme — M, needs a decision
-Ember bundles its faces; dark, light and nord still use egui's default sans
+Ember and the seasons use the bundled faces; dark, light and nord still use
+egui's default sans (any theme can now pick faces with `fonts:`)
 (backlog 1.8). Giving them Hanken Grotesk with a real bold changes their look.
 
 ### 6.5 Beat theatrics — S

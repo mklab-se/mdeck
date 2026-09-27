@@ -1,0 +1,50 @@
+<!-- @dsCard group="Components" viewport="700x360" name="Feedback: Dialog, Toast, Tooltip" subtitle="Overlays that blur the room and notifications with a tone accent" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body { margin: 0; background: var(--surface-base); color: var(--text-primary); font-family: var(--font-sans); padding: 28px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .lbl { font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: var(--tracking-widest); text-transform: uppercase; color: var(--text-tertiary); margin: 8px 0 4px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel" data-presets="react">
+const { Toast, Tooltip, Button, IconButton, Dialog } = window.MDeckCoDesignSystem_4d3c0a;
+function Demo() {
+  const [open,setOpen]=React.useState(false);
+  return (
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:28,alignItems:'start'}}>
+      <div>
+        <div className="lbl">Toasts</div>
+        <div className="stack">
+          <Toast tone="positive" title="Request sent" message="We reply within two business days." onClose={()=>{}} />
+          <Toast tone="accent" title="You're on the list" message="Access opens in the next cohort." onClose={()=>{}} />
+          <Toast tone="critical" title="Passcode expired" message="Ask your sponsor for a new one." onClose={()=>{}} />
+        </div>
+      </div>
+      <div>
+        <div className="lbl">Tooltip & Dialog</div>
+        <div style={{display:'flex',gap:12,alignItems:'center'}}>
+          <Tooltip label="Members only"><IconButton name="lock" aria-label="Locked" variant="secondary" /></Tooltip>
+          <Button onClick={()=>setOpen(true)}>Open dialog</Button>
+        </div>
+        <Dialog open={open} onClose={()=>setOpen(false)} title="Request access"
+          description="Tell us who you are. We reply within two business days."
+          footer={<><Button variant="ghost" onClick={()=>setOpen(false)}>Cancel</Button><Button onClick={()=>setOpen(false)}>Send</Button></>} />
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body>
+</html>

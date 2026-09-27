@@ -1,0 +1,41 @@
+# Ember: monochrome luxury. Graphite on near-black, one red-orange accent,
+# an editorial serif for headings and a living particle field behind every
+# slide (the particles engine).
+name: Ember
+extends: dark
+engine: particles
+countdown: burst
+colors:
+  background: "#050505"      # ink-950
+  text: "#b4b4bc"            # ink-200
+  heading: "#ececef"         # ink-050
+  muted: "#8f8f98"           # ink-300
+  rule: "#242429"            # ink-700
+  accent: "#ff4d1c"          # ember-500
+  accent-soft: "#ff8a66"     # ember-300
+  secondary: "#f5a623"       # candle
+  code-background: "#101012" # ink-850
+  code-text: "#d6d6db"       # ink-100
+  positive: "#4fb477"        # herbal
+  negative: "#e8341c"        # bitter
+  series:                    # the cocktail palette, for data only
+    - "#ff4d1c" # ember
+    - "#ffb02e" # citrus
+    - "#2f9bd8" # curacao
+    - "#4fb477" # herbal
+    - "#a24bd8" # berry
+    - "#d9b46a" # gold
+    - "#e8341c" # bitter
+    - "#b4b4bc" # ink-200
+particles:
+  light: "#d7d7e1"
+  cool: "#afc3f0"
+fonts:
+  display: spectral-light
+  body: hanken-regular
+  lead: hanken-light
+  strong: hanken-medium
+  mono: jetbrains-mono
+sizes: { h1: 104, h2: 72, h3: 48, body: 38, code: 28 }
+text: { line-height: 1.45 }
+charts: { fill-opacity: 0.80 }

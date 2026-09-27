@@ -242,13 +242,11 @@ impl Config {
     pub fn set(&mut self, key: &str, value: &str) -> Result<()> {
         match key {
             "defaults.theme" => {
-                match value {
-                    "light" | "dark" | "nord" | "ember" => {}
-                    _ => {
-                        anyhow::bail!(
-                            "Invalid theme: {value}. Must be 'light', 'dark', 'nord', or 'ember'."
-                        )
-                    }
+                // A default must exist everywhere: a built-in or a user theme
+                // (a deck's own themes/ folder only exists next to that deck).
+                let themes = crate::theme::lookup::Lookup::for_deck(None);
+                if themes.find_all(value).is_empty() {
+                    anyhow::bail!("Invalid theme: {}", themes.unknown(value));
                 }
                 self.defaults
                     .get_or_insert_with(DefaultsConfig::default)

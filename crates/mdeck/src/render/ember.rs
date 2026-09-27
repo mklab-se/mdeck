@@ -12,7 +12,7 @@ use std::time::Instant;
 use eframe::egui::{self, Color32, Pos2, Rect};
 
 use crate::parser::{Block, Inline, Layout, ListItem, ListMarker, Slide};
-use crate::theme::{FONT_BODY, FONT_BODY_LIGHT, FONT_BODY_MEDIUM, Theme};
+use crate::theme::Theme;
 
 /// Facts about the deck that the eyebrow and chrome show.
 #[derive(Clone, Debug, Default)]
@@ -65,15 +65,6 @@ pub fn handles(slide: &Slide) -> bool {
 // ---------------------------------------------------------------------------
 // Palette (Ember tokens)
 // ---------------------------------------------------------------------------
-
-const INK_050: Color32 = Color32::from_rgb(0xEC, 0xEC, 0xEF);
-const INK_100: Color32 = Color32::from_rgb(0xD6, 0xD6, 0xDB);
-const INK_200: Color32 = Color32::from_rgb(0xB4, 0xB4, 0xBC);
-const INK_300: Color32 = Color32::from_rgb(0x8F, 0x8F, 0x98);
-const INK_700: Color32 = Color32::from_rgb(0x24, 0x24, 0x29);
-const EMBER: Color32 = Color32::from_rgb(0xFF, 0x4D, 0x1C);
-const EMBER_SOFT: Color32 = Color32::from_rgb(0xFF, 0x8A, 0x66);
-const CANDLE: Color32 = Color32::from_rgb(0xF5, 0xA6, 0x23);
 
 fn fade(c: Color32, a: f32) -> Color32 {
     Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), (a.clamp(0.0, 1.0) * 255.0) as u8)
@@ -152,10 +143,10 @@ fn eyebrow_job(
         job.append(
             &accent_prefix.to_uppercase(),
             0.0,
-            format(fade(EMBER, alpha)),
+            format(fade(theme.accent, alpha)),
         );
     }
-    job.append(&rest.to_uppercase(), 0.0, format(fade(INK_300, alpha)));
+    job.append(&rest.to_uppercase(), 0.0, format(fade(theme.muted, alpha)));
     job
 }
 
@@ -196,7 +187,7 @@ fn append_display(
             }
             Inline::Italic(children) => {
                 let mut f = base.clone();
-                f.color = fade(EMBER_SOFT, color.a() as f32 / 255.0);
+                f.color = fade(theme.accent_soft, color.a() as f32 / 255.0);
                 append_display(job, children, &f, color, theme);
             }
             Inline::Code(s) => {
@@ -222,8 +213,8 @@ fn lead_job(
     let mut job = egui::text::LayoutJob::default();
     job.wrap.max_width = width;
     let base = egui::text::TextFormat {
-        font_id: egui::FontId::new(size, egui::FontFamily::Name(FONT_BODY_LIGHT.into())),
-        color: fade(INK_200, alpha),
+        font_id: egui::FontId::new(size, theme.lead_family()),
+        color: fade(theme.foreground, alpha),
         line_height: Some(size * 1.5),
         ..Default::default()
     };
@@ -244,8 +235,8 @@ fn item_job(
     let mut job = egui::text::LayoutJob::default();
     job.wrap.max_width = width;
     let base = egui::text::TextFormat {
-        font_id: egui::FontId::new(size, egui::FontFamily::Name(FONT_BODY.into())),
-        color: fade(INK_100, alpha),
+        font_id: egui::FontId::new(size, theme.body_family()),
+        color: fade(theme.bright_text(), alpha),
         line_height: Some(size * 1.5),
         ..Default::default()
     };
@@ -266,16 +257,13 @@ fn append_lead(
             Inline::Text(s) => job.append(s, 0.0, base.clone()),
             Inline::Bold(children) => {
                 let mut f = base.clone();
-                f.font_id = egui::FontId::new(
-                    base.font_id.size,
-                    egui::FontFamily::Name(FONT_BODY_MEDIUM.into()),
-                );
-                f.color = fade(INK_050, alpha);
+                f.font_id = egui::FontId::new(base.font_id.size, theme.strong_family());
+                f.color = fade(theme.heading_color, alpha);
                 append_lead(job, children, &f, alpha, theme);
             }
             Inline::Italic(children) => {
                 let mut f = base.clone();
-                f.color = fade(EMBER_SOFT, alpha);
+                f.color = fade(theme.accent_soft, alpha);
                 append_lead(job, children, &f, alpha, theme);
             }
             Inline::Strikethrough(children) => {
@@ -286,14 +274,14 @@ fn append_lead(
             Inline::Code(s) => {
                 let mut f = base.clone();
                 f.font_id = egui::FontId::new(base.font_id.size * 0.86, theme.mono_family());
-                f.color = fade(INK_100, alpha);
-                f.background = fade(EMBER, alpha * 0.10);
+                f.color = fade(theme.bright_text(), alpha);
+                f.background = fade(theme.accent, alpha * 0.10);
                 job.append(s, 0.0, f);
             }
             Inline::Link { text, .. } => {
                 let mut f = base.clone();
-                f.color = fade(EMBER_SOFT, alpha);
-                f.underline = egui::Stroke::new(1.0, fade(EMBER_SOFT, alpha * 0.5));
+                f.color = fade(theme.accent_soft, alpha);
+                f.underline = egui::Stroke::new(1.0, fade(theme.accent_soft, alpha * 0.5));
                 append_lead(job, text, &f, alpha, theme);
             }
             Inline::Math { tex, display } => crate::render::math::append(job, tex, *display, base),
@@ -308,7 +296,7 @@ fn append_lead(
 /// The soft dark ellipse that keeps copy readable over the lights: a radial
 /// gradient from 72% black at the centre to transparent, drawn as a fan of
 /// concentric rings so egui's linear vertex interpolation follows the curve.
-pub fn pillow(painter: &egui::Painter, copy: Rect, alpha: f32) {
+pub fn pillow(painter: &egui::Painter, copy: Rect, alpha: f32, theme: &Theme) {
     let center = copy.center();
     let rx = copy.width() * 0.5 + copy.width() * 0.34;
     let ry = copy.height() * 0.5 + copy.height() * 0.42 + 40.0;
@@ -321,7 +309,7 @@ pub fn pillow(painter: &egui::Painter, copy: Rect, alpha: f32) {
     ];
     let segments = 48;
     let mut mesh = egui::Mesh::default();
-    let color_at = |a: f32| fade(Color32::from_rgb(5, 5, 5), a * alpha);
+    let color_at = |a: f32| fade(theme.background, a * alpha);
     // centre vertex
     mesh.colored_vertex(center, color_at(stops[0].1));
     for (ri, (r, a)) in stops.iter().enumerate().skip(1) {
@@ -523,7 +511,7 @@ fn content_pieces(
                 } else {
                     sz.h2 * 0.7
                 };
-                let job = display_job(inlines, size, INK_050, width, theme);
+                let job = display_job(inlines, size, theme.heading_color, width, theme);
                 pieces.push(Piece {
                     galley: ui.painter().layout_job(job),
                     gap: 28.0 * scale,
@@ -584,6 +572,7 @@ fn draw_pieces(
     reveal_timestamp: Option<Instant>,
     scale: f32,
     start_nth: usize,
+    theme: &Theme,
 ) {
     let painter = ui.painter();
     let mut y = top;
@@ -614,7 +603,7 @@ fn draw_pieces(
             .sections
             .first()
             .map(|s| s.format.color)
-            .unwrap_or(INK_200);
+            .unwrap_or(theme.foreground);
         let tint = fade(Color32::WHITE, a);
         crate::render::math::galley_tinted(painter, pos, piece.galley.clone(), tint);
         let _ = color;
@@ -627,7 +616,11 @@ fn draw_pieces(
                 .unwrap_or(20.0);
             let cy = pos.y + first_line_h * 0.55;
             let r = if piece.nested { 2.4 } else { 3.2 } * scale;
-            painter.circle_filled(Pos2::new(pos.x - 18.0 * scale, cy), r, fade(EMBER, a));
+            painter.circle_filled(
+                Pos2::new(pos.x - 18.0 * scale, cy),
+                r,
+                fade(theme.accent, a),
+            );
         }
         if piece.bar {
             let h = piece.galley.rect.height();
@@ -636,7 +629,7 @@ fn draw_pieces(
                     Pos2::new(left - 16.0 * scale, pos.y + 2.0),
                     Pos2::new(left - 16.0 * scale, pos.y + h - 2.0),
                 ],
-                egui::Stroke::new(1.0, fade(CANDLE, a)),
+                egui::Stroke::new(1.0, fade(theme.secondary, a)),
             );
         }
         y += piece.galley.rect.height() + piece.gap;
@@ -740,7 +733,7 @@ fn render_title(
         .layout_job(eyebrow_job(theme, "", &eyebrow_text, sz.eyebrow, 1.0));
     let title = heading.map(|h| {
         ui.painter()
-            .layout_job(display_job(h, sz.h1, INK_050, width, theme))
+            .layout_job(display_job(h, sz.h1, theme.heading_color, width, theme))
     });
     let sub = subtitle.map(|s| {
         ui.painter()
@@ -764,7 +757,7 @@ fn render_title(
         egui::vec2(copy_w, total),
     );
     let pillow_a = if age < 0.0 { 0.0 } else { ease_out(age / 0.9) } * opacity;
-    pillow(ui.painter(), copy, pillow_a);
+    pillow(ui.painter(), copy, pillow_a, theme);
     if age < 0.0 {
         ui.ctx().request_repaint();
         return;
@@ -852,7 +845,7 @@ fn render_section(
         .layout_job(eyebrow_job(theme, &num, &rest, sz.eyebrow, 1.0));
     let title = heading.map(|h| {
         ui.painter()
-            .layout_job(display_job(h, sz.h1, INK_050, width, theme))
+            .layout_job(display_job(h, sz.h1, theme.heading_color, width, theme))
     });
     let gap = 30.0 * scale;
     let total =
@@ -861,7 +854,7 @@ fn render_section(
     let top = rect.bottom() - rect.height() * 0.14 - total;
     let copy_w = title.as_ref().map(|g| g.rect.width()).unwrap_or(width);
     let copy = Rect::from_min_size(Pos2::new(column.left(), top), egui::vec2(copy_w, total));
-    pillow(ui.painter(), copy, opacity * ease_out(age / 0.9));
+    pillow(ui.painter(), copy, opacity * ease_out(age / 0.9), theme);
 
     let painter = ui.painter();
     let p0 = stagger(age, 0);
@@ -915,11 +908,16 @@ fn render_quote(
         .painter()
         .layout_job(eyebrow_job(theme, &num, &rest, sz.eyebrow, 1.0));
     let head = heading.map(|h| {
-        ui.painter()
-            .layout_job(display_job(h, sz.h2 * 0.8, INK_050, width, theme))
+        ui.painter().layout_job(display_job(
+            h,
+            sz.h2 * 0.8,
+            theme.heading_color,
+            width,
+            theme,
+        ))
     });
     let q = quote.map(|q| {
-        let mut job = display_job(q, sz.quote, INK_050, width, theme);
+        let mut job = display_job(q, sz.quote, theme.heading_color, width, theme);
         for s in &mut job.sections {
             s.format.italics = true;
             s.format.line_height = Some(sz.quote * 1.22);
@@ -990,7 +988,7 @@ fn render_quote(
     let top = rect.center().y - total / 2.0;
     let copy_w = q.as_ref().map(|g| g.rect.width()).unwrap_or(width);
     let copy = Rect::from_min_size(Pos2::new(column.left(), top), egui::vec2(copy_w, total));
-    pillow(ui.painter(), copy, opacity * ease_out(age / 0.9));
+    pillow(ui.painter(), copy, opacity * ease_out(age / 0.9), theme);
 
     let painter = ui.painter();
     let x = column.left();
@@ -1021,7 +1019,7 @@ fn render_quote(
                 Pos2::new(x - 28.0 * scale, y - h + 6.0 * scale),
                 Pos2::new(x - 28.0 * scale, y - 6.0 * scale),
             ],
-            egui::Stroke::new(1.5, fade(EMBER, opacity * p)),
+            egui::Stroke::new(1.5, fade(theme.accent, opacity * p)),
         );
     }
     if let Some(g) = attr {
@@ -1067,7 +1065,7 @@ fn render_copy(
         Pos2::new(column.left(), top),
         egui::vec2(copy_w.min(column.width()), total.min(rect.height() * 0.9)),
     );
-    pillow(ui.painter(), copy, opacity * ease_out(age / 0.9));
+    pillow(ui.painter(), copy, opacity * ease_out(age / 0.9), theme);
 
     let p0 = stagger(age, 0);
     crate::render::math::galley_tinted(
@@ -1087,6 +1085,7 @@ fn render_copy(
         reveal_timestamp,
         scale,
         1,
+        theme,
     );
 }
 
@@ -1129,8 +1128,8 @@ pub fn draw_chrome(
         extra_letter_spacing: size * 0.18,
         ..Default::default()
     };
-    job.append(&format!("{:02}", index + 1), 0.0, fmt(INK_100));
-    job.append(&format!(" · {:02}", count), 0.0, fmt(INK_300));
+    job.append(&format!("{:02}", index + 1), 0.0, fmt(theme.bright_text()));
+    job.append(&format!(" · {:02}", count), 0.0, fmt(theme.muted));
     let galley = painter.layout_job(job);
     crate::render::math::galley(
         painter,
@@ -1139,7 +1138,7 @@ pub fn draw_chrome(
             rect.bottom() - 26.0 * scale - galley.rect.height(),
         ),
         galley,
-        INK_300,
+        theme.muted,
     );
 
     // beat ticks: how many steps this slide still has in it
@@ -1152,7 +1151,7 @@ pub fn draw_chrome(
         let y = rect.bottom() - 26.0 * scale - galley_h(painter, theme, size) - 12.0 * scale;
         for k in 0..total {
             let x1 = right - (total - 1 - k) as f32 * (w + gap);
-            let color = if k <= cur { EMBER } else { INK_700 };
+            let color = if k <= cur { theme.accent } else { theme.rule };
             painter.line_segment(
                 [Pos2::new(x1 - w, y), Pos2::new(x1, y)],
                 egui::Stroke::new(1.0, color),
@@ -1164,7 +1163,7 @@ pub fn draw_chrome(
     let y = rect.bottom() - 1.0;
     painter.line_segment(
         [Pos2::new(rect.left(), y), Pos2::new(rect.right(), y)],
-        egui::Stroke::new(1.0, fade(INK_700, 0.9)),
+        egui::Stroke::new(1.0, fade(theme.rule, 0.9)),
     );
     let frac = if count > 1 {
         index as f32 / (count - 1) as f32
@@ -1176,7 +1175,7 @@ pub fn draw_chrome(
             Pos2::new(rect.left(), y),
             Pos2::new(rect.left() + rect.width() * frac, y),
         ],
-        egui::Stroke::new(1.0, EMBER),
+        egui::Stroke::new(1.0, theme.accent),
     );
 }
 
@@ -1185,7 +1184,7 @@ fn galley_h(painter: &egui::Painter, theme: &Theme, size: f32) -> f32 {
         .layout_no_wrap(
             "00".into(),
             egui::FontId::new(size, theme.mono_family()),
-            INK_300,
+            theme.muted,
         )
         .rect
         .height()
@@ -1201,7 +1200,7 @@ pub fn draw_say_line(painter: &egui::Painter, theme: &Theme, rect: Rect, line: &
         0.0,
         egui::text::TextFormat {
             font_id: egui::FontId::new(size, theme.body_family()),
-            color: CANDLE,
+            color: theme.secondary,
             line_height: Some(size * 1.4),
             ..Default::default()
         },
@@ -1212,8 +1211,8 @@ pub fn draw_say_line(painter: &egui::Painter, theme: &Theme, rect: Rect, line: &
         rect.bottom() - 30.0 * scale - galley.rect.height(),
     );
     let bg = Rect::from_min_size(pos, galley.rect.size()).expand(10.0 * scale);
-    painter.rect_filled(bg, 4.0 * scale, fade(Color32::from_rgb(5, 5, 5), 0.7));
-    crate::render::math::galley(painter, pos, galley, CANDLE);
+    painter.rect_filled(bg, 4.0 * scale, fade(theme.background, 0.7));
+    crate::render::math::galley(painter, pos, galley, theme.secondary);
 }
 
 #[cfg(test)]

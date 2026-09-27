@@ -1,0 +1,50 @@
+/* ============================================================
+   MDeck Co: Effects
+   Radii, borders, shadows, and the signature EMBER GLOW.
+   The glow is what makes controls feel alive & luxurious:
+   used sparingly, only on primary/interactive moments.
+   ============================================================ */
+
+:root {
+  /* Corner radii: restrained. Nothing bubbly. */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 18px;
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+
+  /* Border widths */
+  --border-hairline: 1px;
+  --border-thick: 1.5px;
+
+  /* Elevation shadows: deep, soft, black. No gray haze. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 34px 90px rgba(0, 0, 0, 0.7);
+
+  /* Inset: subtle top highlight that reads as machined metal */
+  --shadow-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-inset-well: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+
+  /* THE GLOW: ember halo. Layered: tight ring + soft bloom. */
+  --glow-ember-sm: 0 0 0 1px rgba(255, 77, 28, 0.35),
+                   0 0 12px -2px var(--accent-glow);
+  --glow-ember-md: 0 0 0 1px rgba(255, 77, 28, 0.45),
+                   0 0 22px -4px var(--accent-glow),
+                   0 8px 24px -8px rgba(0, 0, 0, 0.7);
+  --glow-ember-lg: 0 0 0 1px rgba(255, 77, 28, 0.5),
+                   0 0 44px -6px var(--accent-glow),
+                   0 14px 40px -10px rgba(0, 0, 0, 0.8);
+
+  /* Candle glow: warm, softer, for secondary highlights */
+  --glow-candle: 0 0 24px -6px rgba(245, 166, 35, 0.4);
+
+  /* Focus ring: accessible, on-brand */
+  --focus-ring: 0 0 0 2px var(--surface-base), 0 0 0 4px var(--accent);
+
+  /* Backdrop blur for overlays */
+  --blur-overlay: blur(8px) saturate(1.1); /* @kind other */
+}

@@ -72,7 +72,7 @@ pub(super) struct ExportApp {
     /// Frames rendered for the current page; content hints arrive one frame
     /// late, so the screenshot waits for the second frame.
     frames_on_slide: u32,
-    /// Story per slide (sidecar), for the Ember theme.
+    /// Story per slide (sidecar), for the particles engine.
     stories: Vec<Option<Resolved>>,
     /// Point cloud illustrations resolved for this deck.
     illustrations: render::illustration::Library,
@@ -80,12 +80,15 @@ pub(super) struct ExportApp {
     notes: Option<NotesJob>,
     /// Theme notes pages are printed in.
     notes_theme: Theme,
+    /// The logo on every slide page.
+    logo: Option<render::logo::Logo>,
 }
 
 impl ExportApp {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         presentation: Presentation,
+        theme: Theme,
         deck: &Path,
         base_path: &Path,
         output: Output,
@@ -95,8 +98,6 @@ impl ExportApp {
         targets: Vec<usize>,
         error: Arc<Mutex<Option<String>>>,
     ) -> Self {
-        let theme_name = presentation.meta.theme.as_deref().unwrap_or("light");
-        let theme = Theme::from_name(theme_name);
         let image_cache = ImageCache::new(base_path.to_path_buf());
         let stories = match story::sidecar::load(deck) {
             Ok(sc) => story::sidecar::resolve(&presentation, sc.as_ref()).0,
@@ -110,7 +111,7 @@ impl ExportApp {
             .iter()
             .enumerate()
             .map(|(i, s)| {
-                let beats = if theme.is_ember() {
+                let beats = if theme.engine.plays_stories() {
                     stories
                         .get(i)
                         .and_then(|r| r.as_ref())
@@ -131,7 +132,12 @@ impl ExportApp {
             eprintln!("  {total} reveal steps in total (story beats included)");
         }
         let illustrations = render::illustration::Library::for_deck(deck.parent());
+        let (logo, problems) = render::logo::resolve(&theme, &presentation.meta, base_path);
+        for p in &problems {
+            eprintln!("warning: theme: {p}");
+        }
         Self {
+            logo,
             presentation,
             theme,
             image_cache,
@@ -338,7 +344,7 @@ impl ExportApp {
         } else {
             self.max_steps.get(idx).copied().unwrap_or(0)
         };
-        if self.theme.is_ember() {
+        if self.theme.engine.draws_field() {
             let slide = &self.presentation.slides[idx];
             let story = self
                 .stories
@@ -385,6 +391,9 @@ impl ExportApp {
             scale,
             &cx,
         );
+        if let Some(logo) = &self.logo {
+            render::logo::draw(ui.painter(), rect, logo, scale, 1.0);
+        }
     }
 
     fn draw_notes(&mut self, ui: &egui::Ui, origin: (u32, u32), page: usize) {
@@ -477,7 +486,7 @@ impl eframe::App for ExportApp {
         // slides only once the field has seen the slide's geometry.
         self.frames_on_slide += 1;
         let settled = match self.pass {
-            Pass::Slide => !self.theme.is_ember() || self.frames_on_slide >= 2,
+            Pass::Slide => self.frames_on_slide >= self.theme.engine.settle_frames(),
             Pass::Notes { .. } => true,
         };
         if !self.screenshot_requested && !self.image_cache.is_loading() && settled {

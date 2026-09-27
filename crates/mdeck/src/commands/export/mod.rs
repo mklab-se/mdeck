@@ -80,6 +80,16 @@ pub fn select_slides(
     Ok((0..count).collect())
 }
 
+/// Which theme an export uses.
+pub enum ThemeChoice {
+    /// What the deck asks for (`@theme`, then the config default).
+    Deck,
+    /// A theme looked up by name from the deck's folder (`--theme`).
+    Named(String),
+    /// A theme already resolved by the caller.
+    Given(Box<crate::theme::Theme>),
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn run(
     file: PathBuf,
@@ -91,6 +101,7 @@ pub fn run(
     range: Option<String>,
     format: Format,
     notes: bool,
+    theme: ThemeChoice,
 ) -> anyhow::Result<()> {
     if width == 0 || height == 0 {
         anyhow::bail!("Export width and height must be greater than zero");
@@ -110,6 +121,34 @@ pub fn run(
         anyhow::bail!("No slides found in {}", file.display());
     }
     crate::commands::check::warn_missing_cjk_font(&presentation);
+
+    // Same precedence as presenting: --theme, then @theme, then the config
+    // default, then the built-in default. An explicit --theme must exist.
+    let themes = crate::theme::lookup::Lookup::for_deck(Some(&base_path));
+    let theme = match theme {
+        ThemeChoice::Given(theme) => *theme,
+        ThemeChoice::Named(name) => {
+            let built = themes.load(&name).map_err(|e| anyhow::anyhow!("{e}"))?;
+            for w in &built.warnings {
+                eprintln!("warning: theme: {w}");
+            }
+            built.theme
+        }
+        ThemeChoice::Deck => {
+            let defaults = crate::config::Config::load_or_default()
+                .defaults
+                .unwrap_or_default();
+            let name = crate::theme::lookup::select(
+                presentation.meta.theme.as_deref(),
+                defaults.theme.as_deref(),
+            );
+            let (theme, problems) = crate::theme::lookup::resolve_or_default(&themes, &name);
+            for p in &problems {
+                eprintln!("warning: theme: {p}");
+            }
+            theme
+        }
+    };
 
     std::fs::create_dir_all(&output_dir)?;
 
@@ -177,6 +216,7 @@ pub fn run(
             render::fonts::install(&cc.egui_ctx);
             Ok(Box::new(ExportApp::new(
                 presentation,
+                theme,
                 &file,
                 &base_path,
                 output,

@@ -1,0 +1,96 @@
+/* ============================================================
+   MDeck Co: Colors
+   Monochrome luxury. Shades of graphite on near-black.
+   One signature accent (Ember) carries all the heat.
+   Extended "cocktail" palette used sparingly for data only.
+   ============================================================ */
+
+:root {
+  /* --- Ink scale: near-black backgrounds up through white ---
+     Named 900 (deepest) → 000 (pure white). This is the spine
+     of the whole system. Everything is built from these. */
+  --ink-950: #050505;  /* the black card */
+  --ink-900: #0a0a0b;
+  --ink-850: #101012;
+  --ink-800: #16161a;
+  --ink-750: #1c1c21;
+  --ink-700: #242429;
+  --ink-600: #33333a;
+  --ink-500: #4a4a52;
+  --ink-400: #6b6b74;
+  --ink-300: #8f8f98;
+  --ink-200: #b4b4bc;
+  --ink-100: #d6d6db;
+  --ink-050: #ececef;
+  --ink-000: #ffffff;
+
+  /* --- Signature accent: Ember ---
+     Drawn from the bar's red backlight + candle glow.
+     A single bright red-orange is the only chromatic voice. */
+  --ember-050: #fff0eb;
+  --ember-100: #ffd8cc;
+  --ember-300: #ff8a66;
+  --ember-500: #ff4d1c;   /* primary accent */
+  --ember-600: #ed3d10;
+  --ember-700: #c22f08;
+  --ember-glow: rgba(255, 77, 28, 0.55); /* used in glow shadows */
+
+  /* --- Candle: warm amber secondary ---
+     The tabletop candlelight. Softer heat for subtle warmth,
+     rarely a fill: mostly hairlines, hovers, and glints. */
+  --candle-300: #ffcf8a;
+  --candle-500: #f5a623;
+  --candle-700: #b9781a;
+
+  /* --- Cocktail palette (extended) ---
+     Bright, contrasting drink colors. DATA & CHARTS ONLY.
+     Never for chrome, buttons, or large fills. */
+  --drink-citrus: #ffb02e;   /* amber sour */
+  --drink-bitter: #e8341c;   /* negroni red */
+  --drink-herbal: #4fb477;   /* basil / absinthe */
+  --drink-curacao: #2f9bd8;  /* blue curaçao */
+  --drink-berry: #a24bd8;    /* cassis */
+  --drink-gold: #d9b46a;     /* champagne */
+
+  /* --- Semantic status ---
+     Kept muted and adult: no candy greens/reds. */
+  --status-positive: #4fb477;
+  --status-warning: #f5a623;
+  --status-critical: #e8341c;
+  --status-info: #6b6b74;
+
+  /* ============================================================
+     SEMANTIC ALIASES: reference THESE in components, not raw scale
+     ============================================================ */
+
+  /* Surfaces (dark theme is the default & only theme) */
+  --surface-base: var(--ink-950);      /* page background */
+  --surface-raised: var(--ink-850);
+  --surface-card: var(--ink-850);      /* cards, panels */
+  --surface-inset: var(--ink-900);     /* wells, inputs */
+  --surface-overlay: var(--ink-800);   /* dialogs, menus */
+  --surface-hover: var(--ink-800);
+  --surface-active: var(--ink-750);
+
+  /* Text */
+  --text-primary: var(--ink-050);
+  --text-secondary: var(--ink-300);
+  --text-tertiary: var(--ink-400);
+  --text-disabled: var(--ink-500);
+  --text-inverse: var(--ink-950);
+  --text-accent: var(--ember-500);
+  --text-on-accent: var(--ink-000);
+
+  /* Borders & hairlines */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-accent: var(--ember-500);
+
+  /* Accent aliases */
+  --accent: var(--ember-500);
+  --accent-hover: var(--ember-600);
+  --accent-press: var(--ember-700);
+  --accent-quiet: rgba(255, 77, 28, 0.12);
+  --accent-glow: var(--ember-glow);
+}
