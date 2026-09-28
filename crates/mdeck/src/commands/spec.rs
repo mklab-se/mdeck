@@ -12,13 +12,8 @@ fn print_short_reference() {
     print!("{}", short_reference());
 }
 
-/// Build the quick reference card. The keyboard section is generated from
-/// the same shortcut table the in-app HUD uses, so the two cannot drift.
-pub fn short_reference() -> String {
-    let card = crate::app::keys::shortcut_card();
-    let mut out = String::new();
-    out.push_str(
-        r#"MDeck Quick Reference
+/// The quick reference card up to its keyboard section.
+const CARD_HEAD: &str = r#"MDeck Quick Reference
 =====================
 
 SLIDE SEPARATION
@@ -86,11 +81,10 @@ ART ENGINES (blueprint, sketch, chalkboard, watercolour, darkroom; spec 9.7)
   Without art           The slide's @illustration is drawn in the medium
 
 KEYBOARD & MOUSE
-"#,
-    );
-    out.push_str(&card);
-    out.push_str(
-        r#"  Drawings fade out after 8 seconds
+"#;
+
+/// The quick reference card after its keyboard section.
+const CARD_TAIL: &str = r#"  Drawings fade out after 8 seconds
 
 COLUMN SEPARATOR
   +++   Separates left and right columns in two-column layout
@@ -140,9 +134,13 @@ THEMES (custom themes are YAML files; mdeck spec, section 9.4)
   art: { kind, style, references }   House style of generated art
   mdeck theme list | check <n> | preview <n> -o <dir>
   mdeck theme new <n> [--from <design system folder>]
-"#,
-    );
-    out
+"#;
+
+/// Build the quick reference card. The keyboard section is generated from
+/// the same shortcut table the in-app HUD uses, so the two cannot drift.
+pub fn short_reference() -> String {
+    let card = crate::app::keys::shortcut_card();
+    format!("{CARD_HEAD}{card}{CARD_TAIL}")
 }
 
 #[cfg(test)]
@@ -161,6 +159,18 @@ mod tests {
         assert!(card.contains("Q ×2"));
         assert!(card.contains("Debug overlay"));
         assert!(card.contains("Left click"));
+    }
+
+    #[test]
+    fn short_reference_puts_the_keys_between_head_and_tail() {
+        let card = short_reference();
+        assert!(card.starts_with("MDeck Quick Reference\n"));
+        assert!(card.contains("KEYBOARD & MOUSE\n"));
+        assert!(card.ends_with("[--from <design system folder>]\n"));
+        assert_eq!(
+            card.len(),
+            CARD_HEAD.len() + crate::app::keys::shortcut_card().len() + CARD_TAIL.len()
+        );
     }
 
     #[test]

@@ -100,3 +100,65 @@ pub fn extract_text_from_docx_xml(xml: &str) -> String {
 
     text
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_docx_xml_basic_paragraph() {
+        let xml = r#"<w:body><w:p><w:r><w:t>Hello world</w:t></w:r></w:p></w:body>"#;
+        let text = extract_text_from_docx_xml(xml);
+        assert_eq!(text.trim(), "Hello world");
+    }
+
+    #[test]
+    fn test_docx_xml_multiple_paragraphs() {
+        let xml = r#"<w:body><w:p><w:r><w:t>First</w:t></w:r></w:p><w:p><w:r><w:t>Second</w:t></w:r></w:p></w:body>"#;
+        let text = extract_text_from_docx_xml(xml);
+        let lines: Vec<&str> = text.lines().filter(|l| !l.is_empty()).collect();
+        assert_eq!(lines, vec!["First", "Second"]);
+    }
+
+    #[test]
+    fn test_docx_xml_multiple_runs() {
+        let xml = r#"<w:p><w:r><w:t>Hello </w:t></w:r><w:r><w:t>world</w:t></w:r></w:p>"#;
+        let text = extract_text_from_docx_xml(xml);
+        assert_eq!(text.trim(), "Hello world");
+    }
+
+    #[test]
+    fn test_docx_xml_text_with_attributes() {
+        let xml = r#"<w:p><w:r><w:t xml:space="preserve">Preserved text</w:t></w:r></w:p>"#;
+        let text = extract_text_from_docx_xml(xml);
+        assert_eq!(text.trim(), "Preserved text");
+    }
+
+    #[test]
+    fn test_docx_xml_ignores_non_text_tags() {
+        let xml = r#"<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>Bold text</w:t></w:r></w:p>"#;
+        let text = extract_text_from_docx_xml(xml);
+        assert_eq!(text.trim(), "Bold text");
+    }
+
+    #[test]
+    fn test_docx_xml_table_not_confused_with_text() {
+        let xml = r#"<w:body><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body>"#;
+        let text = extract_text_from_docx_xml(xml);
+        assert!(text.contains("Cell"));
+    }
+
+    #[test]
+    fn test_docx_xml_empty_document() {
+        let xml = r#"<w:body></w:body>"#;
+        let text = extract_text_from_docx_xml(xml);
+        assert!(text.trim().is_empty());
+    }
+
+    #[test]
+    fn test_docx_xml_self_closing_text_tag() {
+        let xml = r#"<w:p><w:r><w:t/>Outside text</w:r></w:p>"#;
+        let text = extract_text_from_docx_xml(xml);
+        assert!(!text.contains("Outside"));
+    }
+}

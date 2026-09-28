@@ -85,25 +85,33 @@ fn targets(
     Ok(out)
 }
 
+/// What `mdeck ai art` should draw, and how.
+pub struct Options {
+    /// Draw only this slide (1-based).
+    pub slide: Option<usize>,
+    /// Only redraw stale pictures.
+    pub stale: bool,
+    /// Redraw current pictures too.
+    pub force: bool,
+    /// List what would be drawn and stop.
+    pub dry_run: bool,
+    /// Draw for this engine instead of the deck's.
+    pub engine: Option<String>,
+    /// Use this ailloy node instead of the default image one.
+    pub node: Option<String>,
+    pub quiet: bool,
+}
+
 /// The `mdeck ai art` command.
-#[allow(clippy::too_many_arguments)]
-pub async fn run(
-    file: PathBuf,
-    slide: Option<usize>,
-    stale: bool,
-    force: bool,
-    dry_run: bool,
-    engine: Option<String>,
-    node: Option<String>,
-    quiet: bool,
-) -> Result<()> {
+pub async fn run(file: PathBuf, opts: Options) -> Result<()> {
+    let quiet = opts.quiet;
     let content = std::fs::read_to_string(&file)?;
     let base = file.parent().unwrap_or(Path::new(".")).to_path_buf();
     let pres = parser::parse(&content);
     if pres.slides.is_empty() {
         bail!("No slides found in {}", file.display());
     }
-    let theme = deck_theme(&pres, &base, engine.as_deref())?;
+    let theme = deck_theme(&pres, &base, opts.engine.as_deref())?;
     let Some(medium) = theme.engine.medium() else {
         bail!(
             "the deck runs on the {} engine, which draws no art. Choose an engine that does ({}) with `@engine:` in the frontmatter, a theme on one, or --engine",
@@ -114,11 +122,7 @@ pub async fn run(
     let style = Style::for_medium(medium, &theme);
     let sc = sidecar::load(&file).map_err(|e| anyhow::anyhow!(e))?;
     let resolved = sidecar::resolve(&file, &pres, sc.as_ref(), &style.id());
-    let todo = targets(&pres, &resolved, slide, stale, force)?;
-    let kind = match style.kind {
-        ArtKind::Line => "line art",
-        ArtKind::Tonal => "pictures",
-    };
+    let todo = targets(&pres, &resolved, opts.slide, opts.stale, opts.force)?;
     if todo.is_empty() {
         if !quiet {
             eprintln!(
@@ -129,89 +133,133 @@ pub async fn run(
         return Ok(());
     }
     if !quiet {
+        let kind = match style.kind {
+            ArtKind::Line => "line art",
+            ArtKind::Tonal => "pictures",
+        };
         eprintln!(
             "Drawing {} for {} slide{} of {} ({} engine, style {}).",
             kind,
             todo.len(),
-            if todo.len() == 1 { "" } else { "s" },
+            plural(todo.len()),
             file.display(),
             medium.name,
             style.id()
         );
     }
-    if dry_run {
-        for &i in &todo {
-            let from = match art::slide_scene(&pres.slides[i]) {
-                Some(s) => format!("@art: {s}"),
-                None => "scene written from the slide".dimmed().to_string(),
-            };
-            eprintln!(
-                "  {:>3}  {}  {}",
-                i + 1,
-                pres.slides[i].title().unwrap_or_default().bold(),
-                from
-            );
-        }
-        eprintln!(
-            "Dry run: {} picture{} (about 20 seconds each, {} at a time). Nothing was generated.",
-            todo.len(),
-            if todo.len() == 1 { "" } else { "s" },
-            PARALLEL
-        );
+    if opts.dry_run {
+        print_dry_run(&pres, &todo);
         return Ok(());
     }
 
     let scenes = scenes(&pres, &todo, quiet).await?;
-    let client = Arc::new(match &node {
+    let target = Target {
+        file: &file,
+        pres: &pres,
+        style: &style,
+    };
+    let mut sc = sc.unwrap_or_else(empty_sidecar);
+    let tally = draw_all(&target, &mut sc, scenes, opts.node.as_deref(), quiet).await?;
+    if !tally.took_references && !quiet {
+        eprintln!(
+            "note: the image model does not take reference images; the style came from the prompt alone"
+        );
+    }
+    let Tally { done, failures, .. } = tally;
+    if failures > 0 {
+        bail!(
+            "{failures} picture{} failed; {done} saved. Run the command again to retry the rest.",
+            plural(failures)
+        );
+    }
+    if !quiet {
+        eprintln!(
+            "Done: {done} picture{} in {}. Present with `mdeck {}`.",
+            plural(done),
+            sidecar::folder_for(&file).display(),
+            file.display()
+        );
+    }
+    Ok(())
+}
+
+/// The deck and style pictures are drawn for.
+struct Target<'a> {
+    file: &'a Path,
+    pres: &'a Presentation,
+    style: &'a Style,
+}
+
+impl Target<'_> {
+    /// Write slide `i`'s picture into `art/`, record it and save the sidecar.
+    fn save(&self, sc: &mut Sidecar, i: usize, scene: String, bytes: &[u8]) -> Result<()> {
+        let folder = sidecar::folder_for(self.file);
+        let name = file_name(self.file, i, self.style);
+        std::fs::write(folder.join(&name), bytes)?;
+        sidecar::upsert(
+            sc,
+            self.pres,
+            i,
+            &self.style.id(),
+            format!("art/{name}"),
+            Some(scene),
+            crate::commands::story::timestamp(),
+        );
+        sidecar::save(self.file, sc).map_err(|e| anyhow::anyhow!(e))?;
+        Ok(())
+    }
+}
+
+/// How a batch of pictures went.
+struct Tally {
+    done: usize,
+    failures: usize,
+    /// Whether the image model accepted the style's reference images.
+    took_references: bool,
+}
+
+/// Draw every scene, `PARALLEL` at a time, saving each picture as it arrives.
+async fn draw_all(
+    target: &Target<'_>,
+    sc: &mut Sidecar,
+    scenes: Vec<(usize, String)>,
+    node: Option<&str>,
+    quiet: bool,
+) -> Result<Tally> {
+    let client = Arc::new(match node {
         Some(n) => ailloy::Client::with_node(n)?,
         None => ailloy::Client::for_capability("image")?,
     });
-    let references = reference_files(&style)?;
+    let references = reference_files(target.style)?;
     let fit = Arc::new(Fit::new());
-    let folder = sidecar::folder_for(&file);
-    std::fs::create_dir_all(&folder)?;
+    std::fs::create_dir_all(sidecar::folder_for(target.file))?;
 
     let jobs = scenes.into_iter().map(|(i, scene)| {
         let client = client.clone();
         let references = references.clone();
         let fit = fit.clone();
-        let with = image_prompt(&scene, &style, true);
-        let without = image_prompt(&scene, &style, false);
+        let with = image_prompt(&scene, target.style, true);
+        let without = image_prompt(&scene, target.style, false);
         async move {
             let result = draw_one(&client, &with, &without, &references, &fit).await;
             (i, scene, result)
         }
     });
     let mut stream = futures::stream::iter(jobs).buffer_unordered(PARALLEL);
-    let mut sc = sc.unwrap_or(Sidecar {
-        version: sidecar::VERSION,
-        slides: vec![],
-    });
     let mut failures = 0;
     let mut done = 0;
     while let Some((i, scene, result)) = stream.next().await {
         match result {
             Ok(bytes) => {
-                let name = file_name(&file, i, &style);
-                std::fs::write(folder.join(&name), &bytes)?;
-                sidecar::upsert(
-                    &mut sc,
-                    &pres,
-                    i,
-                    &style.id(),
-                    format!("art/{name}"),
-                    Some(scene),
-                    crate::commands::story::timestamp(),
-                );
                 // save after every picture so an interruption keeps the work so far
-                sidecar::save(&file, &sc).map_err(|e| anyhow::anyhow!(e))?;
+                target.save(sc, i, scene, &bytes)?;
                 done += 1;
                 if !quiet {
                     eprintln!(
                         "{} slide {:>2}  {}",
                         "✓".green(),
                         i + 1,
-                        pres.slides[i].title().unwrap_or_default()
+                        target.pres.slides[i].title().unwrap_or_default()
                     );
                 }
             }
@@ -223,26 +271,45 @@ pub async fn run(
             }
         }
     }
-    if !fit.took_references() && !quiet {
+    Ok(Tally {
+        done,
+        failures,
+        took_references: fit.took_references(),
+    })
+}
+
+/// "" for one, "s" for more.
+fn plural(n: usize) -> &'static str {
+    if n == 1 { "" } else { "s" }
+}
+
+fn empty_sidecar() -> Sidecar {
+    Sidecar {
+        version: sidecar::VERSION,
+        slides: vec![],
+    }
+}
+
+/// `--dry-run`: each slide that would be drawn and where its scene comes from.
+fn print_dry_run(pres: &Presentation, todo: &[usize]) {
+    for &i in todo {
+        let from = match art::slide_scene(&pres.slides[i]) {
+            Some(s) => format!("@art: {s}"),
+            None => "scene written from the slide".dimmed().to_string(),
+        };
         eprintln!(
-            "note: the image model does not take reference images; the style came from the prompt alone"
+            "  {:>3}  {}  {}",
+            i + 1,
+            pres.slides[i].title().unwrap_or_default().bold(),
+            from
         );
     }
-    if failures > 0 {
-        bail!(
-            "{failures} picture{} failed; {done} saved. Run the command again to retry the rest.",
-            if failures == 1 { "" } else { "s" }
-        );
-    }
-    if !quiet {
-        eprintln!(
-            "Done: {done} picture{} in {}. Present with `mdeck {}`.",
-            if done == 1 { "" } else { "s" },
-            folder.display(),
-            file.display()
-        );
-    }
-    Ok(())
+    eprintln!(
+        "Dry run: {} picture{} (about 20 seconds each, {} at a time). Nothing was generated.",
+        todo.len(),
+        plural(todo.len()),
+        PARALLEL
+    );
 }
 
 /// Draw the picture for one slide from a running app (the `S` key), for the
@@ -281,25 +348,14 @@ pub fn generate_one_blocking(deck: &Path, index: usize, theme: &Theme) -> Result
             &fit,
         )
         .await?;
-        let folder = sidecar::folder_for(deck);
-        std::fs::create_dir_all(&folder)?;
-        let name = file_name(deck, i, &style);
-        std::fs::write(folder.join(&name), &bytes)?;
-        let mut sc = sc.unwrap_or(Sidecar {
-            version: sidecar::VERSION,
-            slides: vec![],
-        });
-        sidecar::upsert(
-            &mut sc,
-            &pres,
-            i,
-            &style.id(),
-            format!("art/{name}"),
-            Some(scene),
-            crate::commands::story::timestamp(),
-        );
-        sidecar::save(deck, &sc).map_err(|e| anyhow::anyhow!(e))?;
-        Ok(())
+        std::fs::create_dir_all(sidecar::folder_for(deck))?;
+        let mut sc = sc.unwrap_or_else(empty_sidecar);
+        let target = Target {
+            file: deck,
+            pres: &pres,
+            style: &style,
+        };
+        target.save(&mut sc, i, scene, &bytes)
     })?
 }
 
