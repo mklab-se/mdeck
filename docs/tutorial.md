@@ -58,6 +58,10 @@ slide picks its layout from what is on it: a heading with a line under it is a
 title slide, a heading with a list is a bullet slide. Press Space to go
 forward and Esc twice to quit.
 
+**Press `H` at any time** for help: a panel with every keyboard shortcut. Press
+`H` again to hide it. You never need to remember a key; this tutorial mentions
+the ones worth knowing as you go.
+
 ## 3. Keep MDeck open while you write
 
 This is the way to work with MDeck: put your editor on one screen and MDeck
@@ -97,9 +101,17 @@ title: "My First Talk"
 </table>
 
 Same content, a new look: Ember's editorial typography and a living field of
-particles that follows your content. Press `Shift+T` while presenting to try
-every theme without editing anything; the [Themes](themes.md) page lists them
-all and shows how to make your own.
+particles that follows your content.
+
+**Try them all without editing anything.** While presenting, press
+`Shift+T`: the deck switches to the next theme, and a short note in the
+corner names it. Keep pressing to cycle through every built-in theme (and your
+own, if you have any). The switch is temporary: your file does not change, and
+the next time you start MDeck it opens in the theme your frontmatter names.
+When you find one you like, write its name after `@theme:`. `T` does the same
+for the transition between slides.
+
+The [Themes](themes.md) page lists every theme and shows how to make your own.
 
 ## 5. Reveal points one at a time
 
@@ -253,6 +265,7 @@ No issues found.
 | G | All slides at a glance; click one to jump to it |
 | Drag the mouse | Draw on the slide (right-drag draws an arrow) |
 | `.` or B | Black out the screen |
+| Shift+T, T | Try the next theme, the next transition (not saved) |
 | M | Move to the next screen |
 | H | Show every shortcut |
 | Esc twice | Quit |
