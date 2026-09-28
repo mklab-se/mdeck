@@ -2,7 +2,9 @@
 
 use eframe::egui;
 
-use super::*;
+use crate::theme::Theme;
+
+use super::PresentationApp;
 
 impl PresentationApp {
     pub(super) fn draw_end_slide(&mut self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {

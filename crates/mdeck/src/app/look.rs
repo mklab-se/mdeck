@@ -1,6 +1,11 @@
 //! Switching the theme (`Shift+T`, a reload) and the transition (`T`).
 
-use super::*;
+use crate::deck;
+use crate::render::transition::TransitionKind;
+use crate::theme::Theme;
+
+use super::PresentationApp;
+use super::toast::Toast;
 
 impl PresentationApp {
     /// `Shift+T`: the next theme visible from this deck (built-ins, then

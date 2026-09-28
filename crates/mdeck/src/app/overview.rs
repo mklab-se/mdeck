@@ -1,12 +1,15 @@
 //! The overview grid (`G`) and the zoom between it and a slide.
 
-use eframe::egui;
 use std::time::Instant;
+
+use eframe::egui;
+
+use crate::theme::Theme;
 
 use super::grid::GridLayout;
 use super::keys::{SCROLL_SMOOTH_RATE, smooth_factor};
 use super::overlays::draw_fade_gradient;
-use super::*;
+use super::{OVERVIEW_TRANSITION_DURATION, PresentationApp};
 
 /// Navigation hint shown at the bottom of the grid view.
 const GRID_HINT: &str = "Arrows/Mouse: navigate  |  Enter/Click: select  |  Q \u{00d7}2: quit";

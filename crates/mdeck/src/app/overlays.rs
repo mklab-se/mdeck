@@ -1,11 +1,15 @@
 //! What is drawn over a slide: annotations, scroll fades, the HUD and the
 //! raw markdown overlay.
 
-use eframe::egui;
 use std::time::Instant;
 
+use eframe::egui;
+
+use crate::theme::Theme;
+
+use super::input::ActiveDraw;
 use super::keys::SHORTCUTS;
-use super::*;
+use super::{DRAW_FADE_DURATION, PresentationApp, RawOverlaySide};
 
 impl PresentationApp {
     /// Pen colour, from the theme's `annotations.pen`.

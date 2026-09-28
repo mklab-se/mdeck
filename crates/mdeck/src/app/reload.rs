@@ -1,6 +1,17 @@
 //! Picking up edits to the deck file while presenting.
 
-use super::*;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use crate::parser::{self, Presentation};
+use crate::render::transition::TransitionKind;
+use crate::theme::lookup;
+use crate::{deck, render};
+
+use super::helpers::{find_matching_slide, hash_content};
+use super::input::ActiveDraw;
+use super::toast::Toast;
+use super::{AppMode, PresentationApp, SlideView};
 
 impl PresentationApp {
     pub(super) fn reload_presentation(&mut self) {

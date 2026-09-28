@@ -3,7 +3,9 @@
 
 use std::time::Instant;
 
-use super::*;
+use crate::render::transition::{ActiveTransition, TransitionDirection};
+
+use super::{AppMode, OVERVIEW_TRANSITION_DURATION, PendingNav, PresentationApp};
 
 impl PresentationApp {
     pub(super) fn navigate_forward(&mut self) {

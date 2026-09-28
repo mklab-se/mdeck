@@ -19,31 +19,25 @@ mod toast;
 use actions::{MonitorMove, ViewportSnapshot};
 use countdown::{Countdown, CountdownPhase};
 use grid::GridLayout;
-use helpers::{
-    find_matching_slide, hash_content, load_app_icon, print_incident_summary, resolve_setting,
-    spawn_file_watcher,
-};
 use input::{ActiveDraw, ArrowAnnotation, PenStroke};
-use keys::{Action, DoubleTap, MonitorMoveOutcome, evaluate_monitor_move};
+use keys::DoubleTap;
 pub use launch::run;
 use toast::Toast;
 
 use eframe::egui;
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
 
 use notify_debouncer_mini::{Debouncer, notify};
 
 use crate::check::CheckReport;
-use crate::config::{Config, DefaultsConfig};
-use crate::deck::{self, Deck};
+use crate::deck::Deck;
 use crate::incident_log::IncidentLog;
-use crate::parser::{self, Presentation};
+use crate::parser::{self};
 use crate::render;
-use crate::render::transition::{ActiveTransition, TransitionDirection, TransitionKind};
-use crate::theme::{Countdown as ThemeCountdown, Theme, lookup};
+use crate::render::transition::{ActiveTransition, TransitionKind};
+use crate::theme::{Theme, lookup};
 
 const OVERVIEW_TRANSITION_DURATION: f32 = 0.4;
 const DRAW_FADE_DURATION: f32 = 8.0;

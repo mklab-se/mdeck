@@ -1,7 +1,28 @@
 //! Opening the presenting window: start position, warnings, the viewport,
 //! and the event loop.
 
-use super::*;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Arc, mpsc};
+use std::time::Instant;
+
+use eframe::egui;
+use notify_debouncer_mini::{Debouncer, notify};
+
+use crate::config::{Config, DefaultsConfig};
+use crate::deck::{self, Deck};
+use crate::incident_log::IncidentLog;
+use crate::parser::{self, Presentation};
+use crate::render;
+use crate::render::transition::TransitionKind;
+use crate::theme::{Theme, lookup};
+
+use super::helpers::{
+    hash_content, load_app_icon, print_incident_summary, resolve_setting, spawn_file_watcher,
+};
+use super::input::ActiveDraw;
+use super::keys::DoubleTap;
+use super::{AppMode, DOUBLE_TAP_WINDOW, PresentationApp, RawOverlaySide, SlideView};
 
 /// The watcher that tells the window its deck file changed.
 pub(super) struct FileWatch {

@@ -1,9 +1,13 @@
 //! The 3-2-1 opener before the first slide.
 
-use eframe::egui;
 use std::time::{Duration, Instant};
 
-use super::*;
+use eframe::egui;
+
+use crate::render;
+use crate::theme::{Countdown as ThemeCountdown, Theme};
+
+use super::PresentationApp;
 
 /// Each countdown digit holds for this long.
 const COUNTDOWN_DIGIT: Duration = Duration::from_millis(1100);
