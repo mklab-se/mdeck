@@ -176,6 +176,43 @@ fn circle_centers(mid: Pos2, radii: &[f32]) -> Vec<Pos2> {
     }
 }
 
+/// Where the diagram's circles go.
+#[derive(Debug, Clone, PartialEq)]
+struct VennLayout {
+    mid: Pos2,
+    radii: Vec<f32>,
+    centers: Vec<Pos2>,
+}
+
+/// Circles sized by `sizes` around the middle of the chart, the largest as
+/// big as the space allows with a margin.
+fn venn_layout(pos: Pos2, max_width: f32, height: f32, scale: f32, sizes: &[f32]) -> VennLayout {
+    let mid = Pos2::new(pos.x + max_width / 2.0, pos.y + height / 2.0);
+    let max_radius = (max_width.min(height) / 2.0 - 60.0 * scale).max(40.0 * scale);
+    let radii = circle_radii(sizes, max_radius);
+    let centers = circle_centers(mid, &radii);
+    VennLayout {
+        mid,
+        radii,
+        centers,
+    }
+}
+
+impl VennLayout {
+    /// Where the label of the intersection of `members` goes, and how wide it
+    /// may wrap: 1.3 times the smallest member's radius.
+    fn intersection_spot(&self, members: &[usize]) -> (Pos2, f32) {
+        let (x, y) =
+            intersection_label_pos(&self.centers, &self.radii, members, self.mid.x, self.mid.y);
+        let wrap_width = members
+            .iter()
+            .map(|&i| self.radii[i])
+            .fold(f32::MAX, f32::min)
+            * 1.3;
+        (Pos2::new(x, y), wrap_width)
+    }
+}
+
 pub fn draw_venn_diagram(
     cx: &super::VizCtx,
     content: &str,
@@ -183,14 +220,7 @@ pub fn draw_venn_diagram(
     max_width: f32,
     max_height: f32,
 ) -> f32 {
-    let super::VizCtx {
-        ui,
-        theme,
-        opacity,
-        scale,
-        reveal_step,
-        ..
-    } = *cx;
+    let scale = cx.scale;
     let (circles, intersections) = parse_venn_diagram(content);
     if circles.is_empty() {
         return 0.0;
@@ -209,28 +239,42 @@ pub fn draw_venn_diagram(
         all_reveals.push(inter.reveal);
     }
     let steps = assign_steps(&all_reveals);
-    let palette = theme.edge_palette();
-    let painter = ui.painter();
-
-    let mid = Pos2::new(pos.x + max_width / 2.0, pos.y + height / 2.0);
 
     // Compute circle radii proportional to size values
-    let max_radius = (max_width.min(height) / 2.0 - 60.0 * scale).max(40.0 * scale);
     let sizes: Vec<f32> = circles.iter().map(|c| c.size).collect();
-    let radii = circle_radii(&sizes, max_radius);
+    let layout = venn_layout(pos, max_width, height, scale, &sizes);
 
-    let centers = circle_centers(mid, &radii);
+    draw_circles(cx, &layout, &circles, &steps);
+    draw_intersection_labels(
+        cx,
+        &layout,
+        &circles,
+        &intersections,
+        &steps[intersection_start..],
+    );
 
+    height
+}
+
+/// Each revealed circle, growing from its centre, with its label in the
+/// non-overlapping part.
+fn draw_circles(cx: &super::VizCtx, layout: &VennLayout, circles: &[VennCircle], steps: &[usize]) {
+    let super::VizCtx {
+        ui,
+        theme,
+        opacity,
+        scale,
+        reveal_step,
+        ..
+    } = *cx;
+    let painter = ui.painter();
+    let palette = theme.edge_palette();
+    let mid = layout.mid;
     let label_font = FontId::new(
         theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale,
         theme.body_family(),
     );
-    let inter_font = FontId::new(
-        theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale,
-        theme.body_family(),
-    );
 
-    // Draw circles
     for (i, circle) in circles.iter().enumerate() {
         let step = steps.get(i).copied().unwrap_or(0);
         if step > reveal_step {
@@ -242,8 +286,8 @@ pub fn draw_venn_diagram(
         let color = palette[i % palette.len()];
         let fill_color = Theme::with_opacity(color, opacity * 0.25 * anim);
         let stroke_color = Theme::with_opacity(color, opacity * anim);
-        let radius = radii[i] * anim;
-        let center = centers[i];
+        let radius = layout.radii[i] * anim;
+        let center = layout.centers[i];
 
         painter.circle_filled(center, radius, fill_color);
         crate::render::hints::push(
@@ -265,10 +309,32 @@ pub fn draw_venn_diagram(
         let ly = center.y + label_offset_y - galley.rect.height() / 2.0;
         painter.galley(Pos2::new(lx, ly), galley, label_color);
     }
+}
 
-    // Draw intersection labels
+/// Each revealed intersection's label (`steps` are the intersections' own),
+/// in the lens its member circles share.
+fn draw_intersection_labels(
+    cx: &super::VizCtx,
+    layout: &VennLayout,
+    circles: &[VennCircle],
+    intersections: &[VennIntersection],
+    steps: &[usize],
+) {
+    let super::VizCtx {
+        theme,
+        opacity,
+        scale,
+        reveal_step,
+        ..
+    } = *cx;
+    let painter = cx.ui.painter();
+    let inter_font = FontId::new(
+        theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale,
+        theme.body_family(),
+    );
+
     for (j, inter) in intersections.iter().enumerate() {
-        let step = steps.get(intersection_start + j).copied().unwrap_or(0);
+        let step = steps.get(j).copied().unwrap_or(0);
         if step > reveal_step {
             continue;
         }
@@ -283,8 +349,7 @@ pub fn draw_venn_diagram(
         if members.is_empty() {
             continue;
         }
-        let (inter_x, inter_y) = intersection_label_pos(&centers, &radii, &members, mid.x, mid.y);
-        let wrap_width = members.iter().map(|&i| radii[i]).fold(f32::MAX, f32::min) * 1.3;
+        let (spot, wrap_width) = layout.intersection_spot(&members);
 
         let label_color = Theme::with_opacity(theme.foreground, opacity * anim);
         let galley = painter.layout(
@@ -293,14 +358,11 @@ pub fn draw_venn_diagram(
             label_color,
             wrap_width.max(80.0 * scale),
         );
-        let lx = inter_x - galley.rect.width() / 2.0;
-        let ly = inter_y - galley.rect.height() / 2.0;
+        let lx = spot.x - galley.rect.width() / 2.0;
+        let ly = spot.y - galley.rect.height() / 2.0;
         painter.galley(Pos2::new(lx, ly), galley, label_color);
     }
-
-    height
 }
-
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -414,5 +476,24 @@ mod tests {
         // The first sits straight above the middle
         assert!((three[0].x - 100.0).abs() < 1e-4);
         assert!((three[0].y - 69.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn test_venn_layout_centres_circles_in_the_chart() {
+        let layout = venn_layout(Pos2::new(0.0, 0.0), 1000.0, 500.0, 1.0, &[30.0, 30.0]);
+        assert_eq!(layout.mid, Pos2::new(500.0, 250.0));
+        // Largest radius: half the short side less the margin, times the 2-circle ratio
+        assert_eq!(layout.radii, vec![190.0 * 0.7; 2]);
+        assert_eq!(layout.centers, circle_centers(layout.mid, &layout.radii));
+
+        let (spot, wrap) = layout.intersection_spot(&[0, 1]);
+        assert_eq!(spot, layout.mid);
+        assert_eq!(wrap, 190.0 * 0.7 * 1.3);
+    }
+
+    #[test]
+    fn test_venn_layout_keeps_a_minimum_radius() {
+        let layout = venn_layout(Pos2::new(0.0, 0.0), 100.0, 100.0, 1.0, &[1.0]);
+        assert_eq!(layout.radii, vec![40.0 * 0.7]);
     }
 }

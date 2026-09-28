@@ -5,7 +5,7 @@ use crate::theme::Theme;
 use super::{
     VIZ_CORNER_NODE, VIZ_FONT_MIN, VIZ_FONT_SECONDARY_LABEL, VIZ_FONT_TITLE,
     VIZ_LABEL_REVEAL_THRESHOLD, VizReveal, assign_steps, fit_text, format_value, label_fade,
-    parse_label_value, parse_reveal_prefix, reveal_anim_progress,
+    parse_label_value, parse_reveal_prefix,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -113,6 +113,65 @@ fn draw_stage_labels(
     painter.galley(Pos2::new(vx, mid.y + 1.0 * scale), val_galley, val_color);
 }
 
+/// The narrowest trapezoid is at least this share of the widest.
+const MIN_WIDTH_RATIO: f32 = 0.2;
+
+/// Where the funnel's stages go: stacked trapezoids centred horizontally,
+/// the widest spanning the chart inside its padding.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct FunnelLayout {
+    center_x: f32,
+    /// Top of the first stage.
+    top: f32,
+    trapezoid_height: f32,
+    gap: f32,
+    /// Width of a stage at the largest value.
+    funnel_max_width: f32,
+}
+
+fn funnel_layout(pos: Pos2, max_width: f32, height: f32, scale: f32, n: usize) -> FunnelLayout {
+    let padding = 40.0 * scale;
+    let gap = 4.0 * scale;
+    let total_gaps = (n.saturating_sub(1)) as f32 * gap;
+    let available_height = height - padding * 2.0 - total_gaps;
+    FunnelLayout {
+        center_x: pos.x + max_width / 2.0,
+        top: pos.y + padding,
+        trapezoid_height: available_height / n as f32,
+        gap,
+        funnel_max_width: max_width - padding * 2.0,
+    }
+}
+
+impl FunnelLayout {
+    /// Top edge of stage `i`.
+    fn top_y(&self, i: usize) -> f32 {
+        self.top + i as f32 * (self.trapezoid_height + self.gap)
+    }
+
+    /// Width of a stage edge at `width_frac` of the largest value.
+    fn width_at(&self, width_frac: f32) -> f32 {
+        self.funnel_max_width * (MIN_WIDTH_RATIO + (1.0 - MIN_WIDTH_RATIO) * width_frac)
+    }
+}
+
+/// Each stage's (top, bottom) edge as a share of `max_value`: its own value on
+/// top and the next stage's below, or a bit narrower for the last stage.
+fn stage_fracs(values: &[f32], max_value: f32) -> Vec<(f32, f32)> {
+    values
+        .iter()
+        .enumerate()
+        .map(|(i, &value)| {
+            let width_frac = value / max_value;
+            let next_width_frac = values
+                .get(i + 1)
+                .map(|v| v / max_value)
+                .unwrap_or(width_frac * 0.6);
+            (width_frac, next_width_frac)
+        })
+        .collect()
+}
+
 pub fn draw_funnel_chart(
     cx: &super::VizCtx,
     content: &str,
@@ -121,12 +180,10 @@ pub fn draw_funnel_chart(
     max_height: f32,
 ) -> f32 {
     let super::VizCtx {
-        ui,
         theme,
-        opacity,
         scale,
         reveal_step,
-        reveal_timestamp,
+        ..
     } = *cx;
     let entries = parse_funnel_chart(content);
     if entries.is_empty() {
@@ -141,65 +198,72 @@ pub fn draw_funnel_chart(
 
     let reveals: Vec<VizReveal> = entries.iter().map(|e| e.reveal).collect();
     let steps = assign_steps(&reveals);
-    let palette = theme.edge_palette();
-    let painter = ui.painter();
 
     let max_value = entries.iter().map(|e| e.value).fold(0.0f32, f32::max);
     if max_value <= 0.0 {
         return height;
     }
 
-    let n = entries.len();
-    let padding = 40.0 * scale;
-    let gap = 4.0 * scale;
-    let total_gaps = (n.saturating_sub(1)) as f32 * gap;
-    let available_height = height - padding * 2.0 - total_gaps;
-    let trapezoid_height = available_height / n as f32;
-
-    // Funnel is centered horizontally with max width for the widest bar
-    let funnel_max_width = max_width - padding * 2.0;
-    let min_width_ratio = 0.2; // narrowest trapezoid is at least 20% of max
-    let center_x = pos.x + max_width / 2.0;
-
-    let label_font = FontId::new(
-        theme.body_size * VIZ_FONT_TITLE * scale,
-        theme.body_family(),
-    );
-    let value_font = FontId::new(
-        theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale,
-        theme.body_family(),
-    );
-
-    let mut needs_repaint = false;
+    let values: Vec<f32> = entries.iter().map(|e| e.value).collect();
+    let fracs = stage_fracs(&values, max_value);
+    let funnel = Funnel {
+        layout: funnel_layout(pos, max_width, height, scale, entries.len()),
+        label_font: FontId::new(
+            theme.body_size * VIZ_FONT_TITLE * scale,
+            theme.body_family(),
+        ),
+        value_font: FontId::new(
+            theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale,
+            theme.body_family(),
+        ),
+        max_value,
+    };
 
     for (i, entry) in entries.iter().enumerate() {
         let step = steps.get(i).copied().unwrap_or(0);
         if step > reveal_step {
             continue;
         }
+        let anim = cx.anim(step);
+        funnel.draw_stage(cx, i, entry, fracs[i], anim);
+    }
 
-        let (anim, repaint) = reveal_anim_progress(step, reveal_step, reveal_timestamp);
-        if repaint {
-            needs_repaint = true;
-        }
+    height
+}
 
-        let color = Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity());
+/// Paints the stages of a `FunnelLayout`.
+struct Funnel {
+    layout: FunnelLayout,
+    label_font: FontId,
+    value_font: FontId,
+    max_value: f32,
+}
+
+impl Funnel {
+    /// Stage `i` with edges at `(width_frac, next_width_frac)`, grown down
+    /// from its top edge to `anim`, then its labels.
+    fn draw_stage(
+        &self,
+        cx: &super::VizCtx,
+        i: usize,
+        entry: &FunnelEntry,
+        (width_frac, next_width_frac): (f32, f32),
+        anim: f32,
+    ) {
+        let scale = cx.scale;
+        let palette = cx.theme.edge_palette();
+        let color = Theme::with_opacity(
+            palette[i % palette.len()],
+            cx.opacity * cx.theme.fill_opacity(),
+        );
+        let center_x = self.layout.center_x;
 
         // Width proportional to value relative to max
-        let width_frac = entry.value / max_value;
-        let top_width = funnel_max_width * (min_width_ratio + (1.0 - min_width_ratio) * width_frac);
+        let top_width = self.layout.width_at(width_frac);
+        let bottom_width = self.layout.width_at(next_width_frac);
 
-        // Next entry's width (for trapezoid bottom), or a bit narrower
-        let next_width_frac = entries
-            .get(i + 1)
-            .map(|e| e.value / max_value)
-            .unwrap_or(width_frac * 0.6);
-        let bottom_width =
-            funnel_max_width * (min_width_ratio + (1.0 - min_width_ratio) * next_width_frac);
-
-        let top_y = pos.y + padding + i as f32 * (trapezoid_height + gap);
-        let full_h = trapezoid_height;
-        let h = full_h * anim;
+        let top_y = self.layout.top_y(i);
+        let h = self.layout.trapezoid_height * anim;
 
         // Interpolate bottom width based on animation progress
         let anim_bottom_width = top_width + (bottom_width - top_width) * anim;
@@ -207,8 +271,7 @@ pub fn draw_funnel_chart(
         let half_top = top_width / 2.0;
         let half_bot = anim_bottom_width / 2.0;
 
-        // Build a smooth rounded trapezoid using line segments
-        // Round the corners with small arcs approximated by extra points
+        // Round the corners by cutting them, keeping the cut within the shape
         let corner_r = (VIZ_CORNER_NODE * scale)
             .min(h * 0.3)
             .min((half_top - half_bot).abs() * 0.3);
@@ -219,27 +282,23 @@ pub fn draw_funnel_chart(
             h,
             corner_r,
         );
-        painter.add(egui::Shape::convex_polygon(points, color, Stroke::NONE));
+        cx.ui
+            .painter()
+            .add(egui::Shape::convex_polygon(points, color, Stroke::NONE));
 
         // Label centered in trapezoid (only when sufficiently visible)
         if anim > VIZ_LABEL_REVEAL_THRESHOLD {
-            let pct = entry.value / max_value * 100.0;
+            let pct = entry.value / self.max_value * 100.0;
             let value_text = format!("{} ({:.0}%)", format_value(entry.value), pct);
             let texts = (entry.label.as_str(), value_text.as_str());
             // Width available at mid height, with a little inset
             let text_max_w = (top_width + anim_bottom_width) / 2.0 - 16.0 * scale;
             let mid = Pos2::new(center_x, top_y + h / 2.0);
-            draw_stage_labels(cx, texts, (&label_font, &value_font), mid, text_max_w, anim);
+            let fonts = (&self.label_font, &self.value_font);
+            draw_stage_labels(cx, texts, fonts, mid, text_max_w, anim);
         }
     }
-
-    if needs_repaint {
-        ui.ctx().request_repaint();
-    }
-
-    height
 }
-
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -302,5 +361,26 @@ mod tests {
         assert_eq!(points[3], Pos2::new(130.0, 45.0));
         assert_eq!(points[5], Pos2::new(75.0, 50.0));
         assert_eq!(points[7], Pos2::new(50.0, 15.0));
+    }
+
+    #[test]
+    fn test_funnel_layout_stacks_stages_inside_padding() {
+        let layout = funnel_layout(Pos2::new(100.0, 20.0), 1000.0, 500.0, 1.0, 3);
+        assert_eq!(layout.center_x, 600.0);
+        assert_eq!(layout.funnel_max_width, 920.0);
+        assert_eq!(layout.trapezoid_height, (500.0 - 80.0 - 8.0) / 3.0);
+        assert_eq!(layout.top_y(0), 60.0);
+        assert_eq!(
+            layout.top_y(2),
+            60.0 + 2.0 * (layout.trapezoid_height + 4.0)
+        );
+        assert_eq!(layout.width_at(1.0), 920.0);
+        assert_eq!(layout.width_at(0.0), 920.0 * MIN_WIDTH_RATIO);
+    }
+
+    #[test]
+    fn test_stage_fracs_narrow_to_the_next_stage() {
+        let fracs = stage_fracs(&[100.0, 50.0, 10.0], 100.0);
+        assert_eq!(fracs, vec![(1.0, 0.5), (0.5, 0.1), (0.1, 0.1 * 0.6)]);
     }
 }
