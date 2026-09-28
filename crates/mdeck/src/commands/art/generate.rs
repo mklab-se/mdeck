@@ -3,6 +3,7 @@
 //! result small.
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
@@ -171,29 +172,88 @@ pub(super) fn transient(e: &str) -> bool {
     .any(|k| e.contains(k))
 }
 
-/// Generate one picture with retries. Returns the JPEG bytes.
+/// What an image model turned out to accept, learned on the first picture
+/// and shared by the rest of the run. Models differ: gpt-image takes
+/// quality, JPEG output and reference images; MAI Image takes a size only.
+pub struct Fit {
+    /// Quality, JPEG output and compression (gpt-image only).
+    rich: AtomicBool,
+    /// Reference images (the style swatches).
+    refs: AtomicBool,
+}
+
+impl Fit {
+    pub fn new() -> Self {
+        Self {
+            rich: AtomicBool::new(true),
+            refs: AtomicBool::new(true),
+        }
+    }
+
+    /// Whether the style swatches were sent (for the note at the end).
+    pub fn took_references(&self) -> bool {
+        self.refs.load(Ordering::Relaxed)
+    }
+}
+
+/// What to give up after a failed request, in order: the gpt-image options
+/// first (the picture is re-encoded here anyway), then the reference images.
+/// `None`: nothing left to give up, or the error is worth waiting out.
+#[derive(Debug, PartialEq, Eq)]
+enum Fallback {
+    Options,
+    References,
+}
+
+fn fallback(error: &str, rich: bool, refs: bool) -> Option<Fallback> {
+    if transient(error) {
+        return None;
+    }
+    if rich {
+        Some(Fallback::Options)
+    } else if refs {
+        Some(Fallback::References)
+    } else {
+        None
+    }
+}
+
+/// The request: always a square picture; the rest only where it is taken.
+fn options(rich: bool, references: &[PathBuf]) -> ailloy::ImageOptions {
+    let mut b = ailloy::ImageOptions::builder().size(1024, 1024);
+    if rich {
+        b = b
+            .quality("medium")
+            .output_format(ailloy::ImageFormat::Jpeg)
+            .compression(88);
+    }
+    if !references.is_empty() {
+        b = b.reference_images(references.to_vec());
+    }
+    b.build()
+}
+
+/// Generate one picture, with retries, giving up what the model does not
+/// take. Returns compact JPEG bytes.
 pub(super) async fn draw_one(
     client: &ailloy::Client,
     prompt_with: &str,
     prompt_without: &str,
     references: &[PathBuf],
-    use_refs: &std::sync::atomic::AtomicBool,
+    fit: &Fit,
 ) -> Result<Vec<u8>> {
-    use std::sync::atomic::Ordering;
     let mut last = String::new();
-    for attempt in 0..TRIES {
-        let with = use_refs.load(Ordering::Relaxed) && !references.is_empty();
-        let mut options = ailloy::ImageOptions::builder()
-            .size(1024, 1024)
-            .quality("medium")
-            .output_format(ailloy::ImageFormat::Jpeg)
-            .compression(88);
-        if with {
-            options = options.reference_images(references.to_vec());
-        }
-        let options = options.build();
+    let mut waits = 0;
+    // each give-up is one extra try on top of the waits for throttling
+    for _ in 0..TRIES + 2 {
+        let rich = fit.rich.load(Ordering::Relaxed);
+        let with = fit.refs.load(Ordering::Relaxed) && !references.is_empty();
+        let refs: &[PathBuf] = if with { references } else { &[] };
         let prompt = if with { prompt_with } else { prompt_without };
-        match client.generate_images_with(prompt, &options).await {
+        match client
+            .generate_images_with(prompt, &options(rich, refs))
+            .await
+        {
             Ok(images) => {
                 let image = images
                     .into_iter()
@@ -203,15 +263,15 @@ pub(super) async fn draw_one(
             }
             Err(e) => {
                 last = format!("{e:#}");
-                if with && !transient(&last) {
-                    // this model does not take reference images: go on without
-                    use_refs.store(false, Ordering::Relaxed);
-                    continue;
+                match fallback(&last, rich, with) {
+                    Some(Fallback::Options) => fit.rich.store(false, Ordering::Relaxed),
+                    Some(Fallback::References) => fit.refs.store(false, Ordering::Relaxed),
+                    None if transient(&last) && waits + 1 < TRIES => {
+                        waits += 1;
+                        tokio::time::sleep(Duration::from_secs(10 * waits as u64)).await;
+                    }
+                    None => break,
                 }
-                if !transient(&last) || attempt + 1 == TRIES {
-                    break;
-                }
-                tokio::time::sleep(Duration::from_secs(10 * (attempt as u64 + 1))).await;
             }
         }
     }
@@ -295,6 +355,25 @@ mod tests {
         assert!(r.contains("Slide 1:\n# Launch\nWe ship today"));
         assert!(r.contains("Speaker notes: Tell the story of the storm."));
         assert!(r.trim_end().ends_with("Write the JSON now."));
+    }
+
+    #[test]
+    fn a_model_that_refuses_options_gets_a_plain_request() {
+        // Issue #18: MAI Image takes a size only. Its refusal gives up the
+        // gpt-image options first, then the reference images, then stops.
+        let mai = "The following parameters are not supported by MAI image models ('MAI-Image-2.6-Flash'): quality, compression.";
+        assert_eq!(fallback(mai, true, true), Some(Fallback::Options));
+        assert_eq!(fallback(mai, false, true), Some(Fallback::References));
+        assert_eq!(fallback(mai, false, false), None);
+        // throttling is waited out, never given up on
+        assert_eq!(fallback("HTTP 429 Too Many Requests", true, true), None);
+        let plain = options(false, &[]);
+        assert!(plain.quality.is_none() && plain.compression.is_none());
+        assert!(plain.output_format.is_none() && plain.reference_images.is_empty());
+        assert_eq!(plain.size, Some((1024, 1024)));
+        let rich = options(true, &[PathBuf::from("a.jpg")]);
+        assert_eq!(rich.quality.as_deref(), Some("medium"));
+        assert_eq!(rich.reference_images.len(), 1);
     }
 
     #[test]

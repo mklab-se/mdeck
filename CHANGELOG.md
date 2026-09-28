@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- AI images work with MAI image models such as MAI-Image-2.6-Flash
+  ([#18](https://github.com/mklab-se/mdeck/issues/18)): ailloy is updated to 2.2.1, and
+  `mdeck ai art` gives up what a model does not take (the gpt-image quality, JPEG output and
+  compression first, then the style reference images) instead of failing, remembering it for
+  the rest of the run. Pictures are re-encoded to compact JPEG either way.
+
 ## [1.15.1] - 2026-09-28
 
 ### Fixed

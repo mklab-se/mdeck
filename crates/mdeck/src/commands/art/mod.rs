@@ -16,7 +16,7 @@ use crate::render::art::sidecar::{self, Sidecar, Source};
 use crate::render::art::style::Style;
 use crate::render::art::{self, ArtKind};
 use crate::theme::Theme;
-use generate::{draw_one, file_name, image_prompt, reference_files, scenes};
+use generate::{Fit, draw_one, file_name, image_prompt, reference_files, scenes};
 
 mod generate;
 
@@ -167,18 +167,18 @@ pub async fn run(
         None => ailloy::Client::for_capability("image")?,
     });
     let references = reference_files(&style)?;
-    let use_refs = Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let fit = Arc::new(Fit::new());
     let folder = sidecar::folder_for(&file);
     std::fs::create_dir_all(&folder)?;
 
     let jobs = scenes.into_iter().map(|(i, scene)| {
         let client = client.clone();
         let references = references.clone();
-        let use_refs = use_refs.clone();
+        let fit = fit.clone();
         let with = image_prompt(&scene, &style, true);
         let without = image_prompt(&scene, &style, false);
         async move {
-            let result = draw_one(&client, &with, &without, &references, &use_refs).await;
+            let result = draw_one(&client, &with, &without, &references, &fit).await;
             (i, scene, result)
         }
     });
@@ -223,7 +223,7 @@ pub async fn run(
             }
         }
     }
-    if !use_refs.load(std::sync::atomic::Ordering::Relaxed) && !quiet {
+    if !fit.took_references() && !quiet {
         eprintln!(
             "note: the image model does not take reference images; the style came from the prompt alone"
         );
@@ -276,13 +276,13 @@ pub fn generate_one_blocking(deck: &Path, index: usize, theme: &Theme) -> Result
         let (i, scene) = scenes.into_iter().next().context("no scene")?;
         let client = ailloy::Client::for_capability("image")?;
         let references = reference_files(&style)?;
-        let use_refs = std::sync::atomic::AtomicBool::new(true);
+        let fit = Fit::new();
         let bytes = draw_one(
             &client,
             &image_prompt(&scene, &style, true),
             &image_prompt(&scene, &style, false),
             &references,
-            &use_refs,
+            &fit,
         )
         .await?;
         let folder = sidecar::folder_for(deck);
