@@ -1,26 +1,16 @@
 use eframe::egui::{self, Pos2};
 
 use crate::parser::{Block, Slide};
-use crate::render::image_cache::ImageCache;
+use crate::render::BlockCx;
 use crate::render::text;
-use crate::theme::Theme;
 
 /// Gallery slide layout: multiple images arranged in a grid.
 /// - 2 images: side by side
 /// - 3 images: top row of 2, bottom row of 1 centered
 /// - 4 images: 2x2 grid
 /// - 5+ images: rows of 3 (or 2 for remainder)
-#[allow(clippy::too_many_arguments)]
-pub fn render(
-    ui: &egui::Ui,
-    slide: &Slide,
-    theme: &Theme,
-    rect: egui::Rect,
-    opacity: f32,
-    image_cache: &ImageCache,
-    _reveal_step: usize,
-    scale: f32,
-) {
+pub fn render(cx: &BlockCx, slide: &Slide, rect: egui::Rect) {
+    let scale = cx.scale;
     let padding = 50.0 * scale;
     let gap = 16.0 * scale;
 
@@ -49,16 +39,8 @@ pub fn render(
 
     // Draw heading if present
     if let Some(Block::Heading { level, inlines }) = heading {
-        let h = text::draw_heading(
-            ui,
-            inlines,
-            *level,
-            theme,
-            Pos2::new(rect.left() + padding, y),
-            content_width,
-            opacity,
-            scale,
-        );
+        let pos = Pos2::new(rect.left() + padding, y);
+        let h = text::draw_heading(&cx.text(), inlines, *level, pos, content_width);
         y += h + 20.0 * scale;
     }
 
@@ -85,17 +67,7 @@ pub fn render(
             directives,
         } = block
         {
-            text::draw_image_in_area(
-                ui,
-                path,
-                alt,
-                directives,
-                theme,
-                cell_rect,
-                opacity,
-                image_cache,
-                scale,
-            );
+            text::draw_image_in_area(cx, path, alt, directives, cell_rect);
         }
     }
 }
@@ -107,36 +79,28 @@ struct Cell {
     h: f32,
 }
 
+/// A `cols` by `rows` grid of equal cells filling `width` by `height`.
+fn uniform_grid(cols: usize, rows: usize, width: f32, height: f32, gap: f32) -> Vec<Cell> {
+    let cell_w = (width - (cols - 1) as f32 * gap) / cols as f32;
+    let cell_h = (height - (rows - 1) as f32 * gap) / rows as f32;
+    (0..rows)
+        .flat_map(|row| (0..cols).map(move |col| (row, col)))
+        .map(|(row, col)| Cell {
+            x: col as f32 * (cell_w + gap),
+            y: row as f32 * (cell_h + gap),
+            w: cell_w,
+            h: cell_h,
+        })
+        .collect()
+}
+
 fn compute_grid(count: usize, width: f32, height: f32, gap: f32) -> Vec<Cell> {
     match count {
         0 => Vec::new(),
-        1 => {
-            // Single image centered
-            vec![Cell {
-                x: 0.0,
-                y: 0.0,
-                w: width,
-                h: height,
-            }]
-        }
-        2 => {
-            // Side by side
-            let cell_w = (width - gap) / 2.0;
-            vec![
-                Cell {
-                    x: 0.0,
-                    y: 0.0,
-                    w: cell_w,
-                    h: height,
-                },
-                Cell {
-                    x: cell_w + gap,
-                    y: 0.0,
-                    w: cell_w,
-                    h: height,
-                },
-            ]
-        }
+        // Single image centered
+        1 => uniform_grid(1, 1, width, height, gap),
+        // Side by side
+        2 => uniform_grid(2, 1, width, height, gap),
         3 => {
             // Top row: 2 images, bottom row: 1 centered
             let row_h = (height - gap) / 2.0;
@@ -164,37 +128,8 @@ fn compute_grid(count: usize, width: f32, height: f32, gap: f32) -> Vec<Cell> {
                 },
             ]
         }
-        4 => {
-            // 2x2 grid
-            let cell_w = (width - gap) / 2.0;
-            let cell_h = (height - gap) / 2.0;
-            vec![
-                Cell {
-                    x: 0.0,
-                    y: 0.0,
-                    w: cell_w,
-                    h: cell_h,
-                },
-                Cell {
-                    x: cell_w + gap,
-                    y: 0.0,
-                    w: cell_w,
-                    h: cell_h,
-                },
-                Cell {
-                    x: 0.0,
-                    y: cell_h + gap,
-                    w: cell_w,
-                    h: cell_h,
-                },
-                Cell {
-                    x: cell_w + gap,
-                    y: cell_h + gap,
-                    w: cell_w,
-                    h: cell_h,
-                },
-            ]
-        }
+        // 2x2 grid
+        4 => uniform_grid(2, 2, width, height, gap),
         _ => {
             // Generic grid: rows of 3, last row may have fewer
             let cols = 3;
@@ -241,6 +176,24 @@ mod tests {
         // Bottom cell is centred
         assert!((cells[2].x + cells[2].w / 2.0 - 500.0).abs() < 0.01);
         assert_eq!(cells[2].y, cells[0].h + 20.0);
+    }
+
+    #[test]
+    fn uniform_grids_tile_the_area_row_by_row() {
+        let one = compute_grid(1, 1000.0, 600.0, 20.0);
+        assert_eq!(
+            (one[0].x, one[0].y, one[0].w, one[0].h),
+            (0.0, 0.0, 1000.0, 600.0)
+        );
+        let two = compute_grid(2, 1000.0, 600.0, 20.0);
+        assert_eq!(
+            (two[1].x, two[1].y, two[1].w, two[1].h),
+            (510.0, 0.0, 490.0, 600.0)
+        );
+        let four = compute_grid(4, 1000.0, 600.0, 20.0);
+        let at: Vec<(f32, f32)> = four.iter().map(|c| (c.x, c.y)).collect();
+        assert_eq!(at, [(0.0, 0.0), (510.0, 0.0), (0.0, 310.0), (510.0, 310.0)]);
+        assert!(four.iter().all(|c| c.w == 490.0 && c.h == 290.0));
     }
 
     #[test]

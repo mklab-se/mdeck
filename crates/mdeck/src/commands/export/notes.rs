@@ -155,16 +155,20 @@ pub fn draw(
         geo.text_top_rest
     };
     let images = ImageCache::new(std::path::PathBuf::new());
-    text::draw_blocks(
+    let cx = crate::render::BlockCx {
         ui,
-        &blocks[range],
         theme,
+        opacity: 1.0,
+        scale: geo.scale,
+        image_cache: &images,
+        reveal_step: usize::MAX,
+        reveal_timestamp: None,
+    };
+    text::draw_blocks(
+        &cx,
+        &blocks[range],
         pos2(geo.text_x, top) + offset,
         geo.text_width,
-        1.0,
-        &images,
-        usize::MAX,
-        geo.scale,
     );
 
     let size = theme.body_size * geo.scale * 0.62;

@@ -1,20 +1,15 @@
 use eframe::egui::{self, Pos2};
 
 use crate::parser::{Block, Slide};
+use crate::render::BlockCx;
 use crate::render::layouts::SLIDE_PADDING;
 use crate::render::text;
 use crate::theme::Theme;
 
 const SUBTITLE_GAP: f32 = 20.0;
 
-pub fn render(
-    ui: &egui::Ui,
-    slide: &Slide,
-    theme: &Theme,
-    rect: egui::Rect,
-    opacity: f32,
-    scale: f32,
-) {
+pub fn render(cx: &BlockCx, slide: &Slide, rect: egui::Rect) {
+    let (ui, theme, opacity, scale) = (cx.ui, cx.theme, cx.opacity, cx.scale);
     let padding = SLIDE_PADDING * scale;
     let content_rect = rect.shrink(padding);
 

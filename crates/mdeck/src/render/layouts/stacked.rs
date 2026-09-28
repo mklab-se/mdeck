@@ -5,7 +5,7 @@
 use eframe::egui::{self, Pos2};
 
 use crate::parser::{Block, Slide};
-use crate::render::image_cache::ImageCache;
+use crate::render::BlockCx;
 use crate::render::layouts::{
     SLIDE_PADDING, centered_left, centered_top, content_width, image_split,
 };
@@ -121,36 +121,22 @@ pub fn measure_content_height(
     text::measure_blocks_height(ui, blocks, &theme, column.width, scale)
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn render(
-    ui: &egui::Ui,
-    slide: &Slide,
-    theme: &Theme,
-    rect: egui::Rect,
-    opacity: f32,
-    image_cache: &ImageCache,
-    reveal_step: usize,
-    scale: f32,
-) {
+pub fn render(cx: &BlockCx, slide: &Slide, rect: egui::Rect) {
+    let scale = cx.scale;
     let column = text_column(slide, rect, scale);
     let blocks = text_blocks(slide);
-    let fitted = fit_code(ui, &blocks, theme, &column, scale);
-    let theme = &fitted;
+    let fitted = fit_code(cx.ui, &blocks, cx.theme, &column, scale);
+    let cx = &cx.with_theme(&fitted);
 
     let total_height =
-        text::measure_blocks_height(ui, blocks.iter().copied(), theme, column.width, scale);
+        text::measure_blocks_height(cx.ui, blocks.iter().copied(), cx.theme, column.width, scale);
     let start_y = centered_top(column.top, column.available, total_height);
 
     text::draw_blocks(
-        ui,
+        cx,
         blocks.iter().copied(),
-        theme,
         Pos2::new(column.left, start_y),
         column.width,
-        opacity,
-        image_cache,
-        reveal_step,
-        scale,
     );
 
     // Side image, vertically centred in the right column
@@ -165,17 +151,7 @@ pub fn render(
     {
         let padding = SLIDE_PADDING * scale;
         let (_, right_rect) = image_split::image_split_rects(rect.shrink(padding));
-        text::draw_image_in_area(
-            ui,
-            path,
-            alt,
-            directives,
-            theme,
-            right_rect,
-            opacity,
-            image_cache,
-            scale,
-        );
+        text::draw_image_in_area(cx, path, alt, directives, right_rect);
     }
 }
 

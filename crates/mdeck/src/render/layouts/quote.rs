@@ -1,29 +1,20 @@
 use eframe::egui::{self, Pos2};
 
 use crate::parser::{Block, Inline, Slide};
-use crate::render::image_cache::ImageCache;
 use crate::render::layouts::{SLIDE_PADDING, image_split};
 use crate::render::text;
+use crate::render::{BlockCx, TextCx};
 use crate::theme::Theme;
 
-#[allow(clippy::too_many_arguments)]
-pub fn render(
-    ui: &egui::Ui,
-    slide: &Slide,
-    theme: &Theme,
-    rect: egui::Rect,
-    opacity: f32,
-    image_cache: &ImageCache,
-    scale: f32,
-) {
-    let padding = SLIDE_PADDING * scale;
+pub fn render(cx: &BlockCx, slide: &Slide, rect: egui::Rect) {
+    let padding = SLIDE_PADDING * cx.scale;
     let content_rect = rect.shrink(padding);
 
     if image_split::has_image(&slide.blocks) {
         let (left_rect, right_rect) = image_split::image_split_rects(content_rect);
 
         // Render quote content in the left area
-        render_quote_content(ui, slide, theme, left_rect, opacity, scale);
+        render_quote_content(&cx.text(), slide, left_rect);
 
         // Render image in the right area
         if let (
@@ -35,31 +26,15 @@ pub fn render(
             }),
         ) = image_split::split_image(&slide.blocks)
         {
-            text::draw_image_in_area(
-                ui,
-                path,
-                alt,
-                directives,
-                theme,
-                right_rect,
-                opacity,
-                image_cache,
-                scale,
-            );
+            text::draw_image_in_area(cx, path, alt, directives, right_rect);
         }
     } else {
-        render_quote_content(ui, slide, theme, content_rect, opacity, scale);
+        render_quote_content(&cx.text(), slide, content_rect);
     }
 }
 
-fn render_quote_content(
-    ui: &egui::Ui,
-    slide: &Slide,
-    theme: &Theme,
-    content_rect: egui::Rect,
-    opacity: f32,
-    scale: f32,
-) {
+fn render_quote_content(cx: &TextCx, slide: &Slide, content_rect: egui::Rect) {
+    let (ui, theme, opacity, scale) = (cx.ui, cx.theme, cx.opacity, cx.scale);
     // Find heading, quote, and attribution
     let mut heading: Option<(u8, &Vec<Inline>)> = None;
     let mut quote_inlines: Option<&Vec<Inline>> = None;

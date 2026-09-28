@@ -1,26 +1,13 @@
-use std::time::Instant;
-
 use eframe::egui::{self, Pos2};
 
 use crate::parser::{Block, Slide};
+use crate::render::BlockCx;
 use crate::render::diagram;
-use crate::render::image_cache::ImageCache;
 use crate::render::text;
-use crate::theme::Theme;
 
 /// Diagram slide layout: heading at top, diagram filling remaining space.
-#[allow(clippy::too_many_arguments)]
-pub fn render(
-    ui: &egui::Ui,
-    slide: &Slide,
-    theme: &Theme,
-    rect: egui::Rect,
-    opacity: f32,
-    image_cache: &ImageCache,
-    reveal_step: usize,
-    reveal_timestamp: Option<Instant>,
-    scale: f32,
-) {
+pub fn render(cx: &BlockCx, slide: &Slide, rect: egui::Rect) {
+    let (ui, theme, scale) = (cx.ui, cx.theme, cx.scale);
     let padding = 60.0 * scale;
     crate::render::hints::push(
         ui.ctx(),
@@ -48,16 +35,8 @@ pub fn render(
 
     // Draw heading if present
     if let Some(Block::Heading { level, inlines }) = heading {
-        let h = text::draw_heading(
-            ui,
-            inlines,
-            *level,
-            theme,
-            Pos2::new(content_left, y),
-            content_width,
-            opacity,
-            scale,
-        );
+        let pos = Pos2::new(content_left, y);
+        let h = text::draw_heading(&cx.text(), inlines, *level, pos, content_width);
         y += h + text::heading_spacing(theme, *level, scale);
     }
 
@@ -72,10 +51,10 @@ pub fn render(
                 Pos2::new(content_left, y),
                 content_width,
                 remaining_height,
-                opacity,
-                image_cache,
-                reveal_step,
-                reveal_timestamp,
+                cx.opacity,
+                cx.image_cache,
+                cx.reveal_step,
+                cx.reveal_timestamp,
                 scale,
             );
         }

@@ -1,4 +1,5 @@
 pub mod art;
+pub mod context;
 pub mod diagram;
 pub mod ember;
 pub mod fonts;
@@ -24,7 +25,7 @@ use eframe::egui;
 use crate::parser::{Layout, Slide};
 use crate::theme::Theme;
 
-pub use ember::SlideContext;
+pub use context::{BlockCx, SlideContext, TextCx};
 use image_cache::ImageCache;
 
 /// Measure the content height of a slide (for scroll/overflow detection),
@@ -94,109 +95,33 @@ pub fn render_slide(
         );
         return;
     }
+    let block_cx = BlockCx {
+        ui,
+        theme,
+        opacity,
+        scale,
+        image_cache,
+        reveal_step,
+        reveal_timestamp,
+    };
     if theme.engine.lays_out(slide) {
-        ember::render(
-            ui,
-            slide,
-            theme,
-            rect,
-            opacity,
-            reveal_step,
-            reveal_timestamp,
-            scale,
-            cx,
-        );
+        ember::render(&block_cx, slide, rect, cx);
         return;
     }
-    match slide.layout {
-        Layout::Title => layouts::title::render(ui, slide, theme, rect, opacity, scale),
-        Layout::Section => layouts::section::render(ui, slide, theme, rect, opacity, scale),
-        Layout::Quote => {
-            layouts::quote::render(ui, slide, theme, rect, opacity, image_cache, scale)
-        }
-        Layout::Bullet => layouts::bullet::render(
-            ui,
-            slide,
-            theme,
-            rect,
-            opacity,
-            image_cache,
-            reveal_step,
-            scale,
-        ),
-        Layout::Code => layouts::code::render(
-            ui,
-            slide,
-            theme,
-            rect,
-            opacity,
-            image_cache,
-            reveal_step,
-            scale,
-        ),
-        Layout::TwoColumn => layouts::two_column::render(
-            ui,
-            slide,
-            theme,
-            rect,
-            opacity,
-            image_cache,
-            reveal_step,
-            scale,
-        ),
-        Layout::Content => layouts::content::render(
-            ui,
-            slide,
-            theme,
-            rect,
-            opacity,
-            image_cache,
-            reveal_step,
-            scale,
-        ),
-        Layout::Image => layouts::image_slide::render(
-            ui,
-            slide,
-            theme,
-            rect,
-            opacity,
-            image_cache,
-            reveal_step,
-            scale,
-        ),
-        Layout::Gallery => layouts::gallery::render(
-            ui,
-            slide,
-            theme,
-            rect,
-            opacity,
-            image_cache,
-            reveal_step,
-            scale,
-        ),
-        Layout::Diagram => layouts::diagram::render(
-            ui,
-            slide,
-            theme,
-            rect,
-            opacity,
-            image_cache,
-            reveal_step,
-            reveal_timestamp,
-            scale,
-        ),
-        Layout::Visualization => layouts::visualization::render(
-            ui,
-            slide,
-            theme,
-            rect,
-            opacity,
-            image_cache,
-            reveal_step,
-            reveal_timestamp,
-            scale,
-        ),
-    }
+    let render = match slide.layout {
+        Layout::Title => layouts::title::render,
+        Layout::Section => layouts::section::render,
+        Layout::Quote => layouts::quote::render,
+        Layout::Bullet => layouts::bullet::render,
+        Layout::Code => layouts::code::render,
+        Layout::TwoColumn => layouts::two_column::render,
+        Layout::Content => layouts::content::render,
+        Layout::Image => layouts::image_slide::render,
+        Layout::Gallery => layouts::gallery::render,
+        Layout::Diagram => layouts::diagram::render,
+        Layout::Visualization => layouts::visualization::render,
+    };
+    render(&block_cx, slide, rect);
 }
 
 /// Helpers for tests that need a live `egui::Ui` to lay out text.
