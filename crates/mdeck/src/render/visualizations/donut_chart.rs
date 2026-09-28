@@ -211,15 +211,12 @@ pub fn draw_donut_chart(
         })
         .collect();
     draw_legend_column(
-        painter,
+        cx,
         &items,
-        theme,
-        opacity,
         pos.x + donut_area_width + legend_gap,
         pos.y,
         legend_width - legend_gap,
         height,
-        scale,
     );
 
     height

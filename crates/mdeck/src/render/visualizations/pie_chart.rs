@@ -164,15 +164,12 @@ pub fn draw_pie_chart(
         })
         .collect();
     draw_legend_column(
-        painter,
+        cx,
         &items,
-        theme,
-        opacity,
         pos.x + pie_area_width + legend_gap,
         pos.y,
         legend_width - legend_gap,
         height,
-        scale,
     );
 
     height

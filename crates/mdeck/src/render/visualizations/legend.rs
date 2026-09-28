@@ -3,7 +3,8 @@
 use eframe::egui::{self, Color32, FontId, Pos2};
 
 use super::{
-    VIZ_CORNER_SWATCH, VIZ_FONT_LEGEND, VIZ_FONT_MIN, VIZ_SWATCH_SIZE, fit_font_size, fit_text,
+    VIZ_CORNER_SWATCH, VIZ_FONT_LEGEND, VIZ_FONT_MIN, VIZ_SWATCH_SIZE, VizCtx, fit_font_size,
+    fit_text,
 };
 
 /// One row of a vertical legend.
@@ -24,18 +25,21 @@ const LEGEND_ROW_MIN: f32 = 30.0;
 /// in the `height` available. Rows shrink towards a minimum height, then spill
 /// into a second column; whatever still does not fit is clipped. Labels are
 /// shrunk/truncated to the column width so they never overflow the slide.
-#[allow(clippy::too_many_arguments)]
 pub fn draw_legend_column(
-    painter: &egui::Painter,
+    cx: &VizCtx,
     items: &[LegendItem],
-    theme: &crate::theme::Theme,
-    opacity: f32,
     left: f32,
     top: f32,
     width: f32,
     height: f32,
-    scale: f32,
 ) {
+    let VizCtx {
+        theme,
+        opacity,
+        scale,
+        ..
+    } = *cx;
+    let painter = cx.ui.painter();
     if items.is_empty() || width <= 0.0 || height <= 0.0 {
         return;
     }
@@ -113,6 +117,53 @@ pub fn draw_legend_column(
         };
         let text_y = y + (row_h - galley.rect.height()) / 2.0;
         painter.galley(Pos2::new(x + swatch + gap, text_y), galley, text_color);
+    }
+}
+
+/// Draw a horizontal legend: one row of `(label, colour)` items centred in
+/// the `width` from `left`, vertically centred in the band from `top`
+/// `height` tall.
+pub fn draw_legend_row(
+    cx: &VizCtx,
+    items: &[(String, Color32)],
+    left: f32,
+    width: f32,
+    top: f32,
+    height: f32,
+) {
+    if items.is_empty() {
+        return;
+    }
+    let painter = cx.ui.painter();
+    let scale = cx.scale;
+    let legend_font = cx.font(VIZ_FONT_LEGEND);
+    let swatch_size = VIZ_SWATCH_SIZE * scale;
+    let item_spacing = 28.0 * scale;
+
+    let mut total_w = 0.0f32;
+    let galleys: Vec<_> = items
+        .iter()
+        .map(|(name, color)| {
+            let g = painter.layout_no_wrap(name.clone(), legend_font.clone(), *color);
+            total_w += swatch_size + 6.0 * scale + g.rect.width() + item_spacing;
+            (g, *color)
+        })
+        .collect();
+    total_w -= item_spacing; // no spacing after the last item
+
+    let mut lx = left + (width - total_w) / 2.0;
+    for (galley, color) in galleys {
+        let swatch_rect = egui::Rect::from_min_size(
+            Pos2::new(lx, top + (height - swatch_size) / 2.0),
+            egui::vec2(swatch_size, swatch_size),
+        );
+        painter.rect_filled(swatch_rect, VIZ_CORNER_SWATCH * scale, color);
+        lx += swatch_size + 6.0 * scale;
+
+        let text_y = top + (height - galley.rect.height()) / 2.0;
+        let w = galley.rect.width();
+        painter.galley(Pos2::new(lx, text_y), galley, cx.fg(1.0));
+        lx += w + item_spacing;
     }
 }
 

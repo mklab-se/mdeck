@@ -1,11 +1,11 @@
-use eframe::egui::{self, Color32, FontId, Pos2, Stroke};
+use eframe::egui::{self, Color32, Pos2, Stroke};
 
 use crate::theme::Theme;
 
 use super::{
-    VIZ_CORNER_SWATCH, VIZ_DOT_RADIUS, VIZ_FONT_AXIS_LABEL, VIZ_FONT_LEGEND, VIZ_OPACITY_LABEL,
-    VIZ_STROKE_SEPARATOR, VIZ_SWATCH_SIZE, VizReveal, assign_steps, header_directive,
-    parse_label_values, parse_reveal_prefix, reveal_anim_progress,
+    VIZ_DOT_RADIUS, VIZ_FONT_AXIS_LABEL, VIZ_OPACITY_LABEL, VIZ_STROKE_SEPARATOR, VizCtx,
+    VizReveal, assign_steps, draw_legend_row, header_directive, parse_label_values,
+    parse_reveal_prefix,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -106,21 +106,76 @@ fn axis_label_anchor(angle: f32, width: f32, height: f32) -> (f32, f32) {
     (dx, dy)
 }
 
+/// Where the radar's parts go.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct RadarLayout {
+    center: Pos2,
+    radius: f32,
+    /// The legend band along the bottom.
+    legend_top: f32,
+    legend_height: f32,
+}
+
+/// Centre the web above the legend, leaving room around it for axis labels.
+fn radar_layout(pos: Pos2, max_width: f32, height: f32, scale: f32) -> RadarLayout {
+    let legend_height = 40.0 * scale;
+    let padding = 60.0 * scale;
+    let label_margin = 50.0 * scale; // space for axis labels outside the polygon
+    let radar_area_height = height - legend_height - padding;
+    let radius = ((max_width - padding * 2.0 - label_margin * 2.0)
+        .min(radar_area_height - label_margin * 2.0)
+        / 2.0)
+        .max(40.0 * scale);
+    RadarLayout {
+        center: Pos2::new(
+            pos.x + max_width / 2.0,
+            pos.y + padding / 2.0 + (radar_area_height + label_margin) / 2.0,
+        ),
+        radius,
+        legend_top: pos.y + height - legend_height,
+        legend_height,
+    }
+}
+
+/// Angle of axis `i` of `num_axes`, clockwise from the top.
+fn axis_angle(i: usize, num_axes: usize) -> f32 {
+    let angle_step = 2.0 * std::f32::consts::PI / num_axes as f32;
+    let start_angle = -std::f32::consts::FRAC_PI_2; // start at top
+    start_angle + i as f32 * angle_step
+}
+
+/// The point `r` from `center` along axis `i`.
+fn on_axis(center: Pos2, r: f32, i: usize, num_axes: usize) -> Pos2 {
+    let angle = axis_angle(i, num_axes);
+    Pos2::new(center.x + r * angle.cos(), center.y + r * angle.sin())
+}
+
+/// A series' vertices: each value as a share of `max_value` (clamped to the
+/// web) along its axis, scaled by `anim` so the polygon grows from the centre.
+fn series_points(
+    values: &[f32],
+    max_value: f32,
+    anim: f32,
+    layout: &RadarLayout,
+    num_axes: usize,
+) -> Vec<Pos2> {
+    (0..num_axes)
+        .map(|i| {
+            let val = values.get(i).copied().unwrap_or(0.0);
+            let frac = (val / max_value).clamp(0.0, 1.0) * anim;
+            on_axis(layout.center, layout.radius * frac, i, num_axes)
+        })
+        .collect()
+}
+
 pub fn draw_radar_chart(
-    cx: &super::VizCtx,
+    cx: &VizCtx,
     content: &str,
     pos: Pos2,
     max_width: f32,
     max_height: f32,
 ) -> f32 {
-    let super::VizCtx {
-        ui,
-        theme,
-        opacity,
-        scale,
-        reveal_step,
-        reveal_timestamp,
-    } = *cx;
+    let scale = cx.scale;
     let data = parse_radar_chart(content);
     if data.series.is_empty() || data.axes.is_empty() {
         return 0.0;
@@ -134,8 +189,8 @@ pub fn draw_radar_chart(
 
     let reveals: Vec<VizReveal> = data.series.iter().map(|s| s.reveal).collect();
     let steps = assign_steps(&reveals);
-    let palette = theme.edge_palette();
-    let painter = ui.painter();
+    let palette = cx.theme.edge_palette();
+    let painter = cx.ui.painter();
 
     let num_axes = data.axes.len();
     if num_axes < 3 {
@@ -152,108 +207,31 @@ pub fn draw_radar_chart(
         return height;
     }
 
-    // Layout: radar polygon centered, legend at bottom
-    let legend_height = 40.0 * scale;
-    let padding = 60.0 * scale;
-    let label_margin = 50.0 * scale; // space for axis labels outside the polygon
-    let radar_area_height = height - legend_height - padding;
-    let radar_radius = ((max_width - padding * 2.0 - label_margin * 2.0)
-        .min(radar_area_height - label_margin * 2.0)
-        / 2.0)
-        .max(40.0 * scale);
-    let cx = pos.x + max_width / 2.0;
-    let cy = pos.y + padding / 2.0 + (radar_area_height + label_margin) / 2.0;
+    let layout = radar_layout(pos, max_width, height, scale);
+    draw_web(cx, &layout, &data.axes);
 
-    let angle_step = 2.0 * std::f32::consts::PI / num_axes as f32;
-    let start_angle = -std::f32::consts::FRAC_PI_2; // start at top
-
-    // Draw concentric circular grid rings (spider web)
-    let grid_levels = 4u32;
-    let grid_color = Theme::with_opacity(theme.foreground, opacity * 0.25);
-    for level in 1..=grid_levels {
-        let frac = level as f32 / grid_levels as f32;
-        let r = radar_radius * frac;
-        painter.circle_stroke(Pos2::new(cx, cy), r, Stroke::new(1.0 * scale, grid_color));
-        crate::render::hints::push(
-            ui.ctx(),
-            crate::render::hints::Hint::Circle {
-                center: Pos2::new(cx, cy),
-                radius: r,
-            },
-        );
-    }
-
-    // Draw axis lines (spokes of the spider web)
-    let axis_line_color = Theme::with_opacity(theme.foreground, opacity * 0.3);
-    let axis_label_font = FontId::new(
-        theme.body_size * VIZ_FONT_AXIS_LABEL * scale,
-        theme.body_family(),
-    );
-    let label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_LABEL);
-
-    for (i, axis_name) in data.axes.iter().enumerate() {
-        let angle = start_angle + i as f32 * angle_step;
-        let outer = Pos2::new(
-            cx + radar_radius * angle.cos(),
-            cy + radar_radius * angle.sin(),
-        );
-        painter.line_segment(
-            [Pos2::new(cx, cy), outer],
-            Stroke::new(1.0 * scale, axis_line_color),
-        );
-
-        // Axis label outside the polygon, anchored by its angle
-        let label_r = radar_radius + 14.0 * scale;
-        let label_pos = Pos2::new(cx + label_r * angle.cos(), cy + label_r * angle.sin());
-        let galley =
-            painter.layout_no_wrap(axis_name.clone(), axis_label_font.clone(), label_color);
-        let (offset_x, offset_y) =
-            axis_label_anchor(angle, galley.rect.width(), galley.rect.height());
-        painter.galley(
-            Pos2::new(label_pos.x + offset_x, label_pos.y + offset_y),
-            galley,
-            label_color,
-        );
-    }
-
-    // Draw series polygons
-    let mut needs_repaint = false;
-
+    let dot_radius = VIZ_DOT_RADIUS * scale;
     for (si, series) in data.series.iter().enumerate() {
         let step = steps.get(si).copied().unwrap_or(0);
-        if step > reveal_step {
+        if step > cx.reveal_step {
             continue;
         }
-
-        let (anim, repaint) = reveal_anim_progress(step, reveal_step, reveal_timestamp);
-        if repaint {
-            needs_repaint = true;
-        }
+        let anim = cx.anim(step);
 
         let base_color = palette[si % palette.len()];
-        let fill_alpha = (0.2 * 255.0 * opacity * anim) as u8;
+        let fill_alpha = (0.2 * 255.0 * cx.opacity * anim) as u8;
         let fill_color = Color32::from_rgba_unmultiplied(
             base_color.r(),
             base_color.g(),
             base_color.b(),
             fill_alpha,
         );
-        let stroke_color = Theme::with_opacity(base_color, opacity * anim);
-
-        // Build polygon points, scaled by anim_progress (grows from center)
-        let points: Vec<Pos2> = (0..num_axes)
-            .map(|i| {
-                let val = series.values.get(i).copied().unwrap_or(0.0);
-                let frac = (val / max_value).clamp(0.0, 1.0) * anim;
-                let r = radar_radius * frac;
-                let angle = start_angle + i as f32 * angle_step;
-                Pos2::new(cx + r * angle.cos(), cy + r * angle.sin())
-            })
-            .collect();
+        let stroke_color = Theme::with_opacity(base_color, cx.opacity * anim);
+        let points = series_points(&series.values, max_value, anim, &layout, num_axes);
 
         // Filled polygon (fan mesh: correct for concave shapes) plus outline
         if points.len() >= 3 {
-            painter.add(series_fill_mesh(Pos2::new(cx, cy), &points, fill_color));
+            painter.add(series_fill_mesh(layout.center, &points, fill_color));
             painter.add(egui::Shape::closed_line(
                 points.clone(),
                 Stroke::new(VIZ_STROKE_SEPARATOR * scale, stroke_color),
@@ -261,73 +239,76 @@ pub fn draw_radar_chart(
         }
 
         // Dots at vertices
-        let dot_radius = VIZ_DOT_RADIUS * scale;
         for point in &points {
             painter.circle_filled(*point, dot_radius, stroke_color);
         }
     }
 
-    // Draw legend at bottom
-    let legend_font = FontId::new(
-        theme.body_size * VIZ_FONT_LEGEND * scale,
-        theme.body_family(),
-    );
-    let swatch_size = VIZ_SWATCH_SIZE * scale;
-    let item_spacing = 28.0 * scale;
-
-    // Calculate total legend width to center it
-    let legend_items: Vec<(String, Color32)> = data
+    // Legend at bottom
+    let legend: Vec<(String, Color32)> = data
         .series
         .iter()
         .enumerate()
-        .filter(|(si, _)| {
-            let step = steps.get(*si).copied().unwrap_or(0);
-            step <= reveal_step
-        })
+        .filter(|(si, _)| steps.get(*si).copied().unwrap_or(0) <= cx.reveal_step)
         .map(|(si, s)| {
-            let color = Theme::with_opacity(palette[si % palette.len()], opacity);
+            let color = Theme::with_opacity(palette[si % palette.len()], cx.opacity);
             (s.label.clone(), color)
         })
         .collect();
-
-    if !legend_items.is_empty() {
-        // Estimate total width
-        let mut total_w = 0.0f32;
-        let galleys: Vec<_> = legend_items
-            .iter()
-            .map(|(name, color)| {
-                let g = painter.layout_no_wrap(name.clone(), legend_font.clone(), *color);
-                let w = swatch_size + 6.0 * scale + g.rect.width() + item_spacing;
-                total_w += w;
-                (g, *color)
-            })
-            .collect();
-        total_w -= item_spacing; // remove trailing spacing
-
-        let legend_y = pos.y + height - legend_height;
-        let mut lx = pos.x + (max_width - total_w) / 2.0;
-
-        for (galley, color) in galleys {
-            let swatch_rect = egui::Rect::from_min_size(
-                Pos2::new(lx, legend_y + (legend_height - swatch_size) / 2.0),
-                egui::vec2(swatch_size, swatch_size),
-            );
-            painter.rect_filled(swatch_rect, VIZ_CORNER_SWATCH * scale, color);
-            lx += swatch_size + 6.0 * scale;
-
-            let text_y = legend_y + (legend_height - galley.rect.height()) / 2.0;
-            let w = galley.rect.width();
-            let text_color = Theme::with_opacity(theme.foreground, opacity);
-            painter.galley(Pos2::new(lx, text_y), galley, text_color);
-            lx += w + item_spacing;
-        }
-    }
-
-    if needs_repaint {
-        ui.ctx().request_repaint();
-    }
+    draw_legend_row(
+        cx,
+        &legend,
+        pos.x,
+        max_width,
+        layout.legend_top,
+        layout.legend_height,
+    );
 
     height
+}
+
+/// The spider web: concentric rings, then a spoke and a label per axis.
+fn draw_web(cx: &VizCtx, layout: &RadarLayout, axes: &[String]) {
+    let painter = cx.ui.painter();
+    let scale = cx.scale;
+    let center = layout.center;
+    let radius = layout.radius;
+
+    let grid_levels = 4u32;
+    let grid_color = cx.fg(0.25);
+    for level in 1..=grid_levels {
+        let frac = level as f32 / grid_levels as f32;
+        let r = radius * frac;
+        painter.circle_stroke(center, r, Stroke::new(1.0 * scale, grid_color));
+        crate::render::hints::push(
+            cx.ui.ctx(),
+            crate::render::hints::Hint::Circle { center, radius: r },
+        );
+    }
+
+    let axis_line_color = cx.fg(0.3);
+    let axis_label_font = cx.font(VIZ_FONT_AXIS_LABEL);
+    let label_color = cx.fg(VIZ_OPACITY_LABEL);
+    let num_axes = axes.len();
+    for (i, axis_name) in axes.iter().enumerate() {
+        let outer = on_axis(center, radius, i, num_axes);
+        painter.line_segment([center, outer], Stroke::new(1.0 * scale, axis_line_color));
+
+        // Axis label outside the polygon, anchored by its angle
+        let label_pos = on_axis(center, radius + 14.0 * scale, i, num_axes);
+        let galley =
+            painter.layout_no_wrap(axis_name.clone(), axis_label_font.clone(), label_color);
+        let (offset_x, offset_y) = axis_label_anchor(
+            axis_angle(i, num_axes),
+            galley.rect.width(),
+            galley.rect.height(),
+        );
+        painter.galley(
+            Pos2::new(label_pos.x + offset_x, label_pos.y + offset_y),
+            galley,
+            label_color,
+        );
+    }
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
@@ -433,5 +414,33 @@ mod tests {
         assert_eq!(axis_label_anchor(0.0, 100.0, 20.0), (0.0, -10.0));
         // Left side: right-aligned (text ends at the point)
         assert_eq!(axis_label_anchor(PI, 100.0, 20.0), (-100.0, -10.0));
+    }
+
+    #[test]
+    fn test_radar_layout_centres_the_web() {
+        let l = radar_layout(Pos2::new(0.0, 0.0), 1000.0, 600.0, 1.0);
+        assert_eq!(l.center.x, 500.0);
+        // Height-bound: (600 - 40 - 60 - 100) / 2
+        assert_eq!(l.radius, 200.0);
+        assert_eq!(l.legend_top, 560.0);
+        // Never smaller than the minimum radius
+        assert_eq!(
+            radar_layout(Pos2::new(0.0, 0.0), 100.0, 100.0, 1.0).radius,
+            40.0
+        );
+    }
+
+    #[test]
+    fn test_series_points_grow_from_centre_and_clamp() {
+        let l = radar_layout(Pos2::new(0.0, 0.0), 1000.0, 600.0, 1.0);
+        let points = series_points(&[10.0, 20.0, 5.0, 0.0], 10.0, 1.0, &l, 4);
+        // First axis points straight up, clamped to the web's radius
+        assert!((points[0].x - l.center.x).abs() < 1e-3);
+        assert!((points[0].y - (l.center.y - l.radius)).abs() < 1e-3);
+        // Second axis points right and is clamped at the rim too
+        assert!((points[1].x - (l.center.x + l.radius)).abs() < 1e-3);
+        assert_eq!(points[3], on_axis(l.center, 0.0, 3, 4));
+        let collapsed = series_points(&[10.0, 20.0, 5.0], 10.0, 0.0, &l, 3);
+        assert!(collapsed.iter().all(|p| (*p - l.center).length() < 1e-3));
     }
 }

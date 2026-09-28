@@ -3,11 +3,10 @@ use eframe::egui::{self, Color32, Pos2};
 use crate::theme::Theme;
 
 use super::{
-    AxisTitles, PlotFrame, VIZ_CORNER_BAR, VIZ_CORNER_SWATCH, VIZ_FONT_CATEGORY_LABEL,
-    VIZ_FONT_LEGEND, VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_LABEL,
-    VIZ_SWATCH_SIZE, ValueRange, VizCtx, VizReveal, assign_steps, format_value, grid_values,
-    header_directive, label_fade, nice_axis_max, nice_grid_step, parse_label_values,
-    parse_reveal_prefix,
+    AxisTitles, PlotFrame, VIZ_CORNER_BAR, VIZ_FONT_CATEGORY_LABEL, VIZ_FONT_VALUE_LABEL,
+    VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_LABEL, ValueRange, VizCtx, VizReveal, assign_steps,
+    draw_legend_row, format_value, grid_values, header_directive, label_fade, nice_axis_max,
+    nice_grid_step, parse_label_values, parse_reveal_prefix,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -253,14 +252,24 @@ pub fn draw_stacked_bar(
         },
     );
 
+    // Legend across the top
+    let legend: Vec<(String, Color32)> = data
+        .series
+        .iter()
+        .enumerate()
+        .filter(|(si, _)| steps.get(*si).copied().unwrap_or(0) <= cx.reveal_step)
+        .map(|(si, s)| {
+            let color = Theme::with_opacity(palette[si % palette.len()], cx.opacity);
+            (s.label.clone(), color)
+        })
+        .collect();
     draw_legend_row(
         cx,
-        &data.series,
-        &steps,
-        &palette,
-        &layout,
+        &legend,
         pos.x,
         max_width,
+        layout.legend_top,
+        layout.legend_height,
     );
 
     height
@@ -332,66 +341,6 @@ impl Stacks<'_> {
 
             cumulative_height += seg_height;
         }
-    }
-}
-
-/// The legend: one centred row across the top with a swatch and the name of
-/// each shown series.
-fn draw_legend_row(
-    cx: &VizCtx,
-    series: &[StackedSeries],
-    steps: &[usize],
-    palette: &[Color32],
-    layout: &StackedLayout,
-    left: f32,
-    max_width: f32,
-) {
-    let painter = cx.ui.painter();
-    let scale = cx.scale;
-    let legend_font = cx.font(VIZ_FONT_LEGEND);
-    let swatch_size = VIZ_SWATCH_SIZE * scale;
-    let item_spacing = 28.0 * scale;
-
-    let legend_items: Vec<(String, Color32)> = series
-        .iter()
-        .enumerate()
-        .filter(|(si, _)| steps.get(*si).copied().unwrap_or(0) <= cx.reveal_step)
-        .map(|(si, s)| {
-            let color = Theme::with_opacity(palette[si % palette.len()], cx.opacity);
-            (s.label.clone(), color)
-        })
-        .collect();
-    if legend_items.is_empty() {
-        return;
-    }
-
-    let mut total_w = 0.0f32;
-    let galleys: Vec<_> = legend_items
-        .iter()
-        .map(|(name, color)| {
-            let g = painter.layout_no_wrap(name.clone(), legend_font.clone(), *color);
-            let w = swatch_size + 6.0 * scale + g.rect.width() + item_spacing;
-            total_w += w;
-            (g, *color)
-        })
-        .collect();
-    total_w -= item_spacing;
-
-    let legend_y = layout.legend_top;
-    let legend_height = layout.legend_height;
-    let mut lx = left + (max_width - total_w) / 2.0;
-    for (galley, color) in galleys {
-        let swatch_rect = egui::Rect::from_min_size(
-            Pos2::new(lx, legend_y + (legend_height - swatch_size) / 2.0),
-            egui::vec2(swatch_size, swatch_size),
-        );
-        painter.rect_filled(swatch_rect, VIZ_CORNER_SWATCH * scale, color);
-        lx += swatch_size + 6.0 * scale;
-
-        let text_y = legend_y + (legend_height - galley.rect.height()) / 2.0;
-        let w = galley.rect.width();
-        painter.galley(Pos2::new(lx, text_y), galley, cx.fg(1.0));
-        lx += w + item_spacing;
     }
 }
 
