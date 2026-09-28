@@ -19,77 +19,66 @@ fn show() -> Result<()> {
         "Config:".bold(),
         path.display().to_string().dimmed()
     );
-
-    match &config.defaults {
-        Some(defaults) => {
-            println!("{}", "defaults:".bold());
-            println!(
-                "  {} {}",
-                "theme:".bold(),
-                defaults.theme.as_deref().unwrap_or("(not set)")
-            );
-            println!(
-                "  {} {}",
-                "transition:".bold(),
-                defaults.transition.as_deref().unwrap_or("(not set)")
-            );
-            println!(
-                "  {} {}",
-                "aspect:".bold(),
-                defaults.aspect.as_deref().unwrap_or("(not set)")
-            );
-            println!(
-                "  {} {}",
-                "start_mode:".bold(),
-                defaults.start_mode.as_deref().unwrap_or("(not set)")
-            );
-            println!(
-                "  {} {}",
-                "image_style:".bold(),
-                defaults.image_style.as_deref().unwrap_or("(not set)")
-            );
-            println!(
-                "  {} {}",
-                "icon_style:".bold(),
-                defaults.icon_style.as_deref().unwrap_or("(not set)")
-            );
-            println!(
-                "  {} {}",
-                "monitor_position:".bold(),
-                format_monitor_position(defaults.monitor_position)
-            );
-        }
-        None => {
-            println!("{} (not set)", "defaults:".bold());
-        }
-    }
-
+    show_defaults(&config);
     println!();
+    show_routing(&config);
+    println!();
+    show_styles(&config);
+    println!();
+    show_ai();
+    Ok(())
+}
+
+/// One indented `key: value` line.
+fn field(key: &str, value: impl std::fmt::Display) {
+    println!("  {} {}", key.bold(), value);
+}
+
+fn show_defaults(config: &Config) {
+    let Some(defaults) = &config.defaults else {
+        println!("{} (not set)", "defaults:".bold());
+        return;
+    };
+    let or_unset = |v: &Option<String>| v.as_deref().unwrap_or("(not set)").to_string();
+    println!("{}", "defaults:".bold());
+    field("theme:", or_unset(&defaults.theme));
+    field("transition:", or_unset(&defaults.transition));
+    field("aspect:", or_unset(&defaults.aspect));
+    field("start_mode:", or_unset(&defaults.start_mode));
+    field("image_style:", or_unset(&defaults.image_style));
+    field("icon_style:", or_unset(&defaults.icon_style));
+    field(
+        "monitor_position:",
+        format_monitor_position(defaults.monitor_position),
+    );
+}
+
+fn show_routing(config: &Config) {
     match &config.routing {
         Some(r) => {
             println!("{}", "routing:".bold());
-            println!("  {} {}", "length:".bold(), r.length);
-            println!("  {} {}", "turn:".bold(), r.turn);
-            println!("  {} {}", "lane_change:".bold(), r.lane_change);
-            println!("  {} {}", "crossing:".bold(), r.crossing);
+            field("length:", r.length);
+            field("turn:", r.turn);
+            field("lane_change:", r.lane_change);
+            field("crossing:", r.crossing);
         }
         None => println!("{} (defaults)", "routing:".bold()),
     }
+}
 
-    println!();
-    let styles = config.list_styles();
-    let icon_styles = config.list_icon_styles();
+fn show_styles(config: &Config) {
     println!(
         "{} {} image, {} icon (see {})",
         "styles:".bold(),
-        styles.len(),
-        icon_styles.len(),
+        config.list_styles().len(),
+        config.list_icon_styles().len(),
         "mdeck ai style list".cyan()
     );
+}
 
-    println!();
-
-    match ailloy::config::Config::load().ok().and_then(|c| {
+/// The default chat node from ailloy's configuration.
+fn show_ai() {
+    let node = ailloy::config::Config::load().ok().and_then(|c| {
         c.default_chat_node().ok().map(|(id, node)| {
             (
                 id.to_string(),
@@ -97,25 +86,20 @@ fn show() -> Result<()> {
                 node.model.clone(),
             )
         })
-    }) {
+    });
+    match node {
         Some((id, provider, model)) => {
             println!("{}", "ai (via ailloy):".bold());
-            println!("  {} {}", "node:".bold(), id.cyan());
-            println!("  {} {}", "provider:".bold(), provider);
+            field("node:", id.cyan());
+            field("provider:", provider);
             if let Some(model) = model {
-                println!("  {} {}", "model:".bold(), model);
+                field("model:", model);
             }
         }
         None => {
-            println!(
-                "{} (not set — run {})",
-                "ai:".bold(),
-                "ailloy config".cyan()
-            );
+            println!("{} (not set: run {})", "ai:".bold(), "ailloy config".cyan());
         }
     }
-
-    Ok(())
 }
 
 fn format_monitor_position(pos: Option<[f32; 2]>) -> String {
