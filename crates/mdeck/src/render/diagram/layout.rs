@@ -19,15 +19,8 @@ pub(super) fn layout_nodes(
     }
 }
 
-fn layout_grid(
-    nodes: &[DiagramNode],
-    area_width: f32,
-    area_height: f32,
-    origin_x: f32,
-    origin_y: f32,
-    scale: f32,
-) -> (Vec<NodeLayout>, GridInfo) {
-    // Find grid dimensions from pos values
+/// The grid size (columns, rows) spanned by explicit `pos:` values, at least 1x1.
+pub(super) fn grid_extent(nodes: &[DiagramNode]) -> (u32, u32) {
     let mut max_col: u32 = 1;
     let mut max_row: u32 = 1;
     for node in nodes {
@@ -36,23 +29,18 @@ fn layout_grid(
             max_row = max_row.max(row);
         }
     }
+    (max_col, max_row)
+}
 
-    let cell_w = area_width / max_col as f32;
-    let cell_h = area_height / max_row as f32;
-
-    // Responsive node sizes: fill a fraction of each cell, with min/max bounds
-    let node_w = (cell_w * 0.65).clamp(100.0 * scale, 220.0 * scale);
-    let node_h = (cell_h * 0.6).clamp(80.0 * scale, 160.0 * scale);
-
-    // Assign unpositioned nodes to first available cells
+/// The 1-based (col, row) cell of every node on an explicit grid: a node's own
+/// `pos:`, or else the first cell (row by row) no other node claims.
+pub(super) fn grid_cells(nodes: &[DiagramNode], max_col: u32) -> Vec<(u32, u32)> {
     let mut occupied: Vec<(u32, u32)> = nodes.iter().filter_map(|n| n.grid_pos).collect();
     let mut next_unplaced = 0u32;
-
-    let layouts = nodes
+    nodes
         .iter()
         .map(|node| {
-            let (col, row) = node.grid_pos.unwrap_or_else(|| {
-                // Find next unoccupied cell
+            node.grid_pos.unwrap_or_else(|| {
                 loop {
                     let c = next_unplaced % max_col + 1;
                     let r = next_unplaced / max_col + 1;
@@ -62,22 +50,51 @@ fn layout_grid(
                         return (c, r);
                     }
                 }
-            });
+            })
+        })
+        .collect()
+}
 
-            let cx = (col as f32 - 0.5) * cell_w;
-            let cy = (row as f32 - 0.5) * cell_h;
+/// Columns of the automatic layout: one row up to five nodes, then a
+/// near-square grid of at least two columns.
+pub(super) fn auto_columns(n: usize) -> usize {
+    if n <= 5 {
+        n
+    } else {
+        ((n as f32).sqrt().ceil() as usize).max(2)
+    }
+}
 
-            NodeLayout {
-                center_x: cx,
-                center_y: cy,
-                width: node_w,
-                height: node_h,
-            }
+fn layout_grid(
+    nodes: &[DiagramNode],
+    area_width: f32,
+    area_height: f32,
+    origin_x: f32,
+    origin_y: f32,
+    scale: f32,
+) -> (Vec<NodeLayout>, GridInfo) {
+    let (max_col, max_row) = grid_extent(nodes);
+
+    let cell_w = area_width / max_col as f32;
+    let cell_h = area_height / max_row as f32;
+
+    // Responsive node sizes: fill a fraction of each cell, with min/max bounds
+    let node_w = (cell_w * 0.65).clamp(100.0 * scale, 220.0 * scale);
+    let node_h = (cell_h * 0.6).clamp(80.0 * scale, 160.0 * scale);
+
+    let cells = grid_cells(nodes, max_col);
+    let layouts = cells
+        .iter()
+        .map(|&(col, row)| NodeLayout {
+            center_x: (col as f32 - 0.5) * cell_w,
+            center_y: (row as f32 - 0.5) * cell_h,
+            width: node_w,
+            height: node_h,
         })
         .collect();
 
     // Build occupied set (convert 1-based grid_pos to 0-based)
-    let occupied_set: HashSet<(usize, usize)> = occupied
+    let occupied_set: HashSet<(usize, usize)> = cells
         .iter()
         .map(|&(c, r)| ((c - 1) as usize, (r - 1) as usize))
         .collect();
@@ -163,7 +180,7 @@ fn layout_auto(
     }
 
     // For larger counts, arrange in a grid pattern
-    let cols = ((n as f32).sqrt().ceil() as usize).max(2);
+    let cols = auto_columns(n);
     let rows = n.div_ceil(cols);
 
     let cell_w = area_width / cols as f32;
@@ -203,4 +220,119 @@ fn layout_auto(
     };
 
     (layouts, grid_info)
+}
+
+// ─── Scale to fit ────────────────────────────────────────────────────────────
+
+/// The uniform scale the `scale` directive asks for. `Fit` shrinks a layout
+/// whose nodes overflow the area (large diagrams of 3+ rows, where minimum
+/// node sizes add up), never below 0.3.
+pub(super) fn fit_scale(directive: DiagramScale, layouts: &[NodeLayout], area_height: f32) -> f32 {
+    match directive {
+        DiagramScale::Fit => {
+            if area_height > 0.0 {
+                let mut bbox_bottom = 0.0f32;
+                for layout in layouts {
+                    let bottom = layout.center_y + layout.height / 2.0;
+                    bbox_bottom = bbox_bottom.max(bottom);
+                }
+                if bbox_bottom > area_height {
+                    (area_height / bbox_bottom).clamp(0.3, 1.0)
+                } else {
+                    1.0
+                }
+            } else {
+                1.0
+            }
+        }
+        DiagramScale::Factor(f) => f,
+        DiagramScale::Scroll => 1.0,
+    }
+}
+
+/// Scale nodes and grid cells by `fit` about the centre of the area.
+pub(super) fn apply_fit(
+    layouts: &mut [NodeLayout],
+    grid: &mut GridInfo,
+    fit: f32,
+    area_width: f32,
+    area_height: f32,
+) {
+    if (fit - 1.0).abs() <= 0.001 {
+        return;
+    }
+    let center_x = area_width / 2.0;
+    let center_y = area_height / 2.0;
+    for layout in layouts {
+        layout.center_x = center_x + (layout.center_x - center_x) * fit;
+        layout.center_y = center_y + (layout.center_y - center_y) * fit;
+        layout.width *= fit;
+        layout.height *= fit;
+    }
+    grid.cell_w *= fit;
+    grid.cell_h *= fit;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::parsing::parse_diagram;
+    use super::*;
+
+    fn layout(center_y: f32, height: f32) -> NodeLayout {
+        NodeLayout {
+            center_x: 50.0,
+            center_y,
+            width: 100.0,
+            height,
+        }
+    }
+
+    #[test]
+    fn grid_cells_fill_free_cells_in_row_order() {
+        let (nodes, _, _) = parse_diagram("A (pos: 1,1)\nB\nC (pos: 2,1)\nD");
+        let (max_col, max_row) = grid_extent(&nodes);
+        assert_eq!((max_col, max_row), (2, 1));
+        // B and D skip the cells A and C claim
+        assert_eq!(
+            grid_cells(&nodes, max_col),
+            [(1, 1), (1, 2), (2, 1), (2, 2)]
+        );
+    }
+
+    #[test]
+    fn auto_columns_single_row_then_square() {
+        assert_eq!(auto_columns(1), 1);
+        assert_eq!(auto_columns(5), 5);
+        assert_eq!(auto_columns(6), 3);
+        assert_eq!(auto_columns(10), 4);
+    }
+
+    #[test]
+    fn fit_scale_shrinks_only_overflow() {
+        let fits = [layout(50.0, 100.0)];
+        assert_eq!(fit_scale(DiagramScale::Fit, &fits, 200.0), 1.0);
+        let overflows = [layout(300.0, 200.0)]; // bottom at 400
+        assert_eq!(fit_scale(DiagramScale::Fit, &overflows, 200.0), 0.5);
+        let huge = [layout(3000.0, 200.0)];
+        assert_eq!(fit_scale(DiagramScale::Fit, &huge, 200.0), 0.3);
+        assert_eq!(fit_scale(DiagramScale::Fit, &overflows, 0.0), 1.0);
+        assert_eq!(fit_scale(DiagramScale::Factor(0.7), &fits, 200.0), 0.7);
+        assert_eq!(fit_scale(DiagramScale::Scroll, &overflows, 200.0), 1.0);
+    }
+
+    #[test]
+    fn apply_fit_scales_about_the_area_centre() {
+        let (nodes, _, _) = parse_diagram("A\nB");
+        let (_, mut grid) = layout_nodes(&nodes, 400.0, 200.0, 0.0, 0.0, 1.0);
+        let mut layouts = vec![layout(0.0, 100.0)];
+        apply_fit(&mut layouts, &mut grid, 0.5, 400.0, 200.0);
+        assert_eq!(layouts[0].center_x, 125.0); // 200 + (50 - 200) * 0.5
+        assert_eq!(layouts[0].center_y, 50.0);
+        assert_eq!(layouts[0].height, 50.0);
+        assert_eq!(grid.cell_w, 100.0);
+
+        let mut unchanged = vec![layout(0.0, 100.0)];
+        apply_fit(&mut unchanged, &mut grid, 1.0005, 400.0, 200.0);
+        assert_eq!(unchanged[0].center_x, 50.0);
+    }
 }
