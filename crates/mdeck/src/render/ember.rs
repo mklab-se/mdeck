@@ -85,29 +85,32 @@ fn ease_out(t: f32) -> f32 {
 #[derive(Clone, Copy)]
 struct Entry {
     entered_at: f64,
-    last_seen: f64,
+    /// The frame the slide was last drawn in.
+    last_frame: u64,
 }
 
-/// Seconds since this slide was (re)entered. A slide that has not been drawn
-/// for a quarter second counts as re-entered, so navigating back replays the
-/// stagger just like the site does.
+/// Seconds since this slide was (re)entered. A slide that was not drawn in
+/// the previous frame counts as re-entered, so navigating back replays the
+/// stagger just like the site does. Frames, not seconds: an idle window
+/// can go seconds between frames without the slide ever leaving the screen.
 fn entry_age(ui: &egui::Ui, index: usize, animate: bool, hold: bool) -> f32 {
     if !animate {
         return 10.0;
     }
     let now = ui.input(|i| i.time);
+    let frame = ui.ctx().cumulative_frame_nr();
     let id = egui::Id::new(("ember-entry", index));
     let age = ui.ctx().data_mut(|d| {
         let e = d.get_temp_mut_or_insert_with(id, || Entry {
             entered_at: now,
-            last_seen: now,
+            last_frame: frame,
         });
         // While the intro holds the copy back, the clock keeps restarting so
         // the stagger begins the moment the logo dissolves.
-        if hold || now - e.last_seen > 0.25 {
+        if hold || frame > e.last_frame + 1 {
             e.entered_at = now;
         }
-        e.last_seen = now;
+        e.last_frame = frame;
         (now - e.entered_at) as f32
     });
     if age < 2.5 {
@@ -1225,6 +1228,37 @@ mod tests {
         assert_eq!(roman(9), "IX");
         assert_eq!(roman(14), "XIV");
         assert_eq!(roman(40), "XL");
+    }
+
+    /// One frame at `time` seconds; `draw` says whether slide 3 is drawn.
+    fn frame(ctx: &egui::Context, time: f64, draw: bool) -> Option<f32> {
+        let mut age = None;
+        let input = egui::RawInput {
+            time: Some(time),
+            ..Default::default()
+        };
+        let mut out = ctx.run_ui(input, |ui| {
+            if draw {
+                age = Some(entry_age(ui, 3, true, false));
+            }
+        });
+        out.textures_delta.clear();
+        age
+    }
+
+    #[test]
+    fn an_idle_window_does_not_replay_the_entrance() {
+        // Regression: when nothing asks for repaints (an art engine has
+        // finished drawing), the next frame can come seconds later. That gap
+        // must not count as leaving the slide, or every line of copy
+        // animates in again on the next key press.
+        let ctx = egui::Context::default();
+        assert_eq!(frame(&ctx, 0.0, true), Some(0.0));
+        let later = frame(&ctx, 5.0, true).unwrap();
+        assert!(later > 4.9, "an idle gap replayed the entrance: {later}");
+        // Leaving the slide for a frame and coming back does replay it.
+        frame(&ctx, 6.0, false);
+        assert_eq!(frame(&ctx, 7.0, true), Some(0.0));
     }
 
     #[test]

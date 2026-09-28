@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- On the editorial layouts, the slide's copy no longer animates in again by itself a few
+  seconds after a picture has finished drawing, and revealing the next bullet no longer
+  replays every bullet. A slide counted as re-entered when it had not been painted for a
+  quarter second, so an idle window (the art engines stop repainting once their picture is
+  done) replayed the entrance on its next frame. It now counts as re-entered only when it was
+  not drawn in the previous frame.
+
 ## [1.15.0] - 2026-09-28
 
 ### Added
