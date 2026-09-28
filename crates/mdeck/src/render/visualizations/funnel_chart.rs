@@ -43,6 +43,76 @@ fn parse_funnel_chart(content: &str) -> Vec<FunnelEntry> {
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
+/// A trapezoid with its top edge centred on `top_center`, `half_widths`
+/// (top, bottom) either side, `h` tall, its corners cut by `corner_r`.
+fn trapezoid(top_center: Pos2, half_widths: (f32, f32), h: f32, corner_r: f32) -> Vec<Pos2> {
+    let (center_x, top_y) = (top_center.x, top_center.y);
+    let (half_top, half_bot) = half_widths;
+    vec![
+        // Top edge
+        Pos2::new(center_x - half_top + corner_r, top_y),
+        Pos2::new(center_x + half_top - corner_r, top_y),
+        // Right side slopes down
+        Pos2::new(center_x + half_top, top_y + corner_r),
+        Pos2::new(center_x + half_bot, top_y + h - corner_r),
+        // Bottom edge
+        Pos2::new(center_x + half_bot - corner_r, top_y + h),
+        Pos2::new(center_x - half_bot + corner_r, top_y + h),
+        // Left side slopes up
+        Pos2::new(center_x - half_bot, top_y + h - corner_r),
+        Pos2::new(center_x - half_top, top_y + corner_r),
+    ]
+}
+
+/// A stage's name above its middle and its value below, fading in as the
+/// stage finishes growing.
+fn draw_stage_labels(
+    cx: &super::VizCtx,
+    (label, value): (&str, &str),
+    (label_font, value_font): (&FontId, &FontId),
+    mid: Pos2,
+    text_max_w: f32,
+    anim: f32,
+) {
+    let super::VizCtx {
+        theme,
+        opacity,
+        scale,
+        ..
+    } = *cx;
+    let painter = cx.ui.painter();
+    let label_opacity = label_fade(anim);
+    let min_font = theme.body_size * VIZ_FONT_MIN * scale;
+
+    let label_color = Theme::with_opacity(theme.foreground, opacity * label_opacity);
+    let galley = fit_text(
+        painter,
+        label,
+        label_font.clone(),
+        label_color,
+        text_max_w,
+        min_font,
+    );
+    let lx = mid.x - galley.rect.width() / 2.0;
+    painter.galley(
+        Pos2::new(lx, mid.y - galley.rect.height() - 1.0 * scale),
+        galley,
+        label_color,
+    );
+
+    let val_color = Theme::with_opacity(theme.foreground, opacity * 0.7 * label_opacity);
+    let val_galley = fit_text(
+        painter,
+        value,
+        value_font.clone(),
+        val_color,
+        text_max_w,
+        min_font,
+    );
+    let vx = mid.x - val_galley.rect.width() / 2.0;
+    painter.galley(Pos2::new(vx, mid.y + 1.0 * scale), val_galley, val_color);
+}
+
 pub fn draw_funnel_chart(
     cx: &super::VizCtx,
     content: &str,
@@ -143,63 +213,23 @@ pub fn draw_funnel_chart(
             .min(h * 0.3)
             .min((half_top - half_bot).abs() * 0.3);
 
-        let mut points = Vec::with_capacity(20);
-        // Top-left corner
-        points.push(Pos2::new(center_x - half_top + corner_r, top_y));
-        // Top-right corner
-        points.push(Pos2::new(center_x + half_top - corner_r, top_y));
-        points.push(Pos2::new(center_x + half_top, top_y + corner_r));
-        // Right side slopes down
-        points.push(Pos2::new(center_x + half_bot, top_y + h - corner_r));
-        // Bottom-right corner
-        points.push(Pos2::new(center_x + half_bot - corner_r, top_y + h));
-        // Bottom-left corner
-        points.push(Pos2::new(center_x - half_bot + corner_r, top_y + h));
-        points.push(Pos2::new(center_x - half_bot, top_y + h - corner_r));
-        // Left side slopes up
-        points.push(Pos2::new(center_x - half_top, top_y + corner_r));
-
+        let points = trapezoid(
+            Pos2::new(center_x, top_y),
+            (half_top, half_bot),
+            h,
+            corner_r,
+        );
         painter.add(egui::Shape::convex_polygon(points, color, Stroke::NONE));
 
         // Label centered in trapezoid (only when sufficiently visible)
         if anim > VIZ_LABEL_REVEAL_THRESHOLD {
-            let label_opacity = label_fade(anim);
-            let mid_y = top_y + h / 2.0;
+            let pct = entry.value / max_value * 100.0;
+            let value_text = format!("{} ({:.0}%)", format_value(entry.value), pct);
+            let texts = (entry.label.as_str(), value_text.as_str());
             // Width available at mid height, with a little inset
             let text_max_w = (top_width + anim_bottom_width) / 2.0 - 16.0 * scale;
-            let min_font = theme.body_size * VIZ_FONT_MIN * scale;
-
-            // Entry label
-            let label_color = Theme::with_opacity(theme.foreground, opacity * label_opacity);
-            let galley = fit_text(
-                painter,
-                &entry.label,
-                label_font.clone(),
-                label_color,
-                text_max_w,
-                min_font,
-            );
-            let lx = center_x - galley.rect.width() / 2.0;
-            painter.galley(
-                Pos2::new(lx, mid_y - galley.rect.height() - 1.0 * scale),
-                galley,
-                label_color,
-            );
-
-            // Value and percentage
-            let pct = entry.value / max_value * 100.0;
-            let val_text = format!("{} ({:.0}%)", format_value(entry.value), pct);
-            let val_color = Theme::with_opacity(theme.foreground, opacity * 0.7 * label_opacity);
-            let val_galley = fit_text(
-                painter,
-                &val_text,
-                value_font.clone(),
-                val_color,
-                text_max_w,
-                min_font,
-            );
-            let vx = center_x - val_galley.rect.width() / 2.0;
-            painter.galley(Pos2::new(vx, mid_y + 1.0 * scale), val_galley, val_color);
+            let mid = Pos2::new(center_x, top_y + h / 2.0);
+            draw_stage_labels(cx, texts, (&label_font, &value_font), mid, text_max_w, anim);
         }
     }
 
@@ -262,5 +292,15 @@ mod tests {
         assert_eq!(entries[0].value, 0.0);
         assert_eq!(entries[1].value, 10000.0);
         assert_eq!(entries[2].value, 500.0);
+    }
+
+    #[test]
+    fn test_trapezoid_corners() {
+        let points = trapezoid(Pos2::new(100.0, 10.0), (50.0, 30.0), 40.0, 5.0);
+        assert_eq!(points.len(), 8);
+        assert_eq!(points[0], Pos2::new(55.0, 10.0));
+        assert_eq!(points[3], Pos2::new(130.0, 45.0));
+        assert_eq!(points[5], Pos2::new(75.0, 50.0));
+        assert_eq!(points[7], Pos2::new(50.0, 15.0));
     }
 }

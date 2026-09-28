@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use eframe::egui::{self, FontId, Pos2, Stroke};
+use eframe::egui::{self, Color32, FontId, Pos2, Stroke};
 
 use crate::theme::Theme;
 
 use super::{
-    VIZ_CORNER_NODE, VIZ_FONT_PRIMARY_LABEL, VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR, VizReveal,
-    assign_steps, parse_reveal_prefix, reveal_anim_progress,
+    VIZ_CORNER_NODE, VIZ_FONT_PRIMARY_LABEL, VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR, VizCtx,
+    VizReveal, assign_steps, parse_reveal_prefix,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -145,23 +145,53 @@ fn build_layout(
     layout_nodes
 }
 
+// ─── Reveal ─────────────────────────────────────────────────────────────────
+
+/// Reveal steps: root declarations are static and each edge carries its own
+/// marker. Returns each edge's step and each node's, which is the earliest
+/// step of anything that introduces it.
+fn reveal_steps(roots: &[String], edges: &[OrgEdge]) -> (Vec<usize>, HashMap<String, usize>) {
+    let reveals: Vec<VizReveal> = roots
+        .iter()
+        .map(|_| VizReveal::Static)
+        .chain(edges.iter().map(|e| e.reveal))
+        .collect();
+    let steps = assign_steps(&reveals);
+    let edge_steps = steps[roots.len()..].to_vec();
+
+    let mut node_step: HashMap<String, usize> = HashMap::new();
+    let mut introduce = |name: &String, step: usize| {
+        node_step
+            .entry(name.clone())
+            .and_modify(|s| *s = (*s).min(step))
+            .or_insert(step);
+    };
+    for (root, &step) in roots.iter().zip(&steps) {
+        introduce(root, step);
+    }
+    for (edge, &step) in edges.iter().zip(&edge_steps) {
+        introduce(&edge.parent, step);
+        introduce(&edge.child, step);
+    }
+    (edge_steps, node_step)
+}
+
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
+/// Where each node sits on the slide and how big its box is.
+struct Placed {
+    centers: HashMap<String, (f32, f32)>,
+    sizes: HashMap<String, (f32, f32)>,
+}
+
 pub fn draw_org_chart(
-    cx: &super::VizCtx,
+    cx: &VizCtx,
     content: &str,
     pos: Pos2,
     max_width: f32,
     max_height: f32,
 ) -> f32 {
-    let super::VizCtx {
-        ui,
-        theme,
-        opacity,
-        scale,
-        reveal_step,
-        reveal_timestamp,
-    } = *cx;
+    let scale = cx.scale;
     let (roots, edges) = parse_org_chart(content);
     if roots.is_empty() && edges.is_empty() {
         return 0.0;
@@ -173,49 +203,8 @@ pub fn draw_org_chart(
         500.0 * scale
     };
 
-    // Assign reveal steps: root declarations are static, edges carry reveal markers
-    // We assign steps per edge, and nodes inherit the step of the edge that introduces them
-    let mut all_reveals: Vec<VizReveal> = Vec::new();
-    // First, root nodes (always static if declared explicitly)
-    for _root in &roots {
-        all_reveals.push(VizReveal::Static);
-    }
-    // Then edges
-    let edge_start = all_reveals.len();
-    for edge in &edges {
-        all_reveals.push(edge.reveal);
-    }
-    let steps = assign_steps(&all_reveals);
-
-    // Build node step map: a node is visible when its introducing element is visible
-    let mut node_step: HashMap<String, usize> = HashMap::new();
-    for (i, root) in roots.iter().enumerate() {
-        let step = steps.get(i).copied().unwrap_or(0);
-        node_step
-            .entry(root.clone())
-            .and_modify(|s| *s = (*s).min(step))
-            .or_insert(step);
-    }
-    for (j, edge) in edges.iter().enumerate() {
-        let step = steps.get(edge_start + j).copied().unwrap_or(0);
-        // Parent is at least visible at this step
-        node_step
-            .entry(edge.parent.clone())
-            .and_modify(|s| *s = (*s).min(step))
-            .or_insert(step);
-        // Child appears at this step
-        node_step
-            .entry(edge.child.clone())
-            .and_modify(|s| *s = (*s).min(step))
-            .or_insert(step);
-    }
-
-    let palette = theme.edge_palette();
-    let painter = ui.painter();
-    let label_font = FontId::new(
-        theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale,
-        theme.body_family(),
-    );
+    let (edge_steps, node_step) = reveal_steps(&roots, &edges);
+    let label_font = cx.font(VIZ_FONT_PRIMARY_LABEL);
 
     let padding = 40.0 * scale;
     let layout = build_layout(
@@ -225,121 +214,121 @@ pub fn draw_org_chart(
         height - padding * 2.0,
     );
 
-    // Build position lookup
-    let node_positions: HashMap<String, (f32, f32)> = layout
-        .iter()
-        .map(|n| {
-            (
-                n.label.clone(),
-                (pos.x + padding + n.x, pos.y + padding + n.y),
-            )
-        })
-        .collect();
-
+    // Boxes sized to their labels
+    let painter = cx.ui.painter();
     let min_node_w = 120.0 * scale;
     let node_h_padding = 16.0 * scale;
     let node_w_padding = 24.0 * scale;
-    let corner_radius = VIZ_CORNER_NODE * scale;
-
-    // Pre-compute node sizes based on label text width
-    let mut node_sizes: HashMap<String, (f32, f32)> = HashMap::new();
+    let mut placed = Placed {
+        centers: HashMap::new(),
+        sizes: HashMap::new(),
+    };
     for node in &layout {
-        let text_color = Theme::with_opacity(theme.foreground, opacity);
-        let galley = painter.layout_no_wrap(node.label.clone(), label_font.clone(), text_color);
+        placed.centers.insert(
+            node.label.clone(),
+            (pos.x + padding + node.x, pos.y + padding + node.y),
+        );
+        let galley = painter.layout_no_wrap(node.label.clone(), label_font.clone(), cx.fg(1.0));
         let w = (galley.rect.width() + node_w_padding * 2.0).max(min_node_w);
         let h = galley.rect.height() + node_h_padding * 2.0;
-        node_sizes.insert(node.label.clone(), (w, h));
+        placed.sizes.insert(node.label.clone(), (w, h));
     }
 
-    let mut needs_repaint = false;
-
-    // Draw edges first (behind nodes)
-    for (j, edge) in edges.iter().enumerate() {
-        let step = steps.get(edge_start + j).copied().unwrap_or(0);
-        if step > reveal_step {
-            continue;
-        }
-
-        let (anim, repaint) = reveal_anim_progress(step, reveal_step, reveal_timestamp);
-        if repaint {
-            needs_repaint = true;
-        }
-
-        if let (Some(&(px, py)), Some(&(cx, cy))) = (
-            node_positions.get(&edge.parent),
-            node_positions.get(&edge.child),
-        ) {
-            let edge_color = Theme::with_opacity(theme.foreground, opacity * 0.3 * anim);
-            let stroke = Stroke::new(VIZ_STROKE_SEPARATOR * scale, edge_color);
-
-            let parent_h = node_sizes
-                .get(&edge.parent)
-                .map(|s| s.1)
-                .unwrap_or(40.0 * scale);
-            let child_h = node_sizes
-                .get(&edge.child)
-                .map(|s| s.1)
-                .unwrap_or(40.0 * scale);
-
-            // Right-angle connector: parent bottom -> mid-y -> child top
-            let p_bottom = py + parent_h / 2.0;
-            let c_top = cy - child_h / 2.0;
-            let mid_y = (p_bottom + c_top) / 2.0;
-
-            painter.line_segment([Pos2::new(px, p_bottom), Pos2::new(px, mid_y)], stroke);
-            painter.line_segment([Pos2::new(px, mid_y), Pos2::new(cx, mid_y)], stroke);
-            painter.line_segment([Pos2::new(cx, mid_y), Pos2::new(cx, c_top)], stroke);
+    // Edges first (behind nodes)
+    for (edge, &step) in edges.iter().zip(&edge_steps) {
+        if step <= cx.reveal_step {
+            draw_edge(cx, edge, &placed, cx.anim(step));
         }
     }
 
-    // Draw nodes
+    let palette = cx.theme.edge_palette();
+    let default_size = (min_node_w, 40.0 * scale);
     for node in &layout {
         let step = node_step.get(&node.label).copied().unwrap_or(0);
-        if step > reveal_step {
+        if step > cx.reveal_step {
             continue;
         }
-
-        let (anim, repaint) = reveal_anim_progress(step, reveal_step, reveal_timestamp);
-        if repaint {
-            needs_repaint = true;
-        }
-
-        let (nx, ny) = node_positions
+        let anim = cx.anim(step);
+        let (nx, ny) = placed
+            .centers
             .get(&node.label)
             .copied()
             .unwrap_or((0.0, 0.0));
-        let (node_w, node_h) = node_sizes
+        let (node_w, node_h) = placed
+            .sizes
             .get(&node.label)
             .copied()
-            .unwrap_or((min_node_w, 40.0 * scale));
-
-        let color_idx = node.depth % palette.len();
-        let bg_color = Theme::with_opacity(palette[color_idx], opacity * 0.15 * anim);
-        let border_color = Theme::with_opacity(palette[color_idx], opacity * 0.6 * anim);
-
-        let rect = egui::Rect::from_center_size(Pos2::new(nx, ny), egui::vec2(node_w, node_h));
-        painter.rect_filled(rect, corner_radius, bg_color);
-        crate::render::hints::push(ui.ctx(), crate::render::hints::Hint::Frame(rect));
-        painter.rect_stroke(
-            rect,
-            corner_radius,
-            Stroke::new(VIZ_STROKE_BORDER * scale, border_color),
-            egui::StrokeKind::Outside,
+            .unwrap_or(default_size);
+        let size = egui::vec2(node_w, node_h);
+        let color = palette[node.depth % palette.len()];
+        draw_node(
+            cx,
+            &node.label,
+            Pos2::new(nx, ny),
+            size,
+            color,
+            &label_font,
+            anim,
         );
-
-        // Label
-        let text_color = Theme::with_opacity(theme.foreground, opacity * anim);
-        let galley = painter.layout_no_wrap(node.label.clone(), label_font.clone(), text_color);
-        let tx = nx - galley.rect.width() / 2.0;
-        let ty = ny - galley.rect.height() / 2.0;
-        painter.galley(Pos2::new(tx, ty), galley, text_color);
-    }
-
-    if needs_repaint {
-        ui.ctx().request_repaint();
     }
 
     height
+}
+
+/// A right-angle connector from the parent's bottom to the child's top.
+fn draw_edge(cx: &VizCtx, edge: &OrgEdge, placed: &Placed, anim: f32) {
+    let (Some(&(px, py)), Some(&(ccx, cy))) = (
+        placed.centers.get(&edge.parent),
+        placed.centers.get(&edge.child),
+    ) else {
+        return;
+    };
+    let scale = cx.scale;
+    let painter = cx.ui.painter();
+    let edge_color = Theme::with_opacity(cx.theme.foreground, cx.opacity * 0.3 * anim);
+    let stroke = Stroke::new(VIZ_STROKE_SEPARATOR * scale, edge_color);
+    let box_h = |name: &String| placed.sizes.get(name).map(|s| s.1).unwrap_or(40.0 * scale);
+
+    let p_bottom = py + box_h(&edge.parent) / 2.0;
+    let c_top = cy - box_h(&edge.child) / 2.0;
+    let mid_y = (p_bottom + c_top) / 2.0;
+
+    painter.line_segment([Pos2::new(px, p_bottom), Pos2::new(px, mid_y)], stroke);
+    painter.line_segment([Pos2::new(px, mid_y), Pos2::new(ccx, mid_y)], stroke);
+    painter.line_segment([Pos2::new(ccx, mid_y), Pos2::new(ccx, c_top)], stroke);
+}
+
+/// A node: a tinted box with a border and its label centred on `center`.
+fn draw_node(
+    cx: &VizCtx,
+    label: &str,
+    center: Pos2,
+    size: egui::Vec2,
+    color: Color32,
+    font: &FontId,
+    anim: f32,
+) {
+    let VizCtx { opacity, scale, .. } = *cx;
+    let painter = cx.ui.painter();
+    let corner_radius = VIZ_CORNER_NODE * scale;
+    let bg_color = Theme::with_opacity(color, opacity * 0.15 * anim);
+    let border_color = Theme::with_opacity(color, opacity * 0.6 * anim);
+    let rect = egui::Rect::from_center_size(center, size);
+
+    painter.rect_filled(rect, corner_radius, bg_color);
+    crate::render::hints::push(cx.ui.ctx(), crate::render::hints::Hint::Frame(rect));
+    painter.rect_stroke(
+        rect,
+        corner_radius,
+        Stroke::new(VIZ_STROKE_BORDER * scale, border_color),
+        egui::StrokeKind::Outside,
+    );
+
+    let text_color = Theme::with_opacity(cx.theme.foreground, opacity * anim);
+    let galley = painter.layout_no_wrap(label.to_string(), font.clone(), text_color);
+    let tx = center.x - galley.rect.width() / 2.0;
+    let ty = center.y - galley.rect.height() / 2.0;
+    painter.galley(Pos2::new(tx, ty), galley, text_color);
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
@@ -408,5 +397,16 @@ mod tests {
         assert_eq!(ceo.depth, 0);
         assert_eq!(cto.depth, 1);
         assert_eq!(vp.depth, 2);
+    }
+
+    #[test]
+    fn test_reveal_steps_introduce_nodes_at_their_first_edge() {
+        let (roots, edges) = parse_org_chart("- CEO\n+ CEO -> CTO\n+ CTO -> Dev\n* CEO -> CFO");
+        let (edge_steps, node_step) = reveal_steps(&roots, &edges);
+        assert_eq!(edge_steps, vec![1, 2, 2]);
+        assert_eq!(node_step["CEO"], 0);
+        assert_eq!(node_step["CTO"], 1);
+        assert_eq!(node_step["Dev"], 2);
+        assert_eq!(node_step["CFO"], 2);
     }
 }

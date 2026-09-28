@@ -167,6 +167,48 @@ pub fn draw_legend_row(
     }
 }
 
+/// Legend rows for the slices of a whole: each `(label, value)` with its
+/// share of `total` as a suffix, in the palette's fill colours, shown once
+/// its reveal step (from `steps`) is reached.
+pub fn share_legend_items<'a>(
+    cx: &VizCtx,
+    slices: impl Iterator<Item = (&'a str, f32)>,
+    total: f32,
+    steps: &[usize],
+) -> Vec<LegendItem> {
+    let palette = cx.theme.edge_palette();
+    slices
+        .enumerate()
+        .map(|(i, (label, value))| LegendItem {
+            label: label.to_string(),
+            suffix: format!(" ({:.0}%)", value / total * 100.0),
+            color: cx.fill(&palette, i),
+            visible: steps.get(i).copied().unwrap_or(0) <= cx.reveal_step,
+        })
+        .collect()
+}
+
+/// The legend column right of a pie or donut whose area ends at `left`,
+/// `legend_width` wide (see `side_legend_width`) including the gap.
+pub fn draw_side_legend(
+    cx: &VizCtx,
+    items: &[LegendItem],
+    left: f32,
+    top: f32,
+    legend_width: f32,
+    height: f32,
+) {
+    let legend_gap = 20.0 * cx.scale;
+    draw_legend_column(
+        cx,
+        items,
+        left + legend_gap,
+        top,
+        legend_width - legend_gap,
+        height,
+    );
+}
+
 /// Width of the legend column beside a pie/donut chart: a fixed width that
 /// shrinks when the chart itself is narrow.
 pub fn side_legend_width(max_width: f32, scale: f32) -> f32 {

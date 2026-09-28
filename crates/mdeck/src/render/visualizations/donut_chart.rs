@@ -3,9 +3,9 @@ use eframe::egui::{FontId, Pos2, Stroke};
 use crate::theme::Theme;
 
 use super::{
-    LegendItem, VIZ_FONT_MIN, VIZ_OPACITY_BORDER_RING, VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR,
-    VizReveal, assign_steps, draw_legend_column, fit_text, header_directive, parse_label_value,
-    parse_reveal_prefix, reveal_anim_progress, sector_mesh, side_legend_width,
+    VIZ_FONT_MIN, VIZ_OPACITY_BORDER_RING, VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR, VizReveal,
+    assign_steps, draw_side_legend, fit_text, header_directive, parse_label_value,
+    parse_reveal_prefix, reveal_anim_progress, sector_mesh, share_legend_items, side_legend_width,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -54,6 +54,57 @@ fn parse_donut_chart(content: &str) -> (Vec<DonutEntry>, Option<String>) {
 }
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
+
+/// The hole: background over the ring's inside, subtle border rings and
+/// the centre text fitted inside.
+fn draw_hole(
+    cx: &super::VizCtx,
+    center: Pos2,
+    (inner_radius, outer_radius): (f32, f32),
+    center_text: Option<&str>,
+) {
+    let super::VizCtx {
+        theme,
+        opacity,
+        scale,
+        ..
+    } = *cx;
+    let painter = cx.ui.painter();
+    painter.circle_filled(
+        center,
+        inner_radius,
+        Theme::with_opacity(theme.background, opacity),
+    );
+
+    let ring_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_BORDER_RING);
+    painter.circle_stroke(
+        center,
+        outer_radius,
+        Stroke::new(VIZ_STROKE_BORDER * scale, ring_color),
+    );
+    painter.circle_stroke(center, inner_radius, Stroke::new(1.0 * scale, ring_color));
+
+    if let Some(text) = center_text {
+        let center_font = FontId::new(theme.body_size * 1.2 * scale, theme.body_family());
+        let text_color = Theme::with_opacity(theme.foreground, opacity);
+        let galley = fit_text(
+            painter,
+            text,
+            center_font,
+            text_color,
+            inner_radius * 2.0 * 0.85,
+            theme.body_size * VIZ_FONT_MIN * scale,
+        );
+        painter.galley(
+            Pos2::new(
+                center.x - galley.rect.width() / 2.0,
+                center.y - galley.rect.height() / 2.0,
+            ),
+            galley,
+            text_color,
+        );
+    }
+}
 
 pub fn draw_donut_chart(
     cx: &super::VizCtx,
@@ -160,62 +211,22 @@ pub fn draw_donut_chart(
         ui.ctx().request_repaint();
     }
 
-    // Draw center hole (background color circle to create donut effect)
-    painter.circle_filled(Pos2::new(donut_cx, donut_cy), inner_radius, bg_color);
-
-    // Draw subtle border rings
-    let ring_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_BORDER_RING);
-    painter.circle_stroke(
+    draw_hole(
+        cx,
         Pos2::new(donut_cx, donut_cy),
-        outer_radius,
-        Stroke::new(VIZ_STROKE_BORDER * scale, ring_color),
-    );
-    painter.circle_stroke(
-        Pos2::new(donut_cx, donut_cy),
-        inner_radius,
-        Stroke::new(1.0 * scale, ring_color),
+        (inner_radius, outer_radius),
+        center_text.as_deref(),
     );
 
-    // Draw center text, fitted inside the hole
-    if let Some(ref text) = center_text {
-        let center_font = FontId::new(theme.body_size * 1.2 * scale, theme.body_family());
-        let text_color = Theme::with_opacity(theme.foreground, opacity);
-        let galley = fit_text(
-            painter,
-            text,
-            center_font,
-            text_color,
-            inner_radius * 2.0 * 0.85,
-            theme.body_size * VIZ_FONT_MIN * scale,
-        );
-        painter.galley(
-            Pos2::new(
-                donut_cx - galley.rect.width() / 2.0,
-                donut_cy - galley.rect.height() / 2.0,
-            ),
-            galley,
-            text_color,
-        );
-    }
-
-    // Draw legend on the right
-    let legend_gap = 20.0 * scale;
-    let items: Vec<LegendItem> = entries
-        .iter()
-        .enumerate()
-        .map(|(i, entry)| LegendItem {
-            label: entry.label.clone(),
-            suffix: format!(" ({:.0}%)", entry.value / total * 100.0),
-            color: Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity()),
-            visible: steps.get(i).copied().unwrap_or(0) <= reveal_step,
-        })
-        .collect();
-    draw_legend_column(
+    // Legend on the right
+    let shares = entries.iter().map(|e| (e.label.as_str(), e.value));
+    let items = share_legend_items(cx, shares, total, &steps);
+    draw_side_legend(
         cx,
         &items,
-        pos.x + donut_area_width + legend_gap,
+        pos.x + donut_area_width,
         pos.y,
-        legend_width - legend_gap,
+        legend_width,
         height,
     );
 
