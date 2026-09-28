@@ -479,7 +479,7 @@ impl PresentationApp {
             }
             Err(e) => {
                 // Skip a broken theme rather than getting stuck on it.
-                deck::report_theme_problems(std::slice::from_ref(&e));
+                deck::report_theme_problems(&[e.to_string()]);
                 self.theme_key = key;
                 self.toast = Some(Toast::new(format!("Theme {}: {e}", names[next])));
             }

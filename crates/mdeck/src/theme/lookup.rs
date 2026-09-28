@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use super::file::ThemeFile;
-use super::{Built, Theme};
+use super::{Built, Theme, ThemeError};
 
 /// The built-in themes, in `Shift+T` order. A theme that runs on an engine
 /// behind a cargo feature (`ember`, `autumn` and `winter` on particles,
@@ -193,7 +193,7 @@ impl Lookup {
 
     /// Load a theme by name, or by path when `name` ends in `.yaml`/`.yml`
     /// (relative to the deck's folder).
-    pub fn load(&self, name: &str) -> Result<Built, String> {
+    pub fn load(&self, name: &str) -> Result<Built, ThemeError> {
         let name = name.trim();
         if is_path(name) {
             let base = self
@@ -204,7 +204,7 @@ impl Lookup {
                 .unwrap_or_else(|| PathBuf::from("."));
             let path = base.join(name);
             if !path.is_file() {
-                return Err(format!("theme file {} was not found", path.display()));
+                return Err(ThemeError::NotFound(path));
             }
             let stem = path
                 .file_stem()
@@ -223,12 +223,14 @@ impl Lookup {
     }
 
     /// The error for a name nothing defines, listing what exists.
-    pub fn unknown(&self, name: &str) -> String {
-        let names: Vec<String> = self.available().into_iter().map(|f| f.name).collect();
-        format!("unknown theme '{name}' (available: {})", names.join(", "))
+    pub fn unknown(&self, name: &str) -> ThemeError {
+        ThemeError::Unknown {
+            name: name.to_string(),
+            available: self.available().into_iter().map(|f| f.name).collect(),
+        }
     }
 
-    pub fn load_found(&self, found: &Found) -> Result<Built, String> {
+    pub fn load_found(&self, found: &Found) -> Result<Built, ThemeError> {
         let mut warnings = Vec::new();
         let file = self.resolve(found, 0, &mut warnings)?;
         let mut built = Theme::build(&found.name, &file)?;
@@ -245,20 +247,19 @@ impl Lookup {
         found: &Found,
         depth: usize,
         warnings: &mut Vec<String>,
-    ) -> Result<ThemeFile, String> {
+    ) -> Result<ThemeFile, ThemeError> {
         if depth > MAX_DEPTH {
-            return Err(format!(
-                "theme '{}' extends too deeply (is there a cycle?)",
-                found.name
-            ));
+            return Err(ThemeError::Cycle {
+                name: found.name.clone(),
+            });
         }
         let file = match &found.origin {
             Origin::Builtin => builtin_file(&found.name)?,
             Origin::Deck(p) | Origin::User(p) => {
                 let text =
-                    std::fs::read_to_string(p).map_err(|e| format!("{}: {e}", p.display()))?;
+                    std::fs::read_to_string(p).map_err(|e| ThemeError::file(p.display(), e))?;
                 let mut file =
-                    ThemeFile::parse(&text).map_err(|e| format!("{}: {e}", p.display()))?;
+                    ThemeFile::parse(&text).map_err(|e| ThemeError::file(p.display(), e))?;
                 let base = p.parent().unwrap_or(Path::new("."));
                 absolutize(&mut file, base, warnings);
                 file
@@ -280,11 +281,9 @@ impl Lookup {
             .find_all(&parent_name)
             .into_iter()
             .find(|f| f != found)
-            .ok_or_else(|| {
-                format!(
-                    "theme '{}' extends '{parent_name}', which does not exist",
-                    found.name
-                )
+            .ok_or_else(|| ThemeError::NoParent {
+                name: found.name.clone(),
+                parent: parent_name.clone(),
             })?;
         let parent_file = self.resolve(&parent, depth + 1, warnings)?;
         Ok(file.over(&parent_file))
@@ -341,16 +340,16 @@ fn absolutize(file: &mut ThemeFile, base: &Path, warnings: &mut Vec<String>) {
 }
 
 /// A built-in theme file, unmerged.
-pub fn builtin_file(name: &str) -> Result<ThemeFile, String> {
+pub fn builtin_file(name: &str) -> Result<ThemeFile, ThemeError> {
     let (_, text) = BUILTIN
         .iter()
         .find(|(n, _)| *n == name)
-        .ok_or_else(|| format!("no built-in theme '{name}'"))?;
+        .ok_or_else(|| ThemeError::NoBuiltin(name.to_string()))?;
     ThemeFile::parse(text)
 }
 
 /// A built-in theme, resolved without looking at any folder.
-pub fn load_builtin(name: &str) -> Result<Theme, String> {
+pub fn load_builtin(name: &str) -> Result<Theme, ThemeError> {
     Lookup::default()
         .load_found(&Found {
             name: name.to_string(),
@@ -526,15 +525,20 @@ mod tests {
         assert_eq!(b.h1_size, 120.0);
         assert_eq!(b.accent, eframe::egui::Color32::from_rgb(0, 255, 0));
         assert_eq!(b.background, Theme::ember().background);
-        assert!(l.load("c").unwrap_err().contains("cycle"));
+        assert!(l.load("c").unwrap_err().to_string().contains("cycle"));
         t.write("user/e.yaml", "extends: nothing-here\n");
-        assert!(l.load("e").unwrap_err().contains("nothing-here"));
+        assert!(
+            l.load("e")
+                .unwrap_err()
+                .to_string()
+                .contains("nothing-here")
+        );
     }
 
     #[test]
     fn unknown_names_list_what_exists() {
         let t = Tmp::new("unknown");
-        let err = lookup(&t).load("solarized").unwrap_err();
+        let err = lookup(&t).load("solarized").unwrap_err().to_string();
         assert!(
             err.contains("solarized") && err.contains("dark, light, nord, ember, spring"),
             "{err}"
@@ -557,7 +561,7 @@ mod tests {
     fn a_broken_file_names_itself() {
         let t = Tmp::new("broken");
         t.write("user/typo.yaml", "colours: {}\n");
-        let err = lookup(&t).load("typo").unwrap_err();
+        let err = lookup(&t).load("typo").unwrap_err().to_string();
         assert!(
             err.contains("typo.yaml") && err.contains("colours"),
             "{err}"
