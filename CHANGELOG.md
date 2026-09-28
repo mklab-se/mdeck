@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `mdeck --check` names the line in the file for each warning: `slide 5 (line 37): [directive]
+  ...`. Directive, illustration, art and diagram warnings point at their own line; the rest at
+  the slide's first line.
+
 ### Fixed
 
 - A directive written with a space before the colon (`@layout : title`) is treated as a
@@ -12,6 +18,15 @@ All notable changes to this project will be documented in this file.
   lane capacities and the configured routing weights), not a default configuration's.
 - A theme's `page.surface` given with alpha (`#80808080`) is painted in the colour written; it
   came out darker.
+
+### Changed
+
+- The rest of the refactor: code only some engines use is left out of builds without them
+  (instead of a crate-wide `allow(dead_code)`), the app's state is grouped, no production
+  function is longer than 100 lines, errors carry `anyhow` context instead of plain strings, the
+  story and art sidecars share one reader and writer, the five engines with a countdown share
+  one notion of what a moment shows, and the renderer no longer reads the config file itself.
+  Rendered output is unchanged, pixel for pixel.
 
 ## [1.16.0] - 2026-09-28
 
