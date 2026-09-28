@@ -205,12 +205,7 @@ pub fn generate_one_blocking(deck: &Path, index: usize) -> Result<Script> {
             bail!("slide {} does not exist", index + 1);
         }
         let client = ailloy::Client::for_capability("chat")?;
-        let mut sc = sidecar::load(deck)
-            .map_err(|e| anyhow::anyhow!(e))?
-            .unwrap_or(Sidecar {
-                version: sidecar::VERSION,
-                slides: vec![],
-            });
+        let mut sc = load_or_empty(deck)?;
         if sc.slides.iter().any(|e| e.pinned && e.slide == index + 1) {
             bail!("slide {} has a pinned (hand-written) story", index + 1);
         }
@@ -295,7 +290,6 @@ pub async fn run(
     if pres.slides.is_empty() {
         bail!("No slides found in {}", file.display());
     }
-    let count = pres.slides.len();
 
     let (path, both) = sidecar::resolve_path(&file);
     if both && !quiet {
@@ -305,54 +299,11 @@ pub async fn run(
             path.display()
         );
     }
-    let mut sc = sidecar::load(&file)
-        .map_err(|e| anyhow::anyhow!(e))?
-        .unwrap_or(Sidecar {
-            version: sidecar::VERSION,
-            slides: vec![],
-        });
+    let mut sc = load_or_empty(&file)?;
 
-    let mut targets: Vec<usize> = if let Some(n) = slide {
-        if n == 0 || n > count {
-            bail!("slide {n} is outside 1-{count}");
-        }
-        vec![n - 1]
-    } else if let Some(r) = &range {
-        parse_range(r, count)?
-    } else {
-        (0..count).collect()
-    };
-
-    // Only slides with a stage get stories; pinned (hand-written) entries are
-    // left alone.
-    let requested = targets.len();
-    targets.retain(|&i| story::allowed(&pres.slides[i], i));
-    let no_stage = requested - targets.len();
-    if no_stage > 0 && !quiet {
-        eprintln!(
-            "Skipping {no_stage} slide{} without a stage (code, charts, diagrams, tables, images, titles).",
-            if no_stage == 1 { "" } else { "s" }
-        );
-    }
-    targets.retain(|&i| !sc.slides.iter().any(|e| e.pinned && e.slide == i + 1));
-
-    // Entries for slides that can no longer play a story are dropped.
-    let before = sc.slides.len();
-    sc.slides.retain(|e| {
-        pres.slides
-            .get(e.slide.wrapping_sub(1))
-            .is_some_and(|s| story::allowed(s, e.slide - 1))
-    });
-    let pruned = before - sc.slides.len();
-    if pruned > 0 && !dry_run {
-        sidecar::save(&file, &sc).map_err(|e| anyhow::anyhow!(e))?;
-        if !quiet {
-            eprintln!(
-                "Removed {pruned} stored stor{} for slides without a stage.",
-                if pruned == 1 { "y" } else { "ies" }
-            );
-        }
-    }
+    let mut targets = requested_slides(slide, range.as_deref(), pres.slides.len())?;
+    keep_stageable(&mut targets, &pres, &sc, quiet);
+    prune_unstageable(&file, &mut sc, &pres, dry_run, quiet)?;
 
     // Unless forced, skip slides whose sidecar entry is still current.
     if !force {
@@ -383,52 +334,15 @@ pub async fn run(
         );
     }
 
-    let mut failures = 0usize;
     let mut lib = Library::for_deck(Some(base));
-    for i in targets {
-        let title = pres.slides[i].title().unwrap_or_default();
-        if !quiet {
-            eprint!("  slide {:>2}  {:<40} ", i + 1, truncate(&title, 40));
-        }
-        let cast = known_cast(&sc);
-        match generate_script(&client, &pres, i, &cast, &mut lib).await {
-            Ok(script) => {
-                if !quiet {
-                    eprintln!(
-                        "{} {} cast, {} beats",
-                        "✓".green(),
-                        script.cast.len(),
-                        script.beats.len()
-                    );
-                    for (b, beat) in script.beats.iter().enumerate() {
-                        if let Some(say) = &beat.say {
-                            eprintln!("            {}  {say}", format!("{}.", b + 1).dimmed());
-                        }
-                    }
-                }
-                if dry_run {
-                    if !quiet {
-                        eprintln!(
-                            "{}",
-                            serde_norway::to_string(&script)
-                                .unwrap_or_default()
-                                .dimmed()
-                        );
-                    }
-                    continue;
-                }
-                upsert(&mut sc, &pres, i, script);
-                // Save after every slide so an interruption keeps the work so far.
-                sidecar::save(&file, &sc).map_err(|e| anyhow::anyhow!(e))?;
-            }
-            Err(e) => {
-                failures += 1;
-                if !quiet {
-                    eprintln!("{} {e}", "✗".red());
-                }
-            }
-        }
-    }
+    let writer = Writer {
+        client: &client,
+        pres: &pres,
+        file: &file,
+        dry_run,
+        quiet,
+    };
+    let failures = writer.write_all(&targets, &mut sc, &mut lib).await?;
 
     if failures > 0 {
         bail!(
@@ -444,6 +358,142 @@ pub async fn run(
         }
     }
     Ok(())
+}
+
+/// The deck's story sidecar, or an empty one.
+fn load_or_empty(deck: &Path) -> Result<Sidecar> {
+    Ok(sidecar::load(deck)
+        .map_err(|e| anyhow::anyhow!(e))?
+        .unwrap_or(Sidecar {
+            version: sidecar::VERSION,
+            slides: vec![],
+        }))
+}
+
+/// 0-based indices of the slides `--slide` or `--range` name, or all of them.
+fn requested_slides(slide: Option<usize>, range: Option<&str>, count: usize) -> Result<Vec<usize>> {
+    if let Some(n) = slide {
+        if n == 0 || n > count {
+            bail!("slide {n} is outside 1-{count}");
+        }
+        Ok(vec![n - 1])
+    } else if let Some(r) = range {
+        parse_range(r, count)
+    } else {
+        Ok((0..count).collect())
+    }
+}
+
+/// Only slides with a stage get stories; pinned (hand-written) entries are
+/// left alone.
+fn keep_stageable(targets: &mut Vec<usize>, pres: &Presentation, sc: &Sidecar, quiet: bool) {
+    let requested = targets.len();
+    targets.retain(|&i| story::allowed(&pres.slides[i], i));
+    let no_stage = requested - targets.len();
+    if no_stage > 0 && !quiet {
+        eprintln!(
+            "Skipping {no_stage} slide{} without a stage (code, charts, diagrams, tables, images, titles).",
+            if no_stage == 1 { "" } else { "s" }
+        );
+    }
+    targets.retain(|&i| !sc.slides.iter().any(|e| e.pinned && e.slide == i + 1));
+}
+
+/// Entries for slides that can no longer play a story are dropped (and the
+/// sidecar saved, unless this is a dry run).
+fn prune_unstageable(
+    file: &Path,
+    sc: &mut Sidecar,
+    pres: &Presentation,
+    dry_run: bool,
+    quiet: bool,
+) -> Result<()> {
+    let before = sc.slides.len();
+    sc.slides.retain(|e| {
+        pres.slides
+            .get(e.slide.wrapping_sub(1))
+            .is_some_and(|s| story::allowed(s, e.slide - 1))
+    });
+    let pruned = before - sc.slides.len();
+    if pruned > 0 && !dry_run {
+        sidecar::save(file, sc).map_err(|e| anyhow::anyhow!(e))?;
+        if !quiet {
+            eprintln!(
+                "Removed {pruned} stored stor{} for slides without a stage.",
+                if pruned == 1 { "y" } else { "ies" }
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Writes the stories for a run of slides, one at a time.
+struct Writer<'a> {
+    client: &'a ailloy::Client,
+    pres: &'a Presentation,
+    file: &'a Path,
+    dry_run: bool,
+    quiet: bool,
+}
+
+impl Writer<'_> {
+    /// Generate each target's script and store it. Returns how many failed.
+    async fn write_all(
+        &self,
+        targets: &[usize],
+        sc: &mut Sidecar,
+        lib: &mut Library,
+    ) -> Result<usize> {
+        let mut failures = 0usize;
+        for &i in targets {
+            let title = self.pres.slides[i].title().unwrap_or_default();
+            if !self.quiet {
+                eprint!("  slide {:>2}  {:<40} ", i + 1, truncate(&title, 40));
+            }
+            let cast = known_cast(sc);
+            match generate_script(self.client, self.pres, i, &cast, lib).await {
+                Ok(script) => {
+                    if !self.quiet {
+                        print_script(&script, self.dry_run);
+                    }
+                    if self.dry_run {
+                        continue;
+                    }
+                    upsert(sc, self.pres, i, script);
+                    // Save after every slide so an interruption keeps the work so far.
+                    sidecar::save(self.file, sc).map_err(|e| anyhow::anyhow!(e))?;
+                }
+                Err(e) => {
+                    failures += 1;
+                    if !self.quiet {
+                        eprintln!("{} {e}", "✗".red());
+                    }
+                }
+            }
+        }
+        Ok(failures)
+    }
+}
+
+/// The finished line for a slide, its spoken beats and, in a dry run, the YAML.
+fn print_script(script: &Script, dry_run: bool) {
+    eprintln!(
+        "{} {} cast, {} beats",
+        "✓".green(),
+        script.cast.len(),
+        script.beats.len()
+    );
+    for (b, beat) in script.beats.iter().enumerate() {
+        if let Some(say) = &beat.say {
+            eprintln!("            {}  {say}", format!("{}.", b + 1).dimmed());
+        }
+    }
+    if dry_run {
+        eprintln!(
+            "{}",
+            serde_norway::to_string(script).unwrap_or_default().dimmed()
+        );
+    }
 }
 
 fn truncate(s: &str, n: usize) -> String {
@@ -465,6 +515,14 @@ mod tests {
         assert!(parse_range("0-2", 10).is_err());
         assert!(parse_range("5-3", 10).is_err());
         assert!(parse_range("9-12", 10).is_err());
+    }
+
+    #[test]
+    fn requested_slides_prefers_slide_then_range_then_all() {
+        assert_eq!(requested_slides(Some(2), Some("1-3"), 4).unwrap(), vec![1]);
+        assert!(requested_slides(Some(5), None, 4).is_err());
+        assert_eq!(requested_slides(None, Some("2-3"), 4).unwrap(), vec![1, 2]);
+        assert_eq!(requested_slides(None, None, 3).unwrap(), vec![0, 1, 2]);
     }
 
     #[test]

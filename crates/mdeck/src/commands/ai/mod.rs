@@ -60,7 +60,16 @@ pub async fn run(cmd: Option<AiCommands>, quiet: bool) -> Result<()> {
             engine,
             node,
         }) => {
-            crate::commands::art::run(file, slide, stale, force, dry_run, engine, node, quiet).await
+            let opts = crate::commands::art::Options {
+                slide,
+                stale,
+                force,
+                dry_run,
+                engine,
+                node,
+                quiet,
+            };
+            crate::commands::art::run(file, opts).await
         }
         Some(AiCommands::Status) => config_tui::print_ai_status(APP_NAME, &["chat", "image"]),
         Some(AiCommands::Skill { emit, reference }) => {
