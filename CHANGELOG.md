@@ -20,10 +20,22 @@ All notable changes to this project will be documented in this file.
   closing quote in the rest of the node's metadata.
 - Diagram routing falls back to three lanes per corridor when no node could be measured, instead
   of treating the corridor as unlimited.
+- A line like `1 . x` (a number, a space, then a dot) no longer hangs the parser; it reads as
+  plain text.
+- `mdeck export` reports problems in the story sidecar, as presenting does.
 
 ### Changed
 
 - YAML goes through `serde_norway`, the maintained fork of the archived `serde_yaml`.
+- The engine cargo features now leave their engines out of the build: `cargo install mdeck
+  --no-default-features --features led` builds MDeck with only the LED engine (and `plain`).
+- Generated art loads on a small pool of worker threads, the slide on screen first, instead of
+  one thread per slide.
+- The window title and the header of `config.yaml` no longer use an em-dash.
+- A structural refactor of the whole code base: presenting and export draw slides through one
+  shared `Deck`, drawing code takes context structs instead of long argument lists, and the
+  largest files (the app, text, Ember layouts, diagrams, charts, parser, themes, engines) are
+  split into focused modules. Rendered output is unchanged, pixel for pixel.
 
 ## [1.15.2] - 2026-09-28
 

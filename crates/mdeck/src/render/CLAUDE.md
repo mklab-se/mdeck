@@ -12,6 +12,12 @@ All visualizations (charts, diagrams, etc.) must follow these principles:
 - **Visual polish.** Smooth animations, subtle colors, no harsh borders between stacked elements. Prefer transparent overlapping areas (like in Venn/radar) over opaque blocking.
 - **Purpose-built over reused.** If a better-looking visualization can be made by implementing it from scratch, build it from scratch. Never stretch an existing visualization to illustrate something it was not designed for (for example, do not bend the architecture diagram's grid into a radial ecosystem or an artifact flow). Shared helpers (axes, colours, font sizes, reveal) are welcome; shared layouts for different kinds of information are not.
 
+## Code structure
+
+- **A new chart:** add a variant to `parser::Chart` and its fence tag to `Chart::TAGS`, an arm to `visualizations::draw`, and a module whose `draw_*` takes `(cx: &VizCtx, content, pos, max_width, max_height) -> f32`. Keep parsing and geometry pure (a `layout` step with unit tests) and paint separately.
+- **Shared pieces first:** `PlotFrame` (axes, grid, value labels), `header_directive` (`# key: value` lines), the legend helpers, `reveal_anim_progress` / `assign_steps`, and the `VIZ_FONT_*` tokens.
+- **No long argument lists:** pass `VizCtx`, `BlockCx` or `TextCx` plus small structs rather than adding `#[allow(clippy::too_many_arguments)]`.
+
 ## Keeping docs in sync
 
 - **When adding or changing visualizations, update ALL of these** (they must stay in sync):
