@@ -3,9 +3,9 @@ use eframe::egui::{Pos2, Stroke};
 use crate::theme::Theme;
 
 use super::{
-    LegendItem, VIZ_OPACITY_BORDER_RING, VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR, VizReveal,
-    assign_steps, draw_legend_column, parse_label_value, parse_reveal_prefix, reveal_anim_progress,
-    sector_mesh, side_legend_width,
+    VIZ_OPACITY_BORDER_RING, VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR, VizReveal, assign_steps,
+    draw_side_legend, parse_label_value, parse_reveal_prefix, reveal_anim_progress, sector_mesh,
+    share_legend_items, side_legend_width,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -151,28 +151,16 @@ pub fn draw_pie_chart(
         Stroke::new(VIZ_STROKE_BORDER * scale, ring_color),
     );
 
-    // Draw legend on the right
-    let legend_gap = 20.0 * scale;
-    let items: Vec<LegendItem> = entries
-        .iter()
-        .enumerate()
-        .map(|(i, entry)| LegendItem {
-            label: entry.label.clone(),
-            suffix: format!(" ({:.0}%)", entry.value / total * 100.0),
-            color: Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity()),
-            visible: steps.get(i).copied().unwrap_or(0) <= reveal_step,
-        })
-        .collect();
-    draw_legend_column(
-        painter,
+    // Legend on the right
+    let shares = entries.iter().map(|e| (e.label.as_str(), e.value));
+    let items = share_legend_items(cx, shares, total, &steps);
+    draw_side_legend(
+        cx,
         &items,
-        theme,
-        opacity,
-        pos.x + pie_area_width + legend_gap,
+        pos.x + pie_area_width,
         pos.y,
-        legend_width - legend_gap,
+        legend_width,
         height,
-        scale,
     );
 
     height

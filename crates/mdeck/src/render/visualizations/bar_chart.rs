@@ -1,16 +1,13 @@
-use std::time::Instant;
-
-use eframe::egui::{self, Color32, FontId, Pos2, Stroke};
+use eframe::egui::{self, Color32, FontId, Pos2};
 
 use crate::theme::Theme;
 
 use super::{
-    VIZ_CORNER_BAR, VIZ_FONT_AXIS_LABEL, VIZ_FONT_CATEGORY_LABEL, VIZ_FONT_GRID_LABEL,
-    VIZ_FONT_MIN, VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_AXIS,
-    VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL, VIZ_STROKE_AXIS, VIZ_STROKE_GRID,
-    VizReveal, assign_steps, draw_x_axis_label, draw_y_axis_label, fit_font_size, fit_text,
-    format_axis_value, format_value, grid_values, label_fade, nice_axis_max, nice_grid_step,
-    parse_axis_label_directive, parse_label_value, parse_reveal_prefix, reveal_anim_progress,
+    AxisTitles, PlotFrame, VIZ_CORNER_BAR, VIZ_FONT_CATEGORY_LABEL, VIZ_FONT_GRID_LABEL,
+    VIZ_FONT_MIN, VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_LABEL, ValueRange,
+    VizCtx, VizReveal, assign_steps, fit_font_size, fit_text, format_axis_value, format_value,
+    grid_values, header_directive, label_fade, nice_axis_max, nice_grid_step, parse_label_value,
+    parse_reveal_prefix,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -49,22 +46,17 @@ fn parse_bar_chart(content: &str) -> BarChartData {
 
         // Parse directives from comments
         if trimmed.starts_with('#') {
-            if let Some(rest) = trimmed
-                .strip_prefix("# orientation:")
-                .or_else(|| trimmed.strip_prefix("#orientation:"))
-            {
-                let val = rest.trim();
-                if val.eq_ignore_ascii_case("horizontal") {
-                    orientation = Orientation::Horizontal;
-                } else if val.eq_ignore_ascii_case("vertical") {
-                    orientation = Orientation::Vertical;
+            match header_directive(trimmed) {
+                Some(("orientation", val)) => {
+                    if val.eq_ignore_ascii_case("horizontal") {
+                        orientation = Orientation::Horizontal;
+                    } else if val.eq_ignore_ascii_case("vertical") {
+                        orientation = Orientation::Vertical;
+                    }
                 }
-            } else if let Some((key, val)) = parse_axis_label_directive(trimmed) {
-                match key {
-                    "x-label" => x_label = Some(val),
-                    "y-label" => y_label = Some(val),
-                    _ => {}
-                }
+                Some(("x-label", val)) => x_label = Some(val.to_string()),
+                Some(("y-label", val)) => y_label = Some(val.to_string()),
+                _ => {}
             }
             continue;
         }
@@ -92,23 +84,143 @@ fn parse_bar_chart(content: &str) -> BarChartData {
     }
 }
 
+// ─── Layout ─────────────────────────────────────────────────────────────────
+
+/// Where a bar chart's parts go.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct BarLayout {
+    frame: PlotFrame,
+    titles_x_top: f32,
+    titles_y_left: f32,
+}
+
+/// Vertical bars: room on the left for grid values `grid_label_w` wide (and
+/// the y title), above the plot for value labels and below it for category
+/// labels (and the x title).
+fn vertical_layout(
+    pos: Pos2,
+    max_width: f32,
+    height: f32,
+    scale: f32,
+    grid_label_w: f32,
+    titles: (bool, bool),
+) -> BarLayout {
+    let (has_x_title, has_y_title) = titles;
+    let padding = 60.0 * scale;
+    let label_area = 40.0 * scale; // space for labels below bars
+    let value_area = 30.0 * scale; // space for value labels above bars
+    let y_label_space = if has_y_title { 30.0 * scale } else { 0.0 };
+    let x_label_space = if has_x_title { 30.0 * scale } else { 0.0 };
+    let chart_height = height - padding - label_area - value_area - x_label_space;
+    // Reserve room on the left for the widest grid label (plus the axis title)
+    let left_inset =
+        (padding * 0.3 + y_label_space + grid_label_w + 16.0 * scale).max(padding + y_label_space);
+    let frame = PlotFrame::from_size(
+        pos.x + left_inset,
+        pos.y + padding + value_area,
+        max_width - left_inset - padding,
+        chart_height,
+    );
+    BarLayout {
+        frame,
+        titles_x_top: frame.bottom + label_area + 4.0 * scale,
+        titles_y_left: pos.x + padding * 0.3,
+    }
+}
+
+/// Gap between and width of `n` vertical bars across `chart_width`. The gap
+/// grows with the bars so they read as distinct columns.
+fn vertical_slots(chart_width: f32, n: usize, scale: f32) -> (f32, f32) {
+    let bar_gap = (chart_width / n as f32 * 0.22).clamp(10.0 * scale, 48.0 * scale);
+    let total_gaps = (n + 1) as f32 * bar_gap;
+    let bar_width = ((chart_width - total_gaps) / n as f32).max(8.0 * scale);
+    (bar_gap, bar_width)
+}
+
+/// Horizontal bars: category labels `label_area` wide on the left (after the
+/// y title), value labels on the right, the x title below.
+fn horizontal_layout(
+    pos: Pos2,
+    max_width: f32,
+    height: f32,
+    scale: f32,
+    label_area: f32,
+    titles: (bool, bool),
+) -> BarLayout {
+    let (has_x_title, has_y_title) = titles;
+    let padding = 40.0 * scale;
+    let value_area = 60.0 * scale; // space for value labels on the right
+    let x_label_space = if has_x_title { 30.0 * scale } else { 0.0 };
+    let y_label_space = if has_y_title { 30.0 * scale } else { 0.0 };
+    let frame = PlotFrame::from_size(
+        pos.x + padding + label_area + y_label_space,
+        pos.y + padding,
+        max_width - padding * 2.0 - label_area - value_area - y_label_space,
+        height - padding * 2.0 - x_label_space,
+    );
+    BarLayout {
+        frame,
+        titles_x_top: frame.bottom + 10.0 * scale,
+        titles_y_left: pos.x + padding * 0.3,
+    }
+}
+
+/// Height of each of `n` horizontal bars `gap` apart in `chart_height`.
+fn horizontal_bar_height(chart_height: f32, n: usize, gap: f32, scale: f32) -> f32 {
+    let total_gaps = (n + 1) as f32 * gap;
+    ((chart_height - total_gaps) / n as f32).max(8.0 * scale)
+}
+
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
+/// What both orientations draw.
+struct Bars<'a> {
+    entries: &'a [BarEntry],
+    steps: &'a [usize],
+    palette: &'a [Color32],
+    range: ValueRange,
+    titles: (Option<&'a str>, Option<&'a str>),
+}
+
+impl Bars<'_> {
+    fn has_titles(&self) -> (bool, bool) {
+        (self.titles.0.is_some(), self.titles.1.is_some())
+    }
+
+    fn axis_titles(&self, layout: &BarLayout) -> AxisTitles<'_> {
+        AxisTitles {
+            x: self.titles.0,
+            x_top: layout.titles_x_top,
+            y: self.titles.1,
+            y_left: layout.titles_y_left,
+        }
+    }
+
+    /// The category labels at one shared size that fits them all in `max_w`.
+    fn label_font(&self, cx: &VizCtx, max_w: f32) -> FontId {
+        let label_texts: Vec<&str> = self.entries.iter().map(|e| e.label.as_str()).collect();
+        let theme = cx.theme;
+        let min_font = theme.body_size * VIZ_FONT_MIN * cx.scale;
+        FontId::new(
+            fit_font_size(
+                cx.ui.painter(),
+                &label_texts,
+                &FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * cx.scale),
+                max_w,
+                min_font,
+            ),
+            theme.body_family(),
+        )
+    }
+}
+
 pub fn draw_bar_chart(
-    cx: &super::VizCtx,
+    cx: &VizCtx,
     content: &str,
     pos: Pos2,
     max_width: f32,
     max_height: f32,
 ) -> f32 {
-    let super::VizCtx {
-        ui,
-        theme,
-        opacity,
-        scale,
-        reveal_step,
-        reveal_timestamp,
-    } = *cx;
     let data = parse_bar_chart(content);
     if data.entries.is_empty() {
         return 0.0;
@@ -117,204 +229,101 @@ pub fn draw_bar_chart(
     let height = if max_height > 0.0 {
         max_height
     } else {
-        500.0 * scale
+        500.0 * cx.scale
     };
 
     let reveals: Vec<VizReveal> = data.entries.iter().map(|e| e.reveal).collect();
     let steps = assign_steps(&reveals);
-    let palette = theme.edge_palette();
-    let painter = ui.painter();
+    let palette = cx.theme.edge_palette();
 
     let max_value = data.entries.iter().map(|e| e.value).fold(0.0f32, f32::max);
     if max_value <= 0.0 {
         return height;
     }
-    // Scale the axis to a round number so the tallest bar never touches the top
-    let max_value = nice_axis_max(max_value, 5);
-
-    let needs_repaint = match data.orientation {
-        Orientation::Vertical => draw_vertical(
-            painter,
-            &data.entries,
-            &steps,
-            &palette,
-            theme,
-            pos,
-            max_width,
-            height,
-            max_value,
-            opacity,
-            reveal_step,
-            reveal_timestamp,
-            scale,
-            data.x_label.as_deref(),
-            data.y_label.as_deref(),
-        ),
-        Orientation::Horizontal => draw_horizontal(
-            painter,
-            &data.entries,
-            &steps,
-            &palette,
-            theme,
-            pos,
-            max_width,
-            height,
-            max_value,
-            opacity,
-            reveal_step,
-            reveal_timestamp,
-            scale,
-            data.x_label.as_deref(),
-            data.y_label.as_deref(),
-        ),
+    let bars = Bars {
+        entries: &data.entries,
+        steps: &steps,
+        palette: &palette,
+        // Scale the axis to a round number so the tallest bar never touches the top
+        range: ValueRange::to(nice_axis_max(max_value, 5)),
+        titles: (data.x_label.as_deref(), data.y_label.as_deref()),
     };
 
-    if needs_repaint {
-        ui.ctx().request_repaint();
+    match data.orientation {
+        Orientation::Vertical => draw_vertical(cx, &bars, pos, max_width, height),
+        Orientation::Horizontal => draw_horizontal(cx, &bars, pos, max_width, height),
     }
 
     height
 }
 
-#[allow(clippy::too_many_arguments)]
-fn draw_vertical(
-    painter: &egui::Painter,
-    entries: &[BarEntry],
-    steps: &[usize],
-    palette: &[Color32],
-    theme: &Theme,
-    pos: Pos2,
-    max_width: f32,
-    height: f32,
-    max_value: f32,
-    opacity: f32,
-    reveal_step: usize,
-    reveal_timestamp: Option<Instant>,
-    scale: f32,
-    x_label: Option<&str>,
-    y_label: Option<&str>,
-) -> bool {
-    let mut needs_repaint = false;
-    let n = entries.len();
-    let padding = 60.0 * scale;
-    let label_area = 40.0 * scale; // space for labels below bars
-    let value_area = 30.0 * scale; // space for value labels above bars
-    let y_label_space = if y_label.is_some() { 30.0 * scale } else { 0.0 };
-    let x_label_space = if x_label.is_some() { 30.0 * scale } else { 0.0 };
-    let chart_height = height - padding - label_area - value_area - x_label_space;
-    let chart_bottom = pos.y + padding + value_area + chart_height;
-
-    // Reserve room on the left for the widest grid label (plus the axis title)
-    let grid_step = nice_grid_step(max_value, 5);
-    let grid_font = FontId::new(
-        theme.body_size * VIZ_FONT_GRID_LABEL * scale,
-        theme.body_family(),
-    );
-    let grid_label_w = grid_values(max_value, grid_step)
+/// Width of the widest grid value label on an axis up to `max` in `step`s.
+fn widest_grid_label(painter: &egui::Painter, font: &FontId, max: f32, step: f32) -> f32 {
+    grid_values(max, step)
         .into_iter()
         .map(|v| {
             painter
-                .layout_no_wrap(
-                    format_axis_value(v, grid_step),
-                    grid_font.clone(),
-                    Color32::WHITE,
-                )
+                .layout_no_wrap(format_axis_value(v, step), font.clone(), Color32::WHITE)
                 .rect
                 .width()
         })
-        .fold(0.0f32, f32::max);
-    let left_inset =
-        (padding * 0.3 + y_label_space + grid_label_w + 16.0 * scale).max(padding + y_label_space);
-    let chart_left = pos.x + left_inset;
-    let chart_width = max_width - left_inset - padding;
+        .fold(0.0f32, f32::max)
+}
 
-    // Axis line
-    let axis_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_AXIS);
-    painter.line_segment(
-        [
-            Pos2::new(chart_left, chart_bottom),
-            Pos2::new(chart_left + chart_width, chart_bottom),
-        ],
-        Stroke::new(VIZ_STROKE_AXIS * scale, axis_color),
+fn draw_vertical(cx: &VizCtx, bars: &Bars, pos: Pos2, max_width: f32, height: f32) {
+    let painter = cx.ui.painter();
+    let scale = cx.scale;
+    let range = bars.range;
+    let grid_step = nice_grid_step(range.max, 5);
+    let grid_label_w =
+        widest_grid_label(painter, &cx.font(VIZ_FONT_GRID_LABEL), range.max, grid_step);
+    let layout = vertical_layout(
+        pos,
+        max_width,
+        height,
+        scale,
+        grid_label_w,
+        bars.has_titles(),
     );
+    let frame = layout.frame;
 
+    frame.draw_x_axis(cx);
     // Grid lines with nice round numbers
-    let grid_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
-    let grid_label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
-    for grid_val in grid_values(max_value, grid_step) {
-        let frac = grid_val / max_value;
-        let gy = chart_bottom - frac * chart_height;
-        painter.line_segment(
-            [
-                Pos2::new(chart_left, gy),
-                Pos2::new(chart_left + chart_width, gy),
-            ],
-            Stroke::new(VIZ_STROKE_GRID * scale, grid_color),
-        );
-        let label = format_axis_value(grid_val, grid_step);
-        let galley = painter.layout_no_wrap(label, grid_font.clone(), grid_label_color);
-        painter.galley(
-            Pos2::new(
-                chart_left - galley.rect.width() - 8.0 * scale,
-                gy - galley.rect.height() / 2.0,
-            ),
-            galley,
-            grid_label_color,
-        );
-    }
-
-    // Bars
-    // Gap grows with bar width so bars read as distinct columns
-    let bar_gap = (chart_width / n as f32 * 0.22).clamp(10.0 * scale, 48.0 * scale);
-    let total_gaps = (n + 1) as f32 * bar_gap;
-    let bar_width = ((chart_width - total_gaps) / n as f32).max(8.0 * scale);
-    let value_font = FontId::new(
-        theme.body_size * VIZ_FONT_VALUE_LABEL * scale,
-        theme.body_family(),
+    frame.draw_y_grid(
+        cx,
+        grid_values(range.max, grid_step),
+        range,
+        grid_step,
+        false,
     );
-    let min_font = theme.body_size * VIZ_FONT_MIN * scale;
+
+    let (bar_gap, bar_width) = vertical_slots(frame.width, bars.entries.len(), scale);
+    let value_font = cx.font(VIZ_FONT_VALUE_LABEL);
     // One label size for every category so the axis reads as a unit
-    let label_texts: Vec<&str> = entries.iter().map(|e| e.label.as_str()).collect();
-    let label_font = FontId::new(
-        fit_font_size(
-            painter,
-            &label_texts,
-            &FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale),
-            bar_width + bar_gap,
-            min_font,
-        ),
-        theme.body_family(),
-    );
+    let label_font = bars.label_font(cx, bar_width + bar_gap);
 
-    for (i, entry) in entries.iter().enumerate() {
-        let step = steps.get(i).copied().unwrap_or(0);
-        if step > reveal_step {
+    for (i, entry) in bars.entries.iter().enumerate() {
+        let step = bars.steps.get(i).copied().unwrap_or(0);
+        if step > cx.reveal_step {
             continue;
         }
+        let anim = cx.anim(step);
 
-        let (anim, repaint) = reveal_anim_progress(step, reveal_step, reveal_timestamp);
-        if repaint {
-            needs_repaint = true;
-        }
-
-        let color = Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity());
         // Negative values are clamped to the axis so nothing draws below the chart
-        let full_bar_height = (entry.value.max(0.0) / max_value) * chart_height;
-        let bar_height = full_bar_height * anim;
-        let bx = chart_left + bar_gap + i as f32 * (bar_width + bar_gap);
-        let by = chart_bottom - bar_height;
+        let bar_height = range.frac(entry.value.max(0.0)) * frame.height * anim;
+        let bx = frame.left + bar_gap + i as f32 * (bar_width + bar_gap);
+        let by = frame.bottom - bar_height;
 
-        // Bar with rounded corners
         let bar_rect =
             egui::Rect::from_min_size(Pos2::new(bx, by), egui::vec2(bar_width, bar_height));
-        painter.rect_filled(bar_rect, VIZ_CORNER_BAR * scale, color);
+        painter.rect_filled(bar_rect, VIZ_CORNER_BAR * scale, cx.fill(bars.palette, i));
         crate::render::hints::push(painter.ctx(), crate::render::hints::Hint::Bar(bar_rect));
 
         // Value label above bar (only show when animation is near-complete)
         if anim > VIZ_LABEL_REVEAL_THRESHOLD {
-            let val_text = format_value(entry.value);
-            let val_color = Theme::with_opacity(theme.foreground, opacity * 0.7 * label_fade(anim));
-            let val_galley = painter.layout_no_wrap(val_text, value_font.clone(), val_color);
+            let val_color = value_color(cx, anim);
+            let val_galley =
+                painter.layout_no_wrap(format_value(entry.value), value_font.clone(), val_color);
             let val_x = bx + (bar_width - val_galley.rect.width()) / 2.0;
             painter.galley(
                 Pos2::new(val_x, by - val_galley.rect.height() - 4.0 * scale),
@@ -324,7 +333,7 @@ fn draw_vertical(
         }
 
         // Category label below bar, shrunk/truncated to its slot
-        let label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_LABEL);
+        let label_color = cx.fg(VIZ_OPACITY_LABEL);
         let galley = fit_text(
             painter,
             &entry.label,
@@ -335,85 +344,33 @@ fn draw_vertical(
         );
         let lx = bx + (bar_width - galley.rect.width()) / 2.0;
         painter.galley(
-            Pos2::new(lx, chart_bottom + 6.0 * scale),
+            Pos2::new(lx, frame.bottom + 6.0 * scale),
             galley,
             label_color,
         );
     }
 
-    // Axis labels
-    let axis_label_font = FontId::new(
-        theme.body_size * VIZ_FONT_AXIS_LABEL * scale,
-        theme.body_family(),
-    );
-    let axis_label_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
-    if let Some(text) = x_label {
-        draw_x_axis_label(
-            painter,
-            text,
-            axis_label_font.clone(),
-            axis_label_color,
-            chart_left,
-            chart_width,
-            chart_bottom + label_area + 4.0 * scale,
-        );
-    }
-    if let Some(text) = y_label {
-        draw_y_axis_label(
-            painter,
-            text,
-            axis_label_font,
-            axis_label_color,
-            pos.x + padding * 0.3,
-            pos.y + padding + value_area,
-            chart_height,
-        );
-    }
-
-    needs_repaint
+    frame.draw_titles(cx, &bars.axis_titles(&layout));
 }
 
-#[allow(clippy::too_many_arguments)]
-fn draw_horizontal(
-    painter: &egui::Painter,
-    entries: &[BarEntry],
-    steps: &[usize],
-    palette: &[Color32],
-    theme: &Theme,
-    pos: Pos2,
-    max_width: f32,
-    height: f32,
-    max_value: f32,
-    opacity: f32,
-    reveal_step: usize,
-    reveal_timestamp: Option<Instant>,
-    scale: f32,
-    x_label: Option<&str>,
-    y_label: Option<&str>,
-) -> bool {
-    let mut needs_repaint = false;
-    let n = entries.len();
-    let padding = 40.0 * scale;
-    let value_area = 60.0 * scale; // space for value labels on the right
+/// The colour of a value label fading in as its bar finishes growing.
+fn value_color(cx: &VizCtx, anim: f32) -> Color32 {
+    Theme::with_opacity(cx.theme.foreground, cx.opacity * 0.7 * label_fade(anim))
+}
+
+fn draw_horizontal(cx: &VizCtx, bars: &Bars, pos: Pos2, max_width: f32, height: f32) {
+    let painter = cx.ui.painter();
+    let scale = cx.scale;
+    let range = bars.range;
     let label_gap = 10.0 * scale;
-    let label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_LABEL);
-    let min_font = theme.body_size * VIZ_FONT_MIN * scale;
+    let label_color = cx.fg(VIZ_OPACITY_LABEL);
 
     // Size the label column to the longest label, fitted into at most a third of the width.
     // All labels share one font size.
     let max_label_w = max_width * 0.33;
-    let label_texts: Vec<&str> = entries.iter().map(|e| e.label.as_str()).collect();
-    let label_font = FontId::new(
-        fit_font_size(
-            painter,
-            &label_texts,
-            &FontId::proportional(theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale),
-            max_label_w,
-            min_font,
-        ),
-        theme.body_family(),
-    );
-    let label_galleys: Vec<_> = entries
+    let label_font = bars.label_font(cx, max_label_w);
+    let label_galleys: Vec<_> = bars
+        .entries
         .iter()
         .map(|e| {
             fit_text(
@@ -430,103 +387,50 @@ fn draw_horizontal(
         .iter()
         .map(|g| g.rect.width())
         .fold(0.0f32, f32::max)
-        + label_gap; // space for labels on the left
-    let x_label_space = if x_label.is_some() { 30.0 * scale } else { 0.0 };
-    let y_label_space = if y_label.is_some() { 30.0 * scale } else { 0.0 };
-    let chart_left = pos.x + padding + label_area + y_label_space;
-    let chart_width = max_width - padding * 2.0 - label_area - value_area - y_label_space;
-    let chart_top = pos.y + padding;
-    let chart_height = height - padding * 2.0 - x_label_space;
+        + label_gap;
+    let layout = horizontal_layout(pos, max_width, height, scale, label_area, bars.has_titles());
+    let frame = layout.frame;
 
-    // Axis line (vertical)
-    let axis_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_AXIS);
-    painter.line_segment(
-        [
-            Pos2::new(chart_left, chart_top),
-            Pos2::new(chart_left, chart_top + chart_height),
-        ],
-        Stroke::new(VIZ_STROKE_AXIS * scale, axis_color),
-    );
+    frame.draw_y_axis(cx);
 
-    // Bars
     let bar_gap = 10.0 * scale;
-    let total_gaps = (n + 1) as f32 * bar_gap;
-    let bar_height = ((chart_height - total_gaps) / n as f32).max(8.0 * scale);
-    let value_font = FontId::new(
-        theme.body_size * VIZ_FONT_VALUE_LABEL * scale,
-        theme.body_family(),
-    );
+    let bar_height = horizontal_bar_height(frame.height, bars.entries.len(), bar_gap, scale);
+    let value_font = cx.font(VIZ_FONT_VALUE_LABEL);
 
-    for (i, entry) in entries.iter().enumerate() {
-        let step = steps.get(i).copied().unwrap_or(0);
-        if step > reveal_step {
+    for (i, entry) in bars.entries.iter().enumerate() {
+        let step = bars.steps.get(i).copied().unwrap_or(0);
+        if step > cx.reveal_step {
             continue;
         }
+        let anim = cx.anim(step);
 
-        let (anim, repaint) = reveal_anim_progress(step, reveal_step, reveal_timestamp);
-        if repaint {
-            needs_repaint = true;
-        }
-
-        let color = Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity());
         // Negative values are clamped to the axis so nothing draws left of it
-        let full_bar_w = (entry.value.max(0.0) / max_value) * chart_width;
-        let bar_w = full_bar_w * anim;
-        let by = chart_top + bar_gap + i as f32 * (bar_height + bar_gap);
+        let bar_w = range.frac(entry.value.max(0.0)) * frame.width * anim;
+        let by = frame.top + bar_gap + i as f32 * (bar_height + bar_gap);
 
-        // Bar with rounded corners
         let bar_rect =
-            egui::Rect::from_min_size(Pos2::new(chart_left, by), egui::vec2(bar_w, bar_height));
-        painter.rect_filled(bar_rect, VIZ_CORNER_BAR * scale, color);
+            egui::Rect::from_min_size(Pos2::new(frame.left, by), egui::vec2(bar_w, bar_height));
+        painter.rect_filled(bar_rect, VIZ_CORNER_BAR * scale, cx.fill(bars.palette, i));
         crate::render::hints::push(painter.ctx(), crate::render::hints::Hint::Bar(bar_rect));
 
         // Category label on the left
         let galley = label_galleys[i].clone();
-        let lx = chart_left - galley.rect.width() - label_gap;
+        let lx = frame.left - galley.rect.width() - label_gap;
         let ly = by + (bar_height - galley.rect.height()) / 2.0;
         painter.galley(Pos2::new(lx, ly), galley, label_color);
 
         // Value label to the right of bar (fade in near end of animation)
         if anim > VIZ_LABEL_REVEAL_THRESHOLD {
-            let val_text = format_value(entry.value);
-            let val_color = Theme::with_opacity(theme.foreground, opacity * 0.7 * label_fade(anim));
-            let val_galley = painter.layout_no_wrap(val_text, value_font.clone(), val_color);
-            let vx = chart_left + bar_w + 8.0 * scale;
+            let val_color = value_color(cx, anim);
+            let val_galley =
+                painter.layout_no_wrap(format_value(entry.value), value_font.clone(), val_color);
+            let vx = frame.left + bar_w + 8.0 * scale;
             let vy = by + (bar_height - val_galley.rect.height()) / 2.0;
             painter.galley(Pos2::new(vx, vy), val_galley, val_color);
         }
     }
 
-    // Axis labels
-    let axis_label_font = FontId::new(
-        theme.body_size * VIZ_FONT_AXIS_LABEL * scale,
-        theme.body_family(),
-    );
-    let axis_label_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
-    if let Some(text) = x_label {
-        draw_x_axis_label(
-            painter,
-            text,
-            axis_label_font.clone(),
-            axis_label_color,
-            chart_left,
-            chart_width,
-            chart_top + chart_height + 10.0 * scale,
-        );
-    }
-    if let Some(text) = y_label {
-        draw_y_axis_label(
-            painter,
-            text,
-            axis_label_font,
-            axis_label_color,
-            pos.x + padding * 0.3,
-            chart_top,
-            chart_height,
-        );
-    }
-
-    needs_repaint
+    frame.draw_titles(cx, &bars.axis_titles(&layout));
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
@@ -615,5 +519,48 @@ mod tests {
         assert!(lines.len() <= super::super::VIZ_MAX_GRID_LINES);
         let lines = grid_values(100.0, 20.0);
         assert_eq!(lines, vec![20.0, 40.0, 60.0, 80.0, 100.0]);
+    }
+
+    #[test]
+    fn test_vertical_layout_fits_grid_labels() {
+        let pos = Pos2::new(0.0, 0.0);
+        // Narrow grid labels: the padding decides the inset
+        let l = vertical_layout(pos, 1000.0, 500.0, 1.0, 20.0, (false, false));
+        assert_eq!(l.frame.left, 60.0);
+        assert_eq!(l.frame.top, 90.0);
+        assert_eq!(l.frame.width, 880.0);
+        assert_eq!(l.frame.height, 500.0 - 60.0 - 40.0 - 30.0);
+        // Wide grid labels push the plot right
+        let l = vertical_layout(pos, 1000.0, 500.0, 1.0, 100.0, (false, true));
+        assert_eq!(l.frame.left, 18.0 + 30.0 + 100.0 + 16.0);
+        assert_eq!(l.titles_y_left, 18.0);
+    }
+
+    #[test]
+    fn test_vertical_slots_keep_gaps_in_bounds() {
+        let (gap, width) = vertical_slots(1000.0, 4, 1.0);
+        assert_eq!(gap, 48.0);
+        assert_eq!(width, (1000.0 - 5.0 * 48.0) / 4.0);
+        let (gap, width) = vertical_slots(100.0, 50, 1.0);
+        assert_eq!(gap, 10.0);
+        assert_eq!(width, 8.0);
+    }
+
+    #[test]
+    fn test_horizontal_layout_and_bar_height() {
+        let l = horizontal_layout(
+            Pos2::new(0.0, 0.0),
+            1000.0,
+            400.0,
+            1.0,
+            120.0,
+            (true, false),
+        );
+        assert_eq!(l.frame.left, 160.0);
+        assert_eq!(l.frame.width, 1000.0 - 80.0 - 120.0 - 60.0);
+        assert_eq!(l.frame.height, 400.0 - 80.0 - 30.0);
+        assert_eq!(l.titles_x_top, l.frame.bottom + 10.0);
+        assert_eq!(horizontal_bar_height(290.0, 2, 10.0, 1.0), 130.0);
+        assert_eq!(horizontal_bar_height(20.0, 5, 10.0, 1.0), 8.0);
     }
 }
