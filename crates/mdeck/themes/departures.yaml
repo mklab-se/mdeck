@@ -1,0 +1,42 @@
+# Departures: a split-flap board in a station hall. Charcoal flaps with
+# warm white capitals, headings in the yellow of a timetable, and the
+# board as the whole slide (split-flap engine).
+name: Departures
+extends: dark
+engine: splitflap
+countdown: burst
+colors:
+  background: "#0e0f11"      # the hall
+  text: "#e8e3d6"
+  heading: "#f2ede0"         # the flaps' white
+  muted: "#8b8e95"           # labels, dim rows
+  strong: "#fff3cf"
+  rule: "#2a2c31"
+  accent: "#ffc21a"          # timetable yellow: headings, markers
+  accent-soft: "#ffe08a"     # **bold**
+  secondary: "#7fd3ff"       # `code`
+  code-background: "#1d1e22" # the flaps
+  code-text: "#e8e3d6"
+  positive: "#3fd07a"
+  negative: "#ff5a4f"
+  series:
+    - "#ffc21a" # yellow
+    - "#7fd3ff" # blue
+    - "#3fd07a" # green
+    - "#ff5a4f" # red
+    - "#c8a2ff" # violet
+    - "#ff9b3d" # orange
+    - "#f2ede0" # white
+    - "#8b8e95" # grey
+fonts:
+  display: hanken-medium     # the characters on the flaps
+  body: hanken-regular
+  lead: hanken-light
+  strong: hanken-medium
+  mono: jetbrains-mono
+sizes: { h1: 96, h2: 68, h3: 46, body: 38, code: 28 }
+annotations:
+  pen: "#7fd3ff"
+  pen-outline: "#1f6f94"
+  arrow: "#ffc21a"
+  arrow-outline: "#9a7200"

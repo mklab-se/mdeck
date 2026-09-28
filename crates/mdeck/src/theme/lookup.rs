@@ -9,7 +9,8 @@ use super::{Built, Theme};
 
 /// The built-in themes, in `Shift+T` order. A theme that runs on an engine
 /// behind a cargo feature (`ember`, `autumn` and `winter` on particles,
-/// `marquee` on led) is left out of a build without that feature.
+/// `marquee` on led, `departures` on splitflap) is left out of a build
+/// without that feature.
 pub const BUILTIN: &[(&str, &str)] = &[
     ("dark", include_str!("../../themes/dark.yaml")),
     ("light", include_str!("../../themes/light.yaml")),
@@ -24,6 +25,8 @@ pub const BUILTIN: &[(&str, &str)] = &[
     ("winter", include_str!("../../themes/winter.yaml")),
     #[cfg(feature = "led")]
     ("marquee", include_str!("../../themes/marquee.yaml")),
+    #[cfg(feature = "splitflap")]
+    ("departures", include_str!("../../themes/departures.yaml")),
 ];
 
 /// The theme used when nothing names one.
@@ -448,8 +451,17 @@ mod tests {
         assert_eq!(
             names,
             [
-                "dark", "light", "nord", "ember", "spring", "summer", "autumn", "winter",
-                "marquee", "brand"
+                "dark",
+                "light",
+                "nord",
+                "ember",
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "marquee",
+                "departures",
+                "brand"
             ]
         );
         assert!(matches!(l.available()[0].origin, Origin::User(_)));

@@ -29,6 +29,9 @@ pub struct SlideContext {
     pub beats: Option<(usize, usize)>,
     /// The presenter's line for the current beat (shown with the HUD).
     pub say: Option<String>,
+    /// The engine drew this slide live already (a board engine's board);
+    /// false for grid thumbnails and the overview zoom.
+    pub engine_drew: bool,
 }
 
 /// The first slide of a deck reads as its title page when it opens with an

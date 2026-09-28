@@ -271,6 +271,17 @@ digit before a white-hot ring runs out over the wall.
   <img src="media/gallery/marquee-illustration.jpg" width="45%">
 </p>
 
+**Departure board** (`splitflap`, theme `departures`). The slide is a
+split-flap board: every piece of text on a fixed grid of flaps, headings in
+timetable yellow, tables as timetables, progress bars in solid flaps. The next
+slide never slides in: every flap turns through its wheel of characters until
+it shows the new one.
+
+<p align="center">
+  <img src="media/gallery/departures-schedule.jpg" width="45%">&nbsp;&nbsp;
+  <img src="media/gallery/departures-turning.jpg" width="45%">
+</p>
+
 `mdeck talk.md --engine led` tries an engine without touching the deck, and
 `mdeck talk.md --check` lists anything the chosen engine does not show. Try
 `samples/engines/`.

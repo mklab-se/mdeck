@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- The split-flap engine and its `departures` theme
+  ([#16](https://github.com/mklab-se/mdeck/issues/16)): the slide is a departure board. All
+  of its text sits on a fixed grid of 32 by 12 flaps in capitals: headings in timetable
+  yellow, lists behind coloured markers, tables as timetables with numbers right-aligned,
+  `@kpi` as label and value, `@progress` as bars of solid flaps, and the slide's first image
+  in a panel on the board. Going to the next slide every flap turns forward through its wheel
+  of characters until it shows the new one, cells starting a moment apart; `+` items flip in
+  on their step. The countdown is drawn in solid flaps before the board scrambles awake, and
+  the end clears flap by flap. What the board cannot show (overflowing text, code, charts,
+  formulas, characters the flaps do not carry) is listed by `--check`, never typeset outside
+  the board. `@engine: splitflap` puts any theme on it. Spec sections 9.1 and 9.6; sample
+  `samples/engines/splitflap.md`.
+- A `board` capability for engines that draw every slide themselves, text and transitions
+  included (see the engine guide).
+
 ## [1.9.1] - 2026-09-28
 
 ### Added

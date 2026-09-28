@@ -124,6 +124,8 @@ mod tests {
             figure: Some(figure),
             hints: &[],
             hints_key: 0,
+            deck_title: None,
+            count: 1,
         };
         let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1920.0, 1080.0));
         let cx = |dt: f32, still: bool| FrameCx {

@@ -34,6 +34,9 @@ pub struct Shot<'a> {
     pub opacity: f32,
     /// Export: settle at once.
     pub still: bool,
+    pub deck_title: Option<&'a str>,
+    /// Slides in the deck.
+    pub count: usize,
 }
 
 pub struct Host {
@@ -213,6 +216,8 @@ impl Host {
             figure,
             hints: &self.hints,
             hints_key: self.hints_key,
+            deck_title: shot.deck_title,
+            count: shot.count,
         };
         let cx = FrameCx {
             rect: shot.rect,

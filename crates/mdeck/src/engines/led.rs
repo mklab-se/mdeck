@@ -10,8 +10,8 @@ use std::sync::Arc;
 
 use eframe::egui::{self, Color32, Pos2, Rect};
 
-use super::Engine;
 use super::stage::{FrameCx, Moment, Place, Stage};
+use super::{Engine, hash01};
 use crate::render::hints::Hint;
 use crate::render::illustration::Library;
 use crate::theme::Theme;
@@ -752,17 +752,6 @@ fn additive(c: Color32, k: f32) -> Color32 {
 fn smoothstep(a: f32, b: f32, x: f32) -> f32 {
     let t = ((x - a) / (b - a)).clamp(0.0, 1.0);
     t * t * (3.0 - 2.0 * t)
-}
-
-/// A stable pseudo-random number in 0..1 for an index.
-fn hash01(i: u32) -> f32 {
-    let mut x = i.wrapping_mul(0x9E37_79B1) ^ 0x85EB_CA6B;
-    x ^= x >> 15;
-    x = x.wrapping_mul(0x2C1B_3C6D);
-    x ^= x >> 12;
-    x = x.wrapping_mul(0x297A_2D39);
-    x ^= x >> 15;
-    (x & 0x00FF_FFFF) as f32 / 16_777_215.0
 }
 
 /// Sprite sheet: lens, core and glow side by side, white, premultiplied.

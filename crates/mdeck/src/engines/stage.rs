@@ -95,6 +95,9 @@ pub struct Stage<'a> {
     /// images), and its fingerprint (changes when the geometry does).
     pub hints: &'a [Hint],
     pub hints_key: u64,
+    /// The deck's title and slide count, for engines that print them.
+    pub deck_title: Option<&'a str>,
+    pub count: usize,
 }
 
 /// The frame being drawn.

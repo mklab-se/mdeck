@@ -55,8 +55,8 @@ date: 2026-02-28
 
 | Field         | Type   | Default   | Description                                        |
 |---------------|--------|-----------|----------------------------------------------------|
-| `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`, `"marquee"`), a custom theme name, or a path to a theme file (section 9.4) |
-| `@engine`     | string | (theme's) | Run the deck on this engine instead of the theme's: `"plain"`, `"particles"`, `"led"` (section 9.6) |
+| `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`, `"marquee"`, `"departures"`), a custom theme name, or a path to a theme file (section 9.4) |
+| `@engine`     | string | (theme's) | Run the deck on this engine instead of the theme's: `"plain"`, `"particles"`, `"led"`, `"splitflap"` (section 9.6) |
 | `@transition` | string | `"slide"` | Default transition: `"fade"`, `"slide"`, `"spatial"`, `"none"` |
 | `@image-style` | string | none      | Default AI image generation style (name or description) |
 | `@icon-style`  | string | none      | Default AI icon generation style (name or description)  |
@@ -854,6 +854,20 @@ lighting LEDs.
 | LED gradient    | `#FF2D78` → `#FF9CC2` → `#35D6FF` |
 | Marquee bulbs   | `#FFC043`       |
 
+**`departures`**
+
+A split-flap departure board in a station hall, on the **split-flap engine**
+(section 9.6): charcoal flaps with warm white capitals, headings in the
+yellow of a timetable, `**bold**` in pale yellow, `` `code` `` in blue, and
+the board as the whole slide.
+
+| Property        | Value           |
+|-----------------|-----------------|
+| Background      | `#0E0F11`       |
+| Flaps           | `#1D1E22`       |
+| Characters      | `#F2EDE0`       |
+| Headings        | `#FFC21A`       |
+
 Every theme can draw the symbols text faces usually lack: circled numbers and letters (①②③, ⓐ), check marks, arrows, geometric shapes and stars. Noto Sans Symbols and DejaVu Sans are bundled as the last fallback of every font family, so such characters never render as boxes.
 
 Chinese, Japanese and Korean text draws with a font borrowed from the system, since a CJK face is too large to bundle: PingFang, Hiragino or Arial Unicode on macOS, Microsoft YaHei, Yu Gothic or Malgun Gothic on Windows, Noto Sans CJK, WenQuanYi or Droid Sans Fallback on Linux (`fonts-noto-cjk` on Debian and Ubuntu). It is added after the symbol faces in every family, on the family's own baseline. To use a specific file, set `MDECK_CJK_FONT=/path/to/font.ttc`. When no font on the machine covers a script the deck uses, `mdeck --check` warns (`fonts` category) and presenting or exporting prints the same warning; the text then draws as boxes.
@@ -1040,7 +1054,7 @@ match wins:
    `~/Library/Application Support/mdeck/themes/` on macOS,
    `%APPDATA%\mdeck\themes\` on Windows
 3. the built-in themes (`dark`, `light`, `nord`, `ember`, `spring`, `summer`,
-   `autumn`, `winter`, `marquee`)
+   `autumn`, `winter`, `marquee`, `departures`)
 
 `@theme` may also be a path to a file (`@theme: brand/acme.yaml`), relative
 to the deck. A user or deck theme may reuse a built-in name to replace it.
@@ -1069,7 +1083,7 @@ The full set of keys:
 ```yaml
 name: Acme
 extends: dark
-engine: plain              # plain | particles | led (section 9.6)
+engine: plain              # plain | particles | led | splitflap (section 9.6)
 countdown: none            # none | plain | burst (burst: the engine's own countdown)
 colors:                    # #rgb, #rrggbb or #rrggbbaa
   background: "#0b1020"    # slide background
@@ -1268,6 +1282,7 @@ from the theme, so every theme looks like itself on every engine.
 | `plain` | slides on a flat background | no | no | plain numerals |
 | `particles` | a living field of glowing particles that morphs from slide to slide and follows the content, editorial copy layouts (section 9.1, Ember) | yes | yes | particle digits that burst; the words, a swirl and a bang |
 | `led` | a fixed wall of RGB LEDs behind every slide, editorial copy layouts (theme `marquee`) | yes | no | LED digits, then a white-hot ring runs out over the wall; the words, then every LED dies out |
+| `splitflap` | the slide is a departure board: all its text on a grid of split flaps (theme `departures`) | no | no | digits in solid flaps, then the board scrambles awake; the words, then the board clears |
 
 **The LED engine.** The slide sits on a wall of LEDs, a few pixels apart,
 their unlit lenses just visible. Nothing ever moves: pictures appear by
@@ -1283,6 +1298,41 @@ serves the content: a peak marker floats over each bar like a level meter's,
 lines and routed edges leave a soft trail, pies and donuts get a halo ring,
 and nothing lights inside the chart itself. On a light theme the LEDs read as
 a printed dot matrix.
+
+**The split-flap engine.** The slide is a departure board: a fixed grid of 32
+columns by 12 rows of flaps, the same on every slide, with the deck's title
+and the slide number printed under it. Every piece of text goes on the board,
+in capitals:
+
+| Markdown | On the board |
+|---|---|
+| Heading | the top row(s), in the highlight colour (`accent`) |
+| Paragraph | wrapped word by word to the board's width |
+| List | a row per item behind a coloured marker; wrapped lines hang under the text; `+` items flip in on their step |
+| Table | a timetable: columns on flap boundaries, numbers right-aligned, the header dim |
+| `**bold**` | `accent-soft`; `` `code` `` is `secondary` (a flap cannot change weight) |
+| Link | its text |
+| Quote | between quote marks |
+| `@kpi` | label on the left, value on the right |
+| `@progress` | label, a bar of solid flaps and the value |
+| Image | the slide's first image sits in a panel on the right of the board |
+
+Going to the next slide never slides or fades: every flap turns forward
+through its wheel (a blank, A to Z, Å Ä Ö Æ Ø Ü É, digits and punctuation)
+until it shows its new character, the cells starting a moment apart, left to
+right and down, so a whole board changes in about a second and a half. Flaps
+that keep their character stay still. A title slide is centred on the board.
+The countdown draws its digits in solid yellow flaps, then the board
+scrambles awake into the first slide; the end shows THE END and then clears
+flap by flap.
+
+A board never scrolls. What it cannot show is reported by `mdeck --check`,
+never typeset outside the board: text that needs more rows than the board has
+(the last row then ends in `…`), code blocks, charts and diagrams,
+formulas, a second image, `@illustration`, table cells cut to fit, and
+characters the flaps do not carry (Chinese, Japanese and Korean, emoji and
+most symbols show as blank flaps). The board says what a timetable says:
+agendas, schedules, status and numbers read best.
 
 **Choosing one.** A theme names its engine (`engine:` in section 9.4). A deck
 can run on another engine without touching the theme:
@@ -1302,7 +1352,8 @@ stops with the list of engines. A theme's `countdown: burst` becomes the plain
 countdown on an engine that has no countdown of its own.
 
 **Content an engine does not show.** Engines differ in what they can show:
-the plain engine draws no illustrations and plays no stories. `mdeck --check`
+the plain engine draws no illustrations and plays no stories, and the
+split-flap board shows text only. `mdeck --check`
 lists every such slide under the `engine` category (for example
 `slide 4: [engine] @illustration: server is not shown by the plain engine`),
 and presenting or exporting prints one summary line when a deck has any.
@@ -1310,7 +1361,7 @@ and presenting or exporting prints one summary line when a deck has any.
 Engines are part of MDeck and each one is a cargo feature, on by default.
 Building MDeck with `--no-default-features` leaves them out (and with them
 the themes that run on them: `ember`, `autumn` and `winter` on particles,
-`marquee` on led, and the built-in illustrations); themes and decks that ask
+`marquee` on led, `departures` on splitflap, and the built-in illustrations); themes and decks that ask
 for one then use `plain`, with a warning.
 
 ---

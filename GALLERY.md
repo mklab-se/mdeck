@@ -78,6 +78,29 @@ The countdown, lit digit by digit.
 
 <img src="media/gallery/marquee-countdown.jpg" width="720">
 
+### Departure board
+
+The `splitflap` engine and its `departures` theme: every slide on a
+split-flap board. A table becomes a timetable.
+
+<img src="media/gallery/departures-schedule.jpg" width="720">
+
+Going to the next slide, every flap turns through its wheel until it shows
+its new character.
+
+<img src="media/gallery/departures-turning.jpg" width="720">
+
+Progress bars in solid flaps, and a slide's first image in a panel on the
+board.
+
+<img src="media/gallery/departures-progress.jpg" width="720">
+
+<img src="media/gallery/departures-picture.jpg" width="720">
+
+The countdown in solid flaps.
+
+<img src="media/gallery/departures-countdown.jpg" width="720">
+
 ---
 
 ## Themes

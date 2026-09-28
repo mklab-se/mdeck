@@ -85,6 +85,8 @@ impl PresentationApp {
                 s.line(self.reveal_steps.get(index).copied().unwrap_or(0))
                     .map(str::to_string)
             }),
+            engine_drew: self.theme.engine.paints()
+                && matches!(self.mode, super::AppMode::Presentation),
         }
     }
 
@@ -130,6 +132,7 @@ impl PresentationApp {
             let mut cx = self.slide_context(index);
             cx.hold_copy = false;
             cx.animate = false;
+            cx.engine_drew = false;
             render::render_slide(
                 ui,
                 &self.presentation.slides[index],
@@ -415,6 +418,12 @@ impl PresentationApp {
             // The outgoing slide keeps its scroll position while it leaves
             let from_scroll = self.scroll_offsets.get(from).copied().unwrap_or(0.0);
 
+            // a board turns its own flaps from one slide to the next
+            let kind = if self.theme.engine.is_board() {
+                crate::render::transition::TransitionKind::None
+            } else {
+                kind
+            };
             match kind {
                 crate::render::transition::TransitionKind::Fade => {
                     self.draw_slide(ui, from, rect, 1.0 - progress, scale, from_scroll);
@@ -488,6 +497,24 @@ impl PresentationApp {
                 let fps_galley = ui.painter().layout_no_wrap(
                     fps_text,
                     egui::FontId::new(14.0 * scale, self.theme.mono_family()),
+                    fps_color,
+                );
+                let fps_pos = egui::pos2(
+                    rect.right() - fps_galley.rect.width() - 12.0 * scale,
+                    rect.top() + 10.0 * scale,
+                );
+                ui.painter().galley(fps_pos, fps_galley, fps_color);
+            }
+            return;
+        }
+        // A board prints its own labels under the board.
+        if self.theme.engine.is_board() {
+            if self.show_hud {
+                let fps_text = format!("{:.0} fps", self.fps);
+                let fps_color = Theme::with_opacity(self.theme.foreground, 0.3);
+                let fps_galley = ui.painter().layout_no_wrap(
+                    fps_text,
+                    egui::FontId::monospace(14.0 * scale),
                     fps_color,
                 );
                 let fps_pos = egui::pos2(

@@ -1551,6 +1551,7 @@ impl eframe::App for PresentationApp {
                     let reveal = self.reveal_steps.get(target).copied().unwrap_or(0);
                     let story = self.story(target).cloned();
                     let theme = self.theme.clone();
+                    let deck_title = self.presentation.meta.title.clone();
                     let countdown =
                         self.countdown
                             .as_ref()
@@ -1578,6 +1579,8 @@ impl eframe::App for PresentationApp {
                             scale,
                             opacity: 1.0,
                             still: false,
+                            deck_title: deck_title.as_deref(),
+                            count: self.slide_count(),
                         },
                         &mut self.illustrations,
                     );

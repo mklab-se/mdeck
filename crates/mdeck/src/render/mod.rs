@@ -37,6 +37,10 @@ pub fn measure_slide_content_height(
 ) -> (f32, f32) {
     let padding = layouts::SLIDE_PADDING * scale;
     let available_height = rect.height() - padding * 2.0;
+    // a board never scrolls: what does not fit is cut (and reported)
+    if theme.engine.is_board() {
+        return (0.0, available_height);
+    }
 
     if theme.engine.lays_out(slide) {
         let h = ember::measure_content_height(ui, slide, theme, rect, scale);
@@ -73,6 +77,20 @@ pub fn render_slide(
     scale: f32,
     cx: &SlideContext,
 ) {
+    if theme.engine.is_board() {
+        crate::engines::splitflap::render_slide(
+            ui,
+            slide,
+            theme,
+            rect,
+            opacity,
+            image_cache,
+            reveal_step,
+            scale,
+            cx,
+        );
+        return;
+    }
     if theme.engine.lays_out(slide) {
         ember::render(
             ui,

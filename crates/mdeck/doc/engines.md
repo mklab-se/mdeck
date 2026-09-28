@@ -2,8 +2,8 @@
 
 An **engine** is what a theme does beyond colours and type: the layer it
 paints under the slides, and what it plays for the countdown and the end.
-MDeck ships `plain`, `particles` (the Ember theme) and `led` (the Marquee
-theme). This guide is for adding one. Read spec section 9.6 first for what users see.
+MDeck ships `plain`, `particles` (the Ember theme), `led` (the Marquee
+theme) and `splitflap` (the Departures theme). This guide is for adding one. Read spec section 9.6 first for what users see.
 
 The rule that makes engines safe to add: **the core decides what a slide
 wants to show; an engine decides how it looks.** An engine never parses
@@ -90,6 +90,7 @@ once.
 |---|---|
 | `paints` | The engine paints a layer (plain does not). |
 | `editorial` | Copy slides use the editorial layouts: a copy column on the left, a stage on the right, display headings and the counter chrome. |
+| `board` | The engine draws every slide itself, text included, and owns the transitions between slides (split-flap). `render_slide` then hands the slide to the engine's static renderer for thumbnails (`SlideContext::engine_drew` says whether the live engine drew it already), the app skips its transitions and scrolling, and the engine prints its own labels. |
 | `illustrations` | Shows `@illustration`. |
 | `stories` | Plays story beats (and they add reveal steps). |
 | `countdown` | Draws the opening countdown itself (`countdown: burst`). |

@@ -17,6 +17,7 @@ pub mod led;
 mod masks;
 pub mod particles;
 pub mod plain;
+pub mod splitflap;
 pub mod stage;
 
 pub use host::{Host, Shot};
@@ -35,6 +36,8 @@ pub enum EngineKind {
     Particles,
     /// A wall of RGB LEDs that light up illustrations, digits and words.
     Led,
+    /// A departure board: every slide's text on a grid of split flaps.
+    SplitFlap,
 }
 
 /// What an engine can show. The core uses it for fallbacks (an illustration
@@ -46,6 +49,9 @@ pub struct Capabilities {
     /// Copy slides use the editorial layouts: a copy column on the left and
     /// a stage on the right, display headings, the counter chrome.
     pub editorial: bool,
+    /// The engine draws every slide itself, text included, and owns the
+    /// transitions between slides (the split-flap board).
+    pub board: bool,
     /// Shows `@illustration` point clouds.
     pub illustrations: bool,
     /// Plays story beats (`@story`, `mdeck ai story`).
@@ -58,8 +64,12 @@ pub struct Capabilities {
 
 impl EngineKind {
     /// Every engine, in the order `mdeck theme list` and the docs show them.
-    pub const ALL: &'static [EngineKind] =
-        &[EngineKind::Plain, EngineKind::Particles, EngineKind::Led];
+    pub const ALL: &'static [EngineKind] = &[
+        EngineKind::Plain,
+        EngineKind::Particles,
+        EngineKind::Led,
+        EngineKind::SplitFlap,
+    ];
 
     pub fn from_name(name: &str) -> Option<Self> {
         Self::ALL.iter().copied().find(|k| k.name() == name)
@@ -70,6 +80,7 @@ impl EngineKind {
             EngineKind::Plain => "plain",
             EngineKind::Particles => "particles",
             EngineKind::Led => "led",
+            EngineKind::SplitFlap => "splitflap",
         }
     }
 
@@ -88,6 +99,7 @@ impl EngineKind {
             EngineKind::Plain => true,
             EngineKind::Particles => cfg!(feature = "particles"),
             EngineKind::Led => cfg!(feature = "led"),
+            EngineKind::SplitFlap => cfg!(feature = "splitflap"),
         }
     }
 
@@ -96,6 +108,7 @@ impl EngineKind {
             EngineKind::Plain => Capabilities {
                 paints: false,
                 editorial: false,
+                board: false,
                 illustrations: false,
                 stories: false,
                 countdown: false,
@@ -104,6 +117,7 @@ impl EngineKind {
             EngineKind::Particles => Capabilities {
                 paints: true,
                 editorial: true,
+                board: false,
                 illustrations: true,
                 stories: true,
                 countdown: true,
@@ -112,7 +126,17 @@ impl EngineKind {
             EngineKind::Led => Capabilities {
                 paints: true,
                 editorial: true,
+                board: false,
                 illustrations: true,
+                stories: false,
+                countdown: true,
+                end_act: true,
+            },
+            EngineKind::SplitFlap => Capabilities {
+                paints: true,
+                editorial: false,
+                board: true,
+                illustrations: false,
                 stories: false,
                 countdown: true,
                 end_act: true,
@@ -126,6 +150,7 @@ impl EngineKind {
             EngineKind::Plain => Box::new(plain::Plain),
             EngineKind::Particles => Box::new(particles::Particles::new()),
             EngineKind::Led => Box::new(led::Led::new()),
+            EngineKind::SplitFlap => Box::new(splitflap::SplitFlap::new()),
         }
     }
 
@@ -137,6 +162,11 @@ impl EngineKind {
     /// Lays `slide` out with the editorial layouts instead of the generic ones.
     pub fn lays_out(self, slide: &Slide) -> bool {
         self.capabilities().editorial && crate::render::ember::handles(slide)
+    }
+
+    /// Draws every slide itself (a board), text and transitions included.
+    pub fn is_board(self) -> bool {
+        self.capabilities().board
     }
 
     /// Story beats add reveal steps to a slide.
@@ -155,6 +185,7 @@ impl EngineKind {
         match self {
             EngineKind::Particles => particles::END_CAPTION_DELAY,
             EngineKind::Led => led::END_CAPTION_DELAY,
+            EngineKind::SplitFlap => splitflap::END_CAPTION_DELAY,
             EngineKind::Plain => 0.0,
         }
     }
@@ -233,6 +264,9 @@ pub fn unsupported(kind: EngineKind, slide: &Slide, has_story: bool) -> Vec<Stri
             kind.name()
         ));
     }
+    if caps.board {
+        out.extend(splitflap::problems(slide));
+    }
     if has_story && !caps.stories {
         out.push(format!(
             "the slide's story is not played by the {} engine",
@@ -266,6 +300,19 @@ pub fn unsupported_summary(
     })
 }
 
+/// A stable pseudo-random number in 0..1 for an index: engines seed their
+/// per-element variation from it, never from time, so stills are
+/// reproducible.
+pub fn hash01(i: u32) -> f32 {
+    let mut x = i.wrapping_mul(0x9E37_79B1) ^ 0x85EB_CA6B;
+    x ^= x >> 15;
+    x = x.wrapping_mul(0x2C1B_3C6D);
+    x ^= x >> 12;
+    x = x.wrapping_mul(0x297A_2D39);
+    x ^= x >> 15;
+    (x & 0x00FF_FFFF) as f32 / 16_777_215.0
+}
+
 /// An engine's runtime: the state behind one presentation window or export.
 ///
 /// Each frame the host calls [`Engine::update`] (advance the clock by
@@ -290,7 +337,7 @@ mod tests {
             assert_eq!(EngineKind::from_name(k.name()), Some(k));
         }
         assert_eq!(EngineKind::from_name("fireworks"), None);
-        assert!(EngineKind::names().starts_with("plain, particles"));
+        assert!(EngineKind::names().starts_with("plain, particles, led, splitflap"));
     }
 
     #[test]

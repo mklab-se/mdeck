@@ -355,6 +355,7 @@ impl ExportApp {
                 .and_then(|r| r.as_ref())
                 .map(|r| r.script.clone());
             let theme = self.theme.clone();
+            let deck_title = self.presentation.meta.title.clone();
             let shot = crate::engines::Shot {
                 rect,
                 slide: (!rehearsal.end).then_some(slide),
@@ -368,6 +369,8 @@ impl ExportApp {
                 scale,
                 opacity: 1.0,
                 still: true,
+                deck_title: deck_title.as_deref(),
+                count: self.presentation.slides.len(),
             };
             match rehearsal.at {
                 Some(t) => self.engine.rehearse(ui, shot, &mut self.illustrations, t),
@@ -386,6 +389,7 @@ impl ExportApp {
             animate: false,
             beats: None,
             say: None,
+            engine_drew: true,
         };
         render::render_slide(
             ui,
