@@ -18,6 +18,14 @@
 </p>
 
 <p align="center">
+  <strong>New in 1.15:</strong> five art engines that draw a picture made for every slide:
+  blueprint, sketchbook, chalkboard, watercolour and darkroom.<br>
+  <a href="CHANGELOG.md"><strong>What's new</strong></a> &middot;
+  <a href="https://github.com/mklab-se/mdeck/releases">All releases</a> &middot;
+  <a href="BACKLOG.md">Roadmap</a>
+</p>
+
+<p align="center">
   <img src="media/showcase/dep.gif" width="49%" alt="A departure board turning to the next slide">
   <img src="media/showcase/etch.gif" width="49%" alt="A laser etching an illustration onto a slide">
 </p>

@@ -50,6 +50,9 @@ $ARGUMENTS must be one of: `major`, `minor`, `patch`. If empty or invalid, stop 
 ### 5. Update CHANGELOG
 
 - **CHANGELOG.md**: Rename the `[Unreleased]` section to `[{NEW_VERSION}] - {TODAY}` (YYYY-MM-DD format). If there is no `[Unreleased]` section, create a new dated entry summarizing changes since the last release
+- **README.md**: For a `minor` or `major` release, update the "New in X.Y" line under the badges
+  to the release's headline feature in one sentence (a `patch` release leaves it alone). It is
+  how returning users find what changed, so it names what they can now do, not internals
 
 ### 6. Verify the build
 
