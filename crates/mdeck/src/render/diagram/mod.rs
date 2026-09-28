@@ -30,6 +30,7 @@ use std::time::Instant;
 
 use eframe::egui::{self, FontId, Pos2};
 
+use crate::render::BlockCx;
 use crate::render::image_cache::ImageCache;
 use crate::theme::Theme;
 use parsing::parse_diagram;
@@ -52,20 +53,22 @@ struct DiagramCx<'a> {
 /// Draw a diagram parsed from `- Node: label` and `- A -> B: label` lines.
 /// `max_height` controls the vertical space; pass 0 for a default. Returns
 /// the height used.
-#[allow(clippy::too_many_arguments)]
 pub fn draw_diagram_sized(
-    ui: &egui::Ui,
+    cx: &BlockCx,
     content: &str,
-    theme: &Theme,
     pos: Pos2,
     max_width: f32,
     max_height: f32,
-    opacity: f32,
-    image_cache: &ImageCache,
-    reveal_step: usize,
-    reveal_timestamp: Option<Instant>,
-    scale: f32,
 ) -> f32 {
+    let BlockCx {
+        ui,
+        theme,
+        opacity,
+        scale,
+        image_cache,
+        reveal_step,
+        reveal_timestamp,
+    } = *cx;
     let (nodes, edges, scale_directive) = parse_diagram(content);
     let (node_steps, edge_steps) = reveal::reveal_steps(&nodes, &edges);
     let cx = DiagramCx {
