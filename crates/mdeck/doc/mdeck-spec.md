@@ -1032,8 +1032,8 @@ presentation with `Shift+T`.
 ### 9.2 Theme properties
 
 A theme is data: colours, type roles, sizes and a syntax theme, plus the
-**engine** that draws it (`plain` or `particles`). The four built-in themes are
-written in exactly the format of section 9.4, which lists every key.
+**engine** that draws it (section 9.6). The built-in themes are written in
+exactly the format of section 9.4, which lists every key.
 
 ### 9.3 Per-slide theme override (reserved)
 

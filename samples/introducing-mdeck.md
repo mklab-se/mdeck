@@ -187,10 +187,25 @@ Set a theme globally in frontmatter:
 ---
 ```
 
-Built-in themes: **light**, **dark**, **nord**, **ember**, and the four
-seasons **spring**, **summer**, **autumn** and **winter**.
+Built-in themes: **light**, **dark**, **nord**, **ember**, the four seasons
+**spring**, **summer**, **autumn** and **winter**, and **marquee**,
+**departures**, **etch** and **stack**.
 
 Cycle themes live with `Shift+T`, and transitions with `T`.
+
+---
+
+# Six Engines
+
+The same slides, a whole different show:
+
+- **plain** and **particles**: a flat page, or a living particle field
+- **led**: a wall of RGB LEDs that light up your illustrations
+- **splitflap**: every slide on a departure board
+- **laser**: a beam etches each picture onto the slide
+- **blocks**: pictures built from falling blocks
+
+One line switches, `@engine: led`, or try one with `mdeck deck.md --engine laser`.
 
 ---
 

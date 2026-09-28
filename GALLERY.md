@@ -131,7 +131,7 @@ On a title slide the stack stands dim behind the copy.
 
 ## Themes
 
-Eight built-in themes, all written as theme files, and your own in a few lines
+Twelve built-in themes, all written as theme files, and your own in a few lines
 of YAML (spec section 9.4). These stills are from `samples/themes/`.
 
 ### The four seasons

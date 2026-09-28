@@ -356,6 +356,62 @@ pub trait Engine {
 mod tests {
     use super::*;
 
+    /// The engine boundary: an engine uses the stage, the theme, the parsed
+    /// slide and the render helpers engines share, never the app, the
+    /// commands, the config or the CLI. Every file under `src/engines/` is
+    /// checked, so a new engine is covered without being listed.
+    #[test]
+    fn engines_stay_inside_their_boundary() {
+        const ALLOWED: &[&str] = &[
+            "crate::engines",
+            "crate::parser",
+            "crate::theme",
+            "crate::render::hints",
+            "crate::render::illustration",
+            "crate::render::image_cache",
+            "crate::render::story",
+            "crate::render::particles",
+            "crate::render::fonts",
+            "crate::render::ember",
+            "crate::render::SlideContext",
+            "crate::render::test_support",
+        ];
+        fn files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+            for entry in std::fs::read_dir(dir).expect("engines dir").flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    files(&path, out);
+                } else if path.extension().is_some_and(|e| e == "rs") {
+                    out.push(path);
+                }
+            }
+        }
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/engines");
+        let mut all = Vec::new();
+        files(&dir, &mut all);
+        assert!(all.len() >= 10, "found {} engine files", all.len());
+        let mut bad = Vec::new();
+        for path in all {
+            let src = std::fs::read_to_string(&path).expect("read");
+            for (n, line) in src.lines().enumerate() {
+                let mut rest = line;
+                while let Some(at) = rest.find("crate::") {
+                    let tail = &rest[at..];
+                    let quoted = rest[..at].ends_with('"');
+                    if !quoted && !ALLOWED.iter().any(|a| tail.starts_with(a)) {
+                        bad.push(format!("{}:{}: {}", path.display(), n + 1, line.trim()));
+                    }
+                    rest = &tail[7..];
+                }
+            }
+        }
+        assert!(
+            bad.is_empty(),
+            "engines reach outside their boundary:\n{}",
+            bad.join("\n")
+        );
+    }
+
     #[test]
     fn names_round_trip() {
         for &k in EngineKind::ALL {

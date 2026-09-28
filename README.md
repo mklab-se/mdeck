@@ -52,7 +52,10 @@ install in your document and nothing to learn beyond a handful of conventions.
 - **Ember.** A theme with a living field of glowing particles behind every
   slide that follows your content, tells stories you describe in English, and
   opens with a countdown. See [Ember](#ember) below.
-- **Your brand as a theme.** Eight built-in themes, and your own in a few
+- **Six engines.** The same slides on a particle field, an LED wall, a
+  departure board, under a laser or in falling blocks: one line,
+  `@engine: led`, switches. See [Engines](#engines).
+- **Your brand as a theme.** Twelve built-in themes, and your own in a few
   lines of YAML: colours, fonts, sizes and even the particle field, kept next
   to the deck or in your user folder. `mdeck theme new --from` turns a design
   system into one. See [Themes](#themes-and-transitions).
@@ -400,8 +403,10 @@ that avoid nodes and each other. Node icons can also be AI-generated.
 
 ### Themes and transitions
 
-Eight built-in themes: **light**, **dark**, **nord**, **ember**, and four
-seasons, **spring**, **summer**, **autumn** and **winter**. Transitions are
+Twelve built-in themes: **light**, **dark**, **nord**, **ember**, four
+seasons, **spring**, **summer**, **autumn** and **winter**, and a showcase
+theme for each engine, **marquee** (LED), **departures** (split-flap),
+**etch** (laser) and **stack** (blocks). Transitions are
 **slide**, **fade**, **spatial**, and **none**. Set them in the frontmatter or
 cycle them live with `Shift+T` and `T`. Every theme draws symbols (①, ✓, →) from
 bundled fallback faces, and Chinese, Japanese and Korean from a font on your

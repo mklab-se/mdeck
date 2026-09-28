@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- A test keeps engines inside their boundary: every file under `src/engines/` may use the
+  stage, the theme, the parsed slide and the shared render helpers, never the app, the
+  commands, the config or the CLI ([#16](https://github.com/mklab-se/mdeck/issues/16)). The
+  engine guide records why engines stay modules rather than crates.
+- `samples/introducing-mdeck.md` has a slide on the six engines.
+
+### Changed
+
+- README, GALLERY and the spec count twelve built-in themes and show every engine; the Ember
+  and Winter gallery stills are re-exported with the editorial text colours fixed in 1.9.0.
+
 ## [1.11.0] - 2026-09-28
 
 ### Added

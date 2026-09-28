@@ -209,3 +209,29 @@ scripts/engine-golden.sh old/mdeck target/release/mdeck
 It exports the sample decks with both binaries and names every image that
 differs. (`samples/ember/with-images.md` can differ from run to run with
 image loading; everything else must be identical.)
+
+## Why engines are modules, not crates
+
+The plan in [#16](https://github.com/mklab-se/mdeck/issues/16) left open
+whether each engine should become its own crate once the interface had
+settled. After four new engines on it (LED, split-flap, laser, blocks), the
+answer is no, for now:
+
+- **The interface held.** Adding the four engines changed the core twice:
+  the `board` capability (for an engine that draws the whole slide) and the
+  deck title and count on the `Stage`. Everything else was new files.
+- **A crate would not isolate much.** An engine uses the `Stage`, the
+  `Theme`, the parsed `Slide`, point clouds, hints and a few render helpers.
+  A shared `mdeck-core` crate would have to hold nearly all of MDeck, and
+  every engine crate would depend on it; the boundary would be the same one
+  the module already has.
+- **It would cost every release.** Each crate is published to crates.io in
+  dependency order, and the release workflow, the Homebrew formula and
+  `cargo install mdeck` all get more moving parts.
+
+The boundary is enforced instead: a test
+(`engines::tests::engines_stay_inside_their_boundary`) reads every file under
+`src/engines/` and fails if one reaches into the app, the commands, the
+config or the CLI. Each engine is also a cargo feature, so a build can leave
+any of them out. Revisit crates if engines ever come from outside this
+repository.
