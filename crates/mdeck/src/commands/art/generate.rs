@@ -342,7 +342,6 @@ mod tests {
     fn deck() -> Presentation {
         crate::parser::parse(
             "---\ntitle: Harbour\n@art: a Victorian harbour town that builds software\n---\n# Launch\n\nWe ship today\n\n# Why\n@art: a lighthouse keeper with a laptop\n\n- one\n\n???\nTell the story of the storm.\n",
-            Path::new("."),
         )
     }
 

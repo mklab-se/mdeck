@@ -68,12 +68,11 @@ pub fn slide_scene(slide: &Slide) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
 
     #[test]
     fn copy_slides_want_art_unless_they_say_none() {
         let md = "# Title\n\nA talk\n\n# Copy\n\n- one\n\n# No art\n@art: none\n\n- two\n\n# Code\n\n```rust\nfn main() {}\n```\n\n# Scene\n@art: a lighthouse at dawn\n\n- three\n";
-        let pres = crate::parser::parse(md, Path::new("."));
+        let pres = crate::parser::parse(md);
         let wants: Vec<bool> = pres.slides.iter().map(wants_art).collect();
         assert_eq!(wants, [true, true, false, false, true]);
         assert_eq!(slide_scene(&pres.slides[4]), Some("a lighthouse at dawn"));

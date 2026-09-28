@@ -131,10 +131,9 @@ fn strip_container(line: &str) -> (bool, &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
 
     fn warnings(md: &str) -> Vec<String> {
-        directive_warnings(&parser::parse(md, Path::new(".")))
+        directive_warnings(&parser::parse(md))
             .into_iter()
             .map(|w| format!("{}: {}", w.slide, w.message))
             .collect()

@@ -11,122 +11,109 @@
 /// - `None` — inferred: if there is exactly one H1, both H1 and H2 split (level 2);
 ///   if there are multiple H1s, only H1 splits (level 1).
 pub fn split(body: &str, slide_level: Option<u8>) -> Vec<String> {
-    // Phase 1: Replace explicit --- separators and blank-line gaps with a sentinel
-    let sentinel = "\x00SLIDE_BREAK\x00";
-
     // Normalize line endings
     let body = body.replace("\r\n", "\n");
-
-    // Split into lines first
-    let lines: Vec<String> = body.split('\n').map(String::from).collect();
+    let lines: Vec<&str> = body.split('\n').collect();
 
     // Determine effective slide level. When it is inferred (not set via
     // `@slide-level`), an H2 directly under an H1 is treated as a subtitle.
     let merge_subtitle = slide_level.is_none();
     let level = slide_level.unwrap_or_else(|| infer_slide_level(&lines));
 
-    // Process lines to detect separators (never inside fenced code blocks)
+    // Phases 1 and 2: mark `---` separators, then blank-line gaps, as breaks
+    let marked = mark_blank_gaps(&mark_dash_separators(&lines));
+
+    // Phase 3: Split at the breaks
+    let result = marked.join("\n");
+    let chunks = result.split(SLIDE_BREAK).map(str::trim);
+
+    // Phase 4: Apply heading-level splits within each chunk
+    let mut slides: Vec<String> = Vec::new();
+    for chunk in chunks.filter(|c| !c.is_empty()) {
+        split_by_heading_level(chunk, level, merge_subtitle, &mut slides);
+    }
+    slides
+}
+
+/// Stands in for a slide break between the splitting phases.
+const SLIDE_BREAK: &str = "\x00SLIDE_BREAK\x00";
+
+/// Phase 1: replace each `---` line that has blank lines on both sides (and
+/// is outside fenced code) with [`SLIDE_BREAK`], dropping those blank lines.
+fn mark_dash_separators<'a>(lines: &[&'a str]) -> Vec<&'a str> {
     let mut i = 0;
-    let mut output_lines: Vec<String> = Vec::new();
+    let mut output_lines: Vec<&str> = Vec::new();
     let mut fences = FenceTracker::new();
     while i < lines.len() {
-        let line = &lines[i];
+        let line = lines[i];
         let trimmed = line.trim();
         let in_fence = fences.observe(line);
 
         // Check for --- separator with blank lines around it
         if !in_fence && is_dash_separator(trimmed) {
-            // Check if previous line is blank and next line is blank
+            // Check if previous line is blank (or a break) and next line is blank
             let prev_blank = i == 0
                 || output_lines
                     .last()
-                    .is_some_and(|l: &String| l.trim().is_empty())
-                || (!output_lines.is_empty() && output_lines.last().is_some_and(|l| l == sentinel));
-            let next_blank =
-                i + 1 >= lines.len() || lines.get(i + 1).is_some_and(|l| l.trim().is_empty());
+                    .is_some_and(|l| l.trim().is_empty() || *l == SLIDE_BREAK);
+            let next_blank = lines.get(i + 1).is_none_or(|l| l.trim().is_empty());
 
             if prev_blank && next_blank {
                 // Remove trailing blank line from output if present
                 if output_lines.last().is_some_and(|l| l.trim().is_empty()) {
                     output_lines.pop();
                 }
-                output_lines.push(sentinel.to_string());
-                // Skip next blank line
-                if i + 1 < lines.len() && lines[i + 1].trim().is_empty() {
-                    i += 1;
-                }
-                i += 1;
+                output_lines.push(SLIDE_BREAK);
+                // Skip the separator and the blank line after it
+                i += 2;
                 continue;
             }
         }
 
-        output_lines.push(line.clone());
+        output_lines.push(line);
         i += 1;
     }
+    output_lines
+}
 
-    // Phase 2: Replace 3+ consecutive blank lines with sentinel
-    // (blank lines inside fenced code blocks never split)
-    let mut final_lines: Vec<String> = Vec::new();
+/// Phase 2: replace each run of 3+ blank lines with [`SLIDE_BREAK`]. Blank
+/// lines inside fenced code blocks never split.
+fn mark_blank_gaps<'a>(lines: &[&'a str]) -> Vec<&'a str> {
+    let mut final_lines: Vec<&str> = Vec::new();
     let mut blank_count = 0;
     let mut fences = FenceTracker::new();
-    for line in &output_lines {
-        if line == sentinel {
+    for &line in lines {
+        if line == SLIDE_BREAK || fences.observe(line) {
             blank_count = 0;
-            final_lines.push(line.clone());
-            continue;
-        }
-        if fences.observe(line) {
-            blank_count = 0;
-            final_lines.push(line.clone());
-            continue;
-        }
-        if line.trim().is_empty() {
+            final_lines.push(line);
+        } else if line.trim().is_empty() {
             blank_count += 1;
             if blank_count < 3 {
-                final_lines.push(line.clone());
+                final_lines.push(line);
             } else if blank_count == 3 {
                 // Remove the 2 blank lines we already added
                 final_lines.pop();
                 final_lines.pop();
-                final_lines.push(sentinel.to_string());
+                final_lines.push(SLIDE_BREAK);
             }
             // else: more blank lines, skip them
         } else {
             blank_count = 0;
-            final_lines.push(line.clone());
+            final_lines.push(line);
         }
     }
-
-    // Rejoin into a string
-    let result = final_lines.join("\n");
-
-    // Phase 3: Split by sentinel
-    let chunks: Vec<String> = result
-        .split(sentinel)
-        .map(|s| s.trim().to_string())
-        .collect();
-
-    // Phase 4: Apply heading-level splits within each chunk
-    let mut slides: Vec<String> = Vec::new();
-    for chunk in chunks {
-        if chunk.is_empty() {
-            continue;
-        }
-        split_by_heading_level(&chunk, level, merge_subtitle, &mut slides);
-    }
-
-    slides
+    final_lines
 }
 
 /// Infer the slide level from the document content.
 /// If there is exactly one H1 heading, infer level 2 (H1 + H2 both split).
 /// If there are multiple H1 headings, infer level 1 (only H1 splits).
 /// If there are no H1 headings, infer level 2 so H2 headings can split.
-fn infer_slide_level(lines: &[String]) -> u8 {
+fn infer_slide_level(lines: &[&str]) -> u8 {
     let mut h1_count = 0u32;
     let mut fences = FenceTracker::new();
 
-    for line in lines {
+    for &line in lines {
         if !fences.observe(line) && line.starts_with("# ") {
             h1_count += 1;
         }
@@ -312,6 +299,28 @@ fn is_directive(line: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dash_separators_need_blank_lines_around_them() {
+        let marked = mark_dash_separators(&["a", "", "---", "", "b", "---", "c", "", "---"]);
+        assert_eq!(marked, ["a", SLIDE_BREAK, "b", "---", "c", SLIDE_BREAK]);
+        // A separator right after a break, and one in a fence, stay put
+        let marked = mark_dash_separators(&["---", "", "---", "", "```", "", "---", "", "```"]);
+        assert_eq!(
+            marked,
+            [SLIDE_BREAK, SLIDE_BREAK, "```", "", "---", "", "```"]
+        );
+    }
+
+    #[test]
+    fn three_blank_lines_make_one_break() {
+        let marked = mark_blank_gaps(&["a", "", "", "", "", "b", "", "", "c"]);
+        assert_eq!(marked, ["a", SLIDE_BREAK, "b", "", "", "c"]);
+        let fenced = ["```", "", "", "", "```"];
+        assert_eq!(mark_blank_gaps(&fenced), fenced);
+        let marked = mark_blank_gaps(&["a", "", SLIDE_BREAK, "", "", "", "b"]);
+        assert_eq!(marked, ["a", "", SLIDE_BREAK, SLIDE_BREAK, "b"]);
+    }
 
     #[test]
     fn test_blank_line_split() {

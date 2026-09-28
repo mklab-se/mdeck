@@ -1,345 +1,63 @@
 pub mod blocks;
+mod directives;
 pub mod frontmatter;
 pub mod inline;
+mod layout;
 mod math;
+mod model;
+mod notes;
 pub mod splitter;
+mod text;
 
-use std::path::Path;
+pub use directives::{GLOBAL_DIRECTIVES, SLIDE_DIRECTIVES, directive, is_known_directive};
+pub use layout::Layout;
+pub use model::{
+    Block, Chart, Directive, ImageDirectives, Inline, ListItem, ListMarker, Presentation,
+    PresentationMeta, Slide,
+};
+pub use text::inlines_to_text;
 
-#[derive(Debug, Clone)]
-pub struct Presentation {
-    pub meta: PresentationMeta,
-    pub slides: Vec<Slide>,
-}
+use layout::classify_layout;
+use notes::extract_notes;
 
-#[derive(Debug, Clone, Default)]
-pub struct PresentationMeta {
-    pub title: Option<String>,
-    pub author: Option<String>,
-    pub date: Option<String>,
-    pub theme: Option<String>,
-    pub transition: Option<String>,
-    pub aspect: Option<String>,
-    pub code_theme: Option<String>,
-    pub footer: Option<String>,
-    pub image_style: Option<String>,
-    pub icon_style: Option<String>,
-    pub slide_level: Option<u8>,
-    /// Deck-level hint for AI story generation (`@story` in the frontmatter):
-    /// tone, cast, anything that should hold across slides.
-    pub story: Option<String>,
-    /// `@countdown: false` turns off the opening countdown (Ember and Nord).
-    pub countdown: Option<bool>,
-    /// `@engine`: run the deck on this engine instead of the theme's.
-    pub engine: Option<String>,
-    /// `@logo`: a PNG or SVG shown on every slide (`none` hides a theme's logo).
-    pub logo: Option<String>,
-    /// `@logo-position`: top-left, top-right, bottom-left or bottom-right.
-    pub logo_position: Option<String>,
-    /// `@logo-opacity`: 0 to 1, or a percentage.
-    pub logo_opacity: Option<String>,
-    /// `@logo-height`: height in px on a 1920x1080 slide.
-    pub logo_height: Option<String>,
-    /// `@art` in the frontmatter: the deck's world for generated art
-    /// (setting, era, recurring characters).
-    pub art: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Slide {
-    pub directives: Vec<Directive>,
-    pub blocks: Vec<Block>,
-    pub layout: Layout,
-    /// The original raw markdown source text for this slide.
-    pub raw_source: String,
-    /// Speaker notes for this slide (content after `???` separator).
-    pub notes: Option<String>,
-    /// English hint for AI story generation (a ```@story fence).
-    pub story_hint: Option<String>,
-    /// Hand-written scene script in YAML (a ```@scene fence).
-    pub scene_script: Option<String>,
-    /// Name of the point cloud illustration for this slide (`@illustration`).
-    pub illustration: Option<String>,
-    /// This slide's `@logo`: a PNG or SVG path, or `none` to hide the logo here.
-    pub logo: Option<String>,
-    /// This slide's `@art`: the scene to draw, or `none` for no art here.
-    pub art: Option<String>,
-}
-
-impl Slide {
-    /// The plain text of the slide's first heading.
-    pub fn title(&self) -> Option<String> {
-        self.blocks.iter().find_map(|b| match b {
-            Block::Heading { inlines, .. } => Some(
-                inlines
-                    .iter()
-                    .filter_map(|i| match i {
-                        Inline::Text(s) => Some(s.as_str()),
-                        _ => None,
-                    })
-                    .collect::<String>(),
-            ),
-            _ => None,
-        })
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Directive {
-    pub name: String,
-    pub value: String,
-}
-
-#[derive(Debug, Clone)]
-#[allow(clippy::enum_variant_names)]
-pub enum Block {
-    Heading {
-        level: u8,
-        inlines: Vec<Inline>,
-    },
-    Paragraph {
-        inlines: Vec<Inline>,
-    },
-    List {
-        ordered: bool,
-        items: Vec<ListItem>,
-    },
-    Image {
-        alt: String,
-        path: String,
-        directives: ImageDirectives,
-    },
-    CodeBlock {
-        language: Option<String>,
-        code: String,
-        highlight_lines: Vec<usize>,
-    },
-    BlockQuote {
-        inlines: Vec<Inline>,
-    },
-    Table {
-        headers: Vec<Vec<Inline>>,
-        rows: Vec<Vec<Vec<Inline>>>,
-    },
-    HorizontalRule,
-    Diagram {
-        content: String,
-    },
-    /// A ```@chart fence: one of the [`Chart`] visualizations.
-    Chart {
-        kind: Chart,
-        content: String,
-    },
-    /// ```@story fence: an English hint for the AI story generator. Removed
-    /// from the slide's blocks at parse time (see [`Slide::story_hint`]).
-    StoryHint {
-        content: String,
-    },
-    /// ```@scene fence: a hand-written scene script. Removed from the slide's
-    /// blocks at parse time (see [`Slide::scene_script`]).
-    SceneScript {
-        content: String,
-    },
-    ColumnSeparator,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct ImageDirectives {
-    pub width: Option<String>,
-    pub height: Option<String>,
-    pub fill: bool,
-    pub fit: bool,
-    pub align: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-#[allow(clippy::enum_variant_names)]
-pub enum Inline {
-    Text(String),
-    Bold(Vec<Inline>),
-    Italic(Vec<Inline>),
-    Strikethrough(Vec<Inline>),
-    Code(String),
-    /// LaTeX math: `$...$` inline, `$$...$$` display.
-    Math {
-        tex: String,
-        display: bool,
-    },
-    Link {
-        text: Vec<Inline>,
-        #[cfg_attr(
-            not(test),
-            expect(
-                dead_code,
-                reason = "slides draw link text only; the target is kept in the document model"
-            )
-        )]
-        url: String,
-    },
-}
-
-/// The visualizations a fenced block can hold, named by the fence's tag.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Chart {
-    WordCloud,
-    Timeline,
-    Pie,
-    Bar,
-    Line,
-    Donut,
-    KpiCards,
-    Funnel,
-    Radar,
-    StackedBar,
-    VennDiagram,
-    ProgressBars,
-    ScatterPlot,
-    Org,
-    Gantt,
-    GitGraph,
-}
-
-impl Chart {
-    /// Fence tags and their charts. A fence matches the first tag its info
-    /// string starts with (`@donut` also covers `@donutchart`).
-    pub const TAGS: &[(&str, Chart)] = &[
-        ("@wordcloud", Chart::WordCloud),
-        ("@timeline", Chart::Timeline),
-        ("@piechart", Chart::Pie),
-        ("@barchart", Chart::Bar),
-        ("@linechart", Chart::Line),
-        ("@donut", Chart::Donut),
-        ("@kpi", Chart::KpiCards),
-        ("@funnel", Chart::Funnel),
-        ("@radar", Chart::Radar),
-        ("@stackedbar", Chart::StackedBar),
-        ("@venn", Chart::VennDiagram),
-        ("@progress", Chart::ProgressBars),
-        ("@scatter", Chart::ScatterPlot),
-        ("@orgchart", Chart::Org),
-        ("@gantt", Chart::Gantt),
-        ("@gitgraph", Chart::GitGraph),
-    ];
-
-    /// The chart a fence info string (```` ```@barchart ````) names.
-    pub fn from_info(info: &str) -> Option<Chart> {
-        Self::TAGS
-            .iter()
-            .find(|(tag, _)| info.starts_with(tag))
-            .map(|&(_, chart)| chart)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ListItem {
-    pub marker: ListMarker,
-    pub inlines: Vec<Inline>,
-    pub children: Vec<ListItem>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ListMarker {
-    Static,
-    NextStep,
-    WithPrev,
-    Ordered,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Layout {
-    Title,
-    Section,
-    Image,
-    Gallery,
-    Quote,
-    Code,
-    Bullet,
-    Diagram,
-    Visualization,
-    TwoColumn,
-    Content,
-}
-
-/// Directives that apply to the slide they are written in. These are honoured
-/// anywhere at the top level of a slide, not only at its start.
-pub const SLIDE_DIRECTIVES: &[&str] = &[
-    "layout",
-    "illustration",
-    "logo",
-    "art",
-    "background",
-    "class",
-];
-
-/// Directives that only mean something in the frontmatter. Written inside a
-/// slide they are removed from its content and ignored (`--check` says so).
-pub const GLOBAL_DIRECTIVES: &[&str] = &[
-    "theme",
-    "engine",
-    "transition",
-    "aspect",
-    "code-theme",
-    "footer",
-    "image-style",
-    "icon-style",
-    "slide-level",
-    "story",
-    "countdown",
-    "logo-position",
-    "logo-opacity",
-    "logo-height",
-];
-
-/// A directive name mdeck knows, at slide or deck scope.
-pub fn is_known_directive(name: &str) -> bool {
-    SLIDE_DIRECTIVES.contains(&name) || GLOBAL_DIRECTIVES.contains(&name)
-}
-
-/// The value of the slide directive `name`; when it is written twice, the last wins.
-pub fn directive<'a>(directives: &'a [Directive], name: &str) -> Option<&'a str> {
-    directives
-        .iter()
-        .rev()
-        .find(|d| d.name == name)
-        .map(|d| d.value.as_str())
-}
-
-pub fn parse(content: &str, _base_path: &Path) -> Presentation {
+pub fn parse(content: &str) -> Presentation {
     let (meta, body) = frontmatter::extract(content);
-    let raw_slides = splitter::split(&body, meta.slide_level);
-    let slides: Vec<Slide> = raw_slides
+    let slides: Vec<Slide> = splitter::split(&body, meta.slide_level)
         .into_iter()
         .filter(|raw| !raw.trim().is_empty())
-        .map(|raw| {
-            let raw_source = raw.clone();
-            let (content_part, notes) = extract_notes(&raw);
-            let (directives, content) = blocks::extract_directives(&content_part);
-            let (blocks, story_hint, scene_script) = take_story_blocks(blocks::parse(&content));
-            let layout = classify_layout(&directives, &blocks);
-            let illustration = directive(&directives, "illustration")
-                .map(|v| v.trim().to_lowercase())
-                .filter(|v| !v.is_empty());
-            let logo = directive(&directives, "logo")
-                .map(|v| v.trim().to_string())
-                .filter(|v| !v.is_empty());
-            let art = directive(&directives, "art")
-                .map(|v| v.trim().to_string())
-                .filter(|v| !v.is_empty());
-            Slide {
-                directives,
-                blocks,
-                layout,
-                raw_source,
-                notes,
-                story_hint,
-                scene_script,
-                illustration,
-                logo,
-                art,
-            }
-        })
+        .map(parse_slide)
         .collect();
     Presentation { meta, slides }
+}
+
+/// Parse one raw slide from the splitter: notes, directives, blocks, layout.
+fn parse_slide(raw: String) -> Slide {
+    let (content_part, notes) = extract_notes(&raw);
+    let (directives, content) = blocks::extract_directives(&content_part);
+    let (blocks, story_hint, scene_script) = take_story_blocks(blocks::parse(&content));
+    let layout = classify_layout(&directives, &blocks);
+    let illustration = trimmed_directive(&directives, "illustration").map(|v| v.to_lowercase());
+    let logo = trimmed_directive(&directives, "logo").map(str::to_string);
+    let art = trimmed_directive(&directives, "art").map(str::to_string);
+    Slide {
+        directives,
+        blocks,
+        layout,
+        raw_source: raw,
+        notes,
+        story_hint,
+        scene_script,
+        illustration,
+        logo,
+        art,
+    }
+}
+
+/// The trimmed value of the slide directive `name`, unless it is empty.
+fn trimmed_directive<'a>(directives: &'a [Directive], name: &str) -> Option<&'a str> {
+    directive(directives, name)
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
 }
 
 /// Pull the story authoring fences out of a slide's blocks so they never
@@ -368,177 +86,6 @@ fn take_story_blocks(blocks: Vec<Block>) -> (Vec<Block>, Option<String>, Option<
     (rest, hint.filter(|h| !h.is_empty()), script)
 }
 
-/// Extract speaker notes from a raw slide string.
-///
-/// Notes are separated from slide content by a `???` line (three or more `?` characters).
-/// The `???` separator is ignored inside fenced code blocks.
-/// Returns `(content, Some(notes))` if a notes separator was found, or `(original, None)`.
-fn extract_notes(raw: &str) -> (String, Option<String>) {
-    let mut fences = splitter::FenceTracker::new();
-
-    let lines: Vec<&str> = raw.lines().collect();
-    for (i, line) in lines.iter().enumerate() {
-        let trimmed = line.trim();
-        let in_code_fence = fences.observe(line);
-
-        // Check for notes separator (??? with 3+ question marks, outside code blocks)
-        if !in_code_fence && trimmed.len() >= 3 && trimmed.chars().all(|c| c == '?') {
-            let content = lines[..i].join("\n");
-            let notes_text = if i + 1 < lines.len() {
-                lines[i + 1..].join("\n").trim().to_string()
-            } else {
-                String::new()
-            };
-            let notes = if notes_text.is_empty() {
-                None
-            } else {
-                Some(notes_text)
-            };
-            return (content, notes);
-        }
-    }
-
-    (raw.to_string(), None)
-}
-
-fn classify_layout(directives: &[Directive], blocks: &[Block]) -> Layout {
-    // Check for explicit @layout directive (the last one wins)
-    if let Some(value) = directive(directives, "layout") {
-        return match value {
-            "title" => Layout::Title,
-            "section" => Layout::Section,
-            "image" => Layout::Image,
-            "gallery" => Layout::Gallery,
-            "quote" => Layout::Quote,
-            "code" => Layout::Code,
-            "bullets" | "bullet" => Layout::Bullet,
-            "diagram" | "architecture" => Layout::Diagram,
-            "visualization" => Layout::Visualization,
-            "two-column" => Layout::TwoColumn,
-            _ => Layout::Content,
-        };
-    }
-
-    // Count element types
-    let mut headings: Vec<u8> = Vec::new();
-    let mut paragraphs = 0;
-    let mut lists = 0;
-    let mut images = 0;
-    let mut code_blocks = 0;
-    let mut quotes = 0;
-    let mut diagrams = 0;
-    let mut visualizations = 0;
-    let mut tables = 0;
-    let mut column_separators = 0;
-
-    for block in blocks {
-        match block {
-            Block::Heading { level, .. } => headings.push(*level),
-            Block::Paragraph { .. } => paragraphs += 1,
-            Block::List { .. } => lists += 1,
-            Block::Image { .. } => images += 1,
-            Block::CodeBlock { .. } => code_blocks += 1,
-            Block::BlockQuote { .. } => quotes += 1,
-            Block::Diagram { .. } => diagrams += 1,
-            // authoring fences are stripped before classification
-            Block::StoryHint { .. } | Block::SceneScript { .. } => {}
-            Block::Chart { .. } => visualizations += 1,
-            Block::Table { .. } => tables += 1,
-            Block::ColumnSeparator => column_separators += 1,
-            Block::HorizontalRule => {}
-        }
-    }
-
-    let total = blocks.len();
-
-    // 1. Diagram / Visualization
-    if diagrams > 0 {
-        return Layout::Diagram;
-    }
-    if visualizations > 0 {
-        return Layout::Visualization;
-    }
-
-    // 2. Two-column (has column separator)
-    if column_separators > 0 {
-        return Layout::TwoColumn;
-    }
-
-    // 3. Title: H1 + optional (H2 or short P), nothing else
-    let h1_count = headings.iter().filter(|&&h| h == 1).count();
-    if h1_count == 1 && headings.len() <= 2 {
-        let others = total - 1;
-        if others == 0 {
-            // Just H1 — could be section or title
-            // If it's a lone H1, it's a section divider
-            return Layout::Section;
-        }
-        if others == 1 {
-            // Check if the other element is H2 or short paragraph
-            for block in blocks {
-                match block {
-                    Block::Heading { level: 2, .. } => return Layout::Title,
-                    Block::Paragraph { inlines } => {
-                        let text_len: usize = inlines.iter().map(inline_text_len).sum();
-                        if text_len < 120 {
-                            return Layout::Title;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    // 4. Section divider: single heading, nothing else
-    if headings.len() == 1
-        && paragraphs == 0
-        && lists == 0
-        && images == 0
-        && code_blocks == 0
-        && quotes == 0
-        && tables == 0
-    {
-        return Layout::Section;
-    }
-
-    // 5. Image slide: single image, optional heading, optional short caption
-    if images == 1 && lists == 0 && code_blocks == 0 && quotes == 0 && tables == 0 {
-        let other = total - images - headings.len();
-        if other <= 1 {
-            return Layout::Image;
-        }
-    }
-
-    // 6. Gallery: 2+ images
-    if images >= 2
-        && lists == 0
-        && code_blocks == 0
-        && quotes == 0
-        && paragraphs == 0
-        && tables == 0
-    {
-        return Layout::Gallery;
-    }
-
-    // 7. Quote slide (allow one image for side-panel rendering)
-    if quotes > 0 && lists == 0 && code_blocks == 0 && images <= 1 && tables == 0 {
-        return Layout::Quote;
-    }
-
-    // 8. Code slide (allow one image for side-panel rendering)
-    if code_blocks > 0 && lists == 0 && images <= 1 && quotes == 0 && tables == 0 {
-        return Layout::Code;
-    }
-
-    // 9. Bullet slide: heading + list (allow one image for side-panel rendering)
-    if !headings.is_empty() && lists > 0 && code_blocks == 0 && images <= 1 && quotes == 0 {
-        return Layout::Bullet;
-    }
-
-    Layout::Content
-}
-
 /// Count the maximum number of reveal steps in a slide's blocks.
 /// Each `+` (NextStep) marker in any list or diagram counts as one step.
 pub fn compute_max_steps(blocks: &[Block]) -> usize {
@@ -565,60 +112,24 @@ fn count_next_steps(items: &[ListItem]) -> usize {
     count
 }
 
-/// Extract plain text from inline elements.
-pub fn inlines_to_text(inlines: &[Inline]) -> String {
-    let mut text = String::new();
-    for inline in inlines {
-        match inline {
-            Inline::Text(s) => text.push_str(s),
-            Inline::Bold(children) | Inline::Italic(children) | Inline::Strikethrough(children) => {
-                text.push_str(&inlines_to_text(children));
-            }
-            Inline::Code(s) => text.push_str(s),
-            Inline::Link { text: t, .. } => text.push_str(&inlines_to_text(t)),
-            Inline::Math { tex, .. } => text.push_str(tex),
-        }
-    }
-    text
-}
-
-/// Visible length of an inline in characters (not bytes), so CJK and other
-/// multibyte text is measured the same way as ASCII.
-fn inline_text_len(inline: &Inline) -> usize {
-    match inline {
-        Inline::Text(s) => s.chars().count(),
-        Inline::Bold(children) | Inline::Italic(children) | Inline::Strikethrough(children) => {
-            children.iter().map(inline_text_len).sum()
-        }
-        Inline::Code(s) => s.chars().count(),
-        Inline::Link { text, .. } => text.iter().map(inline_text_len).sum(),
-        // roughly what the formula occupies on the line
-        Inline::Math { tex, .. } => tex.chars().count().div_ceil(2),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn illustration_directive_names_a_cloud() {
-        let p = parse(
-            "@illustration: Server-Rack\n\n# Title\n\n- one\n\n---\n\n# Plain\n",
-            Path::new("."),
-        );
+        let p = parse("@illustration: Server-Rack\n\n# Title\n\n- one\n\n---\n\n# Plain\n");
         assert_eq!(p.slides[0].illustration.as_deref(), Some("server-rack"));
         assert!(p.slides[1].illustration.is_none());
-        let empty = parse("@illustration:\n\n# T\n", Path::new("."));
+        let empty = parse("@illustration:\n\n# T\n");
         assert!(empty.slides[0].illustration.is_none());
     }
-    use std::path::Path;
 
     #[test]
     fn slide_directives_work_under_the_heading() {
         // #12: a heading-split slide with the directive where people write it.
         let md = "# First\n\n- one\n\n# Second\n@illustration: account\n\n- two\n";
-        let pres = parse(md, Path::new("."));
+        let pres = parse(md);
         assert_eq!(pres.slides.len(), 2);
         let s = &pres.slides[1];
         assert_eq!(s.illustration.as_deref(), Some("account"));
@@ -632,7 +143,7 @@ mod tests {
 
         // Anywhere at the top level, with a blank line or not; the last one wins.
         let md = "# A\n\nIntro\n\n@layout: two-column\n\nLeft\n\n+++\n\nRight\n@logo: none\n@layout: content\n";
-        let s = &parse(md, Path::new(".")).slides[0];
+        let s = &parse(md).slides[0];
         assert!(matches!(s.layout, Layout::Content), "{:?}", s.layout);
         assert_eq!(s.logo.as_deref(), Some("none"));
         assert!(
@@ -647,7 +158,7 @@ mod tests {
             "# First\n\n- one\n\n@illustration: account\n# Second\n\n- two\n",
             "# First\n\n- one\n\n---\n\n@illustration: account\n\n# Second\n\n- two\n",
         ] {
-            let pres = parse(md, Path::new("."));
+            let pres = parse(md);
             assert_eq!(
                 pres.slides[1].illustration.as_deref(),
                 Some("account"),
@@ -661,7 +172,7 @@ mod tests {
     fn unknown_and_nested_directives_stay_text() {
         let md =
             "# A\n\n@team: see you at five\n\n- @layout: code\n\n```text\n@layout: code\n```\n";
-        let s = &parse(md, Path::new(".")).slides[0];
+        let s = &parse(md).slides[0];
         assert!(s.directives.is_empty(), "{:?}", s.directives);
         assert!(matches!(&s.blocks[1], Block::Paragraph { inlines }
             if inlines_to_text(inlines) == "@team: see you at five"));
@@ -670,7 +181,7 @@ mod tests {
     #[test]
     fn test_poker_night_parses() {
         let content = include_str!("../../../../samples/poker-night.md");
-        let pres = parse(content, Path::new("."));
+        let pres = parse(content);
         assert_eq!(pres.meta.theme.as_deref(), Some("dark"));
         assert_eq!(pres.meta.transition.as_deref(), Some("slide"));
         assert!(
@@ -684,7 +195,7 @@ mod tests {
     #[test]
     fn test_saloon_workshop_parses() {
         let content = include_str!("../../../../samples/saloon-workshop.md");
-        let pres = parse(content, Path::new("."));
+        let pres = parse(content);
         assert_eq!(pres.meta.theme.as_deref(), Some("light"));
         assert_eq!(pres.meta.transition.as_deref(), Some("fade"));
         assert_eq!(
@@ -700,319 +211,30 @@ mod tests {
     }
 
     #[test]
-    fn test_title_slide_layout() {
-        let content = "# Hello World\n\nA subtitle here";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(matches!(pres.slides[0].layout, Layout::Title));
-    }
-
-    #[test]
-    fn test_section_layout() {
-        let content = "## Part One";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(matches!(pres.slides[0].layout, Layout::Section));
-    }
-
-    #[test]
-    fn test_bullet_layout() {
-        let content = "# Key Points\n\n- First\n- Second\n- Third";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(matches!(pres.slides[0].layout, Layout::Bullet));
-    }
-
-    #[test]
-    fn test_quote_layout() {
-        let content = "> Something wise\n\n-- Author";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(matches!(pres.slides[0].layout, Layout::Quote));
-    }
-
-    #[test]
-    fn test_code_layout() {
-        let content = "# Example\n\n```rust\nfn main() {}\n```";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(matches!(pres.slides[0].layout, Layout::Code));
-    }
-
-    #[test]
-    fn test_two_column_layout() {
-        let content = "@layout: two-column\n\n# Compare\n\nLeft side\n\n+++\n\nRight side";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(matches!(pres.slides[0].layout, Layout::TwoColumn));
-    }
-
-    #[test]
-    fn test_image_layout() {
-        let content = "![Photo @fill](photo.jpg)\n\nA caption";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(matches!(pres.slides[0].layout, Layout::Image));
-    }
-
-    #[test]
     fn test_multiple_slides() {
         let content = "# Slide One\n\nContent\n\n\n\n# Slide Two\n\nMore content";
-        let pres = parse(content, Path::new("."));
+        let pres = parse(content);
         assert_eq!(pres.slides.len(), 2);
     }
 
     #[test]
     fn test_slide_separator_dashes() {
         let content = "# Slide One\n\n---\n\n# Slide Two";
-        let pres = parse(content, Path::new("."));
+        let pres = parse(content);
         assert_eq!(pres.slides.len(), 2);
     }
 
     #[test]
     fn test_heading_inference() {
         let content = "# First\n\nSome content\n\n# Second\n\nMore content";
-        let pres = parse(content, Path::new("."));
+        let pres = parse(content);
         assert_eq!(pres.slides.len(), 2);
-    }
-
-    // --- Speaker Notes Tests ---
-
-    #[test]
-    fn test_notes_basic() {
-        let content = "# My Slide\n\n- Point one\n- Point two\n\n???\n\nThis is the speaker note.";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert_eq!(
-            pres.slides[0].notes.as_deref(),
-            Some("This is the speaker note.")
-        );
-        // Blocks should NOT contain notes content
-        assert!(matches!(pres.slides[0].layout, Layout::Bullet));
-    }
-
-    #[test]
-    fn test_notes_none() {
-        let content = "# Simple Slide\n\nJust content, no notes.";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(pres.slides[0].notes.is_none());
-    }
-
-    #[test]
-    fn test_notes_multiline_with_formatting() {
-        let content =
-            "# Slide\n\n???\n\nFirst line of notes.\n\nSecond paragraph with **bold** text.";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert_eq!(
-            pres.slides[0].notes.as_deref(),
-            Some("First line of notes.\n\nSecond paragraph with **bold** text.")
-        );
-    }
-
-    #[test]
-    fn test_notes_inside_code_block_ignored() {
-        let content = "# Slide\n\n```\n???\nsome code\n```\n\nParagraph after code.";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(
-            pres.slides[0].notes.is_none(),
-            "??? inside code block should not be treated as notes separator"
-        );
-    }
-
-    #[test]
-    fn test_notes_four_question_marks() {
-        let content = "# Slide\n\n????\n\nNotes with four question marks.";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert_eq!(
-            pres.slides[0].notes.as_deref(),
-            Some("Notes with four question marks.")
-        );
-    }
-
-    #[test]
-    fn test_notes_separator_as_first_line() {
-        let content = "???\n\nOnly notes, no visible content.";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert_eq!(
-            pres.slides[0].notes.as_deref(),
-            Some("Only notes, no visible content.")
-        );
-        assert!(pres.slides[0].blocks.is_empty());
-    }
-
-    #[test]
-    fn test_notes_empty_after_separator() {
-        let content = "# Slide\n\n???";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        // Empty notes after separator → None
-        assert!(pres.slides[0].notes.is_none());
-    }
-
-    #[test]
-    fn test_notes_across_multiple_slides() {
-        let content =
-            "# Slide 1\n\n???\n\nNotes for slide 1\n\n---\n\n# Slide 2\n\n???\n\nNotes for slide 2";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 2);
-        assert_eq!(pres.slides[0].notes.as_deref(), Some("Notes for slide 1"));
-        assert_eq!(pres.slides[1].notes.as_deref(), Some("Notes for slide 2"));
-    }
-
-    #[test]
-    fn test_notes_layout_unaffected() {
-        // Notes content should not affect layout classification
-        let content =
-            "# Title\n\nSubtitle\n\n???\n\n- This list in notes should not make it a Bullet layout";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(
-            matches!(pres.slides[0].layout, Layout::Title),
-            "Layout should be Title, got {:?}",
-            pres.slides[0].layout
-        );
-    }
-
-    #[test]
-    fn test_notes_existing_samples_regression() {
-        // Existing presentations should have no notes (no ??? separators)
-        let content = include_str!("../../../../samples/poker-night.md");
-        let pres = parse(content, Path::new("."));
-        for (i, slide) in pres.slides.iter().enumerate() {
-            assert!(
-                slide.notes.is_none(),
-                "Slide {} in poker-night.md should have no notes",
-                i
-            );
-        }
-    }
-
-    #[test]
-    fn test_notes_inside_tilde_code_block_ignored() {
-        let content = "# Slide\n\n~~~\n???\nsome code\n~~~\n\nParagraph after code.";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(
-            pres.slides[0].notes.is_none(),
-            "??? inside tilde code block should not be treated as notes separator"
-        );
-    }
-
-    #[test]
-    fn test_notes_only_first_separator_counts() {
-        let content = "# Slide\n\n???\n\nFirst notes section\n\n???\n\nSecond section";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        // Only the first ??? should split — everything after it is notes
-        let notes = pres.slides[0].notes.as_deref().unwrap();
-        assert!(notes.contains("First notes section"));
-        assert!(notes.contains("???"));
-        assert!(notes.contains("Second section"));
-    }
-
-    #[test]
-    fn test_notes_separator_with_whitespace() {
-        let content = "# Slide\n\n   ???   \n\nNotes with whitespace separator.";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert_eq!(
-            pres.slides[0].notes.as_deref(),
-            Some("Notes with whitespace separator.")
-        );
-    }
-
-    #[test]
-    fn test_notes_separator_with_mixed_content_not_separator() {
-        // "??? some text" should NOT be a notes separator — it has non-? chars
-        let content = "# Slide\n\n??? some text here\n\nMore content.";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(
-            pres.slides[0].notes.is_none(),
-            "??? followed by text should not be a notes separator"
-        );
-    }
-
-    #[test]
-    fn test_notes_two_question_marks_not_separator() {
-        let content = "# Slide\n\n??\n\nNot notes.";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(
-            pres.slides[0].notes.is_none(),
-            "?? (only 2 marks) should not trigger notes separator"
-        );
-    }
-
-    #[test]
-    fn test_notes_with_directives() {
-        // Directives should still work when notes are present
-        let content = "@layout: code\n# Code Example\n\n```rust\nfn main() {}\n```\n\n???\n\nExplain that this is a minimal Rust program.";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(
-            matches!(pres.slides[0].layout, Layout::Code),
-            "Layout should be Code when @layout directive is present, got {:?}",
-            pres.slides[0].layout
-        );
-        assert_eq!(
-            pres.slides[0].notes.as_deref(),
-            Some("Explain that this is a minimal Rust program.")
-        );
-    }
-
-    #[test]
-    fn test_inline_text_len_counts_chars_not_bytes() {
-        // 40 CJK characters are 120 bytes but only 40 characters — still a
-        // short subtitle, so H1 + short paragraph is a Title slide.
-        let subtitle = "漢".repeat(40);
-        let content = format!("# タイトル\n\n{subtitle}");
-        let pres = parse(&content, Path::new("."));
-        assert_eq!(pres.slides.len(), 1);
-        assert!(
-            matches!(pres.slides[0].layout, Layout::Title),
-            "got {:?}",
-            pres.slides[0].layout
-        );
-        let len: usize = match &pres.slides[0].blocks[1] {
-            Block::Paragraph { inlines } => inlines.iter().map(inline_text_len).sum(),
-            other => panic!("expected paragraph, got {other:?}"),
-        };
-        assert_eq!(len, 40);
-    }
-
-    #[test]
-    fn test_h1_h2_title_slide_end_to_end() {
-        let content = "# Big Title\n\n## Subtitle\n\n## Section\n\n- a\n- b";
-        let pres = parse(content, Path::new("."));
-        assert_eq!(pres.slides.len(), 2);
-        assert!(matches!(pres.slides[0].layout, Layout::Title));
-        assert!(matches!(pres.slides[1].layout, Layout::Bullet));
-    }
-
-    #[test]
-    fn test_h1_h2_blocks_classify_as_title() {
-        let blocks = blocks::parse("# Title\n\n## Subtitle");
-        assert!(matches!(classify_layout(&[], &blocks), Layout::Title));
-        // H1 + H3, or H1 + H2 + more content, are not title slides
-        let blocks = blocks::parse("# Title\n\n### Deep");
-        assert!(!matches!(classify_layout(&[], &blocks), Layout::Title));
-        let blocks = blocks::parse("# Title\n\n## Subtitle\n\nA paragraph");
-        assert!(!matches!(classify_layout(&[], &blocks), Layout::Title));
-        // Lone H1 remains a section
-        let blocks = blocks::parse("# Title");
-        assert!(matches!(classify_layout(&[], &blocks), Layout::Section));
     }
 
     #[test]
     fn test_crlf_document_end_to_end() {
         let content = "---\r\ntitle: \"CRLF\"\r\n@theme: dark\r\n---\r\n\r\n# One\r\n\r\n- a\r\n- b\r\n\r\n---\r\n\r\n# Two\r\n\r\nText\r\n";
-        let pres = parse(content, Path::new("."));
+        let pres = parse(content);
         assert_eq!(pres.meta.title.as_deref(), Some("CRLF"));
         assert_eq!(pres.meta.theme.as_deref(), Some("dark"));
         assert_eq!(pres.slides.len(), 2, "{:?}", pres.slides);
@@ -1021,21 +243,17 @@ mod tests {
     }
 
     #[test]
-    fn test_notes_sample_presentation_parses() {
-        let content = include_str!("../../../../samples/features/notes.md");
-        let pres = parse(content, Path::new("."));
-        assert!(
-            pres.slides.len() >= 5,
-            "Expected at least 5 slides in notes sample, got {}",
-            pres.slides.len()
-        );
-        // Every slide in the notes sample should have notes
-        for (i, slide) in pres.slides.iter().enumerate() {
-            assert!(
-                slide.notes.is_some(),
-                "Slide {} in notes.md should have notes",
-                i
-            );
-        }
+    fn trimmed_directive_skips_blank_values() {
+        let (dirs, _) = blocks::extract_directives("@logo:   brand.svg  \n@art:   \n# A");
+        assert_eq!(trimmed_directive(&dirs, "logo"), Some("brand.svg"));
+        assert_eq!(trimmed_directive(&dirs, "art"), None);
+        assert_eq!(trimmed_directive(&dirs, "illustration"), None);
+    }
+
+    #[test]
+    fn max_steps_counts_nested_next_step_markers() {
+        let blocks = blocks::parse("+ a\n  + b\n- c\n\n# H\n\n+ d");
+        assert_eq!(compute_max_steps(&blocks), 2);
+        assert_eq!(compute_max_steps(&[]), 0);
     }
 }

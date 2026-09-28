@@ -305,14 +305,9 @@ pub fn problems(slide: &Slide) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
 
     fn slide(md: &str) -> Slide {
-        crate::parser::parse(md, Path::new("."))
-            .slides
-            .into_iter()
-            .next()
-            .unwrap()
+        crate::parser::parse(md).slides.into_iter().next().unwrap()
     }
 
     #[test]

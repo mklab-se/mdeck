@@ -137,7 +137,7 @@ pub fn run(args: ExportArgs) -> anyhow::Result<()> {
         .parent()
         .unwrap_or(std::path::Path::new("."))
         .to_path_buf();
-    let presentation = parser::parse(&content, &base_path);
+    let presentation = parser::parse(&content);
 
     if presentation.slides.is_empty() {
         anyhow::bail!("No slides found in {}", file.display());

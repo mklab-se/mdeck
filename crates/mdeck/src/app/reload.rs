@@ -25,7 +25,7 @@ impl PresentationApp {
         }
         self.last_content_hash = new_hash;
 
-        let new_presentation = parser::parse(&content, self.deck.dir());
+        let new_presentation = parser::parse(&content);
 
         if new_presentation.slides.is_empty() {
             self.toast = Some(Toast::new("Reload: no slides found".to_string()));

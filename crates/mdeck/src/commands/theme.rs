@@ -619,7 +619,7 @@ mod tests {
 
     #[test]
     fn the_sampler_deck_parses_into_its_slides() {
-        let p = crate::parser::parse(SAMPLER, Path::new("."));
+        let p = crate::parser::parse(SAMPLER);
         assert_eq!(p.slides.len(), 8);
     }
 

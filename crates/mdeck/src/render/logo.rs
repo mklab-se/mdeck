@@ -438,7 +438,7 @@ mod tests {
         let md = "---\n@logo: deck.svg\n@logo-position: bottom-left\n---\n\n\
                   # One\n\n- a\n\n# Two\n@logo: none\n\n- b\n\n\
                   # Three\n@logo: partner.svg\n\n- c\n\n# Four\n@logo: gone.svg\n\n- d\n";
-        let pres = crate::parser::parse(md, &d);
+        let pres = crate::parser::parse(md);
         let (logos, problems) = resolve_slides(&Theme::light(), &pres, &d);
         assert_eq!(logos.get(0).unwrap().path, d.join("deck.svg"));
         assert!(logos.get(1).is_none(), "@logo: none hides it on that slide");
@@ -460,7 +460,7 @@ mod tests {
 
         // A deck that hides the theme's logo can still show one on a slide.
         let md = "---\n@logo: none\n---\n\n# One\n\n- a\n\n# Two\n@logo: partner.svg\n\n- b\n";
-        let pres = crate::parser::parse(md, &d);
+        let pres = crate::parser::parse(md);
         let (logos, _) = resolve_slides(&Theme::light(), &pres, &d);
         assert!(logos.get(0).is_none());
         assert_eq!(logos.get(1).unwrap().corner, DEFAULT_CORNER);
