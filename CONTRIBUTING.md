@@ -51,6 +51,14 @@ cargo clippy                  # Lint check
 4. Update the README if the feature is user-facing
 5. Open a pull request
 
+### A New Engine
+
+Engines (the particle field, the LED wall, ...) have their own guide:
+[`crates/mdeck/doc/engines.md`](crates/mdeck/doc/engines.md). It covers the
+interface, the rules every engine follows, a minimal example that compiles,
+how to look at motion in export, and `scripts/engine-golden.sh`, which proves
+your change did not move the other engines.
+
 ## Pull Requests
 
 - Keep PRs focused -- one feature or fix per PR

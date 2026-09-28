@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- A guide to writing an engine, `crates/mdeck/doc/engines.md`
+  ([#16](https://github.com/mklab-se/mdeck/issues/16)): the interface, what the host
+  provides, the rules (finished stills, no wall-clock randomness, theme colours, keep out of
+  the copy), capabilities and fallbacks, a checklist, and a minimal engine that is compiled
+  and tested with the code so the guide stays current. Linked from the README and
+  CONTRIBUTING.
+- `scripts/engine-golden.sh` exports the sample decks with two builds and names every image
+  that differs, to prove a change did not move an engine.
+- Export can capture motion for looking at animations: `MDECK_EXPORT_AT=<seconds>` rehearses
+  the engine from a cold start, `MDECK_EXPORT_MOMENT=3|2|1|burst|end` shows the countdown and
+  the end act.
+
 ## [1.9.0] - 2026-09-28
 
 ### Added

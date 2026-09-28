@@ -631,6 +631,7 @@ source <(COMPLETE=zsh mdeck)                  # dynamic (recommended)
 - **[Changelog](CHANGELOG.md)** lists what changed in each release.
 - **[Roadmap](BACKLOG.md)** collects larger ideas and open decisions.
 - **[Contributing](CONTRIBUTING.md)** explains how to work on MDeck.
+- **[Writing an engine](crates/mdeck/doc/engines.md)** is the guide to adding an engine: the interface, the rules, a minimal example and the checks.
 
 ---
 

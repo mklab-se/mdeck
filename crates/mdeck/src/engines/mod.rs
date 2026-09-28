@@ -10,6 +10,8 @@
 //! [`EngineKind`] with its [`Capabilities`], and a cargo feature. The guide is
 //! `crates/mdeck/doc/engines.md`.
 
+#[cfg(test)]
+mod example;
 mod host;
 pub mod led;
 mod masks;
