@@ -9,11 +9,13 @@ use std::collections::HashMap;
 
 use eframe::egui::{self, Color32, Pos2, Rect, Vec2, epaint};
 
-use super::layout::{COLS, Cell, ROWS, SOLID, Style};
+use super::flaps::Flaps;
+use super::layout::{COLS, Cell, ROWS, Style};
+use super::wheel::SOLID;
 use crate::theme::Theme;
 
 /// The atlas's white texel, for quads without a texture.
-const WHITE: Rect = Rect {
+pub(super) const WHITE: Rect = Rect {
     min: epaint::WHITE_UV,
     max: epaint::WHITE_UV,
 };
@@ -27,7 +29,7 @@ const GAP_Y: f32 = 0.10;
 const GLYPH: f32 = 0.64;
 /// Board faces are heavy: each character is drawn a second time this share
 /// of its size to the right.
-const EMBOLDEN: f32 = 0.028;
+pub(super) const EMBOLDEN: f32 = 0.028;
 
 /// Where the board and its cells sit on the slide.
 #[derive(Clone, Copy, Debug)]
@@ -84,8 +86,8 @@ pub struct Palette {
     flap_bottom: Color32,
     housing: Color32,
     housing_edge: Color32,
-    gap: Color32,
-    pin: Color32,
+    pub(super) gap: Color32,
+    pub(super) pin: Color32,
     glyph: [Color32; 6],
     solid_on: Color32,
     solid_off: Color32,
@@ -120,7 +122,7 @@ impl Palette {
         }
     }
 
-    fn glyph_color(&self, style: Style) -> Color32 {
+    pub(super) fn glyph_color(&self, style: Style) -> Color32 {
         self.glyph[match style {
             Style::Normal => 0,
             Style::Heading => 1,
@@ -132,7 +134,7 @@ impl Palette {
     }
 
     /// The flap's own colour: a solid flap is coloured through.
-    fn face(&self, cell: Cell, top: bool) -> Color32 {
+    pub(super) fn face(&self, cell: Cell, top: bool) -> Color32 {
         if cell.ch == SOLID {
             let c = if cell.style == Style::Dim {
                 self.solid_off
@@ -161,7 +163,7 @@ impl Glyphs {
     }
 
     /// The character's quad (relative to the cell centre) and its uv rect.
-    fn get(&mut self, ui: &egui::Ui, ch: char) -> Option<(Rect, Rect)> {
+    pub(super) fn get(&mut self, ui: &egui::Ui, ch: char) -> Option<(Rect, Rect)> {
         if ch == ' ' || ch == SOLID {
             return None;
         }
@@ -212,25 +214,56 @@ pub struct Labels<'a> {
     pub right: &'a str,
 }
 
+/// What the board shows: `views` holds one entry per cell, row by row;
+/// cells under `hidden` (an image panel) keep only their housing; `labels`
+/// go on the frame under it.
+pub struct Scene<'a> {
+    pub views: &'a [View],
+    pub hidden: Option<Rect>,
+    pub labels: Option<Labels<'a>>,
+}
+
 /// Paint the board: housing, every cell (turning ones mid-fold), and the
-/// labels under it. `views` holds one entry per cell, row by row; cells
-/// listed in `hidden` (under an image panel) keep only their housing.
-#[allow(clippy::too_many_arguments)]
+/// labels under it.
 pub fn paint(
     ui: &egui::Ui,
     geo: &Geometry,
     theme: &Theme,
-    views: &[View],
-    hidden: Option<Rect>,
-    labels: Option<Labels>,
+    scene: &Scene,
     opacity: f32,
     scale: f32,
 ) {
     let pal = Palette::of(theme);
-    let painter = ui.painter();
-    let fade = |c: Color32| c.gamma_multiply(opacity);
+    housing(ui.painter(), geo, &pal, opacity, scale);
 
-    // the housing: a dark frame with a hairline edge and a soft top light
+    let mut flaps = Flaps {
+        ui,
+        cell_h: geo.cell.y,
+        pal: &pal,
+        glyphs: Glyphs::new(theme, geo.cell),
+        mesh: egui::Mesh::with_texture(egui::TextureId::default()),
+        opacity,
+        r: geo.cell.x * 0.10,
+        hinge: (geo.cell.y * 0.035).max(1.2),
+        pin: geo.cell.x * 0.07,
+    };
+    for (i, view) in scene.views.iter().enumerate() {
+        let cell = geo.cell_rect(i % COLS, i / COLS);
+        if scene.hidden.is_some_and(|h| h.intersects(cell)) {
+            continue;
+        }
+        flaps.cell(cell, view);
+    }
+    ui.painter().add(egui::Shape::mesh(flaps.mesh));
+
+    if let Some(labels) = &scene.labels {
+        draw_labels(ui.painter(), geo, theme, labels, opacity, scale);
+    }
+}
+
+/// The housing: a dark frame with a hairline edge and a soft top light.
+fn housing(painter: &egui::Painter, geo: &Geometry, pal: &Palette, opacity: f32, scale: f32) {
+    let fade = |c: Color32| c.gamma_multiply(opacity);
     let round = geo.cell.x * 0.22;
     painter.rect_filled(
         geo.housing.expand(2.0 * scale),
@@ -250,295 +283,42 @@ pub fn paint(
     m.add_triangle(0, 1, 2);
     m.add_triangle(1, 3, 2);
     painter.add(egui::Shape::mesh(m));
+}
 
-    let mut glyphs = Glyphs::new(theme, geo.cell);
-    let mut mesh = egui::Mesh::with_texture(egui::TextureId::default());
-    let r = geo.cell.x * 0.10;
-    let hinge = (geo.cell.y * 0.035).max(1.2);
-    for (i, view) in views.iter().enumerate() {
-        let (col, row) = (i % COLS, i / COLS);
-        let cell = geo.cell_rect(col, row);
-        if hidden.is_some_and(|h| h.intersects(cell)) {
+/// The deck's title and the slide counter, spaced out on the frame.
+fn draw_labels(
+    painter: &egui::Painter,
+    geo: &Geometry,
+    theme: &Theme,
+    labels: &Labels,
+    opacity: f32,
+    scale: f32,
+) {
+    let size = 15.0 * scale;
+    let y = geo.housing.bottom() + 22.0 * scale;
+    let font = egui::FontId::new(size, theme.mono_family());
+    for (text, right) in [(labels.left, false), (labels.right, true)] {
+        if text.is_empty() {
             continue;
         }
-        let mid = cell.center().y;
-        let top = Rect::from_min_max(cell.left_top(), Pos2::new(cell.right(), mid - hinge / 2.0));
-        let bottom = Rect::from_min_max(
-            Pos2::new(cell.left(), mid + hinge / 2.0),
-            cell.right_bottom(),
-        );
-        let turning = view.t > 0.0;
-        // static halves: the next character's top, the current one's bottom
-        let upper = if turning { view.to } else { view.from };
-        let lower = view.from;
-        rounded_half(&mut mesh, top, r, true, fade(pal.face(upper, true)));
-        rounded_half(&mut mesh, bottom, r, false, fade(pal.face(lower, false)));
-        glyph_half(
-            &mut mesh,
-            ui,
-            &mut glyphs,
-            &pal,
-            cell,
-            top,
-            upper,
-            opacity,
-            None,
-        );
-        glyph_half(
-            &mut mesh,
-            ui,
-            &mut glyphs,
-            &pal,
-            cell,
-            bottom,
-            lower,
-            opacity,
-            None,
-        );
-        // the hinge: a dark gap with a pin at each end
-        quad(
-            &mut mesh,
-            Rect::from_min_max(
-                Pos2::new(cell.left(), mid - hinge / 2.0),
-                Pos2::new(cell.right(), mid + hinge / 2.0),
-            ),
-            fade(pal.gap),
-        );
-        let pin = egui::vec2(geo.cell.x * 0.07, hinge * 2.2);
-        for x in [cell.left() + pin.x * 0.2, cell.right() - pin.x * 1.2] {
-            quad(
-                &mut mesh,
-                Rect::from_min_size(Pos2::new(x, mid - pin.y / 2.0), pin),
-                fade(pal.pin),
-            );
-        }
-        if turning {
-            // the falling flap: the current top folds down, then the next
-            // bottom unfolds; it darkens as it turns edge-on
-            let angle = view.t * std::f32::consts::PI;
-            let (half, face, first) = if view.t < 0.5 {
-                (top, view.from, true)
-            } else {
-                (bottom, view.to, false)
-            };
-            let fold = angle.cos().abs();
-            let widen = 0.10 * angle.sin();
-            let shade = 1.0 - 0.45 * angle.sin();
-            let warp = |p: Pos2| -> Pos2 {
-                let d = p.y - mid;
-                let reach = (d.abs() / (geo.cell.y / 2.0)).min(1.0);
-                Pos2::new(
-                    cell.center().x + (p.x - cell.center().x) * (1.0 + widen * reach),
-                    mid + d * fold,
-                )
-            };
-            let base = pal.face(face, first);
-            let tint = fade(mix(Color32::BLACK, base, shade));
-            warped_quad(&mut mesh, half, WHITE, tint, &warp);
-            glyph_half(
-                &mut mesh,
-                ui,
-                &mut glyphs,
-                &pal,
-                cell,
-                half,
-                face,
-                opacity * shade,
-                Some(&warp),
-            );
-        }
-    }
-    painter.add(egui::Shape::mesh(mesh));
-
-    if let Some(labels) = labels {
-        let size = 15.0 * scale;
-        let y = geo.housing.bottom() + 22.0 * scale;
-        let font = egui::FontId::new(size, theme.mono_family());
-        for (text, right) in [(labels.left, false), (labels.right, true)] {
-            if text.is_empty() {
-                continue;
-            }
-            let mut job = egui::text::LayoutJob::default();
-            job.append(
-                &text.to_uppercase(),
-                0.0,
-                egui::text::TextFormat {
-                    font_id: font.clone(),
-                    color: fade(theme.muted),
-                    extra_letter_spacing: size * 0.22,
-                    ..Default::default()
-                },
-            );
-            let galley = painter.layout_job(job);
-            let x = if right {
-                geo.housing.right() - galley.size().x
-            } else {
-                geo.housing.left()
-            };
-            painter.galley(Pos2::new(x, y), galley, theme.muted);
-        }
-    }
-}
-
-/// The part of a cell's character inside `half`, optionally warped (a
-/// falling flap). Solid flaps and blanks draw nothing here.
-#[allow(clippy::too_many_arguments)]
-fn glyph_half(
-    mesh: &mut egui::Mesh,
-    ui: &egui::Ui,
-    glyphs: &mut Glyphs,
-    pal: &Palette,
-    cell: Rect,
-    half: Rect,
-    c: Cell,
-    opacity: f32,
-    warp: Option<&dyn Fn(Pos2) -> Pos2>,
-) {
-    // a list marker is a coloured bar, like a platform indicator, not the
-    // font's small bullet
-    let (rel, uv) = if c.ch == '•' {
-        let size = egui::vec2(cell.width() * 0.26, cell.height() * 0.56);
-        (Rect::from_center_size(Pos2::ZERO, size), WHITE)
-    } else {
-        match glyphs.get(ui, c.ch) {
-            Some(q) => q,
-            None => return,
-        }
-    };
-    let quad_rect = rel.translate(cell.center().to_vec2());
-    let clipped = quad_rect.intersect(half);
-    if clipped.height() <= 0.0 || clipped.width() <= 0.0 {
-        return;
-    }
-    // uv for the clipped part
-    let fy = |y: f32| (y - quad_rect.top()) / quad_rect.height();
-    let fx = |x: f32| (x - quad_rect.left()) / quad_rect.width();
-    let uv_part = Rect::from_min_max(
-        Pos2::new(
-            uv.left() + uv.width() * fx(clipped.left()),
-            uv.top() + uv.height() * fy(clipped.top()),
-        ),
-        Pos2::new(
-            uv.left() + uv.width() * fx(clipped.right()),
-            uv.top() + uv.height() * fy(clipped.bottom()),
-        ),
-    );
-    let color = pal
-        .glyph_color(c.style)
-        .gamma_multiply(opacity.clamp(0.0, 1.0));
-    let bold = if uv == WHITE {
-        0.0
-    } else {
-        rel.height() * EMBOLDEN
-    };
-    for dx in [0.0, bold] {
-        let part = clipped.translate(egui::vec2(dx, 0.0));
-        match warp {
-            Some(w) => warped_quad(mesh, part, uv_part, color, w),
-            None => {
-                mesh.add_rect_with_uv(part, uv_part, color);
-            }
-        }
-        if bold == 0.0 {
-            break;
-        }
-    }
-}
-
-fn quad(mesh: &mut egui::Mesh, rect: Rect, color: Color32) {
-    mesh.add_rect_with_uv(rect, WHITE, color);
-}
-
-fn warped_quad(
-    mesh: &mut egui::Mesh,
-    rect: Rect,
-    uv: Rect,
-    color: Color32,
-    warp: &dyn Fn(Pos2) -> Pos2,
-) {
-    let base = mesh.vertices.len() as u32;
-    for (p, t) in [
-        (rect.left_top(), uv.left_top()),
-        (rect.right_top(), uv.right_top()),
-        (rect.left_bottom(), uv.left_bottom()),
-        (rect.right_bottom(), uv.right_bottom()),
-    ] {
-        mesh.vertices.push(epaint::Vertex {
-            pos: warp(p),
-            uv: t,
-            color,
-        });
-    }
-    mesh.add_triangle(base, base + 1, base + 2);
-    mesh.add_triangle(base + 1, base + 3, base + 2);
-}
-
-/// Half a flap with its two outer corners rounded, lit from above: a fan of
-/// triangles from the centre so the corners stay smooth.
-fn rounded_half(mesh: &mut egui::Mesh, rect: Rect, r: f32, top: bool, color: Color32) {
-    let r = r.min(rect.height() * 0.5).min(rect.width() * 0.5);
-    let light = if top {
-        mix(color, Color32::WHITE, 0.035)
-    } else {
-        color
-    };
-    let dark = if top {
-        color
-    } else {
-        mix(color, Color32::BLACK, 0.18)
-    };
-    let shade = |p: Pos2| -> Color32 {
-        let t = ((p.y - rect.top()) / rect.height()).clamp(0.0, 1.0);
-        mix(light, dark, t)
-    };
-    let mut outline: Vec<Pos2> = Vec::new();
-    let arc = |outline: &mut Vec<Pos2>, c: Pos2, a0: f32| {
-        for k in 0..=5 {
-            let a = a0 + k as f32 / 5.0 * std::f32::consts::FRAC_PI_2;
-            outline.push(Pos2::new(c.x + r * a.cos(), c.y + r * a.sin()));
-        }
-    };
-    use std::f32::consts::PI;
-    if top {
-        arc(&mut outline, Pos2::new(rect.left() + r, rect.top() + r), PI);
-        arc(
-            &mut outline,
-            Pos2::new(rect.right() - r, rect.top() + r),
-            1.5 * PI,
-        );
-        outline.push(rect.right_bottom());
-        outline.push(rect.left_bottom());
-    } else {
-        outline.push(rect.left_top());
-        outline.push(rect.right_top());
-        arc(
-            &mut outline,
-            Pos2::new(rect.right() - r, rect.bottom() - r),
+        let mut job = egui::text::LayoutJob::default();
+        job.append(
+            &text.to_uppercase(),
             0.0,
+            egui::text::TextFormat {
+                font_id: font.clone(),
+                color: theme.muted.gamma_multiply(opacity),
+                extra_letter_spacing: size * 0.22,
+                ..Default::default()
+            },
         );
-        arc(
-            &mut outline,
-            Pos2::new(rect.left() + r, rect.bottom() - r),
-            0.5 * PI,
-        );
-    }
-    let base = mesh.vertices.len() as u32;
-    let c = rect.center();
-    mesh.vertices.push(epaint::Vertex {
-        pos: c,
-        uv: epaint::WHITE_UV,
-        color: shade(c),
-    });
-    for p in &outline {
-        mesh.vertices.push(epaint::Vertex {
-            pos: *p,
-            uv: epaint::WHITE_UV,
-            color: shade(*p),
-        });
-    }
-    let n = outline.len() as u32;
-    for k in 0..n {
-        mesh.add_triangle(base, base + 1 + k, base + 1 + (k + 1) % n);
+        let galley = painter.layout_job(job);
+        let x = if right {
+            geo.housing.right() - galley.size().x
+        } else {
+            geo.housing.left()
+        };
+        painter.galley(Pos2::new(x, y), galley, theme.muted);
     }
 }
 

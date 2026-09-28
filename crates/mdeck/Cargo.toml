@@ -71,21 +71,24 @@ splitflap = []
 laser = []
 # The blocks engine: pictures built from falling blocks, and the `stack` theme.
 blocks = []
+# What the art engines share (`engines::art`): not an engine of its own, on
+# with any of them.
+art = []
 # The blueprint engine: generated line art inked onto a blue sheet, and the
 # `blueprint` theme.
-blueprint = []
+blueprint = ["art"]
 # The sketch engine: generated graphite drawings drawn in with a pencil on a
 # sketchbook page, and the `sketchbook` theme.
-sketch = []
+sketch = ["art"]
 # The chalkboard engine: generated line art drawn in chalk on a slate, and
 # the `chalkboard` theme.
-chalkboard = []
+chalkboard = ["art"]
 # The watercolour engine: generated paintings that bloom onto cold-press
 # paper, and the `watercolour` theme.
-watercolour = []
+watercolour = ["art"]
 # The darkroom engine: generated photographs that develop under a red
 # safelight, and the `darkroom` theme.
-darkroom = []
+darkroom = ["art"]
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/mdeck-v{ version }-{ target }.{ archive-format }"

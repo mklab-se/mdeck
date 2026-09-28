@@ -6,6 +6,7 @@
 //! [`prepare`] works out the order an engine draws each picture in.
 
 pub mod gallery;
+mod loader;
 pub mod prepare;
 pub mod sidecar;
 pub mod style;

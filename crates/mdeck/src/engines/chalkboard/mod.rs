@@ -8,14 +8,14 @@
 
 use eframe::egui;
 
-use super::Engine;
-use super::art::{Canvas, Reveal};
-use super::led::{premul, sprite_sheet};
+use super::art::{Canvas, Drawing, Hand, Reveal, Tip};
+use super::paint::{Sprites, premul};
 use super::stage::{FrameCx, Stage};
+use super::{Engine, EngineDef};
 use crate::render::art::prepare::Strategy;
 use crate::render::art::{ArtKind, Medium, style};
 use crate::render::illustration::Library;
-use crate::render::strokes::to_screen;
+use crate::render::strokes::Picture;
 use chalk::{Chalk, Mote, chalk_lines, dust, emit, slate, step, stick};
 
 mod chalk;
@@ -30,6 +30,15 @@ pub static MEDIUM: Medium = Medium {
 
 /// Seconds into the end slide when the caption fades in.
 pub const END_CAPTION_DELAY: f32 = 5.2;
+
+pub static DEF: EngineDef = EngineDef {
+    capabilities: super::art::CAPABILITIES,
+    create: || Box::new(Chalkboard::new()),
+    end_caption_delay: END_CAPTION_DELAY,
+    medium: Some(&MEDIUM),
+    render_slide: None,
+    problems: None,
+};
 /// The end words hold this long, then fade.
 const END_WORDS: f32 = 3.6;
 /// Seconds to draw a picture.
@@ -46,7 +55,7 @@ pub struct Chalkboard {
     canvas: Canvas,
     motes: Vec<Mote>,
     seed: u32,
-    sprites: Option<egui::TextureHandle>,
+    sprites: Sprites,
 }
 
 impl Chalkboard {
@@ -55,7 +64,7 @@ impl Chalkboard {
             canvas: Canvas::new(DRAW, 0.0, END_WORDS, 0.7),
             motes: Vec::new(),
             seed: 0x1234_5679,
-            sprites: None,
+            sprites: Sprites::new("mdeck-chalkboard-sprites"),
         }
     }
 }
@@ -73,80 +82,61 @@ impl Engine for Chalkboard {
             self.motes.clear();
             return;
         }
-        let c = &self.canvas;
-        let tip = c
-            .drawing
-            .as_ref()
-            .filter(|d| !d.backdrop)
-            .and_then(|d| d.tip(c.now, cx.rect))
-            .or_else(|| {
-                let p = c.strokes.as_ref()?;
-                let (tip, on) = p.tip(c.now - p.born)?;
-                on.then(|| to_screen(tip, cx.rect))
-            });
-        if let Some(tip) = tip {
+        if let Some(tip) = self.canvas.tip.and_then(Tip::in_front) {
             emit(&mut self.motes, tip, cx.scale, cx.dt, &mut self.seed);
         }
         step(&mut self.motes, cx.dt, cx.scale);
     }
 
     fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, _stage: &Stage) {
-        let texture = self
-            .sprites
-            .get_or_insert_with(|| {
-                ui.ctx().load_texture(
-                    "mdeck-chalkboard-sprites",
-                    sprite_sheet(),
-                    egui::TextureOptions::LINEAR,
-                )
-            })
-            .id();
-        let rect = cx.rect;
-        let scale = cx.scale;
+        let texture = self.sprites.id(ui.ctx());
         let chalk = Chalk::of(cx.theme);
-        let painter = ui.painter();
-        slate(painter, texture, rect, scale, &chalk, cx.opacity);
+        slate(ui.painter(), texture, cx.rect, cx.scale, &chalk, cx.opacity);
+        let hand = Stick {
+            chalk,
+            motes: &self.motes,
+        };
+        self.canvas.paint(ui, cx, &hand);
+    }
+}
 
-        let c = &mut self.canvas;
-        let now = c.now;
-        let left = c.fading.as_ref().map(|(_, since)| c.fade_left(*since));
-        if let (Some((old, _)), Some(left)) = (&mut c.fading, left) {
-            old.paint(
-                ui,
-                rect,
-                now,
-                premul(chalk.white, left * cx.opacity),
-                REVEAL,
-            );
+/// Chalk: pictures and strokes in chalk white, the dust it sheds, and the
+/// stick at the tip.
+struct Stick<'a> {
+    chalk: Chalk,
+    motes: &'a [Mote],
+}
+
+impl Hand for Stick<'_> {
+    fn backdrop(&self) -> f32 {
+        0.42
+    }
+
+    fn picture(&self, ui: &egui::Ui, cx: &FrameCx, d: &mut Drawing, now: f32, k: f32, _: bool) {
+        d.paint(ui, cx.rect, now, premul(self.chalk.white, k), REVEAL);
+    }
+
+    fn strokes(
+        &self,
+        painter: &egui::Painter,
+        cx: &FrameCx,
+        p: &Picture,
+        now: f32,
+        k: f32,
+        _: bool,
+    ) {
+        chalk_lines(painter, p, now, cx.rect, cx.scale, &self.chalk, k);
+    }
+
+    fn finish(&self, painter: &egui::Painter, cx: &FrameCx, tip: Option<Tip>) {
+        dust(painter, self.motes, &self.chalk, cx.opacity);
+        if let Some(at) = tip.and_then(Tip::in_front) {
+            stick(painter, at, cx.scale, &self.chalk, cx.opacity);
         }
-        if let Some((old, since)) = &c.fading_strokes {
-            let k = c.fade_left(*since) * cx.opacity;
-            chalk_lines(painter, old, now, rect, scale, &chalk, k);
-        }
-        let burst = c.burst_left();
-        let mut tip = None;
-        if let Some(d) = &mut c.drawing {
-            let k = if d.backdrop { 0.42 } else { 1.0 } * cx.opacity;
-            d.paint(ui, rect, now, premul(chalk.white, k), REVEAL);
-            if !d.backdrop {
-                tip = d.tip(now, rect);
-            }
-        }
-        if let Some(p) = &c.strokes {
-            chalk_lines(painter, p, now, rect, scale, &chalk, burst * cx.opacity);
-            if let Some((t, true)) = p.tip(now - p.born) {
-                tip = Some(to_screen(t, rect));
-            }
-        }
-        dust(painter, &self.motes, &chalk, cx.opacity);
-        if !cx.still
-            && let Some(tip) = tip
-        {
-            stick(painter, tip, scale, &chalk, cx.opacity);
-        }
-        if (c.busy() || !self.motes.is_empty()) && !cx.still {
-            ui.ctx().request_repaint();
-        }
+    }
+
+    fn busy(&self) -> bool {
+        !self.motes.is_empty()
     }
 }
 

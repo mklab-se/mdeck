@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn dots_fade_in_live_and_are_done_in_export() {
-        let theme = crate::theme::Theme::ember();
+        let theme = crate::theme::Theme::dark();
         let figure = Figure {
             cloud: cloud(),
             backdrop: false,

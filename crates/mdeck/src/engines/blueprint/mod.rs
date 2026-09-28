@@ -9,14 +9,14 @@
 
 use eframe::egui;
 
-use super::Engine;
-use super::art::{Canvas, Reveal};
-use super::led::{premul, sprite_sheet};
+use super::art::{Canvas, Drawing, Hand, Reveal, Tip};
+use super::paint::{Sprites, premul};
 use super::stage::{FrameCx, Moment, Stage};
+use super::{Capabilities, Engine, EngineDef};
 use crate::render::art::prepare::Strategy;
 use crate::render::art::{ArtKind, Medium, style};
 use crate::render::illustration::Library;
-use crate::render::strokes::to_screen;
+use crate::render::strokes::Picture;
 use draw::{Ink, crosshair, dimensions, pen_lines, pen_tip, sheet, title_block};
 
 mod draw;
@@ -31,6 +31,18 @@ pub static MEDIUM: Medium = Medium {
 
 /// Seconds into the end slide when the caption fades in.
 pub const END_CAPTION_DELAY: f32 = 5.2;
+
+pub static DEF: EngineDef = EngineDef {
+    capabilities: Capabilities {
+        numbers_slides: true,
+        ..super::art::CAPABILITIES
+    },
+    create: || Box::new(Blueprint::new()),
+    end_caption_delay: END_CAPTION_DELAY,
+    medium: Some(&MEDIUM),
+    render_slide: None,
+    problems: None,
+};
 /// The end words hold this long, then fade.
 const END_WORDS: f32 = 3.6;
 /// Seconds to ink a picture.
@@ -47,14 +59,14 @@ const REVEAL: Reveal = Reveal {
 
 pub struct Blueprint {
     canvas: Canvas,
-    sprites: Option<egui::TextureHandle>,
+    sprites: Sprites,
 }
 
 impl Blueprint {
     pub fn new() -> Self {
         Self {
             canvas: Canvas::new(DRAW, DIMENSION, END_WORDS, 0.5),
-            sprites: None,
+            sprites: Sprites::new("mdeck-blueprint-sprites"),
         }
     }
 }
@@ -71,74 +83,73 @@ impl Engine for Blueprint {
     }
 
     fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, stage: &Stage) {
-        let texture = self
-            .sprites
-            .get_or_insert_with(|| {
-                ui.ctx().load_texture(
-                    "mdeck-blueprint-sprites",
-                    sprite_sheet(),
-                    egui::TextureOptions::LINEAR,
-                )
-            })
-            .id();
+        let texture = self.sprites.id(ui.ctx());
         let theme = cx.theme;
-        let rect = cx.rect;
-        let scale = cx.scale;
         let ink = Ink::of(theme);
         let painter = ui.painter();
-
-        sheet(painter, texture, rect, scale, &ink, cx.opacity);
+        sheet(painter, texture, cx.rect, cx.scale, &ink, cx.opacity);
         if matches!(stage.moment, Moment::Slide) {
-            title_block(painter, theme, rect, scale, &ink, stage, cx.opacity);
+            title_block(painter, theme, cx.rect, cx.scale, &ink, stage, cx.opacity);
         }
+        self.canvas.paint(ui, cx, &Pen { ink, texture });
+    }
+}
 
-        let c = &mut self.canvas;
-        let now = c.now;
-        let left = c.fading.as_ref().map(|(_, since)| c.fade_left(*since));
-        if let (Some((old, _)), Some(left)) = (&mut c.fading, left) {
-            old.paint(ui, rect, now, premul(ink.line, left * cx.opacity), REVEAL);
-        }
-        if let Some((old, since)) = &c.fading_strokes {
-            let k = c.fade_left(*since) * cx.opacity;
-            pen_lines(painter, old, now, rect, scale, &ink, k);
-        }
+/// A technical pen: ink lines, dimension lines ruled around a finished
+/// picture, and the drafting machine's crosshair at the tip.
+struct Pen {
+    ink: Ink,
+    texture: egui::TextureId,
+}
 
-        let burst = c.burst_left();
-        if let Some(d) = &mut c.drawing {
-            let k = if d.backdrop { 0.34 } else { 1.0 } * cx.opacity;
-            let box_ = d.screen(rect);
-            d.paint(ui, rect, now, premul(ink.line, k), REVEAL);
-            if !d.backdrop {
-                let t = (now - d.born - DRAW) / DIMENSION;
-                dimensions(painter, box_, scale, &ink, t, cx.opacity);
-            }
-            if !cx.still
-                && let Some(tip) = d.tip(now, rect)
-            {
-                crosshair(
-                    painter,
-                    texture,
-                    box_,
-                    tip,
-                    scale,
-                    &ink,
-                    cx.opacity * if d.backdrop { 0.5 } else { 1.0 },
-                );
-            }
-        }
-        if let Some(p) = &c.strokes {
-            pen_lines(painter, p, now, rect, scale, &ink, burst * cx.opacity);
-            if !cx.still
-                && let Some((tip, on)) = p.tip(now - p.born)
-                && on
-            {
-                let tip = to_screen(tip, rect);
-                pen_tip(painter, texture, tip, scale, &ink, cx.opacity);
-            }
-        }
+impl Hand for Pen {
+    fn backdrop(&self) -> f32 {
+        0.34
+    }
 
-        if c.busy() && !cx.still {
-            ui.ctx().request_repaint();
+    fn picture(
+        &self,
+        ui: &egui::Ui,
+        cx: &FrameCx,
+        d: &mut Drawing,
+        now: f32,
+        k: f32,
+        current: bool,
+    ) {
+        let box_ = d.screen(cx.rect);
+        d.paint(ui, cx.rect, now, premul(self.ink.line, k), REVEAL);
+        if current && !d.backdrop {
+            let t = (now - d.born - DRAW) / DIMENSION;
+            dimensions(ui.painter(), box_, cx.scale, &self.ink, t, cx.opacity);
+        }
+    }
+
+    fn strokes(
+        &self,
+        painter: &egui::Painter,
+        cx: &FrameCx,
+        p: &Picture,
+        now: f32,
+        k: f32,
+        _: bool,
+    ) {
+        pen_lines(painter, p, now, cx.rect, cx.scale, &self.ink, k);
+    }
+
+    fn finish(&self, painter: &egui::Painter, cx: &FrameCx, tip: Option<Tip>) {
+        let (scale, ink) = (cx.scale, &self.ink);
+        match tip {
+            Some(Tip::Picture {
+                at,
+                frame,
+                backdrop,
+                ..
+            }) => {
+                let k = cx.opacity * if backdrop { 0.5 } else { 1.0 };
+                crosshair(painter, self.texture, frame, at, scale, ink, k);
+            }
+            Some(Tip::Pen { at, .. }) => pen_tip(painter, self.texture, at, scale, ink, cx.opacity),
+            None => {}
         }
     }
 }

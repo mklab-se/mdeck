@@ -299,6 +299,7 @@ mod tests {
 
     /// The built-ins moved from Rust constructors to embedded files; these
     /// are the values the constructors had, so nothing on screen changes.
+    #[cfg(feature = "particles")]
     #[test]
     fn builtins_keep_their_previous_values() {
         let d = Theme::dark();

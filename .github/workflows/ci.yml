@@ -22,6 +22,40 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace
 
+  # Each engine is a cargo feature: a build with none of them, or with any
+  # one alone, must compile without warnings.
+  features:
+    name: Engines (${{ matrix.features || 'none' }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        features:
+          - ""
+          - particles
+          - led
+          - splitflap
+          - laser
+          - blocks
+          - blueprint
+          - sketch
+          - chalkboard
+          - watercolour
+          - darkroom
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: engines-${{ matrix.features || 'none' }}
+      - run: cargo check -p mdeck --all-targets --no-default-features --features "${{ matrix.features }}"
+      - if: matrix.features == ''
+        run: cargo test -p mdeck --no-default-features
+
   test:
     name: Test
     runs-on: ubuntu-latest

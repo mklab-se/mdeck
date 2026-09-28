@@ -103,7 +103,8 @@ fn shuffle(pts: &mut [[f32; 2]], seed: u64) {
     }
 }
 
-#[cfg(test)]
+// The masks are drawn in ember's display face.
+#[cfg(all(test, feature = "particles"))]
 mod tests {
     use super::*;
 

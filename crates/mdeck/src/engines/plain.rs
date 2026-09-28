@@ -3,9 +3,18 @@
 
 use eframe::egui;
 
-use super::Engine;
 use super::stage::{FrameCx, Stage};
+use super::{Capabilities, Engine, EngineDef};
 use crate::render::illustration::Library;
+
+pub static DEF: EngineDef = EngineDef {
+    capabilities: Capabilities::NONE,
+    create: || Box::new(Plain),
+    end_caption_delay: 0.0,
+    medium: None,
+    render_slide: None,
+    problems: None,
+};
 
 pub struct Plain;
 

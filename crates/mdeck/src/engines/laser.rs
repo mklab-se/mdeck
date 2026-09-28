@@ -11,9 +11,9 @@ use std::sync::Arc;
 
 use eframe::egui::{self, Color32, Pos2, Rect};
 
-use super::led::{SPRITE_CORE, SPRITE_GLOW, additive, mix, premul, sprite_sheet};
+use super::paint::{SPRITE_CORE, SPRITE_GLOW, Sprites, additive, mix, premul};
 use super::stage::{FrameCx, Mask, Moment, Place, Stage};
-use super::{Engine, hash01};
+use super::{Capabilities, Engine, EngineDef, hash01};
 use crate::render::hints::Hint;
 use crate::render::illustration::Library;
 use crate::render::strokes::{Picture, plan, to_screen, toured};
@@ -22,6 +22,15 @@ use crate::theme::Theme;
 /// Seconds into the end slide when the caption fades in: the words are
 /// etched, held, and have faded.
 pub const END_CAPTION_DELAY: f32 = 5.6;
+
+pub static DEF: EngineDef = EngineDef {
+    capabilities: Capabilities::PICTURES,
+    create: || Box::new(Laser::new()),
+    end_caption_delay: END_CAPTION_DELAY,
+    medium: None,
+    render_slide: None,
+    problems: None,
+};
 /// The end words hold this long, then fade.
 const END_WORDS: f32 = 3.8;
 /// How long a mark stays hot (seconds, e-folding).
@@ -69,7 +78,7 @@ pub struct Laser {
     smoke: Vec<Puff>,
     /// Deterministic random stream for particles.
     rng: u32,
-    sprites: Option<egui::TextureHandle>,
+    sprites: Sprites,
 }
 
 impl Laser {
@@ -83,7 +92,7 @@ impl Laser {
             sparks: Vec::new(),
             smoke: Vec::new(),
             rng: 0x2545_F491,
-            sprites: None,
+            sprites: Sprites::new("mdeck-laser-sprites"),
         }
     }
 
@@ -277,16 +286,7 @@ impl Engine for Laser {
     }
 
     fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, _stage: &Stage) {
-        let texture = self
-            .sprites
-            .get_or_insert_with(|| {
-                ui.ctx().load_texture(
-                    "mdeck-laser-sprites",
-                    sprite_sheet(),
-                    egui::TextureOptions::LINEAR,
-                )
-            })
-            .id();
+        let texture = self.sprites.id(ui.ctx());
         let theme = cx.theme;
         let rect = cx.rect;
         let scale = cx.scale;
@@ -296,7 +296,7 @@ impl Engine for Laser {
 
         if let Some((old, since)) = &self.fading {
             let fade = (1.0 - (self.now - since) / 0.9).clamp(0.0, 1.0) * cx.opacity;
-            etching(&mut mesh, old, self.now, rect, scale, &ink, fade, None);
+            etching(&mut mesh, cx, old, self.now, &ink, fade, None);
         }
         let flare = self.flare;
         if let Some(p) = &self.picture {
@@ -304,7 +304,7 @@ impl Engine for Laser {
                 Some(f) => (1.0 - f * 1.4).clamp(0.0, 1.0),
                 None => 1.0,
             } * cx.opacity;
-            etching(&mut mesh, p, self.now, rect, scale, &ink, fade, flare);
+            etching(&mut mesh, cx, p, self.now, &ink, fade, flare);
         }
 
         // smoke drifts up from where the beam has been
@@ -434,17 +434,16 @@ impl Ink {
 /// Draw an etching as far as the beam has come: each mark cools with age,
 /// rough edged, over a groove, with a lingering glow while fresh. `flare`
 /// (the countdown's burst) heats everything again as it burns away.
-#[allow(clippy::too_many_arguments)]
 fn etching(
     mesh: &mut egui::Mesh,
+    cx: &FrameCx,
     pic: &Picture,
     now: f32,
-    rect: Rect,
-    scale: f32,
     ink: &Ink,
     opacity: f32,
     flare: Option<f32>,
 ) {
+    let (rect, scale) = (cx.rect, cx.scale);
     if opacity <= 0.0 || pic.points.len() < 2 {
         return;
     }
@@ -654,7 +653,7 @@ mod tests {
 
     #[test]
     fn marks_cool_from_white_to_the_etched_colour() {
-        let ink = Ink::of(&Theme::ember());
+        let ink = Ink::of(&Theme::dark());
         assert_eq!(ink.at(1.0), ink.white);
         assert_eq!(ink.at(0.0), ink.etched);
     }

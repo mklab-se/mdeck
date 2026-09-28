@@ -4,7 +4,7 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Stroke};
 
 use super::super::hash01;
-use super::super::led::{SPRITE_CORE, SPRITE_GLOW, additive, mix, premul};
+use super::super::paint::{SPRITE_CORE, SPRITE_GLOW, additive, mix, premul};
 use super::super::stage::Stage;
 use crate::render::strokes::{Picture, to_screen};
 use crate::theme::Theme;
@@ -350,7 +350,6 @@ pub(super) fn pen_tip(
 
 /// Pen strokes as far as the pen has come: a faint construction pass that
 /// runs ahead, and the inked line with a little bleed into the paper.
-#[allow(clippy::too_many_arguments)]
 pub(super) fn pen_lines(
     painter: &egui::Painter,
     pic: &Picture,

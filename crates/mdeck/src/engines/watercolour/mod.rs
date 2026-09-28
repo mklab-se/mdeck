@@ -8,11 +8,11 @@
 
 use eframe::egui::{self, Color32, Stroke};
 
-use super::Engine;
-use super::art::{Canvas, Reveal};
+use super::art::{Canvas, Drawing, Hand, Reveal};
 use super::hash01;
-use super::led::{mix, premul};
+use super::paint::{mix, premul};
 use super::stage::{FrameCx, Stage};
+use super::{Engine, EngineDef};
 use crate::render::art::prepare::Strategy;
 use crate::render::art::{ArtKind, Medium, style};
 use crate::render::illustration::Library;
@@ -29,6 +29,15 @@ pub static MEDIUM: Medium = Medium {
 
 /// Seconds into the end slide when the caption fades in.
 pub const END_CAPTION_DELAY: f32 = 5.4;
+
+pub static DEF: EngineDef = EngineDef {
+    capabilities: super::art::CAPABILITIES,
+    create: || Box::new(Watercolour::new()),
+    end_caption_delay: END_CAPTION_DELAY,
+    medium: Some(&MEDIUM),
+    render_slide: None,
+    problems: None,
+};
 /// The end words hold this long, then fade.
 const END_WORDS: f32 = 3.8;
 /// Seconds for a painting to bloom.
@@ -90,42 +99,37 @@ impl Engine for Watercolour {
     }
 
     fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, _stage: &Stage) {
-        let rect = cx.rect;
-        let scale = cx.scale;
-        let paint = Paint::of(cx.theme);
-        let painter = ui.painter();
-        let c = &mut self.canvas;
-        let now = c.now;
-        let tint = |line: bool, k: f32| {
-            if line {
-                premul(paint.ink, k)
-            } else {
-                premul(Color32::WHITE, k)
-            }
+        self.canvas.paint(ui, cx, &Paint::of(cx.theme));
+    }
+}
+
+/// Tonal paintings bloom in their own colours; line art is an ink drawing,
+/// and pen strokes get a wash.
+impl Hand for Paint {
+    fn backdrop(&self) -> f32 {
+        0.35
+    }
+
+    fn picture(&self, ui: &egui::Ui, cx: &FrameCx, d: &mut Drawing, now: f32, k: f32, _: bool) {
+        let line = d.picture.strategy == Strategy::Draw;
+        let (tint, reveal) = if line {
+            (premul(self.ink, k), LINE_REVEAL)
+        } else {
+            (premul(Color32::WHITE, k), REVEAL)
         };
-        let left = c.fading.as_ref().map(|(_, since)| c.fade_left(*since));
-        if let (Some((old, _)), Some(left)) = (&mut c.fading, left) {
-            let line = old.picture.strategy == Strategy::Draw;
-            let r = if line { LINE_REVEAL } else { REVEAL };
-            old.paint(ui, rect, now, tint(line, left * cx.opacity), r);
-        }
-        if let Some((old, since)) = &c.fading_strokes {
-            let k = c.fade_left(*since) * cx.opacity;
-            ink_and_wash(painter, old, now, rect, scale, &paint, k);
-        }
-        let burst = c.burst_left();
-        if let Some(d) = &mut c.drawing {
-            let line = d.picture.strategy == Strategy::Draw;
-            let r = if line { LINE_REVEAL } else { REVEAL };
-            let k = if d.backdrop { 0.35 } else { 1.0 } * cx.opacity;
-            d.paint(ui, rect, now, tint(line, k), r);
-        }
-        if let Some(p) = &c.strokes {
-            ink_and_wash(painter, p, now, rect, scale, &paint, burst * cx.opacity);
-        }
-        if c.busy() && !cx.still {
-            ui.ctx().request_repaint();
-        }
+        d.paint(ui, cx.rect, now, tint, reveal);
+    }
+
+    fn strokes(
+        &self,
+        painter: &egui::Painter,
+        cx: &FrameCx,
+        p: &Picture,
+        now: f32,
+        k: f32,
+        _: bool,
+    ) {
+        ink_and_wash(painter, p, now, cx.rect, cx.scale, self, k);
     }
 }
 

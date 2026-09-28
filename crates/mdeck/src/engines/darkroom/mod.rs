@@ -9,10 +9,10 @@
 
 use eframe::egui::{self, Color32, Pos2, Rect, Stroke};
 
-use super::Engine;
-use super::art::{Canvas, Reveal};
-use super::led::{SPRITE_GLOW, additive, mix, premul, sprite_sheet};
+use super::art::{Canvas, Drawing, Hand, Reveal};
+use super::paint::{SPRITE_GLOW, Sprites, additive, mix, premul, smoothstep};
 use super::stage::{FrameCx, Moment, Stage};
+use super::{Engine, EngineDef};
 use crate::render::art::prepare::Strategy;
 use crate::render::art::{ArtKind, Medium, style};
 use crate::render::illustration::Library;
@@ -28,6 +28,15 @@ pub static MEDIUM: Medium = Medium {
 
 /// Seconds into the end slide when the caption fades in.
 pub const END_CAPTION_DELAY: f32 = 5.4;
+
+pub static DEF: EngineDef = EngineDef {
+    capabilities: super::art::CAPABILITIES,
+    create: || Box::new(Darkroom::new()),
+    end_caption_delay: END_CAPTION_DELAY,
+    medium: Some(&MEDIUM),
+    render_slide: None,
+    problems: None,
+};
 /// The end words hold this long, then fade.
 const END_WORDS: f32 = 3.8;
 /// Seconds for a print to develop.
@@ -52,14 +61,14 @@ const LINE_REVEAL: Reveal = Reveal {
 
 pub struct Darkroom {
     canvas: Canvas,
-    sprites: Option<egui::TextureHandle>,
+    sprites: Sprites,
 }
 
 impl Darkroom {
     pub fn new() -> Self {
         Self {
             canvas: Canvas::new(DRAW, LIGHTS, END_WORDS, 0.6),
-            sprites: None,
+            sprites: Sprites::new("mdeck-darkroom-sprites"),
         }
     }
 }
@@ -81,24 +90,11 @@ impl Engine for Darkroom {
     }
 
     fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, stage: &Stage) {
-        let texture = self
-            .sprites
-            .get_or_insert_with(|| {
-                ui.ctx().load_texture(
-                    "mdeck-darkroom-sprites",
-                    sprite_sheet(),
-                    egui::TextureOptions::LINEAR,
-                )
-            })
-            .id();
-        let theme = cx.theme;
+        let texture = self.sprites.id(ui.ctx());
         let rect = cx.rect;
-        let scale = cx.scale;
-        let painter = ui.painter();
         // under the safelight the paper reads a deep, dim red, not the
         // lamp's own colour
-        let safelight = mix(theme.accent, Color32::from_rgb(96, 40, 36), 0.5);
-        let paper = Color32::from_rgb(244, 241, 234);
+        let safelight = mix(cx.theme.accent, Color32::from_rgb(96, 40, 36), 0.5);
 
         // the safelight hangs above the bench and reddens the room
         let mut mesh = egui::Mesh::with_texture(texture);
@@ -114,66 +110,90 @@ impl Engine for Darkroom {
             SPRITE_GLOW,
             additive(safelight, 0.16 * cx.opacity),
         );
-        painter.add(egui::Shape::mesh(mesh));
+        ui.painter().add(egui::Shape::mesh(mesh));
 
-        let c = &mut self.canvas;
-        let now = c.now;
-        let paint_print = |ui: &egui::Ui, d: &mut super::art::Drawing, k: f32, on: f32| {
-            let line = d.picture.strategy == Strategy::Draw;
-            let lit = light(safelight, on);
-            let box_ = d.screen(rect);
-            if !d.backdrop {
-                // the print: white fibre paper with a border, and its shadow
-                let border = box_.expand(box_.width().max(box_.height()) * 0.035);
-                ui.painter().rect_filled(
-                    border.translate(egui::vec2(8.0, 12.0) * scale),
-                    2.0 * scale,
-                    Color32::from_black_alpha((110.0 * k) as u8),
-                );
-                ui.painter()
-                    .rect_filled(border, 2.0 * scale, premul(multiply(paper, lit), k));
-            }
-            let tint = if line {
-                premul(multiply(Color32::from_gray(24), lit), k)
-            } else {
-                premul(lit, k)
-            };
-            d.paint(ui, rect, now, tint, if line { LINE_REVEAL } else { REVEAL });
+        let hand = Bench {
+            safelight,
+            slide: matches!(stage.moment, Moment::Slide),
         };
-
-        let left = c.fading.as_ref().map(|(_, since)| c.fade_left(*since));
-        if let (Some((old, _)), Some(left)) = (&mut c.fading, left) {
-            paint_print(ui, old, left * cx.opacity, 1.0);
-        }
-        if let Some((old, since)) = &c.fading_strokes {
-            let k = c.fade_left(*since) * cx.opacity;
-            photogram(painter, old, now, rect, scale, safelight, k, false);
-        }
-        let burst = c.burst_left();
-        if let Some(d) = &mut c.drawing {
-            let k = if d.backdrop { 0.3 } else { 1.0 } * cx.opacity;
-            let on = ((now - d.born - DRAW) / LIGHTS).clamp(0.0, 1.0);
-            let on = on * on * (3.0 - 2.0 * on);
-            paint_print(ui, d, k, on);
-        }
-        if let Some(p) = &c.strokes {
-            let print = matches!(stage.moment, Moment::Slide);
-            photogram(
-                painter,
-                p,
-                now,
-                rect,
-                scale,
-                safelight,
-                burst * cx.opacity,
-                print,
-            );
-        }
-        if c.busy() && !cx.still {
-            ui.ctx().request_repaint();
-        }
+        self.canvas.paint(ui, cx, &hand);
     }
 }
+
+/// The bench under the safelight: prints on white fibre paper that develop
+/// and then see the white light, and photograms for pen strokes.
+struct Bench {
+    safelight: Color32,
+    /// On a slide (not the countdown or the end): photograms lie on a print.
+    slide: bool,
+}
+
+impl Hand for Bench {
+    fn backdrop(&self) -> f32 {
+        0.3
+    }
+
+    fn picture(
+        &self,
+        ui: &egui::Ui,
+        cx: &FrameCx,
+        d: &mut Drawing,
+        now: f32,
+        k: f32,
+        current: bool,
+    ) {
+        let scale = cx.scale;
+        // the old print fades under the white light; a new one develops
+        // under the safelight, then the light comes on
+        let on = if current {
+            smoothstep(0.0, 1.0, (now - d.born - DRAW) / LIGHTS)
+        } else {
+            1.0
+        };
+        let line = d.picture.strategy == Strategy::Draw;
+        let lit = light(self.safelight, on);
+        let box_ = d.screen(cx.rect);
+        if !d.backdrop {
+            // the print: white fibre paper with a border, and its shadow
+            let border = box_.expand(box_.width().max(box_.height()) * 0.035);
+            ui.painter().rect_filled(
+                border.translate(egui::vec2(8.0, 12.0) * scale),
+                2.0 * scale,
+                Color32::from_black_alpha((110.0 * k) as u8),
+            );
+            ui.painter()
+                .rect_filled(border, 2.0 * scale, premul(multiply(PAPER, lit), k));
+        }
+        let tint = if line {
+            premul(multiply(Color32::from_gray(24), lit), k)
+        } else {
+            premul(lit, k)
+        };
+        d.paint(
+            ui,
+            cx.rect,
+            now,
+            tint,
+            if line { LINE_REVEAL } else { REVEAL },
+        );
+    }
+
+    fn strokes(
+        &self,
+        painter: &egui::Painter,
+        cx: &FrameCx,
+        p: &Picture,
+        now: f32,
+        k: f32,
+        current: bool,
+    ) {
+        let print = current && self.slide;
+        photogram(painter, cx, p, now, self.safelight, k, print);
+    }
+}
+
+/// White fibre paper.
+const PAPER: Color32 = Color32::from_rgb(244, 241, 234);
 
 /// `a` lit by `light`.
 fn multiply(a: Color32, light: Color32) -> Color32 {
@@ -187,17 +207,16 @@ fn multiply(a: Color32, light: Color32) -> Color32 {
 
 /// A photogram: the strokes left white where they shielded the paper, with
 /// a soft halo. On a slide it lies on a black print with a white border.
-#[allow(clippy::too_many_arguments)]
 fn photogram(
     painter: &egui::Painter,
+    cx: &FrameCx,
     pic: &Picture,
     now: f32,
-    rect: Rect,
-    scale: f32,
     safelight: Color32,
     opacity: f32,
     print: bool,
 ) {
+    let (rect, scale) = (cx.rect, cx.scale);
     if opacity <= 0.0 || pic.points.len() < 2 {
         return;
     }
@@ -217,11 +236,7 @@ fn photogram(
             2.0 * scale,
             Color32::from_black_alpha((110.0 * opacity) as u8),
         );
-        painter.rect_filled(
-            border,
-            2.0 * scale,
-            premul(multiply(Color32::from_rgb(244, 241, 234), lit), opacity),
-        );
+        painter.rect_filled(border, 2.0 * scale, premul(multiply(PAPER, lit), opacity));
         // the paper darkens as it develops; the shape stays white
         painter.rect_filled(
             b,

@@ -1,3 +1,21 @@
+// A build that leaves engines out (`--no-default-features`) also leaves the
+// render code only they draw with unused; the full build checks dead code.
+#![cfg_attr(
+    not(all(
+        feature = "particles",
+        feature = "led",
+        feature = "splitflap",
+        feature = "laser",
+        feature = "blocks",
+        feature = "blueprint",
+        feature = "sketch",
+        feature = "chalkboard",
+        feature = "watercolour",
+        feature = "darkroom"
+    )),
+    allow(dead_code)
+)]
+
 mod app;
 mod banner;
 mod check;

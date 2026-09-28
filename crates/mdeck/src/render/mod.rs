@@ -81,8 +81,8 @@ pub fn render_slide(
     scale: f32,
     cx: &SlideContext,
 ) {
-    if theme.engine.is_board() {
-        crate::engines::splitflap::render_slide(
+    if let Some(board) = theme.engine.board() {
+        board(
             ui,
             slide,
             theme,
