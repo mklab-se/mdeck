@@ -44,7 +44,7 @@ pub mod watercolour;
 
 pub use choice::{choose, unsupported, unsupported_summary, with_engine};
 pub use host::{Host, Shot};
-pub use stage::{CountPhase, FrameCx, Mask, Place, Stage};
+pub use stage::{CountPhase, FrameCx, Mask, Stage};
 
 use crate::parser::Slide;
 use crate::render::art::Medium;
@@ -123,6 +123,10 @@ impl Capabilities {
 
     /// What most engines show: a layer under editorial slides, the slide's
     /// illustration, the countdown and an end act.
+    #[cfg_attr(
+        not(all_engines),
+        allow(dead_code, reason = "the engines that show pictures")
+    )]
     pub const PICTURES: Capabilities = Capabilities {
         paints: true,
         editorial: true,

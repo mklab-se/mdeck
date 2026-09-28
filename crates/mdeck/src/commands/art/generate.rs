@@ -401,7 +401,7 @@ mod tests {
         let medium = art::Medium {
             name: "blueprint",
             kind: art::ArtKind::Line,
-            tonal: &art::style::SKETCH,
+            tonal: &art::style::LINE,
             tonal_strategy: art::prepare::Strategy::Hatch,
         };
         let style = Style::for_medium(&medium, &theme);

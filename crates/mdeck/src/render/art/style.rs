@@ -41,6 +41,7 @@ pub const LINE: Card = Card {
 
 /// The MKLab house style: graphite and ink on paper, old craft meeting
 /// modern technology.
+#[cfg(any(feature = "sketch", feature = "blueprint", feature = "chalkboard"))]
 pub const SKETCH: Card = Card {
     name: "sketch",
     prompt: "A detailed hand-drawn illustration in graphite pencil and black ink on plain \
@@ -65,6 +66,7 @@ pub const SKETCH: Card = Card {
 };
 
 /// Loose watercolour on cold-press paper.
+#[cfg(feature = "watercolour")]
 pub const WATERCOLOUR: Card = Card {
     name: "watercolour",
     prompt: "A loose, luminous watercolour painting on white cold-press paper: soft \
@@ -86,6 +88,7 @@ pub const WATERCOLOUR: Card = Card {
 };
 
 /// Black-and-white photographs, printed in the darkroom.
+#[cfg(feature = "darkroom")]
 pub const DARKROOM: Card = Card {
     name: "darkroom",
     prompt: "A black-and-white documentary photograph printed on fibre paper: natural \
@@ -188,6 +191,7 @@ impl Style {
 mod tests {
     use super::*;
 
+    #[cfg(all(feature = "sketch", feature = "watercolour"))]
     #[test]
     fn line_art_is_shared_and_ids_follow_the_style() {
         let theme = Theme::light();
@@ -206,7 +210,16 @@ mod tests {
 
     #[test]
     fn every_card_forbids_text_and_has_swatches() {
-        for card in [&LINE, &SKETCH, &WATERCOLOUR, &DARKROOM] {
+        let cards = [
+            Some(&LINE),
+            #[cfg(any(feature = "sketch", feature = "blueprint", feature = "chalkboard"))]
+            Some(&SKETCH),
+            #[cfg(feature = "watercolour")]
+            Some(&WATERCOLOUR),
+            #[cfg(feature = "darkroom")]
+            Some(&DARKROOM),
+        ];
+        for card in cards.into_iter().flatten() {
             assert!(card.prompt.contains("no text") || card.prompt.contains("No text"));
             assert_eq!(card.swatches.len(), 2, "{}", card.name);
             for (_, bytes) in card.swatches {

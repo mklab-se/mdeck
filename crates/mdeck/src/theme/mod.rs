@@ -119,8 +119,17 @@ pub struct Theme {
     pub pen_outline: Color32,
     pub arrow: Color32,
     pub arrow_outline: Color32,
-    /// Particle tints for the particles engine besides the accents.
+    /// Particle tints for the particles engine besides the accents. Every
+    /// build reads them from theme files; only that engine uses them.
+    #[cfg_attr(
+        not(all_engines),
+        allow(dead_code, reason = "read by the particles engine")
+    )]
     pub particle_light: Color32,
+    #[cfg_attr(
+        not(all_engines),
+        allow(dead_code, reason = "read by the particles engine")
+    )]
     pub particle_cool: Color32,
     pub fonts: ThemeFonts,
     pub h1_size: f32,
@@ -196,7 +205,7 @@ impl Theme {
         Self::builtin("nord")
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "particles"))]
     pub fn ember() -> Self {
         Self::builtin("ember")
     }
@@ -269,6 +278,10 @@ impl Theme {
 
     /// Body text one step brighter, for list items in the particles copy column.
     /// A light page (engines that add light switch to ink on one).
+    #[cfg_attr(
+        not(all_engines),
+        allow(dead_code, reason = "asked by the engines that draw light")
+    )]
     pub fn is_light(&self) -> bool {
         luminance(self.background) > 0.5
     }

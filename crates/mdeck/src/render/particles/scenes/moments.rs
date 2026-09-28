@@ -10,8 +10,11 @@ use crate::render::particles::{Drift, Group, Home, Palette, Scene};
 /// A point cloud illustration on the story stage (the right half of a copy
 /// slide): fitted into the stage box with breathing room, warm, and lit from
 /// the first step. `cloud_aspect` is the cloud's height over width.
-pub fn illustration_stage(points: Arc<Vec<[f32; 2]>>, place: crate::engines::Place) -> Scene {
-    let crate::engines::Place { u, v, w, h } = place;
+pub fn illustration_stage(
+    points: Arc<Vec<[f32; 2]>>,
+    place: crate::engines::stage::Place,
+) -> Scene {
+    let crate::engines::stage::Place { u, v, w, h } = place;
     let mut scene = Scene::new(vec![
         Group::new(0.70, Home::Mask { points, u, v, w, h })
             .palette(Palette::Warm)
@@ -29,8 +32,11 @@ pub fn illustration_stage(points: Arc<Vec<[f32; 2]>>, place: crate::engines::Pla
 
 /// A point cloud illustration behind a title: large, dim and soft, breathing
 /// slowly under the centred copy, the way a backdrop is out of focus.
-pub fn illustration_backdrop(points: Arc<Vec<[f32; 2]>>, place: crate::engines::Place) -> Scene {
-    let crate::engines::Place { u, v, w, h } = place;
+pub fn illustration_backdrop(
+    points: Arc<Vec<[f32; 2]>>,
+    place: crate::engines::stage::Place,
+) -> Scene {
+    let crate::engines::stage::Place { u, v, w, h } = place;
     let mut scene = Scene::new(vec![
         Group::new(0.72, Home::Mask { points, u, v, w, h })
             .palette(Palette::Warm)

@@ -2,6 +2,11 @@
 //! meshes, `smoothstep`, and one small sprite sheet (a lens, a core and a
 //! glow) that most engines draw their light with.
 
+#![cfg_attr(
+    not(all_engines),
+    allow(dead_code, reason = "shared by several engines, each using some of it")
+)]
+
 use eframe::egui::{self, Color32, Pos2, Rect};
 
 /// `a` toward `b` by `t` (0..1), opaque.

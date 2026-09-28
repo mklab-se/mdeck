@@ -3,7 +3,9 @@
 
 use eframe::egui::{Pos2, Rect};
 
-use super::{Label, Staged};
+#[cfg(feature = "particles")]
+use super::Label;
+use super::Staged;
 
 /// Pairs of labels whose boxes would overlap on a slide of the given aspect.
 /// Label boxes are estimated from text length (tracked mono at 13 px on a
@@ -36,6 +38,7 @@ pub fn label_collisions(staged: &Staged, aspect: f32) -> Vec<(String, String)> {
 
 /// Draw the cast labels over the field: tracked mono, fading with each
 /// member's group and warming when it runs hot.
+#[cfg(feature = "particles")]
 pub fn draw_labels(
     painter: &eframe::egui::Painter,
     labels: &[Label],

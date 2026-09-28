@@ -5,7 +5,7 @@
 
 use eframe::egui::{Pos2, Rect};
 
-use crate::engines::Place;
+use crate::engines::stage::Place;
 
 /// Most points a picture is traced through. Clouds are in importance order
 /// (the first points sketch the silhouette) and glyph masks are shuffled, so

@@ -3,7 +3,31 @@
 
 use std::path::Path;
 
+/// The engine features. With all of them on, the build sets the `all_engines`
+/// cfg: shared engine API that only some engines read is checked for dead
+/// code there, and not in builds that leave engines out.
+const ENGINES: &[&str] = &[
+    "PARTICLES",
+    "LED",
+    "SPLITFLAP",
+    "LASER",
+    "BLOCKS",
+    "BLUEPRINT",
+    "SKETCH",
+    "CHALKBOARD",
+    "WATERCOLOUR",
+    "DARKROOM",
+];
+
 fn main() {
+    println!("cargo::rustc-check-cfg=cfg(all_engines)");
+    if ENGINES
+        .iter()
+        .all(|e| std::env::var_os(format!("CARGO_FEATURE_{e}")).is_some())
+    {
+        println!("cargo::rustc-cfg=all_engines");
+    }
+
     let manifest = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR");
     let dir = Path::new(&manifest).join("illustrations");
     println!("cargo:rerun-if-changed={}", dir.display());

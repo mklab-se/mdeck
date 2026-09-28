@@ -2,6 +2,14 @@
 //! countdown, the end), the slide's figure and where it goes, and the
 //! geometry the slide's renderers drew.
 
+#![cfg_attr(
+    not(all_engines),
+    allow(
+        dead_code,
+        reason = "the stage is all the host offers an engine; a build with fewer engines reads less of it"
+    )
+)]
+
 use std::sync::Arc;
 
 use eframe::egui::Rect;

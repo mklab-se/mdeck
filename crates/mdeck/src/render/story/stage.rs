@@ -18,13 +18,26 @@ pub struct Label {
     /// Anchor (top-centre of the label) as slide fractions.
     pub u: f32,
     pub v: f32,
+    /// The group and figure the label follows (read by the particles engine).
+    #[cfg_attr(
+        not(feature = "particles"),
+        allow(dead_code, reason = "drawn by the particles engine")
+    )]
     pub group: usize,
+    #[cfg_attr(
+        not(feature = "particles"),
+        allow(dead_code, reason = "drawn by the particles engine")
+    )]
     pub figure: bool,
 }
 
 /// A staged script: the particle scene plus the labels to draw over it.
 #[derive(Clone, Debug)]
 pub struct Staged {
+    #[cfg_attr(
+        not(feature = "particles"),
+        allow(dead_code, reason = "played by the particles engine")
+    )]
     pub scene: Scene,
     pub labels: Vec<Label>,
 }

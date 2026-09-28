@@ -22,5 +22,7 @@ mod fixtures;
 pub use labels::draw_labels;
 pub use labels::label_collisions;
 pub use script::{Cell, Fill, FlowColor, Member, Script};
-pub use stage::{Label, Staged, allowed, stage, stage_box};
+#[cfg(feature = "particles")]
+pub use stage::Label;
+pub use stage::{Staged, allowed, stage, stage_box};
 pub use vocabulary::{is_figure, vocabulary};

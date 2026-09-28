@@ -163,7 +163,11 @@ shared (`render::art`); the engine only decides the medium:
    variant in `EngineKind`, its name in `name()` and `ALL`, and its arm in
    `def()` behind the same `cfg`.
 3. `crates/mdeck/Cargo.toml`: a feature, on by default (an art engine's
-   feature turns on `art` too). CI checks a build with it alone.
+   feature turns on `art` too). CI checks a build with it alone. Shared
+   code that only your engine uses goes behind your feature too; shared API
+   that engines read in part carries
+   `cfg_attr(not(all_engines), allow(dead_code, reason = "..."))`
+   (`build.rs` sets `all_engines` in a build with every engine).
 4. A showcase theme: `crates/mdeck/themes/<theme>.yaml` with `engine: <name>`,
    listed in `theme::lookup::BUILTIN` behind the same feature.
 5. `samples/engines/<name>.md`, a deck that shows what the engine is good at.

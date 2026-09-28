@@ -14,6 +14,14 @@
 //! - [`Strategy::Develop`]: the whole print at once, shadows first
 //!   (a photograph in the developer).
 
+#![cfg_attr(
+    not(all_engines),
+    allow(
+        dead_code,
+        reason = "each art engine uses its own strategy; a build with fewer of them uses less"
+    )
+)]
+
 use eframe::egui;
 use image::{GenericImageView, RgbaImage, imageops};
 

@@ -4,6 +4,11 @@
 //! draws when a slide has no picture (its `@illustration`, the countdown,
 //! the end words).
 
+#![cfg_attr(
+    not(all_engines),
+    allow(dead_code, reason = "shared by the art engines, each using some of it")
+)]
+
 use std::sync::Arc;
 
 use eframe::egui::{self, Color32, Pos2, Rect};
