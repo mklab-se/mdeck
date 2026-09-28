@@ -1,20 +1,16 @@
 use std::fmt::{self, Write};
 
-use super::layout::{auto_columns, grid_cells, grid_extent};
 use super::parsing::parse_diagram;
-use super::routes::routing_edge;
-use super::routing;
-use super::routing::types::{Route, RouteResult, RoutingConfig};
+use super::routes::reference_input;
+use super::routing::types::{Route, RouteResult};
 use super::types::*;
 
 // ─── Debug info ──────────────────────────────────────────────────────────────
 
 /// Generate a structured text summary of diagram nodes, edges, and routing results.
-/// Used by the debug overlay to show routing engine inputs/outputs.
-///
-/// Routes here use the default routing configuration on the bare grid, not
-/// the slide's measured lane capacities or the configured weights, so the
-/// overlay shows what the engine does with the diagram alone.
+/// Used by the debug overlay to show routing engine inputs/outputs. The routes
+/// are the ones `--check` computes: the reference layout with measured lane
+/// capacities and the configured weights.
 pub fn diagram_debug_info(content: &str) -> String {
     let (nodes, edges, _scale_directive) = parse_diagram(content);
     if nodes.is_empty() {
@@ -26,30 +22,12 @@ pub fn diagram_debug_info(content: &str) -> String {
     out
 }
 
-/// Each node's (col, row), 1-based to match the routing convention, placed
-/// the way `layout_nodes` places them: explicit grid if any node has `pos:`,
-/// else auto-layout.
-fn grid_positions(nodes: &[DiagramNode]) -> Vec<(i32, i32)> {
-    if nodes.iter().any(|n| n.grid_pos.is_some()) {
-        let (max_col, _) = grid_extent(nodes);
-        grid_cells(nodes, max_col)
-            .into_iter()
-            .map(|(c, r)| (c as i32, r as i32))
-            .collect()
-    } else {
-        let cols = auto_columns(nodes.len());
-        (0..nodes.len())
-            .map(|i| ((i % cols) as i32 + 1, (i / cols) as i32 + 1))
-            .collect()
-    }
-}
-
 fn write_report(out: &mut String, nodes: &[DiagramNode], edges: &[DiagramEdge]) -> fmt::Result {
-    let positions = grid_positions(nodes);
+    let input = reference_input(nodes, edges);
 
-    writeln!(out, "NODES ({}):", nodes.len())?;
-    for (node, (c, r)) in nodes.iter().zip(&positions) {
-        writeln!(out, "  {} @ ({},{})", node.name, c, r)?;
+    writeln!(out, "NODES ({}):", input.nodes().len())?;
+    for node in input.nodes() {
+        writeln!(out, "  {} @ ({},{})", node.name, node.col, node.row)?;
     }
 
     writeln!(out)?;
@@ -62,19 +40,7 @@ fn write_report(out: &mut String, nodes: &[DiagramNode], edges: &[DiagramEdge]) 
         writeln!(out)?;
     }
 
-    // Build routing types and run the routing engine
-    let routing_nodes: Vec<routing::types::DiagramNode> = nodes
-        .iter()
-        .zip(&positions)
-        .map(|(node, &(col, row))| routing::types::DiagramNode {
-            name: node.name.clone(),
-            col,
-            row,
-        })
-        .collect();
-    let routing_edges: Vec<routing::types::DiagramEdge> = edges.iter().map(routing_edge).collect();
-
-    let config = RoutingConfig::default();
+    let config = input.config();
     writeln!(out)?;
     writeln!(
         out,
@@ -82,8 +48,7 @@ fn write_report(out: &mut String, nodes: &[DiagramNode], edges: &[DiagramEdge]) 
         config.h_lane_capacity, config.v_lane_capacity
     )?;
 
-    let routing_output = routing::route_all_edges(&routing_nodes, &routing_edges, &config);
-
+    let routing_output = input.route();
     writeln!(out)?;
     writeln!(out, "ROUTING RESULTS:")?;
     for (edge, result) in &routing_output.results {
@@ -174,12 +139,31 @@ mod tests {
     }
 
     #[test]
-    fn grid_positions_auto_layout_wraps_past_five() {
-        let (nodes, _, _) = parse_diagram("A\nB\nC\nD\nE\nF\nG");
-        let positions = grid_positions(&nodes);
+    fn auto_layout_wraps_past_five() {
+        let info = diagram_debug_info("A\nB\nC\nD\nE\nF\nG\nA -> B");
         // 7 nodes: 3 columns
-        assert_eq!(positions[2], (3, 1));
-        assert_eq!(positions[3], (1, 2));
-        assert_eq!(positions[6], (1, 3));
+        assert!(info.contains("C @ (3,1)"), "{info}");
+        assert!(info.contains("D @ (1,2)"), "{info}");
+        assert!(info.contains("G @ (1,3)"), "{info}");
+    }
+
+    #[test]
+    fn the_overlay_routes_what_check_routes() {
+        // The overlay used the default three lanes per corridor while the
+        // slide and `--check` measured them from the layout.
+        let content = "A (pos: 1,1)\nB (pos: 3,1)\nC (pos: 2,2)\nA -> B\nA -> C";
+        let (nodes, edges, _) = parse_diagram(content);
+        let input = reference_input(&nodes, &edges);
+        let config = input.config();
+        let expected = format!(
+            "CONFIG: h_lanes={}, v_lanes={}",
+            config.h_lane_capacity, config.v_lane_capacity
+        );
+        assert!(diagram_debug_info(content).contains(&expected));
+        assert_ne!(
+            (config.h_lane_capacity, config.v_lane_capacity),
+            (3, 3),
+            "the example should measure something other than the default"
+        );
     }
 }

@@ -125,6 +125,15 @@ impl RoutingInput {
     }
 
     /// Route every edge, from the cache when these inputs were routed before.
+    /// The nodes as the router places them (1-based cells).
+    pub(super) fn nodes(&self) -> &[routing::types::DiagramNode] {
+        &self.nodes
+    }
+
+    pub(super) fn config(&self) -> &RoutingConfig {
+        &self.config
+    }
+
     pub(super) fn route(&self) -> RoutingOutput {
         cached_routes(self.cache_key(), || {
             routing::route_all_edges(&self.nodes, &self.edges, &self.config)
@@ -248,29 +257,7 @@ pub fn check_diagram_routes(content: &str) -> Vec<String> {
     if nodes.is_empty() || edges.is_empty() {
         return Vec::new();
     }
-
-    // A full-width slide at the default diagram height, unscaled
-    let scale = 1.0_f32;
-    let max_width = 1920.0_f32;
-    let diagram_height = 500.0 * scale;
-    let padding = 30.0 * scale;
-    let area_width = max_width - padding * 2.0;
-    let area_height = diagram_height - padding * 2.0;
-    let lane_spacing = EdgeMetrics::new(scale).lane_spacing;
-
-    let (layouts, grid) = layout_nodes(&nodes, area_width, area_height, 0.0, 0.0, scale);
-    let rects = node_rects(&nodes, &layouts, Pos2::ZERO);
-    let routable = edges.iter().filter(|e| is_routable(e, &rects));
-    let input = RoutingInput::new(
-        &nodes,
-        routable,
-        &grid,
-        &rects,
-        lane_spacing,
-        configured_weights(),
-    );
-
-    input
+    reference_input(&nodes, &edges)
         .route()
         .results
         .iter()
@@ -279,6 +266,31 @@ pub fn check_diagram_routes(content: &str) -> Vec<String> {
             RouteResult::Success(_) => None,
         })
         .collect()
+}
+
+/// The routing input of a diagram on a full-width slide at the default
+/// diagram height, unscaled, with the configured weights: what `--check`
+/// routes and the debug overlay reports.
+pub(super) fn reference_input(nodes: &[DiagramNode], edges: &[DiagramEdge]) -> RoutingInput {
+    let scale = 1.0_f32;
+    let max_width = 1920.0_f32;
+    let diagram_height = 500.0 * scale;
+    let padding = 30.0 * scale;
+    let area_width = max_width - padding * 2.0;
+    let area_height = diagram_height - padding * 2.0;
+    let lane_spacing = EdgeMetrics::new(scale).lane_spacing;
+
+    let (layouts, grid) = layout_nodes(nodes, area_width, area_height, 0.0, 0.0, scale);
+    let rects = node_rects(nodes, &layouts, Pos2::ZERO);
+    let routable = edges.iter().filter(|e| is_routable(e, &rects));
+    RoutingInput::new(
+        nodes,
+        routable,
+        &grid,
+        &rects,
+        lane_spacing,
+        configured_weights(),
+    )
 }
 
 /// Pre-compute routes for all diagrams and collect a `CheckReport` with any warnings.

@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 
 - A directive written with a space before the colon (`@layout : title`) is treated as a
   directive when slides are split, as it already was when the slide is read; `@:` is not.
+- The diagram debug overlay (`R`) shows the routes the slide and `--check` compute (measured
+  lane capacities and the configured routing weights), not a default configuration's.
 
 ## [1.16.0] - 2026-09-28
 
