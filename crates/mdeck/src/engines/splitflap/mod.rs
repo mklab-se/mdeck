@@ -6,6 +6,7 @@
 //! flaps, the board scrambles awake, and the end words clear flap by flap.
 
 pub mod draw;
+mod flaps;
 pub mod layout;
 mod wheel;
 mod writer;
