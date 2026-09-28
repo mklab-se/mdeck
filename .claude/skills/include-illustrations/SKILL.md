@@ -59,7 +59,7 @@ Then update every place the built-in set is listed or counted:
 
 - `crates/mdeck/doc/mdeck-spec.md` — the "The built-in set:" list in the Illustrations section
 - `crates/mdeck/doc/ai-reference-supplement.md` — the "Built in:" list
-- `README.md` and `GALLERY.md` — the count ("Twenty illustrations are built in")
+- `docs/engines.md` and `GALLERY.md`: the count ("Twenty illustrations are built in")
 - `CHANGELOG.md` — an `[Unreleased]` line naming the new built-ins
 - `samples/ember/illustrations.md` — only if the new cloud makes a better example than
   one already there

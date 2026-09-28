@@ -19,6 +19,6 @@ All visualizations (charts, diagrams, etc.) must follow these principles:
   2. `commands/create/prompts.rs` `ANALYSIS_SYSTEM_PROMPT`: the visualization list with syntax hints (so `ai create` uses them)
   3. `crates/mdeck/doc/ai-reference-supplement.md`: the AI agent tips (used by `mdeck ai skill --reference`)
   4. `commands/spec.rs`: the quick reference card (used by `mdeck spec --short`)
-  5. `README.md`: the visualization table
+  5. `docs/visualizations.md`: the visualization table
 
   If the AI doesn't know about a visualization, it won't use it: it will log a missing opportunity instead, which is wrong.

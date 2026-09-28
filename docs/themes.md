@@ -1,0 +1,104 @@
+<p align="center"><a href="../README.md">MDeck</a> &middot; <a href="install.md">Install</a> &middot; <a href="writing-slides.md">Writing slides</a> &middot; <a href="visualizations.md">Visualizations</a> &middot; <a href="themes.md">Themes</a> &middot; <a href="engines.md">Engines</a> &middot; <a href="presenting.md">Presenting</a> &middot; <a href="export.md">Export</a> &middot; <a href="ai.md">AI</a> &middot; <a href="commands.md">Commands</a></p>
+
+# Themes
+
+A theme is everything about how a deck looks: colours, the chart palette,
+fonts, sizes, a logo, the countdown and its engine. Pick a built-in one with a
+line of frontmatter, or write your own in a few lines of YAML.
+
+## Built-in themes and transitions
+
+Twelve built-in themes: **light**, **dark**, **nord**, **ember**, four
+seasons, **spring**, **summer**, **autumn** and **winter**, and a showcase
+theme for each engine, **marquee** (LED), **departures** (split-flap),
+**etch** (laser) and **stack** (blocks). Transitions are
+**slide**, **fade**, **spatial**, and **none**. Set them in the frontmatter or
+cycle them live with `Shift+T` and `T`. Every theme draws symbols (①, ✓, →) from
+bundled fallback faces, and Chinese, Japanese and Korean from a font on your
+system (`mdeck --check` tells you if none was found):
+
+```yaml
+---
+@theme: winter
+@transition: spatial
+---
+```
+
+<p align="center">
+  <img src="../media/gallery/theme-spring.png" width="45%">&nbsp;&nbsp;
+  <img src="../media/gallery/theme-summer.png" width="45%">
+</p>
+<p align="center">
+  <img src="../media/gallery/theme-autumn.png" width="45%">&nbsp;&nbsp;
+  <img src="../media/gallery/theme-winter.png" width="45%">
+</p>
+
+## Your own theme
+
+**Your own themes are YAML files**, and the built-in ones are written the same
+way. Put `themes/acme.yaml` next to a deck (or in `~/.config/mdeck/themes/`) and
+set `@theme: acme`; everything you leave out comes from the theme it extends:
+
+```yaml
+name: Acme
+extends: light
+colors:
+  background: "#fbfaf7"
+  text: "#2b2d42"
+  heading: "#14213d"
+  accent: "#e85d04"
+  series: ["#e85d04", "#14213d", "#2a9d8f", "#e9c46a"]
+fonts:
+  display: spectral-light      # a bundled face, or a .ttf/.otf in the theme folder
+engine: plain                  # or particles, for Ember's living field in your colours
+```
+
+A theme sets colours, the chart palette, fonts by role, sizes, the syntax
+theme, the countdown, the engine and a **logo**. Themes are data only, so a deck can never
+run code. Custom themes work everywhere a built-in one does: presenting,
+`Shift+T`, PNG and PDF export, and `--check`.
+
+**Engines.** The engine is what a theme does beyond colours and type: the
+particle field, the LED wall, the departure board, the laser or the falling
+blocks. See [Engines](engines.md).
+
+## Logos
+
+**Logos.** A PNG (with transparency) or SVG in a corner of every slide, in
+presenting and in export. A theme carries its brand's logo (`logo:` with
+`file`, `position`, `height` and `opacity`), and any deck can add or replace
+one without a custom theme:
+
+```yaml
+---
+@theme: dark
+@logo: brand/logo-white.svg
+@logo-position: bottom-right   # default top-right
+@logo-opacity: 40%             # default 60%
+---
+```
+
+`@logo: none` in the frontmatter hides a theme's logo for the whole deck. Under a
+slide's heading, `@logo: none` hides it on that slide and `@logo: partner.svg`
+shows another logo there.
+
+## From a design system
+
+**From a design system.** If your brand already lives in a design system (a
+Claude Design export, CSS tokens, a Tailwind config, W3C design tokens),
+`mdeck theme new acme --from path/to/design-system` reads its rules and tokens,
+copies its fonts and logos into the theme folder, and writes the theme with AI.
+Then look at it and adjust:
+
+```bash
+mdeck theme new acme                       # a commented starter theme in themes/
+mdeck theme new acme --from ./brand        # convert a design system (AI)
+mdeck theme check acme                     # errors, fallbacks, hard-to-read colours
+mdeck theme preview acme -o /tmp/acme      # a sampler deck as PNGs
+mdeck theme list                           # every theme visible from here
+mdeck export talk.md --theme acme          # any deck in any theme
+```
+
+Section 9.4 of the spec (`mdeck spec`) documents every key and the mapping
+from design-system roles to slide roles, so an AI agent can do the conversion
+too. `samples/themes/` has a converted design system and a hand-written theme.

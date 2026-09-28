@@ -94,7 +94,7 @@ mdeck + pidge + rigg + rusty-tmpl).
 ### Documentation & Sample Presentations
 - **Before considering any task done, ensure all documentation and sample presentations are up to date.** This is a blocking requirement — incomplete docs or outdated samples mean the task is not finished.
 - **Review all documentation for accuracy before pushing or releasing:**
-  - `README.md` — features, quick start, badges, gallery preview images
+  - `README.md`: the landing page: pitch, showcase images (`media/showcase/`, from `samples/showcase/launch.md`), quick start, links. Details belong in `docs/*.md` (install, writing slides, visualizations, themes, engines, presenting, export, AI, commands, development), which must stay current too
   - `GALLERY.md` — visual showcase with exported slide screenshots from `media/gallery/`
   - `CHANGELOG.md` — new entries for every user-visible change
   - `CLAUDE.md` — architecture, commands, patterns
