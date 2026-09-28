@@ -3,6 +3,7 @@
 
 use std::collections::HashSet;
 
+use anyhow::{Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 
 use crate::render::illustration::Library;
@@ -142,76 +143,68 @@ pub const MAX_SAY_CHARS: usize = 160;
 
 impl Script {
     /// Parse a script from YAML or JSON (JSON is valid YAML).
-    pub fn parse(text: &str) -> Result<Script, String> {
-        let script: Script = serde_norway::from_str(text).map_err(|e| e.to_string())?;
+    pub fn parse(text: &str) -> Result<Script> {
+        let script: Script = serde_norway::from_str(text).map_err(|e| anyhow!("{e}"))?;
         script.validate()?;
         Ok(script)
     }
 
     /// Structural checks the renderer relies on.
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self) -> Result<()> {
         if self.cast.is_empty() {
-            return Err("cast is empty".into());
+            bail!("cast is empty");
         }
         if self.cast.len() > MAX_CAST {
-            return Err(format!(
+            bail!(
                 "cast has {} members, at most {MAX_CAST} allowed",
                 self.cast.len()
-            ));
+            );
         }
         if self.beats.len() > MAX_BEATS {
-            return Err(format!(
-                "{} beats, at most {MAX_BEATS} allowed",
-                self.beats.len()
-            ));
+            bail!("{} beats, at most {MAX_BEATS} allowed", self.beats.len());
         }
         let mut ids = HashSet::new();
         let mut cells = HashSet::new();
         for m in &self.cast {
             if m.id.trim().is_empty() {
-                return Err("a cast member has an empty id".into());
+                bail!("a cast member has an empty id");
             }
             if !ids.insert(m.id.as_str()) {
-                return Err(format!("duplicate cast id `{}`", m.id));
+                bail!("duplicate cast id `{}`", m.id);
             }
             crate::render::illustration::validate_name(&m.kind)
-                .map_err(|e| format!("cast `{}`: kind {e}", m.id))?;
+                .map_err(|e| anyhow!("cast `{}`: kind {e}", m.id))?;
             if !cells.insert(m.cell) {
-                return Err(format!(
-                    "two cast members share the cell `{}`",
-                    m.cell.name()
-                ));
+                bail!("two cast members share the cell `{}`", m.cell.name());
             }
         }
         for f in &self.flows {
             for end in [&f.from, &f.to] {
                 if !ids.contains(end.as_str()) {
-                    return Err(format!("flow references unknown cast id `{end}`"));
+                    bail!("flow references unknown cast id `{end}`");
                 }
             }
             if f.from == f.to {
-                return Err(format!("flow from `{}` to itself", f.from));
+                bail!("flow from `{}` to itself", f.from);
             }
             if f.at >= self.beats.len().max(1) {
-                return Err(format!(
+                bail!(
                     "flow starts at beat {}, but there are {} beats",
                     f.at,
                     self.beats.len()
-                ));
+                );
             }
         }
         for (i, b) in self.beats.iter().enumerate() {
             for id in b.show.iter().chain(b.hot.iter()) {
                 if !ids.contains(id.as_str()) {
-                    return Err(format!("beat {i} references unknown cast id `{id}`"));
+                    bail!("beat {i} references unknown cast id `{id}`");
                 }
             }
             if let Some(say) = &b.say
                 && say.chars().count() > MAX_SAY_CHARS
             {
-                return Err(format!(
-                    "beat {i} line is longer than {MAX_SAY_CHARS} characters"
-                ));
+                bail!("beat {i} line is longer than {MAX_SAY_CHARS} characters");
             }
         }
         Ok(())
@@ -276,11 +269,26 @@ mod tests {
     #[test]
     fn validation_catches_bad_references_and_cells() {
         let bad = "cast:\n  - { id: a, kind: person, cell: left }\nflows:\n  - { from: a, to: zz }\nbeats: []\n";
-        assert!(Script::parse(bad).unwrap_err().contains("unknown cast id"));
+        assert!(
+            Script::parse(bad)
+                .unwrap_err()
+                .to_string()
+                .contains("unknown cast id")
+        );
         let dup = "cast:\n  - { id: a, kind: person, cell: left }\n  - { id: b, kind: box, cell: left }\n";
-        assert!(Script::parse(dup).unwrap_err().contains("share the cell"));
+        assert!(
+            Script::parse(dup)
+                .unwrap_err()
+                .to_string()
+                .contains("share the cell")
+        );
         assert!(Script::parse("cast: []\n").is_err());
         let bad_kind = "cast:\n  - { id: a, kind: 'Big Server', cell: left }\n";
-        assert!(Script::parse(bad_kind).unwrap_err().contains("kind"));
+        assert!(
+            Script::parse(bad_kind)
+                .unwrap_err()
+                .to_string()
+                .contains("kind")
+        );
     }
 }

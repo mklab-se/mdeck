@@ -120,7 +120,7 @@ pub async fn run(file: PathBuf, opts: Options) -> Result<()> {
         );
     };
     let style = Style::for_medium(medium, &theme);
-    let sc = sidecar::load(&file).map_err(|e| anyhow::anyhow!(e))?;
+    let sc = sidecar::load(&file)?;
     let resolved = sidecar::resolve(&file, &pres, sc.as_ref(), &style.id());
     let todo = targets(&pres, &resolved, opts.slide, opts.stale, opts.force)?;
     if todo.is_empty() {
@@ -205,7 +205,7 @@ impl Target<'_> {
             Some(scene),
             crate::commands::story::timestamp(),
         );
-        sidecar::save(self.file, sc).map_err(|e| anyhow::anyhow!(e))?;
+        sidecar::save(self.file, sc)?;
         Ok(())
     }
 }
@@ -326,7 +326,7 @@ pub fn generate_one_blocking(deck: &Path, index: usize, theme: &Theme) -> Result
             .medium()
             .context("this theme's engine draws no art")?;
         let style = Style::for_medium(medium, theme);
-        let sc = sidecar::load(deck).map_err(|e| anyhow::anyhow!(e))?;
+        let sc = sidecar::load(deck)?;
         let resolved = sidecar::resolve(deck, &pres, sc.as_ref(), &style.id());
         if resolved[index]
             .as_ref()

@@ -4,8 +4,8 @@
 //! when presenting and when exporting.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
+use anyhow::{Context, anyhow};
 use eframe::egui::{self, Color32, Pos2, Rect, Vec2};
 
 use crate::parser::{Presentation, PresentationMeta};
@@ -93,7 +93,7 @@ pub fn resolve(
         Some(file) => match logo_file(deck_dir, file) {
             Ok(path) => Some(Logo { path, ..style }),
             Err(p) => {
-                problems.push(p);
+                problems.push(p.to_string());
                 theme.logo.clone().map(|t| Logo {
                     path: t.path,
                     ..style
@@ -166,12 +166,12 @@ pub fn resolve_slides(
 }
 
 /// A logo file relative to the deck, or why it cannot be used.
-fn logo_file(deck_dir: &Path, file: &str) -> Result<PathBuf, String> {
+fn logo_file(deck_dir: &Path, file: &str) -> anyhow::Result<PathBuf> {
     let path = deck_dir.join(file);
     if !is_logo_file(&path) {
-        Err(format!("@logo: '{file}' must be a .png or .svg file"))
+        Err(anyhow!("@logo: '{file}' must be a .png or .svg file"))
     } else if !path.is_file() {
-        Err(format!("@logo: {} was not found", path.display()))
+        Err(anyhow!("@logo: {} was not found", path.display()))
     } else {
         Ok(path)
     }
@@ -221,35 +221,35 @@ fn style(theme: &Theme, meta: &PresentationMeta, problems: &mut Vec<String>) -> 
 }
 
 /// Decode a PNG or rasterise an SVG.
-pub fn load_image(path: &Path) -> Result<egui::ColorImage, String> {
-    let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+pub fn load_image(path: &Path) -> anyhow::Result<egui::ColorImage> {
+    let bytes = std::fs::read(path).map_err(|e| anyhow!("{}: {e}", path.display()))?;
     let svg = path
         .extension()
         .and_then(|e| e.to_str())
         .is_some_and(|e| e.eq_ignore_ascii_case("svg"));
     if svg {
-        rasterize_svg(&bytes).map_err(|e| format!("{}: {e}", path.display()))
+        rasterize_svg(&bytes).map_err(|e| anyhow!("{}: {e}", path.display()))
     } else {
         let img = image::load_from_memory(&bytes)
-            .map_err(|e| format!("{}: {e}", path.display()))?
+            .map_err(|e| anyhow!("{}: {e}", path.display()))?
             .to_rgba8();
         let size = [img.width() as usize, img.height() as usize];
         Ok(egui::ColorImage::from_rgba_unmultiplied(size, img.as_raw()))
     }
 }
 
-fn rasterize_svg(bytes: &[u8]) -> Result<egui::ColorImage, String> {
+fn rasterize_svg(bytes: &[u8]) -> anyhow::Result<egui::ColorImage> {
     use resvg::{tiny_skia, usvg};
     let tree = usvg::Tree::from_data(bytes, &usvg::Options::default())
-        .map_err(|e| format!("not a readable SVG ({e})"))?;
+        .map_err(|e| anyhow!("not a readable SVG ({e})"))?;
     let size = tree.size();
     if size.width() <= 0.0 || size.height() <= 0.0 {
-        return Err("the SVG has no size".into());
+        anyhow::bail!("the SVG has no size");
     }
     let scale = RASTER_HEIGHT as f32 / size.height();
     let w = ((size.width() * scale).round() as u32).clamp(1, 4096);
     let h = RASTER_HEIGHT;
-    let mut pixmap = tiny_skia::Pixmap::new(w, h).ok_or("the SVG is too large")?;
+    let mut pixmap = tiny_skia::Pixmap::new(w, h).context("the SVG is too large")?;
     resvg::render(
         &tree,
         tiny_skia::Transform::from_scale(scale, scale),
@@ -262,24 +262,25 @@ fn rasterize_svg(bytes: &[u8]) -> Result<egui::ColorImage, String> {
     ))
 }
 
-/// A loaded logo texture, or why it could not be loaded.
+/// A loaded logo texture, or `None` when the file could not be loaded
+/// (`--check` and the theme report why; drawing just leaves it out).
 #[derive(Clone)]
-struct Loaded(Arc<Result<egui::TextureHandle, String>>);
+struct Loaded(Option<egui::TextureHandle>);
 
 /// The texture for `path`, loaded once per context.
-fn texture(ctx: &egui::Context, path: &Path) -> Result<egui::TextureHandle, String> {
+fn texture(ctx: &egui::Context, path: &Path) -> Option<egui::TextureHandle> {
     let id = egui::Id::new(("mdeck-logo", path));
     if let Some(Loaded(t)) = ctx.data(|d| d.get_temp::<Loaded>(id)) {
-        return (*t).clone();
+        return t;
     }
-    let loaded = load_image(path).map(|img| {
+    let loaded = load_image(path).ok().map(|img| {
         ctx.load_texture(
             format!("logo:{}", path.display()),
             img,
             egui::TextureOptions::LINEAR,
         )
     });
-    ctx.data_mut(|d| d.insert_temp(id, Loaded(Arc::new(loaded.clone()))));
+    ctx.data_mut(|d| d.insert_temp(id, Loaded(loaded.clone())));
     loaded
 }
 
@@ -299,7 +300,7 @@ pub fn placement(slide: Rect, logo: &Logo, aspect: f32, scale: f32) -> Rect {
 
 /// Draw `logo` on `slide`. `fade` multiplies its opacity (transitions).
 pub fn draw(painter: &egui::Painter, slide: Rect, logo: &Logo, scale: f32, fade: f32) {
-    let Ok(tex) = texture(painter.ctx(), &logo.path) else {
+    let Some(tex) = texture(painter.ctx(), &logo.path) else {
         return;
     };
     let [w, h] = tex.size();

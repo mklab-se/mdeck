@@ -18,9 +18,7 @@ const MAX_URL_LEN: usize = 8000;
 /// title and body filled in. The person drags the file onto the issue and
 /// submits; nothing needs to be installed.
 pub(super) fn contribute(name: &str, no_open: bool, quiet: bool) -> Result<()> {
-    let Some((src, cloud)) =
-        illustration::resolve(name, Some(Path::new("."))).map_err(|e| anyhow::anyhow!(e))?
-    else {
+    let Some((src, cloud)) = illustration::resolve(name, Some(Path::new(".")))? else {
         bail!("no illustration named `{name}` (run `mdeck illustration list`)");
     };
     let path = match &src {

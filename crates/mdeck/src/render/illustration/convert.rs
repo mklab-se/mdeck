@@ -9,6 +9,7 @@
 
 use std::sync::Arc;
 
+use anyhow::{Context, Result};
 use image::{DynamicImage, GenericImageView};
 
 use super::{Cloud, MAX_POINTS, VERSION};
@@ -31,8 +32,8 @@ const EDGE_RADIUS: i32 = 4;
 const EDGE_WEIGHT: f32 = 1.2;
 
 /// Reduce `img` to a cloud named `name`.
-pub fn convert(img: &DynamicImage, name: &str, description: &str) -> Result<Cloud, String> {
-    let points = order_points(img).ok_or("the image has no bright pixels to trace")?;
+pub fn convert(img: &DynamicImage, name: &str, description: &str) -> Result<Cloud> {
+    let points = order_points(img).context("the image has no bright pixels to trace")?;
     let (points, aspect) = normalise(points);
     let cloud = Cloud {
         version: VERSION,

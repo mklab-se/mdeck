@@ -136,12 +136,12 @@ static GENERATION: AtomicU64 = AtomicU64::new(0);
 
 /// Check `bytes` parse as a TTF/OTF font (egui panics on a broken one) and
 /// register them as a family. The same file registers once.
-pub fn register_file_face(bytes: Vec<u8>, mono: bool) -> Result<FontFamily, String> {
+pub fn register_file_face(bytes: Vec<u8>, mono: bool) -> anyhow::Result<FontFamily> {
     use skrifa::MetadataProvider;
     let font = skrifa::FontRef::from_index(&bytes, 0)
-        .map_err(|e| format!("not a readable TTF/OTF font ({e})"))?;
+        .map_err(|e| anyhow::anyhow!("not a readable TTF/OTF font ({e})"))?;
     if font.charmap().map('a').is_none() {
-        return Err("the font has no Latin letters".into());
+        anyhow::bail!("the font has no Latin letters");
     }
     let mut h = std::collections::hash_map::DefaultHasher::new();
     std::hash::Hash::hash(&bytes, &mut h);
