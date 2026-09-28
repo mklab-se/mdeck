@@ -13,7 +13,7 @@ mod writer;
 
 use eframe::egui;
 
-use super::stage::{FrameCx, Moment, Stage};
+use super::stage::{FrameCx, Look, Moment, Stage};
 use super::{Capabilities, Engine, EngineDef};
 use crate::parser::{Block, Slide};
 use crate::render::illustration::Library;
@@ -45,15 +45,6 @@ const END_WORDS: f32 = 3.6;
 /// A cell's whole turn from one character to another takes about this long,
 /// however far apart they are on the wheel.
 const TURN: f32 = 0.85;
-
-#[derive(Clone, Copy, PartialEq, Debug)]
-enum Look {
-    Slide,
-    Digit(u8),
-    Wake,
-    EndWords,
-    EndClear,
-}
 
 type Key = (usize, usize, Look, bool);
 
@@ -179,13 +170,7 @@ impl Default for SplitFlap {
 
 impl Engine for SplitFlap {
     fn update(&mut self, cx: &FrameCx, stage: &Stage, _lib: &mut Library) {
-        let look = match &stage.moment {
-            Moment::Slide => Look::Slide,
-            Moment::Countdown { digit, .. } => Look::Digit(*digit),
-            Moment::Burst { .. } => Look::Wake,
-            Moment::End { elapsed, .. } if *elapsed < END_WORDS => Look::EndWords,
-            Moment::End { .. } => Look::EndClear,
-        };
+        let look = stage.moment.look(END_WORDS);
         let key = (stage.index, stage.reveal, look, stage.title);
         if self.key != Some(key) {
             let board = match look {
@@ -194,9 +179,9 @@ impl Engine for SplitFlap {
                     .map(|s| layout::lay_out(s, stage.title, stage.reveal))
                     .unwrap_or_else(Board::blank),
                 Look::Digit(d) => layout::digit(d),
-                Look::Wake => layout::scramble(7),
+                Look::Burst => layout::scramble(7),
                 Look::EndWords => layout::words("THE END"),
-                Look::EndClear => Board::blank(),
+                Look::EndOut => Board::blank(),
             };
             self.panel = look == Look::Slide && board.image.is_some();
             let brisk = !matches!(look, Look::Slide);

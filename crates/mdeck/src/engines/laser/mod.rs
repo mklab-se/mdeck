@@ -12,7 +12,7 @@ use std::sync::Arc;
 use eframe::egui::{self, Pos2, Rect};
 
 use super::paint::{SPRITE_CORE, SPRITE_GLOW, Sprites, additive, mix, premul};
-use super::stage::{FrameCx, Moment, Stage};
+use super::stage::{FrameCx, Look, Moment, Stage};
 use super::{Capabilities, Engine, EngineDef};
 use crate::render::illustration::Library;
 use crate::render::strokes::{Picture, to_screen};
@@ -41,15 +41,6 @@ const END_WORDS: f32 = 3.8;
 const HEAT: f32 = 0.32;
 /// How long the faint glow of fresh marks lingers.
 const LINGER: f32 = 2.6;
-
-#[derive(Clone, Copy, PartialEq, Debug)]
-enum Look {
-    Slide,
-    Digit(u8),
-    Burst,
-    EndWords,
-    EndOut,
-}
 
 type Key = (usize, Look, usize, u64, bool);
 
@@ -99,13 +90,7 @@ impl Default for Laser {
 
 impl Engine for Laser {
     fn update(&mut self, cx: &FrameCx, stage: &Stage, _lib: &mut Library) {
-        let look = match &stage.moment {
-            Moment::Slide => Look::Slide,
-            Moment::Countdown { digit, .. } => Look::Digit(*digit),
-            Moment::Burst { .. } => Look::Burst,
-            Moment::End { elapsed, .. } if *elapsed < END_WORDS => Look::EndWords,
-            Moment::End { .. } => Look::EndOut,
-        };
+        let look = stage.moment.look(END_WORDS);
         let figure = stage
             .figure
             .as_ref()

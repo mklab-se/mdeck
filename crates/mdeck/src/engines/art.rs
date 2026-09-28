@@ -14,7 +14,7 @@ use std::sync::Arc;
 use eframe::egui::{self, Color32, Pos2, Rect};
 
 use super::Capabilities;
-use super::stage::{FrameCx, Mask, Moment, Place, Stage};
+use super::stage::{FrameCx, Look, Mask, Moment, Place, Stage};
 use crate::render::art::prepare::Prepared;
 use crate::render::illustration::Library;
 use crate::render::strokes::{Picture, plan, to_screen, toured};
@@ -112,16 +112,6 @@ impl Drawing {
     }
 }
 
-/// What a slide, the countdown or the end is showing.
-#[derive(Clone, Copy, PartialEq, Debug)]
-enum Look {
-    Slide,
-    Digit(u8),
-    Burst,
-    EndWords,
-    EndOut,
-}
-
 type Key = (usize, Look, usize, usize, bool);
 
 /// The state every art engine keeps: the picture being drawn in (or the
@@ -180,13 +170,7 @@ impl Canvas {
     /// (its generated art on a slide, else pen strokes), and the old one
     /// fades. `still` settles everything at once.
     pub fn update(&mut self, cx: &FrameCx, stage: &Stage, _lib: &mut Library) {
-        let look = match &stage.moment {
-            Moment::Slide => Look::Slide,
-            Moment::Countdown { digit, .. } => Look::Digit(*digit),
-            Moment::Burst { .. } => Look::Burst,
-            Moment::End { elapsed, .. } if *elapsed < self.end_words => Look::EndWords,
-            Moment::End { .. } => Look::EndOut,
-        };
+        let look = stage.moment.look(self.end_words);
         let art = stage
             .art
             .as_ref()

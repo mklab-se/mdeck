@@ -50,7 +50,33 @@ pub enum Moment {
     End { elapsed: f32, words: Mask },
 }
 
+/// What a moment shows, without its masks and progress: what an engine keys
+/// its picture on, to rebuild it only when this changes.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Look {
+    Slide,
+    Digit(u8),
+    /// The last digit leaves.
+    Burst,
+    /// The end slide while it shows the words.
+    EndWords,
+    /// The end slide after the words have gone.
+    EndOut,
+}
+
 impl Moment {
+    /// What this moment shows. The end shows its words for `end_words`
+    /// seconds, then clears.
+    pub fn look(&self, end_words: f32) -> Look {
+        match self {
+            Moment::Slide => Look::Slide,
+            Moment::Countdown { digit, .. } => Look::Digit(*digit),
+            Moment::Burst { .. } => Look::Burst,
+            Moment::End { elapsed, .. } if *elapsed < end_words => Look::EndWords,
+            Moment::End { .. } => Look::EndOut,
+        }
+    }
+
     /// The countdown phase, when this is part of the countdown.
     pub fn count_phase(&self) -> Option<(CountPhase, f32)> {
         match self {

@@ -10,7 +10,7 @@ use std::sync::Arc;
 use eframe::egui::{self, Color32, Pos2, Rect};
 
 use super::paint::{mix, premul};
-use super::stage::{FrameCx, Mask, Moment, Place, Stage};
+use super::stage::{FrameCx, Look, Mask, Moment, Place, Stage};
 use super::{Capabilities, Engine, EngineDef, hash01};
 use crate::render::illustration::Library;
 use crate::theme::Theme;
@@ -32,15 +32,6 @@ const END_WORDS: f32 = 3.6;
 const GRAVITY: f32 = 7200.0;
 /// How long a clear takes.
 const CLEAR: f32 = 0.55;
-
-#[derive(Clone, Copy, PartialEq, Debug)]
-enum Look {
-    Slide,
-    Digit(u8),
-    Burst,
-    EndWords,
-    EndOut,
-}
 
 type Key = (usize, Look, usize, bool);
 
@@ -146,13 +137,7 @@ impl Default for Blocks {
 
 impl Engine for Blocks {
     fn update(&mut self, cx: &FrameCx, stage: &Stage, _lib: &mut Library) {
-        let look = match &stage.moment {
-            Moment::Slide => Look::Slide,
-            Moment::Countdown { digit, .. } => Look::Digit(*digit),
-            Moment::Burst { .. } => Look::Burst,
-            Moment::End { elapsed, .. } if *elapsed < END_WORDS => Look::EndWords,
-            Moment::End { .. } => Look::EndOut,
-        };
+        let look = stage.moment.look(END_WORDS);
         let figure = stage
             .figure
             .as_ref()

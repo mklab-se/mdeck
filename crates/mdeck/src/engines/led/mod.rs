@@ -11,7 +11,7 @@ use std::sync::Arc;
 use eframe::egui::{self, Pos2, Rect};
 
 use super::paint::{Sprites, smoothstep};
-use super::stage::{FrameCx, Moment, Place, Stage};
+use super::stage::{FrameCx, Look, Moment, Place, Stage};
 use super::{Capabilities, Engine, EngineDef, hash01};
 use crate::render::hints::Hint;
 use crate::render::illustration::Library;
@@ -43,16 +43,6 @@ const RISE: f32 = 16.0;
 const FALL: f32 = 7.0;
 /// How long a striking LED flickers.
 const FLICKER: f32 = 0.16;
-
-/// What the wall is showing, for deciding when to rebuild the picture.
-#[derive(Clone, Copy, PartialEq, Debug)]
-enum Look {
-    Slide,
-    Digit(u8),
-    Burst,
-    EndWords,
-    EndOut,
-}
 
 type Key = (usize, Look, usize, u64, bool);
 
@@ -391,13 +381,7 @@ impl Engine for Led {
             }
             self.rect = cx.rect;
         }
-        let look = match &stage.moment {
-            Moment::Slide => Look::Slide,
-            Moment::Countdown { digit, .. } => Look::Digit(*digit),
-            Moment::Burst { .. } => Look::Burst,
-            Moment::End { elapsed, .. } if *elapsed < END_WORDS => Look::EndWords,
-            Moment::End { .. } => Look::EndOut,
-        };
+        let look = stage.moment.look(END_WORDS);
         let figure = stage
             .figure
             .as_ref()

@@ -3,8 +3,8 @@
 
 use eframe::egui::{self, Pos2, Rect};
 
-use super::{Laser, Look};
-use crate::engines::stage::{FrameCx, Mask, Moment, Place, Stage};
+use super::Laser;
+use crate::engines::stage::{FrameCx, Look, Mask, Moment, Place, Stage};
 use crate::render::hints::Hint;
 use crate::render::strokes::{Picture, plan, toured};
 
