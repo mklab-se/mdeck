@@ -18,6 +18,7 @@ use eframe::egui;
 use image::{GenericImageView, RgbaImage, imageops};
 
 use super::ArtKind;
+use crate::engines::paint::smoothstep;
 use order::{bloom_order, develop_order, draw_order, hatch_order};
 
 mod order;
@@ -94,7 +95,7 @@ impl Prepared {
                 }
                 if develop {
                     // the print darkens into place instead of fading in
-                    k = k * k * (3.0 - 2.0 * k);
+                    k = smoothstep(0.0, 1.0, k);
                 }
                 if r.grain > 0.0 {
                     // the medium skips on a rough surface, in clumps of a

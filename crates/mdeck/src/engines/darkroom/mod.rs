@@ -9,10 +9,10 @@
 
 use eframe::egui::{self, Color32, Pos2, Rect, Stroke};
 
-use super::Engine;
 use super::art::{Canvas, Reveal};
-use super::led::{SPRITE_GLOW, additive, mix, premul, sprite_sheet};
+use super::paint::{SPRITE_GLOW, additive, mix, premul, sprite_sheet};
 use super::stage::{FrameCx, Moment, Stage};
+use super::{Engine, EngineDef};
 use crate::render::art::prepare::Strategy;
 use crate::render::art::{ArtKind, Medium, style};
 use crate::render::illustration::Library;
@@ -28,6 +28,15 @@ pub static MEDIUM: Medium = Medium {
 
 /// Seconds into the end slide when the caption fades in.
 pub const END_CAPTION_DELAY: f32 = 5.4;
+
+pub static DEF: EngineDef = EngineDef {
+    capabilities: super::art::CAPABILITIES,
+    create: || Box::new(Darkroom::new()),
+    end_caption_delay: END_CAPTION_DELAY,
+    medium: Some(&MEDIUM),
+    render_slide: None,
+    problems: None,
+};
 /// The end words hold this long, then fade.
 const END_WORDS: f32 = 3.8;
 /// Seconds for a print to develop.

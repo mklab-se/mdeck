@@ -10,8 +10,8 @@ pub mod layout;
 
 use eframe::egui;
 
-use super::Engine;
 use super::stage::{FrameCx, Moment, Stage};
+use super::{Capabilities, Engine, EngineDef};
 use crate::parser::{Block, Slide};
 use crate::render::illustration::Library;
 use crate::render::image_cache::{ImageCache, ImageState};
@@ -22,6 +22,21 @@ use layout::{Board, COLS, Cell, PANEL, ROWS, Style};
 /// Seconds into the end slide when the caption fades in: the words have
 /// shown and the board has cleared.
 pub const END_CAPTION_DELAY: f32 = 5.8;
+
+pub static DEF: EngineDef = EngineDef {
+    capabilities: Capabilities {
+        paints: true,
+        board: true,
+        countdown: true,
+        end_act: true,
+        ..Capabilities::NONE
+    },
+    create: || Box::new(SplitFlap::new()),
+    end_caption_delay: END_CAPTION_DELAY,
+    medium: None,
+    render_slide: Some(render_slide),
+    problems: Some(layout::problems),
+};
 /// The end words stay this long, then the board clears.
 const END_WORDS: f32 = 3.6;
 /// A cell's whole turn from one character to another takes about this long,
@@ -311,11 +326,6 @@ fn draw_panel_image(
         egui::Stroke::new(1.0 * scale, theme.rule.gamma_multiply(opacity)),
         egui::StrokeKind::Outside,
     );
-}
-
-/// What the board does not show on `slide` (for `--check`).
-pub fn problems(slide: &Slide) -> Vec<String> {
-    layout::problems(slide)
 }
 
 #[cfg(test)]

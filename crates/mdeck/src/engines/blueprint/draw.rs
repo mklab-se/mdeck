@@ -4,7 +4,7 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Stroke};
 
 use super::super::hash01;
-use super::super::led::{SPRITE_CORE, SPRITE_GLOW, additive, mix, premul};
+use super::super::paint::{SPRITE_CORE, SPRITE_GLOW, additive, mix, premul};
 use super::super::stage::Stage;
 use crate::render::strokes::{Picture, to_screen};
 use crate::theme::Theme;

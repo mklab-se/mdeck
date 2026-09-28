@@ -398,7 +398,14 @@ mod tests {
     #[test]
     fn the_image_prompt_is_scene_then_style() {
         let theme = Theme::light();
-        let style = Style::for_medium(&crate::engines::blueprint::MEDIUM, &theme);
+        // a line medium, as blueprint's (which a build may leave out)
+        let medium = art::Medium {
+            name: "blueprint",
+            kind: art::ArtKind::Line,
+            tonal: &art::style::SKETCH,
+            tonal_strategy: art::prepare::Strategy::Hatch,
+        };
+        let style = Style::for_medium(&medium, &theme);
         let p = image_prompt("a lighthouse keeper", &style, true);
         assert!(p.starts_with("a lighthouse keeper. Match the drawing technique"));
         assert!(p.ends_with(&style.prompt));

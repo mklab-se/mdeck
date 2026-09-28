@@ -524,6 +524,7 @@ mod tests {
         std::fs::remove_dir_all(&tmp).ok();
     }
 
+    #[cfg(feature = "particles")]
     #[test]
     fn every_builtin_parses_and_is_registered_under_its_own_name() {
         for name in builtin_names() {

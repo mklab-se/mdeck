@@ -8,10 +8,18 @@ use std::sync::Arc;
 
 use eframe::egui::{self, Color32, Pos2, Rect};
 
+use super::Capabilities;
 use super::stage::{FrameCx, Mask, Moment, Place, Stage};
 use crate::render::art::prepare::Prepared;
 use crate::render::illustration::Library;
 use crate::render::strokes::{Picture, plan, toured};
+
+/// What an art engine shows: the pictures most engines show, drawn from
+/// generated art when a slide has it.
+pub const CAPABILITIES: Capabilities = Capabilities {
+    art: true,
+    ..Capabilities::PICTURES
+};
 
 /// A generated picture on the slide, drawn in over `duration` seconds.
 pub struct Drawing {

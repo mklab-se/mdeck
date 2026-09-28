@@ -5,8 +5,8 @@
 
 use eframe::egui;
 
-use super::Engine;
 use super::stage::{CountPhase, FrameCx, Moment, Stage};
+use super::{Capabilities, Engine, EngineDef};
 use crate::parser::Slide;
 use crate::render::illustration::Library;
 use crate::render::particles::{self, Field, scenes};
@@ -15,6 +15,18 @@ use crate::render::story;
 /// Seconds into the end slide when the caption fades in: after the bang has
 /// faded to black.
 pub const END_CAPTION_DELAY: f32 = 7.4;
+
+pub static DEF: EngineDef = EngineDef {
+    capabilities: Capabilities {
+        stories: true,
+        ..Capabilities::PICTURES
+    },
+    create: || Box::new(Particles::new()),
+    end_caption_delay: END_CAPTION_DELAY,
+    medium: None,
+    render_slide: None,
+    problems: None,
+};
 
 /// The end slide's choreography: the words, a swirl, a bang, then black.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

@@ -476,29 +476,9 @@ mod tests {
         assert_eq!(dark.accent, eframe::egui::Color32::from_rgb(0, 0, 255));
         assert_eq!(dark.background, Theme::dark().background);
         let names: Vec<String> = l.available().into_iter().map(|f| f.name).collect();
-        assert_eq!(
-            names,
-            [
-                "dark",
-                "light",
-                "nord",
-                "ember",
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "marquee",
-                "departures",
-                "etch",
-                "stack",
-                "blueprint",
-                "sketchbook",
-                "chalkboard",
-                "watercolour",
-                "darkroom",
-                "brand"
-            ]
-        );
+        // the built-ins this build has, in order, then the user's own
+        let expected: Vec<&str> = BUILTIN.iter().map(|(n, _)| *n).chain(["brand"]).collect();
+        assert_eq!(names, expected);
         assert!(matches!(l.available()[0].origin, Origin::User(_)));
     }
 
@@ -511,6 +491,7 @@ mod tests {
         assert_eq!(th.name, "tiny");
     }
 
+    #[cfg(feature = "particles")]
     #[test]
     fn extends_chains_and_cycles() {
         let t = Tmp::new("chain");
@@ -531,6 +512,7 @@ mod tests {
         assert!(l.load("e").unwrap_err().contains("nothing-here"));
     }
 
+    #[cfg(feature = "particles")]
     #[test]
     fn unknown_names_list_what_exists() {
         let t = Tmp::new("unknown");

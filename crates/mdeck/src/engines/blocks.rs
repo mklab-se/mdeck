@@ -9,15 +9,24 @@ use std::sync::Arc;
 
 use eframe::egui::{self, Color32, Pos2, Rect};
 
-use super::led::{mix, premul};
+use super::paint::{mix, premul};
 use super::stage::{FrameCx, Mask, Moment, Place, Stage};
-use super::{Engine, hash01};
+use super::{Capabilities, Engine, EngineDef, hash01};
 use crate::render::illustration::Library;
 use crate::theme::Theme;
 
 /// Seconds into the end slide when the caption fades in: the words have
 /// landed, held, and cleared.
 pub const END_CAPTION_DELAY: f32 = 5.4;
+
+pub static DEF: EngineDef = EngineDef {
+    capabilities: Capabilities::PICTURES,
+    create: || Box::new(Blocks::new()),
+    end_caption_delay: END_CAPTION_DELAY,
+    medium: None,
+    render_slide: None,
+    problems: None,
+};
 const END_WORDS: f32 = 3.6;
 /// Gravity, px/s² on a 1920x1080 slide.
 const GRAVITY: f32 = 7200.0;

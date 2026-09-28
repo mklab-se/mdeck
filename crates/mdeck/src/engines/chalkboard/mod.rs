@@ -8,10 +8,10 @@
 
 use eframe::egui;
 
-use super::Engine;
 use super::art::{Canvas, Reveal};
-use super::led::{premul, sprite_sheet};
+use super::paint::{premul, sprite_sheet};
 use super::stage::{FrameCx, Stage};
+use super::{Engine, EngineDef};
 use crate::render::art::prepare::Strategy;
 use crate::render::art::{ArtKind, Medium, style};
 use crate::render::illustration::Library;
@@ -30,6 +30,15 @@ pub static MEDIUM: Medium = Medium {
 
 /// Seconds into the end slide when the caption fades in.
 pub const END_CAPTION_DELAY: f32 = 5.2;
+
+pub static DEF: EngineDef = EngineDef {
+    capabilities: super::art::CAPABILITIES,
+    create: || Box::new(Chalkboard::new()),
+    end_caption_delay: END_CAPTION_DELAY,
+    medium: Some(&MEDIUM),
+    render_slide: None,
+    problems: None,
+};
 /// The end words hold this long, then fade.
 const END_WORDS: f32 = 3.6;
 /// Seconds to draw a picture.
