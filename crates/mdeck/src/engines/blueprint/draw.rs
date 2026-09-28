@@ -350,7 +350,6 @@ pub(super) fn pen_tip(
 
 /// Pen strokes as far as the pen has come: a faint construction pass that
 /// runs ahead, and the inked line with a little bleed into the paper.
-#[allow(clippy::too_many_arguments)]
 pub(super) fn pen_lines(
     painter: &egui::Painter,
     pic: &Picture,

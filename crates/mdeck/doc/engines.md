@@ -19,11 +19,13 @@ All of it lives in `crates/mdeck/src/engines/`.
 
 | Piece | File | What it is |
 |---|---|---|
-| `EngineKind` | `mod.rs` | The value a theme carries (`engine: led`). The registry: name, cargo feature, capabilities, constructor. |
+| `EngineKind` | `mod.rs` | The value a theme carries (`engine: led`): its name, and through `def()` its entry, or `None` when the build leaves the engine out. |
+| `EngineDef` | your module's `DEF` | An engine's entry: capabilities, constructor, end caption delay, and the optional hooks (an art engine's medium, a board's slide renderer, what it cannot show). |
 | `Capabilities` | `mod.rs` | What the engine can show. The core uses it for fallbacks and `--check` for warnings. |
 | `Engine` | `mod.rs` | The trait your runtime implements: `update`, then `paint`. |
+| `mix`, `premul`, `additive`, `smoothstep`, `Sprites` | `paint.rs` | Colour and blending helpers, and a lens, core and glow sprite sheet to draw light with. |
 | `Stage`, `Moment`, `Figure`, `Art`, `Place` | `stage.rs` | What the slide wants to show this frame. |
-| `Drawing`, `Reveal`, `fallback_strokes` | `art.rs` | What art engines share: a generated picture drawn in, and pen strokes when there is none. |
+| `Canvas`, `Hand`, `Drawing`, `Reveal`, `fallback_strokes` | `art.rs` | What art engines share: a generated picture drawn in, pen strokes when there is none, and the order it is all painted in. |
 | `FrameCx` | `stage.rs` | The frame: rect, scale, opacity, `dt`, `still`, theme. |
 | `Host` | `host.rs` | The engine-neutral half, owned by the app and the export. You get it for free. |
 
@@ -73,7 +75,7 @@ once.
    smoke that depends on when the capture happened. Two exports of the same
    deck must be byte-identical.
 2. **No wall-clock randomness.** Seed everything from the slide index and
-   per-element hashes (see `hash01` in `led.rs`), never from time.
+   per-element hashes (see `engines::hash01`), never from time.
 3. **Scale everything.** Multiply every size in pixels by `cx.scale`
    (`min(w/1920, h/1080)`), and paint only inside `cx.rect`: the rect moves
    during transitions and is a tile of a bigger canvas in export.
@@ -88,7 +90,7 @@ once.
    animation runs, not forever (the particles engine is the exception: its
    field never stops).
 7. **Draw with egui meshes.** One `egui::Mesh` with a small sprite texture
-   draws tens of thousands of quads per frame. Premultiplied colours with
+   (`paint::Sprites`) draws tens of thousands of quads per frame. Premultiplied colours with
    zero alpha add light (glow). Use a GL paint callback only for blending
    egui cannot do, and test it in export, which runs on the glow renderer.
 
@@ -98,12 +100,13 @@ once.
 |---|---|
 | `paints` | The engine paints a layer (plain does not). |
 | `editorial` | Copy slides use the editorial layouts: a copy column on the left, a stage on the right, display headings and the counter chrome. |
-| `board` | The engine draws every slide itself, text included, and owns the transitions between slides (split-flap). `render_slide` then hands the slide to the engine's static renderer for thumbnails (`SlideContext::engine_drew` says whether the live engine drew it already), the app skips its transitions and scrolling, and the engine prints its own labels. |
+| `board` | The engine draws every slide itself, text included, and owns the transitions between slides (split-flap). `render_slide` then hands the slide to the engine's `EngineDef::render_slide` (its static renderer, for thumbnails) (`SlideContext::engine_drew` says whether the live engine drew it already), the app skips its transitions and scrolling, and the engine prints its own labels. |
 | `illustrations` | Shows `@illustration`. |
 | `stories` | Plays story beats (and they add reveal steps). |
 | `countdown` | Draws the opening countdown itself (`countdown: burst`). |
 | `end_act` | Plays an act of its own on the end slide. |
 | `art` | Draws generated art: the host fills `Stage::art`, and `EngineKind::medium` says which kind of picture to generate and how to draw it in. |
+| `numbers_slides` | Prints the slide number itself, so the editorial counter is left out (blueprint's title block). |
 
 What an engine cannot show is reported, never silently dropped:
 `engines::unsupported` names it per slide, `mdeck --check` lists it under the
@@ -137,10 +140,14 @@ shared (`render::art`); the engine only decides the medium:
   your ink colour.
 - **The rest is shared too.** `engines::art::Canvas` follows the stage (a
   new slide starts its picture or its pen strokes, the old one fades, the
-  countdown and the end act get pen strokes, `still` settles everything);
-  an art engine's `update` calls it and its `paint` draws what the canvas
-  holds. Each of the five art engines is under 300 lines of engine plus
-  its drawing helpers. `Reveal::grain` breaks a medium up on
+  countdown and the end act get pen strokes, `still` settles everything,
+  and `tip` is where the hand is); an art engine's `update` calls
+  `Canvas::update`. Its `paint` draws its own ground (the sheet, the
+  slate) and calls `Canvas::paint` with a `Hand`: how the medium draws a
+  picture and pen strokes, how dim a picture behind a title is, and the
+  tool at the tip. The canvas paints them in order, the old picture fading
+  under the new one, and asks for frames while anything moves. Each of the
+  five art engines is under 300 lines of engine plus its drawing helpers. `Reveal::grain` breaks a medium up on
   its surface (chalk on slate).
 - **Without art**, draw the slide's `@illustration` in your medium:
   `engines::art::fallback_strokes` turns the figure, the countdown digit or
@@ -149,12 +156,14 @@ shared (`render::art`); the engine only decides the medium:
 ## Adding one: the checklist
 
 1. `engines/<name>.rs`: a type implementing `Engine`, with unit tests for
-   its geometry and its still.
-2. `engines/mod.rs`: a variant in `EngineKind`, its name in `name()` and
-   `ALL`, `available()` behind `cfg!(feature = "<name>")`, its
-   `Capabilities`, `create()`, and `end_caption_delay()` if it plays an end
-   act.
-3. `crates/mdeck/Cargo.toml`: a feature, on by default.
+   its geometry and its still, and its entry `pub static DEF: EngineDef`
+   (its `Capabilities`, `create`, `end_caption_delay` if it plays an end
+   act, and the hooks it needs).
+2. `engines/mod.rs`: the module behind `#[cfg(feature = "<name>")]`, a
+   variant in `EngineKind`, its name in `name()` and `ALL`, and its arm in
+   `def()` behind the same `cfg`.
+3. `crates/mdeck/Cargo.toml`: a feature, on by default (an art engine's
+   feature turns on `art` too). CI checks a build with it alone.
 4. A showcase theme: `crates/mdeck/themes/<theme>.yaml` with `engine: <name>`,
    listed in `theme::lookup::BUILTIN` behind the same feature.
 5. `samples/engines/<name>.md`, a deck that shows what the engine is good at.
@@ -279,5 +288,5 @@ The boundary is enforced instead: a test
 (`engines::tests::engines_stay_inside_their_boundary`) reads every file under
 `src/engines/` and fails if one reaches into the app, the commands, the
 config or the CLI. Each engine is also a cargo feature, so a build can leave
-any of them out. Revisit crates if engines ever come from outside this
+any of them out (CI builds with none and with each one alone). Revisit crates if engines ever come from outside this
 repository.

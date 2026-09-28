@@ -56,6 +56,14 @@ enum Look {
 
 type Key = (usize, Look, usize, u64, bool);
 
+/// A picture on the wall, before it is lit.
+struct Picture {
+    density: Vec<f32>,
+    weight: f32,
+    centre: Pos2,
+    brisk: bool,
+}
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 struct Grid {
     cols: usize,
@@ -177,14 +185,13 @@ impl Led {
         self.key = None;
     }
 
-    /// Build the picture for the stage: per-LED target brightness and hue,
-    /// the ambient zone, and power-on delays.
-    fn build(&mut self, cx: &FrameCx, stage: &Stage, look: Look) {
-        let grid = self.grid.expect("grid built before the picture");
+    /// What the stage shows as point density per LED, how strongly it
+    /// lights (`weight`), where its power-on sweep starts and whether it
+    /// comes up briskly. Sets the slide's ambient light and marquee.
+    fn picture(&mut self, grid: &Grid, cx: &FrameCx, stage: &Stage, look: Look) -> Picture {
         let rect = cx.rect;
         let rect_aspect = rect.width() / rect.height();
-        let n = grid.len();
-        let mut density = vec![0.0f32; n];
+        let mut density = vec![0.0f32; grid.len()];
         let mut weight = 1.0;
         let mut centre = rect.center();
         let mut brisk = false;
@@ -201,7 +208,7 @@ impl Led {
                     w,
                     h,
                 };
-                splat(&grid, rect, &mask.0, place, &mut density);
+                splat(grid, rect, &mask.0, place, &mut density);
                 centre = rect.center();
                 brisk = true;
                 self.ambient = 0.025;
@@ -215,12 +222,12 @@ impl Led {
                     w,
                     h,
                 };
-                splat(&grid, rect, &words.0, place, &mut density);
+                splat(grid, rect, &words.0, place, &mut density);
                 brisk = true;
             }
             (Moment::Slide, _) => {
                 if let Some(fig) = &stage.figure {
-                    splat(&grid, rect, &fig.cloud.points, fig.place, &mut density);
+                    splat(grid, rect, &fig.cloud.points, fig.place, &mut density);
                     let p = fig.place;
                     centre = Pos2::new(
                         rect.left() + (p.u + p.w / 2.0) * rect.width(),
@@ -235,9 +242,17 @@ impl Led {
             }
             _ => {}
         }
+        Picture {
+            density,
+            weight,
+            centre,
+            brisk,
+        }
+    }
 
-        // ambient zone: calm over the copy column and inside content frames
-        for i in 0..n {
+    /// The ambient zone: calm over the copy column and inside content frames.
+    fn calm(&mut self, grid: &Grid, rect: Rect, stage: &Stage) {
+        for i in 0..grid.len() {
             let p = grid.centre(i);
             let x = (p.x - rect.left()) / rect.width();
             let y = (p.y - rect.top()) / rect.height();
@@ -258,6 +273,20 @@ impl Led {
             }
             self.zone[i] = z;
         }
+    }
+
+    /// Build the picture for the stage: per-LED target brightness and hue,
+    /// the ambient zone, and power-on delays.
+    fn build(&mut self, cx: &FrameCx, stage: &Stage, look: Look) {
+        let grid = self.grid.expect("grid built before the picture");
+        let n = grid.len();
+        let Picture {
+            density,
+            weight,
+            centre,
+            brisk,
+        } = self.picture(&grid, cx, stage, look);
+        self.calm(&grid, cx.rect, stage);
 
         // what the renderers drew lights the wall around it
         let hinted = if matches!(stage.moment, Moment::Slide) {

@@ -296,7 +296,7 @@ impl Engine for Laser {
 
         if let Some((old, since)) = &self.fading {
             let fade = (1.0 - (self.now - since) / 0.9).clamp(0.0, 1.0) * cx.opacity;
-            etching(&mut mesh, old, self.now, rect, scale, &ink, fade, None);
+            etching(&mut mesh, cx, old, self.now, &ink, fade, None);
         }
         let flare = self.flare;
         if let Some(p) = &self.picture {
@@ -304,7 +304,7 @@ impl Engine for Laser {
                 Some(f) => (1.0 - f * 1.4).clamp(0.0, 1.0),
                 None => 1.0,
             } * cx.opacity;
-            etching(&mut mesh, p, self.now, rect, scale, &ink, fade, flare);
+            etching(&mut mesh, cx, p, self.now, &ink, fade, flare);
         }
 
         // smoke drifts up from where the beam has been
@@ -434,17 +434,16 @@ impl Ink {
 /// Draw an etching as far as the beam has come: each mark cools with age,
 /// rough edged, over a groove, with a lingering glow while fresh. `flare`
 /// (the countdown's burst) heats everything again as it burns away.
-#[allow(clippy::too_many_arguments)]
 fn etching(
     mesh: &mut egui::Mesh,
+    cx: &FrameCx,
     pic: &Picture,
     now: f32,
-    rect: Rect,
-    scale: f32,
     ink: &Ink,
     opacity: f32,
     flare: Option<f32>,
 ) {
+    let (rect, scale) = (cx.rect, cx.scale);
     if opacity <= 0.0 || pic.points.len() < 2 {
         return;
     }

@@ -7,6 +7,8 @@
 
 pub mod draw;
 pub mod layout;
+mod wheel;
+mod writer;
 
 use eframe::egui;
 
@@ -16,7 +18,7 @@ use crate::parser::{Block, Slide};
 use crate::render::illustration::Library;
 use crate::render::image_cache::{ImageCache, ImageState};
 use crate::theme::Theme;
-use draw::{Geometry, Labels, View};
+use draw::{Geometry, Labels, Scene, View};
 use layout::{Board, COLS, Cell, PANEL, ROWS, Style};
 
 /// Seconds into the end slide when the caption fades in: the words have
@@ -102,7 +104,7 @@ impl SplitFlap {
                 self.t[i] = 0.0;
                 continue;
             }
-            let flips = layout::wheel_distance(self.shown[i], cell.ch).max(1);
+            let flips = wheel::wheel_distance(self.shown[i], cell.ch).max(1);
             let pace = if brisk { 0.45 } else { 1.0 };
             self.per_flip[i] = (TURN * pace / flips as f32).clamp(0.022, 0.075);
             // a wave left to right and down, with each cell a little late
@@ -128,7 +130,7 @@ impl SplitFlap {
             self.t[i] += dt / self.per_flip[i];
             while self.t[i] >= 1.0 {
                 self.t[i] -= 1.0;
-                self.shown[i] = layout::step_toward(self.shown[i], target.ch);
+                self.shown[i] = wheel::step_toward(self.shown[i], target.ch);
                 self.style[i] = target.style;
                 if self.shown[i] == target.ch {
                     self.t[i] = 0.0;
@@ -157,7 +159,7 @@ impl SplitFlap {
                     View {
                         from,
                         to: Cell {
-                            ch: layout::step_toward(from.ch, target.ch),
+                            ch: wheel::step_toward(from.ch, target.ch),
                             style: target.style,
                         },
                         t: self.t[i].max(0.001),
@@ -214,9 +216,12 @@ impl Engine for SplitFlap {
             left: stage.deck_title.unwrap_or(""),
             right: &right,
         });
-        draw::paint(
-            ui, &geo, cx.theme, &views, hidden, labels, cx.opacity, cx.scale,
-        );
+        let scene = Scene {
+            views: &views,
+            hidden,
+            labels,
+        };
+        draw::paint(ui, &geo, cx.theme, &scene, cx.opacity, cx.scale);
         if !cx.still && views.iter().any(|v| v.t > 0.0) || self.wait.iter().any(|w| *w > 0.0) {
             ui.ctx().request_repaint();
         }
@@ -257,19 +262,15 @@ pub fn render_slide(
             })
             .collect();
         let right = format!("{:02} / {:02}", cx.index + 1, cx.count.max(1));
-        draw::paint(
-            ui,
-            &geo,
-            theme,
-            &views,
-            board.image.map(|_| panel_rect(&geo)),
-            Some(Labels {
+        let scene = Scene {
+            views: &views,
+            hidden: board.image.map(|_| panel_rect(&geo)),
+            labels: Some(Labels {
                 left: cx.deck_title.as_deref().unwrap_or(""),
                 right: &right,
             }),
-            opacity,
-            scale,
-        );
+        };
+        draw::paint(ui, &geo, theme, &scene, opacity, scale);
     }
     if let Some(i) = board.image
         && let Some(Block::Image { path, .. }) = slide.blocks.get(i)

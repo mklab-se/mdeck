@@ -122,13 +122,16 @@ impl Blocks {
                 }
                 _ => return None,
             };
+        let build = Build {
+            rows,
+            spread,
+            weight,
+        };
         Some(stack(
             points,
             place,
             aspect,
-            rows,
-            spread,
-            weight,
+            build,
             self.now,
             stage.index as u32,
         ))
@@ -381,17 +384,28 @@ fn palette(theme: &Theme) -> [Color32; 5] {
 /// Quantise `points` placed in `place` to a grid `rows` cells tall, group
 /// the filled cells into pieces of up to four and time their drops over
 /// `spread` seconds, bottom row first.
-#[allow(clippy::too_many_arguments)]
+/// How a picture is stacked: its grid `rows` tall, its drops spread over
+/// `spread` seconds, and how strongly it shows (`weight`).
+#[derive(Clone, Copy)]
+struct Build {
+    rows: usize,
+    spread: f32,
+    weight: f32,
+}
+
 fn stack(
     points: &[[f32; 2]],
     place: Place,
     aspect: f32,
-    rows: usize,
-    spread: f32,
-    weight: f32,
+    build: Build,
     born: f32,
     seed: u32,
 ) -> Stack {
+    let Build {
+        rows,
+        spread,
+        weight,
+    } = build;
     // cell size in slide-height fractions; columns follow the picture's width
     let cell = place.h / rows as f32;
     let cols = ((place.w * aspect) / cell).ceil().max(1.0) as usize;
@@ -472,6 +486,12 @@ fn stack(
 mod tests {
     use super::*;
 
+    const RING: Build = Build {
+        rows: 20,
+        spread: 1.5,
+        weight: 1.0,
+    };
+
     fn square_ring() -> Vec<[f32; 2]> {
         let mut pts = Vec::new();
         for k in 0..200 {
@@ -489,7 +509,7 @@ mod tests {
             w: 0.3,
             h: 0.8,
         };
-        let s = stack(&square_ring(), place, 16.0 / 9.0, 20, 1.5, 1.0, 0.0, 1);
+        let s = stack(&square_ring(), place, 16.0 / 9.0, RING, 0.0, 1);
         let cells: Vec<(i32, i32)> = s.pieces.iter().flat_map(|p| p.cells.clone()).collect();
         assert!(cells.iter().any(|c| c.1 == 0) && cells.iter().any(|c| c.1 == 19));
         // hollow: the middle stays empty
@@ -511,7 +531,7 @@ mod tests {
             w: 0.3,
             h: 0.8,
         };
-        let s = stack(&square_ring(), place, 16.0 / 9.0, 20, 1.5, 1.0, 0.0, 1);
+        let s = stack(&square_ring(), place, 16.0 / 9.0, RING, 0.0, 1);
         let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1920.0, 1080.0));
         let r = cell_rect(&s, 3, 4, rect);
         assert!((r.width() - r.height()).abs() < 0.01, "{r:?}");

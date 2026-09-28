@@ -41,6 +41,17 @@ pub struct Shot<'a> {
     pub count: usize,
 }
 
+/// One step of the engine's clock: seconds since the last, seconds into
+/// the end slide, whether to settle at once (export) and whether to paint
+/// (a rehearsal paints only its last step).
+#[derive(Clone, Copy)]
+struct Tick {
+    dt: f32,
+    end_elapsed: f32,
+    still: bool,
+    paint: bool,
+}
+
 pub struct Host {
     kind: EngineKind,
     engine: Box<dyn Engine>,
@@ -106,8 +117,13 @@ impl Host {
             self.end_started = None;
             0.0
         };
-        let still = shot.still;
-        self.step(ui, &shot, lib, dt, end_elapsed, still, true);
+        let tick = Tick {
+            dt,
+            end_elapsed,
+            still: shot.still,
+            paint: true,
+        };
+        self.step(ui, &shot, lib, tick);
     }
 
     /// Run the engine from a cold start through `seconds` of simulated time
@@ -127,68 +143,20 @@ impl Host {
             if let Some((CountPhase::Burst, _)) = s.countdown {
                 s.countdown = Some((CountPhase::Burst, (t / 1.2).min(1.0)));
             }
-            self.step(ui, &s, lib, dt, t, false, k == steps);
+            let tick = Tick {
+                dt,
+                end_elapsed: t,
+                still: false,
+                paint: k == steps,
+            };
+            self.step(ui, &s, lib, tick);
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn step(
-        &mut self,
-        ui: &egui::Ui,
-        shot: &Shot,
-        lib: &mut Library,
-        dt: f32,
-        end_elapsed: f32,
-        still: bool,
-        paint: bool,
-    ) {
+    fn step(&mut self, ui: &egui::Ui, shot: &Shot, lib: &mut Library, tick: Tick) {
         let caps = self.kind.capabilities();
-
-        // Renderers publish geometry while the slide draws (after this call),
-        // so what we read here is last frame's. Collection stays on only
-        // while an engine is drawing.
-        hints::set_enabled(ui.ctx(), true);
-        let fresh = hints::take(ui.ctx());
-        if self.last_index.is_some_and(|i| i != shot.index) {
-            self.hints.clear();
-            self.hints_key = 0;
-        }
-        if !fresh.is_empty() {
-            let fp = hints::fingerprint(&fresh);
-            if fp != self.hints_key {
-                self.hints = fresh;
-                self.hints_key = fp;
-            }
-        }
-
-        let face = shot.theme.display_family();
-        if self.mask_face.as_ref() != Some(&face) {
-            self.digits.clear();
-            self.end_words = None;
-            self.mask_face = Some(face);
-        }
-
-        let moment = if let Some((phase, progress)) = shot.countdown {
-            match phase {
-                CountPhase::Digit(digit) => Moment::Countdown {
-                    digit,
-                    mask: self.digit_mask(ui, shot.theme, digit),
-                    progress,
-                },
-                CountPhase::Burst => Moment::Burst { progress },
-            }
-        } else if shot.end {
-            let words = self
-                .end_words
-                .get_or_insert_with(|| text_mask(ui, shot.theme, "THE END"))
-                .clone();
-            Moment::End {
-                elapsed: end_elapsed,
-                words,
-            }
-        } else {
-            Moment::Slide
-        };
+        self.follow_hints(ui, shot.index);
+        let moment = self.moment(ui, shot, tick.end_elapsed);
 
         let rect_aspect = shot.rect.width() / shot.rect.height();
         let title = shot
@@ -235,15 +203,67 @@ impl Host {
             rect: shot.rect,
             scale: shot.scale,
             opacity: shot.opacity,
-            dt,
-            still,
+            dt: tick.dt,
+            still: tick.still,
             theme: shot.theme,
         };
         self.engine.update(&cx, &stage, lib);
-        if paint {
+        if tick.paint {
             self.engine.paint(ui, &cx, &stage);
         }
         self.last_index = Some(shot.index);
+    }
+
+    /// Take the geometry the renderers published. They publish while the
+    /// slide draws (after the engine), so what arrives is last frame's;
+    /// collection stays on only while an engine is drawing.
+    fn follow_hints(&mut self, ui: &egui::Ui, index: usize) {
+        hints::set_enabled(ui.ctx(), true);
+        let fresh = hints::take(ui.ctx());
+        if self.last_index.is_some_and(|i| i != index) {
+            self.hints.clear();
+            self.hints_key = 0;
+        }
+        if !fresh.is_empty() {
+            let fp = hints::fingerprint(&fresh);
+            if fp != self.hints_key {
+                self.hints = fresh;
+                self.hints_key = fp;
+            }
+        }
+    }
+
+    /// What the frame shows: a countdown digit or its burst, the end slide
+    /// with its words, or a slide. Masks are drawn in the theme's display
+    /// face, again when the face changes.
+    fn moment(&mut self, ui: &egui::Ui, shot: &Shot, end_elapsed: f32) -> Moment {
+        let face = shot.theme.display_family();
+        if self.mask_face.as_ref() != Some(&face) {
+            self.digits.clear();
+            self.end_words = None;
+            self.mask_face = Some(face);
+        }
+        if let Some((phase, progress)) = shot.countdown {
+            match phase {
+                CountPhase::Digit(digit) => Moment::Countdown {
+                    digit,
+                    mask: self.digit_mask(ui, shot.theme, digit),
+                    progress,
+                },
+                CountPhase::Burst => Moment::Burst { progress },
+            }
+        } else if shot.end {
+            let words = self
+                .end_words
+                .get_or_insert_with(|| text_mask(ui, shot.theme, "THE END"))
+                .clone();
+            Moment::End {
+                elapsed: end_elapsed,
+                words,
+            }
+        } else {
+            Moment::Slide
+        }
     }
 
     /// Mask points and aspect (width / height) for a digit, rasterised once

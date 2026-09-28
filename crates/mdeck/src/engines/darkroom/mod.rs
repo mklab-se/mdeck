@@ -188,7 +188,7 @@ impl Hand for Bench {
         current: bool,
     ) {
         let print = current && self.slide;
-        photogram(painter, p, now, cx.rect, cx.scale, self.safelight, k, print);
+        photogram(painter, cx, p, now, self.safelight, k, print);
     }
 }
 
@@ -207,17 +207,16 @@ fn multiply(a: Color32, light: Color32) -> Color32 {
 
 /// A photogram: the strokes left white where they shielded the paper, with
 /// a soft halo. On a slide it lies on a black print with a white border.
-#[allow(clippy::too_many_arguments)]
 fn photogram(
     painter: &egui::Painter,
+    cx: &FrameCx,
     pic: &Picture,
     now: f32,
-    rect: Rect,
-    scale: f32,
     safelight: Color32,
     opacity: f32,
     print: bool,
 ) {
+    let (rect, scale) = (cx.rect, cx.scale);
     if opacity <= 0.0 || pic.points.len() < 2 {
         return;
     }
