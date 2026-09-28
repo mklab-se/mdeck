@@ -13,10 +13,13 @@ use crate::render;
 
 mod app;
 mod canvas;
+mod cursor;
 mod notes;
 mod pdf;
+mod rehearsal;
 
-use app::{ExportApp, Job, NotesPages, Output};
+use app::{ExportApp, NotesPages, Output};
+use cursor::Job;
 
 /// What `mdeck export` writes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]

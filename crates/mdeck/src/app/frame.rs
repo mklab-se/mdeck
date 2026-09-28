@@ -6,10 +6,11 @@ use std::time::{Duration, Instant};
 
 use eframe::egui;
 
-use super::keys::{KeyMode, map_key};
+use super::keys::{self, KeyMode, map_key};
 use super::overlays::{draw_hud, draw_raw_markdown_overlay};
 use super::{
-    AppMode, CountdownPhase, DRAW_FADE_DURATION, PresentationApp, RawOverlaySide, ViewportSnapshot,
+    ActiveDraw, AppMode, CountdownPhase, DRAW_FADE_DURATION, PresentationApp,
+    REVEAL_IN_FLIGHT_WINDOW, RawOverlaySide, ViewportSnapshot,
 };
 use crate::deck::EngineFrame;
 use crate::parser;
@@ -46,6 +47,45 @@ impl eframe::App for PresentationApp {
 }
 
 impl PresentationApp {
+    /// Whether any time-based animation is currently running. Used to decide
+    /// whether a long frame gap (sleep, occlusion) is worth an incident entry.
+    fn animation_in_flight(&self, reference: Instant) -> bool {
+        self.transition.is_some()
+            || self.overview_transition_start.is_some()
+            || self.toast.is_some()
+            || !self.pen_strokes.is_empty()
+            || !self.arrows.is_empty()
+            || !matches!(self.active_draw, ActiveDraw::None)
+            || self.monitor_move.is_some()
+            || self
+                .views
+                .iter()
+                .any(|v| keys::reveal_in_flight(v.revealed_at, reference, REVEAL_IN_FLIGHT_WINDOW))
+    }
+
+    /// Shift every animation timestamp forward by `jump` so animations resume
+    /// smoothly after a frame gap instead of snapping to completion.
+    fn shift_timestamps(&mut self, jump: Duration, now: Instant) {
+        if let Some(ref mut t) = self.transition {
+            t.start = (t.start + jump).min(now);
+        }
+        if let Some(ref mut t) = self.overview_transition_start {
+            *t = (*t + jump).min(now);
+        }
+        for stroke in &mut self.pen_strokes {
+            stroke.start = (stroke.start + jump).min(now);
+        }
+        for arrow in &mut self.arrows {
+            arrow.start = (arrow.start + jump).min(now);
+        }
+        if let Some(ref mut t) = self.toast {
+            t.start = (t.start + jump).min(now);
+        }
+        for t in self.views.iter_mut().filter_map(|v| v.revealed_at.as_mut()) {
+            *t = (*t + jump).min(now);
+        }
+    }
+
     /// Fonts, the frame clock, background results and file changes.
     fn housekeeping(&mut self, ctx: &egui::Context) {
         // Theme font files registered since last frame become drawable one

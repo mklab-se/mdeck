@@ -9,8 +9,10 @@ use std::sync::{Arc, Mutex};
 use eframe::egui;
 
 use super::canvas::{TileCanvas, next_tile, tile_count};
+use super::cursor::{Cursor, Job};
 use super::notes::{self, Footer, NotesJob};
 use super::pdf::PdfDoc;
+use super::rehearsal::Rehearsal;
 use crate::deck::{Deck, EngineFrame, SlideFrame};
 use crate::parser;
 use crate::render;
@@ -46,58 +48,6 @@ impl NotesPages {
             theme: Theme::light(),
             current: None,
         }
-    }
-}
-
-/// The page size and which pages to export.
-pub(super) struct Job {
-    pub width: u32,
-    pub height: u32,
-    /// Export every reveal step, not just the fully revealed slide.
-    pub debug: bool,
-    /// Slide indices to export, in order.
-    pub targets: Vec<usize>,
-}
-
-/// Which slide, and which reveal step of it, is being exported.
-#[derive(Debug, Clone, PartialEq)]
-struct Cursor {
-    targets: Vec<usize>,
-    /// Position in `targets`.
-    pos: usize,
-    step: usize,
-    debug: bool,
-}
-
-impl Cursor {
-    fn new(targets: Vec<usize>, debug: bool) -> Self {
-        Self {
-            targets,
-            pos: 0,
-            step: 0,
-            debug,
-        }
-    }
-
-    fn slide(&self) -> usize {
-        self.targets.get(self.pos).copied().unwrap_or(0)
-    }
-
-    /// The reveal step to draw: every step in debug, else the last one.
-    fn reveal(&self, max_step: usize) -> usize {
-        if self.debug { self.step } else { max_step }
-    }
-
-    /// Move to the next page, given the current slide's last step. Returns
-    /// false when every target has been exported.
-    fn advance(&mut self, max_step: usize) -> bool {
-        if self.debug && self.step < max_step {
-            self.step += 1;
-            return true;
-        }
-        self.step = 0;
-        self.pos += 1;
-        self.pos < self.targets.len()
     }
 }
 
@@ -391,34 +341,6 @@ fn add_page(doc: &Arc<Mutex<PdfDoc>>, canvas: &TileCanvas, bookmark: Option<Stri
     );
 }
 
-/// Developer settings for looking at an engine's motion in export.
-struct Rehearsal {
-    at: Option<f32>,
-    countdown: Option<(crate::engines::CountPhase, f32)>,
-    end: bool,
-}
-
-impl Rehearsal {
-    fn from_env() -> Self {
-        let at = std::env::var("MDECK_EXPORT_AT")
-            .ok()
-            .and_then(|v| v.trim().parse::<f32>().ok());
-        let moment = std::env::var("MDECK_EXPORT_MOMENT").unwrap_or_default();
-        let countdown = match moment.trim() {
-            "3" => Some((crate::engines::CountPhase::Digit(3), 0.5)),
-            "2" => Some((crate::engines::CountPhase::Digit(2), 0.5)),
-            "1" => Some((crate::engines::CountPhase::Digit(1), 0.5)),
-            "burst" => Some((crate::engines::CountPhase::Burst, 0.0)),
-            _ => None,
-        };
-        Rehearsal {
-            at,
-            countdown,
-            end: moment.trim() == "end",
-        }
-    }
-}
-
 impl eframe::App for ExportApp {
     fn ui(&mut self, root_ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = root_ui.ctx().clone();
@@ -509,30 +431,5 @@ impl eframe::App for ExportApp {
         }
 
         ctx.request_repaint();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cursor_exports_each_target_once() {
-        let mut c = Cursor::new(vec![2, 5], false);
-        assert_eq!((c.slide(), c.reveal(3)), (2, 3));
-        assert!(c.advance(3));
-        assert_eq!(c.slide(), 5);
-        assert!(!c.advance(0));
-    }
-
-    #[test]
-    fn debug_cursor_walks_every_step() {
-        let mut c = Cursor::new(vec![0, 1], true);
-        let mut seen = vec![(c.slide(), c.reveal(2))];
-        let max = [2, 0];
-        while c.advance(max[c.slide()]) {
-            seen.push((c.slide(), c.reveal(max[c.slide()])));
-        }
-        assert_eq!(seen, vec![(0, 0), (0, 1), (0, 2), (1, 0)]);
     }
 }

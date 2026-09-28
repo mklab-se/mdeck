@@ -3,6 +3,172 @@
 
 use super::*;
 
+/// The watcher that tells the window its deck file changed.
+pub(super) struct FileWatch {
+    pub(super) rx: mpsc::Receiver<()>,
+    pub(super) watcher: Option<Debouncer<notify::RecommendedWatcher>>,
+    /// Hash of the content the deck was parsed from.
+    pub(super) content_hash: u64,
+}
+
+/// What the window starts with from the command line and the config.
+pub(super) struct Launch {
+    pub(super) quiet: bool,
+    pub(super) incident_log: Arc<IncidentLog>,
+    pub(super) defaults: DefaultsConfig,
+    /// `--engine`.
+    pub(super) cli_engine: Option<crate::engines::EngineKind>,
+}
+
+impl PresentationApp {
+    pub(super) fn new(
+        file: PathBuf,
+        presentation: Presentation,
+        watch: FileWatch,
+        launch: Launch,
+    ) -> Self {
+        let Launch {
+            quiet,
+            incident_log,
+            defaults,
+            cli_engine,
+        } = launch;
+        let FileWatch {
+            rx: watcher_rx,
+            watcher,
+            content_hash,
+        } = watch;
+        // Precedence: frontmatter > config defaults > built-in
+        let themes = lookup::Lookup::for_deck(file.parent());
+        let (resolved, theme_key) =
+            deck::deck_theme(&themes, &presentation, defaults.theme.as_deref());
+        let engine_override = deck::deck_engine(cli_engine, &presentation, quiet);
+        let resolved = crate::engines::with_engine(resolved, engine_override);
+        // `run` preloads every theme's fonts before installing them; should a
+        // face still be new, start on the default theme for the frame it takes.
+        let font_sync = render::fonts::FontSync::installed();
+        let (theme, pending_theme) = if font_sync.ready() {
+            (resolved, None)
+        } else {
+            (Theme::light(), Some(resolved))
+        };
+
+        let transition_name = resolve_setting(
+            presentation.meta.transition.as_deref(),
+            defaults.transition.as_deref(),
+            "slide",
+        );
+        let default_transition = TransitionKind::from_name(&transition_name);
+
+        let mut deck = Deck::open(file, presentation, &theme, true, quiet);
+        // Art follows the theme the window is about to switch to.
+        if let Some(pending) = &pending_theme {
+            deck.art.sync(&deck.presentation, pending);
+        }
+        let engine_kind = resolved_engine(&theme, &pending_theme);
+        if !quiet {
+            report_deck_warnings(&deck, engine_kind);
+        }
+        deck.art.preload();
+        let slide_count = deck.slide_count();
+        let now = Instant::now();
+        Self {
+            deck,
+            art_rx: None,
+            current_slide: 0,
+            watcher_rx,
+            _watcher: watcher,
+            mode: AppMode::Presentation { end: false },
+            theme,
+            theme_key,
+            themes,
+            pending_theme,
+            font_sync,
+            default_transition,
+            transition: None,
+            show_hud: false,
+            raw_overlay_side: RawOverlaySide::Off,
+            toast: None,
+            ctrl_c_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
+            esc_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
+            quit_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
+            views: vec![SlideView::default(); slide_count],
+            frame_count: 0,
+            fps: 0.0,
+            fps_update: now,
+            overview_transition_start: None,
+            pen_strokes: Vec::new(),
+            arrows: Vec::new(),
+            active_draw: ActiveDraw::None,
+            last_slide_rect: egui::Rect::ZERO,
+            hover_slide: None,
+            use_hover: false,
+            last_hover_pos: None,
+            grid_scroll_offset: 0.0,
+            grid_scroll_target: 0.0,
+            last_content_hash: content_hash,
+            precache_cancel: Arc::new(AtomicBool::new(false)),
+            precache_report_rx: None,
+            precache_report_printed: false,
+            quiet,
+            blackout: false,
+            monitor_move: None,
+            pending_nav: None,
+            pending_reveal_scroll: false,
+            grid_seed_scroll: false,
+            end_logo_texture: None,
+            shared_slide: None,
+            incident_log,
+            last_frame: now,
+            cli_engine,
+            engine_override,
+            story_rx: None,
+            countdown: None,
+        }
+    }
+}
+
+/// The engine the window will run on: the pending theme's when one waits
+/// for its fonts, else the current theme's.
+fn resolved_engine(theme: &Theme, pending: &Option<Theme>) -> crate::engines::EngineKind {
+    pending.as_ref().unwrap_or(theme).engine
+}
+
+/// Startup warnings about what the deck asks of its engine: features it
+/// does not support, and generated art that is missing or stale.
+fn report_deck_warnings(deck: &Deck, engine: crate::engines::EngineKind) {
+    if let Some(line) =
+        crate::engines::unsupported_summary(engine, &deck.presentation, &deck.with_story())
+    {
+        eprintln!("warning: {line}");
+    }
+    for p in deck.art.problems() {
+        eprintln!("warning: art: {p}");
+    }
+    let (Some(c), Some(medium)) = (deck.art.coverage(&deck.presentation), engine.medium()) else {
+        return;
+    };
+    if c.missing == 0 && c.stale == 0 {
+        return;
+    }
+    let mut parts = Vec::new();
+    if c.missing > 0 {
+        parts.push(format!(
+            "{} of {} slides have no picture",
+            c.missing, c.wanted
+        ));
+    }
+    if c.stale > 0 {
+        parts.push(format!("{} stale", c.stale));
+    }
+    eprintln!(
+        "warning: art for the {} engine: {}; run `mdeck ai art {}` (or press S on a slide)",
+        medium.name,
+        parts.join(", "),
+        deck.file.file_name().unwrap_or_default().to_string_lossy()
+    );
+}
+
 /// Resolve the initial slide (0-indexed) and overview flag from CLI flags and
 /// the configured `defaults.start_mode`. CLI flags win.
 fn resolve_start(

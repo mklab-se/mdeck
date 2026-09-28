@@ -303,4 +303,50 @@ mod tests {
             None
         );
     }
+
+    use crate::parser::{Layout, Slide};
+
+    fn slide(raw: &str) -> Slide {
+        Slide {
+            directives: vec![],
+            blocks: vec![],
+            layout: Layout::Content,
+            raw_source: raw.to_string(),
+            notes: None,
+            story_hint: None,
+            scene_script: None,
+            illustration: None,
+            logo: None,
+            art: None,
+        }
+    }
+
+    #[test]
+    fn find_matching_slide_exact_match() {
+        let _slides = [slide("a"), slide("b"), slide("c")];
+        // Was at index 1 ("b"), new slides inserted "x" before it
+        let new_slides = vec![slide("x"), slide("a"), slide("b"), slide("c")];
+        assert_eq!(find_matching_slide(Some("b"), 1, &new_slides), 2);
+    }
+
+    #[test]
+    fn find_matching_slide_edited_stays_at_index() {
+        let old_raw = "old content";
+        let new_slides = vec![slide("a"), slide("new content"), slide("c")];
+        // Old raw doesn't match any new slide: clamp to old index
+        assert_eq!(find_matching_slide(Some(old_raw), 1, &new_slides), 1);
+    }
+
+    #[test]
+    fn find_matching_slide_clamps_when_out_of_bounds() {
+        let new_slides = vec![slide("a"), slide("b")];
+        // Was at index 5, only 2 slides now
+        assert_eq!(find_matching_slide(Some("gone"), 5, &new_slides), 1);
+    }
+
+    #[test]
+    fn find_matching_slide_no_old_raw_returns_zero() {
+        let new_slides = vec![slide("a"), slide("b")];
+        assert_eq!(find_matching_slide(None, 0, &new_slides), 0);
+    }
 }
