@@ -200,7 +200,7 @@ pub fn generate_one_blocking(deck: &Path, index: usize) -> Result<Script> {
     crate::commands::util::block_on(async {
         let content = std::fs::read_to_string(deck)?;
         let base = deck.parent().unwrap_or(Path::new("."));
-        let pres = parser::parse(&content, base);
+        let pres = parser::parse(&content);
         if index >= pres.slides.len() {
             bail!("slide {} does not exist", index + 1);
         }
@@ -291,7 +291,7 @@ pub async fn run(
 ) -> Result<()> {
     let content = std::fs::read_to_string(&file)?;
     let base = file.parent().unwrap_or(Path::new("."));
-    let pres = parser::parse(&content, base);
+    let pres = parser::parse(&content);
     if pres.slides.is_empty() {
         bail!("No slides found in {}", file.display());
     }
@@ -470,7 +470,7 @@ mod tests {
     #[test]
     fn prompt_puts_the_hint_last_and_marks_the_slide() {
         let md = "---\ntitle: T\n@story: Keep it calm\n---\n# One\n\n- a\n\n```@story\nShow a person at a desk.\n```\n\n---\n\n# Two\n";
-        let pres = parser::parse(md, Path::new("."));
+        let pres = parser::parse(md);
         let p = user_prompt(&pres, 0, &["Anders".into()]);
         assert!(p.contains("> 1. One"));
         assert!(p.contains("  2. Two"));

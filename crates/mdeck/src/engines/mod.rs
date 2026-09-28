@@ -556,10 +556,7 @@ mod tests {
 
     #[test]
     fn unsupported_names_illustrations_and_stories() {
-        let pres = crate::parser::parse(
-            "# A\n@illustration: server\n\n- one\n\n# B\n\n- two\n",
-            std::path::Path::new("."),
-        );
+        let pres = crate::parser::parse("# A\n@illustration: server\n\n- one\n\n# B\n\n- two\n");
         let a = &pres.slides[0];
         assert!(unsupported(EngineKind::Particles, a, true).is_empty());
         let plain = unsupported(EngineKind::Plain, a, true);

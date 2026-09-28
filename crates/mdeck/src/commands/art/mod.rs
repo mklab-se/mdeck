@@ -99,7 +99,7 @@ pub async fn run(
 ) -> Result<()> {
     let content = std::fs::read_to_string(&file)?;
     let base = file.parent().unwrap_or(Path::new(".")).to_path_buf();
-    let pres = parser::parse(&content, &base);
+    let pres = parser::parse(&content);
     if pres.slides.is_empty() {
         bail!("No slides found in {}", file.display());
     }
@@ -250,8 +250,7 @@ pub async fn run(
 pub fn generate_one_blocking(deck: &Path, index: usize, theme: &Theme) -> Result<()> {
     crate::commands::util::block_on(async {
         let content = std::fs::read_to_string(deck)?;
-        let base = deck.parent().unwrap_or(Path::new("."));
-        let pres = parser::parse(&content, base);
+        let pres = parser::parse(&content);
         if index >= pres.slides.len() {
             bail!("slide {} does not exist", index + 1);
         }
@@ -311,7 +310,6 @@ mod tests {
     fn deck() -> Presentation {
         parser::parse(
             "---\ntitle: Harbour\n@art: a Victorian harbour town that builds software\n---\n# Launch\n\nWe ship today\n\n# Why\n@art: a lighthouse keeper with a laptop\n\n- one\n\n???\nTell the story of the storm.\n\n# Code\n\n```rust\nfn main() {}\n```\n\n# None\n@art: none\n\n- two\n",
-            Path::new("."),
         )
     }
 

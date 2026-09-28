@@ -222,7 +222,6 @@ mod tests {
     fn deck() -> Presentation {
         parser::parse(
             "# Launch\n\nA talk\n\n# Why\n\n- one\n\n# Code\n\n```rust\nfn main() {}\n```\n\n# How\n\n- two\n",
-            Path::new("."),
         )
     }
 

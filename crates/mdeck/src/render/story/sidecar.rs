@@ -217,7 +217,7 @@ fn main() {}
 
 - a bullet
 ";
-        let pres = parser::parse(md, Path::new("."));
+        let pres = parser::parse(md);
         assert_eq!(pres.slides.len(), 3);
         let script = Script::parse("cast:\n  - { id: b, kind: box, cell: right }\n").unwrap();
         let entry = |n: usize| Entry {
@@ -242,7 +242,7 @@ fn main() {}
     #[test]
     fn pinned_beats_sidecar_and_hash_mismatch_is_stale() {
         let md = "# A\n\n- one\n\n```@scene\ncast: []\n```\n\n---\n\n# B\n\n- two\n";
-        let pres = parser::parse(md, Path::new("."));
+        let pres = parser::parse(md);
         assert_eq!(pres.slides.len(), 2);
         let script = Script::parse("cast:\n  - { id: b, kind: box, cell: right }\n").unwrap();
         let sidecar = Sidecar {

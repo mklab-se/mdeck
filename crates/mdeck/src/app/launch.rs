@@ -92,8 +92,7 @@ pub fn run(
     let incident_log = Arc::new(IncidentLog::new(&file.display().to_string()));
 
     let content = std::fs::read_to_string(&file)?;
-    let base_path = file.parent().unwrap_or(std::path::Path::new("."));
-    let presentation = parser::parse(&content, base_path);
+    let presentation = parser::parse(&content);
 
     if presentation.slides.is_empty() {
         anyhow::bail!("No slides found in {}", file.display());

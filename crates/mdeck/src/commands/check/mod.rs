@@ -12,7 +12,7 @@ pub use directives::directive_warnings;
 pub fn run(file: PathBuf, verbose: u8, quiet: bool, engine: Option<String>) -> anyhow::Result<()> {
     let content = std::fs::read_to_string(&file)?;
     let base_path = file.parent().unwrap_or(std::path::Path::new("."));
-    let presentation = parser::parse(&content, base_path);
+    let presentation = parser::parse(&content);
 
     if presentation.slides.is_empty() {
         anyhow::bail!("No slides found in {}", file.display());
@@ -416,7 +416,7 @@ mod tests {
         std::fs::write(tmp.join("illustrations/kettle.mdpc"), cloud.to_json()).unwrap();
         std::fs::write(tmp.join("illustrations/broken.mdpc"), "{").unwrap();
         let md = "@illustration: kettle\n\n## Fine\n\n- a\n\n---\n\n@illustration: nothing\n\n## Missing\n\n- a\n\n---\n\n@illustration: kettle\n\n## Code\n\n```rust\nfn main() {}\n```\n\n---\n\n@illustration: Bad Name\n\n## Bad\n\n- a\n\n---\n\n@illustration: broken\n\n## Broken\n\n- a\n";
-        let pres = parser::parse(md, &tmp);
+        let pres = parser::parse(md);
         let stories: Vec<Option<render::story::sidecar::Resolved>> = vec![None; pres.slides.len()];
         let warnings = illustration_warnings(&pres, &stories, &tmp);
         let by_slide: Vec<(usize, String)> = warnings
@@ -482,7 +482,7 @@ mod tests {
         )
         .unwrap();
         std::fs::write(dir.join("themes/typo.yaml"), "colours: {}\n").unwrap();
-        let deck = |theme: &str| parser::parse(&format!("---\n@theme: {theme}\n---\n# A\n"), &dir);
+        let deck = |theme: &str| parser::parse(&format!("---\n@theme: {theme}\n---\n# A\n"));
 
         assert!(theme_warnings(&deck("dark"), None, &dir).is_empty());
         let unknown = theme_warnings(&deck("solarized"), None, &dir);
@@ -499,7 +499,7 @@ mod tests {
         );
         assert_eq!(murky[0].category, CheckCategory::Theme);
         // The config default applies when the deck names no theme.
-        let plain = parser::parse("# A\n", &dir);
+        let plain = parser::parse("# A\n");
         assert!(!theme_warnings(&plain, Some("murky"), &dir).is_empty());
         std::fs::remove_dir_all(&dir).ok();
     }

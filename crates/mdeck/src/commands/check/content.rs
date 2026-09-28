@@ -123,7 +123,7 @@ mod tests {
     #[test]
     fn cjk_warning_names_the_first_slide_and_counts_the_rest_when_no_font() {
         let md = "---\ntitle: Plain\n---\n\n# Hello\n\n- one\n\n---\n\n# 中文标题\n\n- 第一点\n\n---\n\n# Also\n\n- 日本語\n";
-        let pres = parser::parse(md, std::path::Path::new("."));
+        let pres = parser::parse(md);
         let w = cjk_font_warning(&pres, render::fonts::Scripts::NONE)
             .expect("CJK text without a font warns");
         assert_eq!(w.slide, 2);
@@ -138,7 +138,7 @@ mod tests {
         // a Chinese-only font leaves the kana slide uncovered, and the
         // warning moves to it and names only what is missing
         let md = "# 中文\n\n---\n\n# ひらがな と 漢字\n";
-        let pres = parser::parse(md, std::path::Path::new("."));
+        let pres = parser::parse(md);
         let han_only = render::fonts::Scripts {
             han: true,
             ..render::fonts::Scripts::NONE
@@ -155,7 +155,7 @@ mod tests {
     #[test]
     fn cjk_warning_covers_the_frontmatter_title() {
         let md = "---\ntitle: 中文测试\n---\n\n# Hello\n\n- one\n";
-        let pres = parser::parse(md, std::path::Path::new("."));
+        let pres = parser::parse(md);
         let w = cjk_font_warning(&pres, render::fonts::Scripts::NONE)
             .expect("a CJK title without a font warns");
         assert_eq!(w.slide, 1);
@@ -168,16 +168,16 @@ mod tests {
 
     #[test]
     fn cjk_warning_is_silent_with_a_font_or_without_cjk_text() {
-        let cjk = parser::parse("# 中文", std::path::Path::new("."));
+        let cjk = parser::parse("# 中文");
         assert!(cjk_font_warning(&cjk, render::fonts::Scripts::ALL).is_none());
-        let plain = parser::parse("# Hello\n\n- Räksmörgås ①", std::path::Path::new("."));
+        let plain = parser::parse("# Hello\n\n- Räksmörgås ①");
         assert!(cjk_font_warning(&plain, render::fonts::Scripts::NONE).is_none());
     }
 
     #[test]
     fn math_warnings_name_the_slide_and_skip_good_formulas() {
         let md = "# Fine $x^2$\n\n- ok $$\\frac{a}{b}$$\n\n---\n\n# Broken\n\n- item $\\frac{1}{$ here\n\n| a | b |\n|---|---|\n| $\\sqrt{$ | 2 |\n";
-        let pres = parser::parse(md, std::path::Path::new("."));
+        let pres = parser::parse(md);
         let w = math_warnings(&pres);
         assert_eq!(w.len(), 2, "{w:?}");
         assert!(

@@ -69,7 +69,7 @@ pub async fn run(
     let base_path = file.parent().unwrap_or(Path::new("."));
 
     // Parse the presentation for layout info
-    let presentation = parser::parse(&content, base_path);
+    let presentation = parser::parse(&content);
 
     // Resolve styles
     let config = Config::load_or_default();

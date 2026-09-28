@@ -102,11 +102,6 @@ impl Deck {
         self.presentation.slides.len()
     }
 
-    /// The folder the deck's relative paths start from.
-    pub fn dir(&self) -> &Path {
-        deck_dir(&self.file)
-    }
-
     /// The story playing on slide `index`, if any.
     pub fn story(&self, index: usize) -> Option<&Script> {
         self.stories
@@ -338,7 +333,7 @@ mod tests {
     #[test]
     fn story_beats_extend_steps_only_when_the_engine_plays_stories() {
         let md = "# A\n\n- one\n+ two\n";
-        let pres = parser::parse(md, Path::new("."));
+        let pres = parser::parse(md);
         let script = Script::parse(
             "cast:\n  - { id: a, kind: person, cell: left }\nbeats: [{}, {}, {}, {}]\n",
         )
@@ -354,7 +349,7 @@ mod tests {
 
     #[test]
     fn a_cli_engine_wins_over_the_deck() {
-        let pres = parser::parse("---\n@engine: led\n---\n# A\n", Path::new("."));
+        let pres = parser::parse("---\n@engine: led\n---\n# A\n");
         assert_eq!(
             deck_engine(Some(EngineKind::Plain), &pres, true),
             Some(EngineKind::Plain)
