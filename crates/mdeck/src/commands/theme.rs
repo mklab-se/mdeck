@@ -448,17 +448,21 @@ async fn generate(
     ];
     let validate = |reply: &str| {
         let yaml = strip_fences(reply);
-        ThemeFile::parse(&yaml).and_then(|_| {
-            // Load it for real (fonts, extends) from where it will live.
-            std::fs::write(out_file, &yaml).map_err(|e| e.to_string())?;
-            let l = written_in(dir);
-            let found = l
-                .find_all(name)
-                .into_iter()
-                .find(|f| f.origin != Origin::Builtin)
-                .ok_or_else(|| "the written theme could not be found".to_string())?;
-            l.load_found(&found).map(|_| yaml)
-        })
+        ThemeFile::parse(&yaml)
+            .map_err(|e| e.to_string())
+            .and_then(|_| {
+                // Load it for real (fonts, extends) from where it will live.
+                std::fs::write(out_file, &yaml).map_err(|e| e.to_string())?;
+                let l = written_in(dir);
+                let found = l
+                    .find_all(name)
+                    .into_iter()
+                    .find(|f| f.origin != Origin::Builtin)
+                    .ok_or_else(|| "the written theme could not be found".to_string())?;
+                l.load_found(&found)
+                    .map(|_| yaml)
+                    .map_err(|e| e.to_string())
+            })
     };
     let theme = ai_reply::chat_client_validated(
         client,

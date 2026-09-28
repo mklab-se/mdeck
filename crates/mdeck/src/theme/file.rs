@@ -4,6 +4,8 @@
 
 use serde::Deserialize;
 
+use super::ThemeError;
+
 /// One theme file as written. Colours are `#rgb`, `#rrggbb` or `#rrggbbaa`.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
@@ -163,8 +165,8 @@ fn pick<T: Clone>(child: &Option<T>, parent: &Option<T>) -> Option<T> {
 }
 
 impl ThemeFile {
-    pub fn parse(yaml: &str) -> Result<Self, String> {
-        serde_norway::from_str(yaml).map_err(|e| e.to_string())
+    pub fn parse(yaml: &str) -> Result<Self, ThemeError> {
+        serde_norway::from_str(yaml).map_err(|e| ThemeError::Parse(e.to_string()))
     }
 
     /// This file with every unset key taken from `parent`. `name` and
@@ -285,9 +287,11 @@ mod tests {
 
     #[test]
     fn unknown_keys_are_rejected() {
-        let err = ThemeFile::parse("colors:\n  backgorund: '#000'\n").unwrap_err();
+        let err = ThemeFile::parse("colors:\n  backgorund: '#000'\n")
+            .unwrap_err()
+            .to_string();
         assert!(err.contains("backgorund"), "{err}");
-        let err = ThemeFile::parse("colour: {}\n").unwrap_err();
+        let err = ThemeFile::parse("colour: {}\n").unwrap_err().to_string();
         assert!(err.contains("colour"), "{err}");
     }
 
