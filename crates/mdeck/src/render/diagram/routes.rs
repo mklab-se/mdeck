@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, LazyLock, Mutex, mpsc};
+use std::sync::{Arc, LazyLock, Mutex, OnceLock, mpsc};
 
 use eframe::egui::{self, Pos2};
 
@@ -15,25 +15,24 @@ use crate::check::{CheckCategory, CheckReport, CheckWarning};
 
 // ─── Routing weights ─────────────────────────────────────────────────────────
 
-/// Routing weights loaded once from config at startup.
-static ROUTING_WEIGHTS: LazyLock<CostWeights> = LazyLock::new(|| {
-    crate::config::Config::load_or_default()
-        .routing
-        .unwrap_or_default()
-        .to_cost_weights()
-});
+/// The routing weights for this process, set once at startup from the
+/// config (`routing:` in `~/.config/mdeck/config.yaml`).
+static ROUTING_WEIGHTS: OnceLock<CostWeights> = OnceLock::new();
 
-/// The routing weights of `~/.config/mdeck/config.yaml` (`routing:`), read
-/// on first use and kept for the life of the process.
-///
-/// This is the one place the diagram renderer reads configuration. The public
-/// entry points (`draw_diagram_sized`, `check_diagram_routes`) are called from
-/// the renderer and the checker without a config in hand, so they fetch the
-/// weights here and pass them down; everything below them takes the weights
-/// as a value (`RoutingInput::new`, `RoutingConfig`), so routing stays pure
-/// and testable.
+/// Use `weights` for every diagram routed from now on. The program sets
+/// them once at startup; later calls are ignored. The renderer itself never
+/// reads configuration.
+pub fn set_routing_weights(weights: CostWeights) {
+    let _ = ROUTING_WEIGHTS.set(weights);
+}
+
+/// The weights routes are computed with: what was set at startup, or the
+/// defaults (in tests, and in a program that never sets them). The public
+/// entry points (`draw_diagram_sized`, `check_diagram_routes`) fetch them
+/// here and pass them down; everything below takes the weights as a value
+/// (`RoutingInput::new`, `RoutingConfig`), so routing stays pure.
 pub(super) fn configured_weights() -> CostWeights {
-    *ROUTING_WEIGHTS
+    ROUTING_WEIGHTS.get().copied().unwrap_or_default()
 }
 
 // ─── Route cache ─────────────────────────────────────────────────────────────

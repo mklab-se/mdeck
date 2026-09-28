@@ -185,4 +185,53 @@ mod tests {
             assert!(content < available);
         });
     }
+
+    /// The renderer's boundary: drawing code never reaches the app, the
+    /// commands, the CLI, the deck or the configuration. What it needs is
+    /// handed in (see `diagram::set_routing_weights`).
+    #[test]
+    fn the_renderer_stays_inside_its_boundary() {
+        const FORBIDDEN: &[&str] = &[
+            "crate::app",
+            "crate::commands",
+            "crate::cli",
+            "crate::config",
+            "crate::deck",
+        ];
+        fn files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+            for entry in std::fs::read_dir(dir).expect("render dir").flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    files(&path, out);
+                } else if path.extension().is_some_and(|e| e == "rs") {
+                    out.push(path);
+                }
+            }
+        }
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render");
+        let mut all = Vec::new();
+        files(&dir, &mut all);
+        let bad: Vec<String> = all
+            .iter()
+            .flat_map(|path| {
+                let src = std::fs::read_to_string(path).expect("read");
+                src.lines()
+                    .enumerate()
+                    .filter(|(_, line)| {
+                        // a quoted path (this list) is not a use of it
+                        FORBIDDEN.iter().any(|f| {
+                            line.match_indices(f)
+                                .any(|(at, _)| !line[..at].ends_with('"'))
+                        })
+                    })
+                    .map(|(n, line)| format!("{}:{}: {}", path.display(), n + 1, line.trim()))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        assert!(
+            bad.is_empty(),
+            "the renderer reaches outside:\n{}",
+            bad.join("\n")
+        );
+    }
 }
