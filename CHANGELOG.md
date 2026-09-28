@@ -10,6 +10,9 @@ All notable changes to this project will be documented in this file.
   keys, so every real deck fell back to splitting lines at the first colon: a trailing
   `# comment` or single quotes ended up in the value. Lines that are not valid YAML (a title
   with a second colon) are still read line by line.
+  A multi-line `@story: >` hint now reaches `mdeck ai story` in full; it used to arrive as
+  just `>`. Stories written against the old hint show as stale once (they still play); run
+  `mdeck ai story --stale` to refresh them.
 - `mdeck ai create` reads visualization opportunities with a JSON parser, so `\u00e5`-style
   escapes and quotes inside values come through intact.
 - Error messages show their cause: "AI request failed" now says why it failed.

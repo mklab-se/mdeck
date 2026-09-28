@@ -4,7 +4,7 @@ version: 1
 slides:
 - slide: 2
   title: What you are looking at
-  hash: b839d948224e7552
+  hash: 8fc966ce0d9bbf24
   generated: '1788875974'
   scene:
     cast:
@@ -67,7 +67,7 @@ slides:
       say: Each reveal step lights one cluster, while the type keeps its quiet hierarchy.
 - slide: 3
   title: The rules of the room
-  hash: 774989710ce3b4e3
+  hash: 73c1eb85108bdce6
   generated: '1788875380'
   scene:
     cast:
@@ -126,7 +126,7 @@ slides:
       say: Particles take small steps and leave wakes; nothing rushes toward us.
 - slide: 4
   title: Part two
-  hash: 0c2116f41ef14322
+  hash: f87399e9f9cee6ca
   generated: '1788875386'
   scene:
     cast:
@@ -181,7 +181,7 @@ slides:
       - { hot: [model], say: "One of them promised a refund the company could not honour." }
 - slide: 6
   title: The same day, done differently
-  hash: f1ea11c953d119d2
+  hash: ca3d21b598727dbd
   generated: '1788875400'
   scene:
     cast:
@@ -253,7 +253,7 @@ slides:
       - mail
       say: Only after review did the calm, white mail leave.
 - slide: 7
-  hash: 7edab9fb7bd77341
+  hash: 2f8f46b6e371c699
   generated: '1788875409'
   scene:
     cast:
@@ -302,7 +302,7 @@ slides:
       say: The presentation ended where the decision began.
 - slide: 11
   title: Ordinary markdown still works
-  hash: f55c25136bf75c78
+  hash: 040014cb1dcef748
   generated: '1788875449'
   scene:
     cast:

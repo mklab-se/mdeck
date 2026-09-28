@@ -4,7 +4,7 @@ version: 1
 slides:
 - slide: 2
   title: 'Monday: the queue'
-  hash: 5713f24a2256a471
+  hash: 5bf414d36538c37d
   generated: 2026-09-08 21:42
   scene:
     cast:
@@ -51,7 +51,7 @@ slides:
       say: Elin approved the replies in batches of twenty.
 - slide: 3
   title: 'Tuesday: the folder'
-  hash: 4af5f784695bdc34
+  hash: 0ca3e95c5db2be11
   generated: 2026-09-08 21:42
   scene:
     cast:
@@ -100,7 +100,7 @@ slides:
       say: One theme was wrong—and it was the one Jonas liked most.
 - slide: 4
   title: Wednesday
-  hash: 4e5f4bf9f27eb223
+  hash: eaf97203500a9382
   generated: 2026-09-08 21:42
   scene:
     cast:
@@ -146,7 +146,7 @@ slides:
       say: Jonas took a careful look before anything moved on.
 - slide: 5
   title: 'Wednesday: the gate'
-  hash: 4e9519f8d4a7d5ea
+  hash: 2c786acbcfc9db58
   generated: 2026-09-08 21:42
   scene:
     cast:
@@ -195,7 +195,7 @@ slides:
       say: After review, calm messages leave; nothing slows down except the mistakes.
 - slide: 6
   title: 'Thursday: the lesson'
-  hash: c6f338192b799ed2
+  hash: b8a664a4ecd140c0
   generated: 2026-09-08 21:42
   scene:
     cast:
@@ -235,7 +235,7 @@ slides:
       say: 'The lesson was simple: Maja looked more often.'
 - slide: 7
   title: What the week taught
-  hash: 4e95cd719018b520
+  hash: 29da1424a581673d
   generated: 2026-09-08 21:43
   scene:
     cast:
@@ -298,7 +298,7 @@ slides:
       say: They write down what it got wrong, and why they noticed.
 - slide: 8
   title: Thank you
-  hash: 4628dcee74b290d5
+  hash: 999510fc41e515ce
   generated: 2026-09-08 21:43
   scene:
     cast:
