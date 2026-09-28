@@ -110,7 +110,7 @@ fn cache_key(content: &str, width_bits: u32, height_bits: u32) -> u64 {
 
 /// Deterministic "random" check: should this word be rotated?
 /// Uses a hash of the word text + index so it's stable across frames.
-/// Small, short words rotate more often — they slot into vertical gaps
+/// Small, short words rotate more often: they slot into vertical gaps
 /// between large horizontal words. Long words stay horizontal since
 /// they'd create tall columns if rotated.
 fn should_rotate(text: &str, index: usize, rank: usize, total: usize) -> bool {
@@ -118,7 +118,7 @@ fn should_rotate(text: &str, index: usize, rank: usize, total: usize) -> bool {
     if total < 12 {
         return false;
     }
-    // Only the smallest quarter of words can rotate — they're small enough
+    // Only the smallest quarter of words can rotate: they're small enough
     // to slot into vertical gaps without creating columns at the edges.
     if rank < (total * 3) / 4 {
         return false;

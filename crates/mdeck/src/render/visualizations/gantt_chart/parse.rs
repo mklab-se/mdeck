@@ -206,7 +206,7 @@ pub(super) fn resolve_tasks(data: &GanttData) -> Vec<ResolvedTask> {
             (None, None, None, Some(dep_e)) => (dep_e, dep_e.add_days(1)),
             // Start only (default 1 day)
             (Some(s), None, None, _) => (s, s.add_days(1)),
-            // No info at all — skip
+            // No info at all: skip
             // Fallback: use dependency end as start, or skip
             _ => continue,
         };

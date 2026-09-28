@@ -18,7 +18,7 @@ pub fn header_directive(line: &str) -> Option<(&str, &str)> {
 /// Accepts plain numbers (`40`, `3.5`, `-2`, `1e3`), currency prefixes (`$40`,
 /// `€40`, `£40`), a `%` suffix (`12%`), `_` digit separators (`1_000`),
 /// thousands separators in groups of three (`1,000`, `12,345.5`), and a
-/// trailing unit made of letters (`40 units`, `4.2M` — the unit is dropped,
+/// trailing unit made of letters (`40 units`, `4.2M`; the unit is dropped,
 /// not scaled). Returns `None` for anything else and for non-finite numbers
 /// (`inf`, `nan`), which would otherwise make axis loops run forever.
 pub fn parse_value(raw: &str) -> Option<f32> {

@@ -39,7 +39,7 @@ fn parse_timeline(content: &str) -> Vec<TimelineEntry> {
                 reveal,
             });
         } else {
-            // No colon — treat whole line as description
+            // No colon: treat whole line as description
             entries.push(TimelineEntry {
                 date: String::new(),
                 description: text.to_string(),
