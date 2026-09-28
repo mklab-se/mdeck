@@ -12,7 +12,7 @@ use super::Capabilities;
 use super::stage::{FrameCx, Mask, Moment, Place, Stage};
 use crate::render::art::prepare::Prepared;
 use crate::render::illustration::Library;
-use crate::render::strokes::{Picture, plan, toured};
+use crate::render::strokes::{Picture, plan, to_screen, toured};
 
 /// What an art engine shows: the pictures most engines show, drawn from
 /// generated art when a slide has it.
@@ -132,6 +132,8 @@ pub struct Canvas {
     pub fading_strokes: Option<(Picture, f32)>,
     /// The countdown's burst, 0..1, while it runs.
     pub burst: Option<f32>,
+    /// Where the drawing hand is this frame (`None` in stills).
+    pub tip: Option<Tip>,
     key: Option<Key>,
     /// Seconds to draw a picture in, and to finish around it after.
     draw: f32,
@@ -151,6 +153,7 @@ impl Canvas {
             strokes: None,
             fading_strokes: None,
             burst: None,
+            tip: None,
             key: None,
             draw,
             after,
@@ -224,6 +227,7 @@ impl Canvas {
             if let Some(p) = &mut self.strokes {
                 p.born = self.now - p.duration - 60.0;
             }
+            self.tip = None;
             return;
         }
         self.now += cx.dt;
@@ -242,6 +246,61 @@ impl Canvas {
             .is_some_and(|(_, since)| now - since > fade)
         {
             self.fading_strokes = None;
+        }
+        self.tip = self.find_tip(cx.rect);
+    }
+
+    /// Where the hand is: on the picture being drawn in, or at the end of
+    /// the pen strokes while the pen is down.
+    fn find_tip(&self, rect: Rect) -> Option<Tip> {
+        let now = self.now;
+        if let Some(d) = &self.drawing
+            && let Some(at) = d.tip(now, rect)
+        {
+            return Some(Tip::Picture {
+                at,
+                progress: d.progress(now),
+                frame: d.screen(rect),
+                backdrop: d.backdrop,
+            });
+        }
+        let p = self.strokes.as_ref()?;
+        let (tip, on) = p.tip(now - p.born)?;
+        on.then(|| Tip::Pen {
+            at: to_screen(tip, rect),
+            progress: (now - p.born) / p.duration.max(0.1),
+        })
+    }
+
+    /// Paint what the canvas holds in `hand`'s medium: the old picture and
+    /// strokes fading, the current picture (dimmed behind a title) and
+    /// strokes, then the hand's tool at the tip. Asks for another frame
+    /// while anything moves.
+    pub fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, hand: &impl Hand) {
+        let now = self.now;
+        let painter = ui.painter();
+        let left = self
+            .fading
+            .as_ref()
+            .map(|(_, since)| self.fade_left(*since));
+        if let (Some((old, _)), Some(left)) = (&mut self.fading, left) {
+            hand.picture(ui, cx, old, now, left * cx.opacity, false);
+        }
+        if let Some((old, since)) = &self.fading_strokes {
+            let k = self.fade_left(*since) * cx.opacity;
+            hand.strokes(painter, cx, old, now, k, false);
+        }
+        let burst = self.burst_left();
+        if let Some(d) = &mut self.drawing {
+            let k = if d.backdrop { hand.backdrop() } else { 1.0 } * cx.opacity;
+            hand.picture(ui, cx, d, now, k, true);
+        }
+        if let Some(p) = &self.strokes {
+            hand.strokes(painter, cx, p, now, burst * cx.opacity, true);
+        }
+        hand.finish(painter, cx, if cx.still { None } else { self.tip });
+        if (self.busy() || hand.busy()) && !cx.still {
+            ui.ctx().request_repaint();
         }
     }
 
@@ -269,6 +328,69 @@ impl Canvas {
                 .strokes
                 .as_ref()
                 .is_some_and(|p| self.now - p.born < p.duration + 0.2)
+    }
+}
+
+/// Where the drawing hand is.
+#[derive(Clone, Copy, Debug)]
+pub enum Tip {
+    /// On a generated picture being drawn in: `progress` through it (1 and
+    /// beyond: finished) and the picture's `frame` on screen.
+    Picture {
+        at: Pos2,
+        progress: f32,
+        frame: Rect,
+        backdrop: bool,
+    },
+    /// At the end of pen strokes: `progress` through them.
+    Pen { at: Pos2, progress: f32 },
+}
+
+impl Tip {
+    /// Where the tool goes, unless it is drawing a picture behind a title.
+    pub fn in_front(self) -> Option<Pos2> {
+        match self {
+            Tip::Picture { backdrop: true, .. } => None,
+            Tip::Picture { at, .. } | Tip::Pen { at, .. } => Some(at),
+        }
+    }
+}
+
+/// An art engine's medium, as [`Canvas::paint`] draws with it.
+pub trait Hand {
+    /// How strongly a picture behind a title shows (0..1).
+    fn backdrop(&self) -> f32;
+
+    /// Draw picture `d` as far as it has come at opacity `k`. `current`:
+    /// the slide's own picture, not the old one fading out.
+    fn picture(
+        &self,
+        ui: &egui::Ui,
+        cx: &FrameCx,
+        d: &mut Drawing,
+        now: f32,
+        k: f32,
+        current: bool,
+    );
+
+    /// Draw pen strokes as far as they have come at opacity `k`.
+    fn strokes(
+        &self,
+        painter: &egui::Painter,
+        cx: &FrameCx,
+        p: &Picture,
+        now: f32,
+        k: f32,
+        current: bool,
+    );
+
+    /// Last, over everything: the tool at `tip` (`None` when nothing is
+    /// being drawn, and in stills) and whatever else rides on top.
+    fn finish(&self, _painter: &egui::Painter, _cx: &FrameCx, _tip: Option<Tip>) {}
+
+    /// Something of the engine's own is still moving.
+    fn busy(&self) -> bool {
+        false
     }
 }
 

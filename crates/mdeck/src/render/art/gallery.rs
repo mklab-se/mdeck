@@ -1,7 +1,7 @@
 //! A deck's art as the engine sees it: which picture each slide shows in
 //! the current medium, loaded and prepared once. The presentation window
 //! loads in the background (a slide shows its fallback until its picture is
-//! ready); export loads before it draws.
+//! ready, a few worker threads at a time); export loads before it draws.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use eframe::egui;
 
+use super::loader::Pool;
 use super::prepare::{Prepared, Strategy, prepare};
 use super::sidecar::{self, Coverage, Resolved};
 use super::style::Style;
@@ -24,6 +25,9 @@ enum Slot {
 
 type Key = (PathBuf, ArtKind, Strategy);
 
+/// Threads loading pictures in the window.
+const WORKERS: usize = 3;
+
 pub struct DeckArt {
     deck: Option<PathBuf>,
     background: bool,
@@ -34,7 +38,9 @@ pub struct DeckArt {
     resolved: Vec<Option<Resolved>>,
     problems: Vec<String>,
     slots: Arc<Mutex<HashMap<Key, Slot>>>,
-    repaint: Option<egui::Context>,
+    repaint: Arc<Mutex<Option<egui::Context>>>,
+    /// The workers, started with the first background load.
+    pool: Option<Pool<Key>>,
 }
 
 impl DeckArt {
@@ -50,13 +56,18 @@ impl DeckArt {
             resolved: Vec::new(),
             problems: Vec::new(),
             slots: Arc::new(Mutex::new(HashMap::new())),
-            repaint: None,
+            repaint: Arc::new(Mutex::new(None)),
+            pool: None,
         }
     }
 
     /// Ask for a repaint on `ctx` when a picture finishes loading.
     pub fn repaint_on(&mut self, ctx: &egui::Context) {
-        self.repaint = Some(ctx.clone());
+        if let Ok(mut r) = self.repaint.lock()
+            && r.is_none()
+        {
+            *r = Some(ctx.clone());
+        }
     }
 
     /// Read the sidecar again on the next [`DeckArt::sync`] (the deck was
@@ -116,8 +127,20 @@ impl DeckArt {
     }
 
     /// Slide `index`'s picture, when it has one and it is loaded. The first
-    /// ask starts the load.
+    /// ask starts the load; asking again moves a waiting load to the front.
     pub fn picture(&mut self, index: usize) -> Option<Arc<Prepared>> {
+        self.request(index, true)
+    }
+
+    /// Start loading every slide's picture (the window does this up front
+    /// so the first pass through the deck never waits).
+    pub fn preload(&mut self) {
+        for i in 0..self.resolved.len() {
+            let _ = self.request(i, false);
+        }
+    }
+
+    fn request(&mut self, index: usize, urgent: bool) -> Option<Arc<Prepared>> {
         let style = self.style.as_ref()?;
         let resolved = self.resolved.get(index)?.as_ref()?;
         let key: Key = (resolved.file.clone(), style.kind, self.strategy);
@@ -125,39 +148,35 @@ impl DeckArt {
             let slots = self.slots.lock().ok()?;
             match slots.get(&key) {
                 Some(Slot::Ready(p)) => return Some(p.clone()),
-                Some(Slot::Loading) | Some(Slot::Failed) => return None,
+                Some(Slot::Loading) => {
+                    if urgent && let Some(pool) = &self.pool {
+                        pool.hurry(&key);
+                    }
+                    return None;
+                }
+                Some(Slot::Failed) => return None,
                 None => {}
             }
         }
-        let load = {
-            let key = key.clone();
-            move || match std::fs::read(&key.0)
-                .map_err(|e| e.to_string())
-                .and_then(|bytes| prepare(&bytes, key.1, key.2))
-            {
-                Ok(p) => Slot::Ready(Arc::new(p)),
-                Err(e) => {
-                    eprintln!("art: {}: {e}", key.0.display());
-                    Slot::Failed
-                }
-            }
-        };
         if self.background {
             self.slots.lock().ok()?.insert(key.clone(), Slot::Loading);
-            let slots = self.slots.clone();
-            let repaint = self.repaint.clone();
-            std::thread::spawn(move || {
-                let slot = load();
-                if let Ok(mut s) = slots.lock() {
-                    s.insert(key, slot);
-                }
-                if let Some(ctx) = repaint {
-                    ctx.request_repaint();
-                }
+            let pool = self.pool.get_or_insert_with(|| {
+                let slots = self.slots.clone();
+                let repaint = self.repaint.clone();
+                Pool::new(WORKERS, move |key: Key| {
+                    let slot = load(&key);
+                    if let Ok(mut s) = slots.lock() {
+                        s.insert(key, slot);
+                    }
+                    if let Some(ctx) = repaint.lock().ok().and_then(|r| r.clone()) {
+                        ctx.request_repaint();
+                    }
+                })
             });
+            pool.push(key, urgent);
             None
         } else {
-            let slot = load();
+            let slot = load(&key);
             let out = match &slot {
                 Slot::Ready(p) => Some(p.clone()),
                 _ => None,
@@ -166,12 +185,18 @@ impl DeckArt {
             out
         }
     }
+}
 
-    /// Start loading every slide's picture (the window does this up front
-    /// so the first pass through the deck never waits).
-    pub fn preload(&mut self) {
-        for i in 0..self.resolved.len() {
-            let _ = self.picture(i);
+/// Read and prepare one picture.
+fn load(key: &Key) -> Slot {
+    match std::fs::read(&key.0)
+        .map_err(|e| e.to_string())
+        .and_then(|bytes| prepare(&bytes, key.1, key.2))
+    {
+        Ok(p) => Slot::Ready(Arc::new(p)),
+        Err(e) => {
+            eprintln!("art: {}: {e}", key.0.display());
+            Slot::Failed
         }
     }
 }

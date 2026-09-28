@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use eframe::egui::{self, Color32, Pos2, Rect};
 
-use super::paint::{SPRITE_CORE, SPRITE_GLOW, additive, mix, premul, sprite_sheet};
+use super::paint::{SPRITE_CORE, SPRITE_GLOW, Sprites, additive, mix, premul};
 use super::stage::{FrameCx, Mask, Moment, Place, Stage};
 use super::{Capabilities, Engine, EngineDef, hash01};
 use crate::render::hints::Hint;
@@ -78,7 +78,7 @@ pub struct Laser {
     smoke: Vec<Puff>,
     /// Deterministic random stream for particles.
     rng: u32,
-    sprites: Option<egui::TextureHandle>,
+    sprites: Sprites,
 }
 
 impl Laser {
@@ -92,7 +92,7 @@ impl Laser {
             sparks: Vec::new(),
             smoke: Vec::new(),
             rng: 0x2545_F491,
-            sprites: None,
+            sprites: Sprites::new("mdeck-laser-sprites"),
         }
     }
 
@@ -286,16 +286,7 @@ impl Engine for Laser {
     }
 
     fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, _stage: &Stage) {
-        let texture = self
-            .sprites
-            .get_or_insert_with(|| {
-                ui.ctx().load_texture(
-                    "mdeck-laser-sprites",
-                    sprite_sheet(),
-                    egui::TextureOptions::LINEAR,
-                )
-            })
-            .id();
+        let texture = self.sprites.id(ui.ctx());
         let theme = cx.theme;
         let rect = cx.rect;
         let scale = cx.scale;
