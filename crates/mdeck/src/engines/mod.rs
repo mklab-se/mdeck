@@ -10,9 +10,11 @@
 //! [`EngineKind`] with its [`Capabilities`], and a cargo feature. The guide is
 //! `crates/mdeck/doc/engines.md`.
 
+pub mod blocks;
 #[cfg(test)]
 mod example;
 mod host;
+pub mod laser;
 pub mod led;
 mod masks;
 pub mod particles;
@@ -38,6 +40,10 @@ pub enum EngineKind {
     Led,
     /// A departure board: every slide's text on a grid of split flaps.
     SplitFlap,
+    /// A laser etches illustrations, digits and words onto the slide.
+    Laser,
+    /// Illustrations, digits and words built from falling blocks.
+    Blocks,
 }
 
 /// What an engine can show. The core uses it for fallbacks (an illustration
@@ -69,6 +75,8 @@ impl EngineKind {
         EngineKind::Particles,
         EngineKind::Led,
         EngineKind::SplitFlap,
+        EngineKind::Laser,
+        EngineKind::Blocks,
     ];
 
     pub fn from_name(name: &str) -> Option<Self> {
@@ -81,6 +89,8 @@ impl EngineKind {
             EngineKind::Particles => "particles",
             EngineKind::Led => "led",
             EngineKind::SplitFlap => "splitflap",
+            EngineKind::Laser => "laser",
+            EngineKind::Blocks => "blocks",
         }
     }
 
@@ -100,6 +110,8 @@ impl EngineKind {
             EngineKind::Particles => cfg!(feature = "particles"),
             EngineKind::Led => cfg!(feature = "led"),
             EngineKind::SplitFlap => cfg!(feature = "splitflap"),
+            EngineKind::Laser => cfg!(feature = "laser"),
+            EngineKind::Blocks => cfg!(feature = "blocks"),
         }
     }
 
@@ -141,6 +153,15 @@ impl EngineKind {
                 countdown: true,
                 end_act: true,
             },
+            EngineKind::Laser | EngineKind::Blocks => Capabilities {
+                paints: true,
+                editorial: true,
+                board: false,
+                illustrations: true,
+                stories: false,
+                countdown: true,
+                end_act: true,
+            },
         }
     }
 
@@ -151,6 +172,8 @@ impl EngineKind {
             EngineKind::Particles => Box::new(particles::Particles::new()),
             EngineKind::Led => Box::new(led::Led::new()),
             EngineKind::SplitFlap => Box::new(splitflap::SplitFlap::new()),
+            EngineKind::Laser => Box::new(laser::Laser::new()),
+            EngineKind::Blocks => Box::new(blocks::Blocks::new()),
         }
     }
 
@@ -186,6 +209,8 @@ impl EngineKind {
             EngineKind::Particles => particles::END_CAPTION_DELAY,
             EngineKind::Led => led::END_CAPTION_DELAY,
             EngineKind::SplitFlap => splitflap::END_CAPTION_DELAY,
+            EngineKind::Laser => laser::END_CAPTION_DELAY,
+            EngineKind::Blocks => blocks::END_CAPTION_DELAY,
             EngineKind::Plain => 0.0,
         }
     }
@@ -337,7 +362,10 @@ mod tests {
             assert_eq!(EngineKind::from_name(k.name()), Some(k));
         }
         assert_eq!(EngineKind::from_name("fireworks"), None);
-        assert!(EngineKind::names().starts_with("plain, particles, led, splitflap"));
+        assert_eq!(
+            EngineKind::names(),
+            "plain, particles, led, splitflap, laser, blocks"
+        );
     }
 
     #[test]

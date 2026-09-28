@@ -717,7 +717,7 @@ fn lens_color(theme: &Theme) -> Color32 {
     }
 }
 
-fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
+pub(super) fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
     let t = t.clamp(0.0, 1.0);
     let l = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
     Color32::from_rgb(l(a.r(), b.r()), l(a.g(), b.g()), l(a.b(), b.b()))
@@ -728,7 +728,7 @@ fn fade(c: Color32, a: f32) -> Color32 {
 }
 
 /// `c` at opacity `a`, premultiplied (normal blending).
-fn premul(c: Color32, a: f32) -> Color32 {
+pub(super) fn premul(c: Color32, a: f32) -> Color32 {
     let a = a.clamp(0.0, 1.0);
     Color32::from_rgba_premultiplied(
         (c.r() as f32 * a) as u8,
@@ -739,7 +739,7 @@ fn premul(c: Color32, a: f32) -> Color32 {
 }
 
 /// `c` scaled by `k` with zero alpha: added onto what is below (glow).
-fn additive(c: Color32, k: f32) -> Color32 {
+pub(super) fn additive(c: Color32, k: f32) -> Color32 {
     let k = k.clamp(0.0, 1.0);
     Color32::from_rgba_premultiplied(
         (c.r() as f32 * k) as u8,
@@ -749,21 +749,21 @@ fn additive(c: Color32, k: f32) -> Color32 {
     )
 }
 
-fn smoothstep(a: f32, b: f32, x: f32) -> f32 {
+pub(super) fn smoothstep(a: f32, b: f32, x: f32) -> f32 {
     let t = ((x - a) / (b - a)).clamp(0.0, 1.0);
     t * t * (3.0 - 2.0 * t)
 }
 
 /// Sprite sheet: lens, core and glow side by side, white, premultiplied.
 const SPRITE: usize = 64;
-const SPRITE_LENS: Rect = Rect {
+pub(super) const SPRITE_LENS: Rect = Rect {
     min: Pos2 { x: 0.0, y: 0.0 },
     max: Pos2 {
         x: 1.0 / 3.0,
         y: 1.0,
     },
 };
-const SPRITE_CORE: Rect = Rect {
+pub(super) const SPRITE_CORE: Rect = Rect {
     min: Pos2 {
         x: 1.0 / 3.0,
         y: 0.0,
@@ -773,7 +773,7 @@ const SPRITE_CORE: Rect = Rect {
         y: 1.0,
     },
 };
-const SPRITE_GLOW: Rect = Rect {
+pub(super) const SPRITE_GLOW: Rect = Rect {
     min: Pos2 {
         x: 2.0 / 3.0,
         y: 0.0,
@@ -781,7 +781,7 @@ const SPRITE_GLOW: Rect = Rect {
     max: Pos2 { x: 1.0, y: 1.0 },
 };
 
-fn sprite_sheet() -> egui::ColorImage {
+pub(super) fn sprite_sheet() -> egui::ColorImage {
     let w = SPRITE * 3;
     let mut pixels = vec![Color32::TRANSPARENT; w * SPRITE];
     for y in 0..SPRITE {

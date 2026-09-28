@@ -40,12 +40,13 @@ Every slide on a split-flap board
 - Average delay: 2 min
 ```
 
-# A board with a picture
+# Platform 4
 
-![Stockholm Central](../../media/gallery/theme-winter.png)
+![The evening train](images/station.jpg)
 
-- The first image of a slide sits in a panel on the board
-- The text wraps beside it
+- Night train to Paris
+- Departs 18:42
+- Boarding now
 
 # Good to know
 

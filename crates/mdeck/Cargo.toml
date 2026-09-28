@@ -46,7 +46,7 @@ pdf-writer.workspace = true
 flate2.workspace = true
 
 [features]
-default = ["particles", "led", "splitflap"]
+default = ["particles", "led", "splitflap", "laser", "blocks"]
 # The particles engine: the particle field, editorial layouts, stories and the
 # built-in point cloud illustrations.
 particles = []
@@ -56,6 +56,10 @@ led = []
 # The split-flap engine: every slide on a departure board, and the
 # `departures` theme.
 splitflap = []
+# The laser engine: pictures etched by a beam, and the `etch` theme.
+laser = []
+# The blocks engine: pictures built from falling blocks, and the `stack` theme.
+blocks = []
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/mdeck-v{ version }-{ target }.{ archive-format }"

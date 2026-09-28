@@ -137,7 +137,7 @@ fn starter(name: &str) -> String {
 # `mdeck theme preview {name} --output-dir /tmp/{name}`.
 name: {name}
 extends: dark              # dark | light | nord | ember | another theme
-# engine: plain            # plain | particles | led | splitflap (departure board)
+# engine: plain            # plain | particles | led | splitflap | laser | blocks
 # countdown: none          # none | plain | burst (burst: the engine's own countdown)
 colors:
   background: "#1e1e1e"    # slide background
@@ -392,9 +392,10 @@ fn user_prompt(name: &str, sources: &Sources, fonts: &[String], logos: &[String]
          - Set every colour key in the mapping table that the design system can answer.\n\
          - Keep the built-in slide sizes unless the design system is itself about slides.\n\
          - Choose `extends:` from dark or light by the design system's background.\n\
-         - Choose `engine: particles` (glowing particles) or `engine: led` (an LED wall) with \
-           `countdown: burst` only for a dark, atmospheric brand that already uses glow, \
-           particles or neon; otherwise leave the engine out.\n"
+         - Choose an engine with `countdown: burst` only when the brand already has that \
+           character: `particles` (glow), `led` (neon, signage), `laser` (engineering, \
+           precision), `blocks` (games, playful), `splitflap` (travel, schedules; text only). \
+           Otherwise leave the engine out.\n"
     ));
     if fonts.is_empty() {
         p.push_str(

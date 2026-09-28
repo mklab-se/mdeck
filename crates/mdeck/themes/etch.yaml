@@ -1,0 +1,40 @@
+# Etch: a laser engraver's slate. Deep graphite, an editorial serif, and a
+# beam that etches each picture in white-hot light that cools through
+# yellow and orange to a pale engraved line (laser engine).
+name: Etch
+extends: dark
+engine: laser
+countdown: burst
+colors:
+  background: "#0c0d0f"      # slate
+  text: "#b8bbc2"
+  heading: "#eceae4"
+  muted: "#858993"
+  rule: "#24262b"
+  accent: "#ff5a1f"          # the beam
+  accent-soft: "#ffa06b"
+  secondary: "#ffd27a"       # hot metal
+  code-background: "#141518"
+  code-text: "#d8d9de"
+  positive: "#58c98a"
+  negative: "#ff5a4f"
+  series:
+    - "#ff5a1f" # beam
+    - "#ffd27a" # hot
+    - "#8ec5d8" # steel blue
+    - "#c9a7ff" # violet
+    - "#58c98a" # green
+    - "#eceae4" # white
+    - "#ff8f6b" # coral
+    - "#858993" # graphite
+particles:                   # the laser's white-hot tip and cool steel
+  light: "#fff6e6"
+  cool: "#8ec5d8"
+fonts:
+  display: spectral-light
+  body: hanken-regular
+  lead: hanken-light
+  strong: hanken-medium
+  mono: jetbrains-mono
+sizes: { h1: 104, h2: 72, h3: 48, body: 38, code: 28 }
+text: { line-height: 1.45 }

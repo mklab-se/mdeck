@@ -1,0 +1,40 @@
+# Stack: pictures built from falling blocks. A deep night-blue playfield,
+# bright bevelled blocks in pink, yellow, cyan, orange and violet, and a
+# rounded grotesk for the copy (blocks engine).
+name: Stack
+extends: dark
+engine: blocks
+countdown: burst
+colors:
+  background: "#0d0e1a"      # the playfield
+  text: "#c2c5d9"
+  heading: "#f5f6ff"
+  muted: "#858aa6"
+  rule: "#23263d"
+  accent: "#ff4f8b"          # pink blocks
+  accent-soft: "#ff9a3d"     # orange blocks
+  secondary: "#ffd23f"       # yellow blocks
+  code-background: "#15172a"
+  code-text: "#dcdff0"
+  positive: "#4fdc8c"
+  negative: "#ff5a6a"
+  series:
+    - "#ff4f8b" # pink
+    - "#3ec9ff" # cyan
+    - "#ffd23f" # yellow
+    - "#4fdc8c" # green
+    - "#a36bff" # violet (the fifth block colour)
+    - "#ff9a3d" # orange
+    - "#f5f6ff" # white
+    - "#6c7cff" # blue
+particles:
+  light: "#ffffff"
+  cool: "#3ec9ff"            # cyan blocks
+fonts:
+  display: hanken-medium
+  body: hanken-regular
+  lead: hanken-light
+  strong: hanken-medium
+  mono: jetbrains-mono
+sizes: { h1: 100, h2: 70, h3: 48, body: 38, code: 28 }
+text: { line-height: 1.4 }

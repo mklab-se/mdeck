@@ -2,8 +2,8 @@
 
 An **engine** is what a theme does beyond colours and type: the layer it
 paints under the slides, and what it plays for the countdown and the end.
-MDeck ships `plain`, `particles` (the Ember theme), `led` (the Marquee
-theme) and `splitflap` (the Departures theme). This guide is for adding one. Read spec section 9.6 first for what users see.
+MDeck ships `plain`, `particles` (the Ember theme), `led` (Marquee),
+`splitflap` (Departures), `laser` (Etch) and `blocks` (Stack). This guide is for adding one. Read spec section 9.6 first for what users see.
 
 The rule that makes engines safe to add: **the core decides what a slide
 wants to show; an engine decides how it looks.** An engine never parses

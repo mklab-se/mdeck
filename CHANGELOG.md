@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- The laser engine and its `etch` theme ([#16](https://github.com/mklab-se/mdeck/issues/16)):
+  a beam from in front of the screen etches each illustration onto the slide in about two
+  seconds, along a drawing path through the cloud's points (untangled and smoothed, the pen
+  lifting on long jumps). Fresh marks burn white-hot and cool through yellow and orange to a
+  pale engraving; sparks fly off the tip and smoke drifts up. On charts and diagrams the beam
+  traces lines, edges, circles and bar tops. The countdown's digits are etched and burned
+  away; the end words are etched and fade. Sample `samples/engines/laser.md`.
+- The blocks engine and its `stack` theme: illustrations cut into bevelled blocks, grouped
+  into pieces that drop from above, bottom row first, land with a bounce and settle; the next
+  slide flashes and clears the stack like a completed line. The countdown's digits fall in
+  blocks and burst apart. Sample `samples/engines/blocks.md`.
+
+### Changed
+
+- The split-flap sample's picture slide shows a station photograph in the board's image panel
+  (`samples/engines/images/station.jpg`).
+
 ## [1.10.0] - 2026-09-28
 
 ### Added

@@ -282,6 +282,19 @@ it shows the new one.
   <img src="media/gallery/departures-turning.jpg" width="45%">
 </p>
 
+**Laser** (`laser`, theme `etch`). A beam from in front of the screen etches
+each illustration onto the slide in a couple of seconds: white-hot marks
+cooling to a pale engraving, sparks off the tip, smoke drifting up.
+
+**Falling blocks** (`blocks`, theme `stack`). Illustrations are built from
+bright bevelled blocks that drop from above and settle, bottom row first; the
+next slide clears the stack like a completed line.
+
+<p align="center">
+  <img src="media/gallery/etch-beam.jpg" width="45%">&nbsp;&nbsp;
+  <img src="media/gallery/stack-falling.jpg" width="45%">
+</p>
+
 `mdeck talk.md --engine led` tries an engine without touching the deck, and
 `mdeck talk.md --check` lists anything the chosen engine does not show. Try
 `samples/engines/`.

@@ -101,6 +101,32 @@ The countdown in solid flaps.
 
 <img src="media/gallery/departures-countdown.jpg" width="720">
 
+### Laser
+
+The `laser` engine and its `etch` theme: a beam from in front of the screen
+etches each illustration. Mid-etch, the fresh marks are still hot:
+
+<img src="media/gallery/etch-beam.jpg" width="720">
+
+and the finished engraving:
+
+<img src="media/gallery/etch-illustration.jpg" width="720">
+
+### Falling blocks
+
+The `blocks` engine and its `stack` theme: illustrations built from falling
+blocks. The pieces drop bottom row first:
+
+<img src="media/gallery/stack-falling.jpg" width="720">
+
+and settle into the picture:
+
+<img src="media/gallery/stack-illustration.jpg" width="720">
+
+On a title slide the stack stands dim behind the copy.
+
+<img src="media/gallery/stack-title.jpg" width="720">
+
 ---
 
 ## Themes
