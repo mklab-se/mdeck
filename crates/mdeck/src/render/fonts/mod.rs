@@ -204,17 +204,7 @@ impl FontSync {
 /// emoji) still render.
 pub fn install(ctx: &egui::Context) {
     let mut defs = FontDefinitions::default();
-
-    let faces: [(&str, &'static [u8]); 7] = [
-        ("Spectral-Light", SPECTRAL_LIGHT),
-        ("HankenGrotesk-Light", HANKEN_LIGHT),
-        ("HankenGrotesk-Regular", HANKEN_REGULAR),
-        ("HankenGrotesk-Medium", HANKEN_MEDIUM),
-        ("JetBrainsMono-Regular", JETBRAINS_REGULAR),
-        (FONT_SYMBOLS[0], NOTO_SYMBOLS),
-        (FONT_SYMBOLS[1], DEJAVU_SANS),
-    ];
-    for (name, bytes) in faces {
+    for (name, bytes) in BUNDLED_FACES {
         defs.font_data
             .insert(name.to_string(), Arc::new(FontData::from_static(bytes)));
     }
@@ -228,72 +218,25 @@ pub fn install(ctx: &egui::Context) {
             .or_default()
             .extend(FONT_SYMBOLS.iter().map(|s| s.to_string()));
     }
-    let proportional_fallback: Vec<String> = defs
-        .families
-        .get(&FontFamily::Proportional)
-        .cloned()
-        .unwrap_or_default();
-    let monospace_fallback: Vec<String> = defs
-        .families
-        .get(&FontFamily::Monospace)
-        .cloned()
-        .unwrap_or_default();
-
-    let family = |primary: &str, fallback: &[String]| -> Vec<String> {
-        let mut v = vec![primary.to_string()];
-        v.extend(fallback.iter().cloned());
-        v
+    let chains = Fallbacks {
+        proportional: defs
+            .families
+            .get(&FontFamily::Proportional)
+            .cloned()
+            .unwrap_or_default(),
+        monospace: defs
+            .families
+            .get(&FontFamily::Monospace)
+            .cloned()
+            .unwrap_or_default(),
     };
 
-    defs.families.insert(
-        FontFamily::Name(FONT_DISPLAY.into()),
-        family("Spectral-Light", &proportional_fallback),
-    );
-    defs.families.insert(
-        FontFamily::Name(FONT_BODY.into()),
-        family("HankenGrotesk-Regular", &proportional_fallback),
-    );
-    defs.families.insert(
-        FontFamily::Name(FONT_BODY_LIGHT.into()),
-        family("HankenGrotesk-Light", &proportional_fallback),
-    );
-    defs.families.insert(
-        FontFamily::Name(FONT_BODY_MEDIUM.into()),
-        family("HankenGrotesk-Medium", &proportional_fallback),
-    );
-    defs.families.insert(
-        FontFamily::Name(FONT_MONO.into()),
-        family("JetBrainsMono-Regular", &monospace_fallback),
-    );
-
-    // Theme faces: each its own family over the matching fallback chain.
-    for face in THEME_FACES.lock().unwrap_or_else(|p| p.into_inner()).iter() {
-        defs.font_data.insert(
-            face.family.clone(),
-            Arc::new(FontData::from_owned(face.bytes.to_vec())),
-        );
-        let fallback = if face.mono {
-            &monospace_fallback
-        } else {
-            &proportional_fallback
-        };
-        defs.families.insert(
-            FontFamily::Name(face.family.as_str().into()),
-            family(&face.family, fallback),
-        );
+    for (family, face, mono) in BUNDLED_FAMILIES {
+        defs.families
+            .insert(FontFamily::Name(family.into()), chains.family(face, mono));
     }
-
-    // Math: one family per KaTeX face, each falling back to the proportional
-    // chain so `\text{...}` in any script still draws.
-    for (name, bytes) in KATEX_FACES {
-        let key = format!("KaTeX_{name}");
-        defs.font_data
-            .insert(key.clone(), Arc::new(FontData::from_static(bytes)));
-        defs.families.insert(
-            FontFamily::Name(format!("katex-{name}").into()),
-            family(&key, &proportional_fallback),
-        );
-    }
+    add_theme_faces(&mut defs, &chains);
+    add_math_faces(&mut defs, &chains);
 
     // The system CJK faces, when there are any, close every chain.
     let families: Vec<FontFamily> = defs.families.keys().cloned().collect();
@@ -302,6 +245,74 @@ pub fn install(ctx: &egui::Context) {
     }
 
     ctx.set_fonts(defs);
+}
+
+/// The faces bundled in the binary.
+const BUNDLED_FACES: [(&str, &[u8]); 7] = [
+    ("Spectral-Light", SPECTRAL_LIGHT),
+    ("HankenGrotesk-Light", HANKEN_LIGHT),
+    ("HankenGrotesk-Regular", HANKEN_REGULAR),
+    ("HankenGrotesk-Medium", HANKEN_MEDIUM),
+    ("JetBrainsMono-Regular", JETBRAINS_REGULAR),
+    (FONT_SYMBOLS[0], NOTO_SYMBOLS),
+    (FONT_SYMBOLS[1], DEJAVU_SANS),
+];
+
+/// The named families themes draw with: (family, its face, monospace).
+const BUNDLED_FAMILIES: [(&str, &str, bool); 5] = [
+    (FONT_DISPLAY, "Spectral-Light", false),
+    (FONT_BODY, "HankenGrotesk-Regular", false),
+    (FONT_BODY_LIGHT, "HankenGrotesk-Light", false),
+    (FONT_BODY_MEDIUM, "HankenGrotesk-Medium", false),
+    (FONT_MONO, "JetBrainsMono-Regular", true),
+];
+
+/// The fallback chains a named family continues with.
+struct Fallbacks {
+    proportional: Vec<String>,
+    monospace: Vec<String>,
+}
+
+impl Fallbacks {
+    /// `face` first, then the proportional or monospace chain.
+    fn family(&self, face: &str, mono: bool) -> Vec<String> {
+        let chain = if mono {
+            &self.monospace
+        } else {
+            &self.proportional
+        };
+        std::iter::once(face.to_string())
+            .chain(chain.iter().cloned())
+            .collect()
+    }
+}
+
+/// Theme faces: each its own family over the matching fallback chain.
+fn add_theme_faces(defs: &mut FontDefinitions, chains: &Fallbacks) {
+    for face in THEME_FACES.lock().unwrap_or_else(|p| p.into_inner()).iter() {
+        defs.font_data.insert(
+            face.family.clone(),
+            Arc::new(FontData::from_owned(face.bytes.to_vec())),
+        );
+        defs.families.insert(
+            FontFamily::Name(face.family.as_str().into()),
+            chains.family(&face.family, face.mono),
+        );
+    }
+}
+
+/// Math: one family per KaTeX face, each falling back to the proportional
+/// chain so `\text{...}` in any script still draws.
+fn add_math_faces(defs: &mut FontDefinitions, chains: &Fallbacks) {
+    for (name, bytes) in KATEX_FACES {
+        let key = format!("KaTeX_{name}");
+        defs.font_data
+            .insert(key.clone(), Arc::new(FontData::from_static(bytes)));
+        defs.families.insert(
+            FontFamily::Name(format!("katex-{name}").into()),
+            chains.family(&key, false),
+        );
+    }
 }
 
 #[cfg(test)]
