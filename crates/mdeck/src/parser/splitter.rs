@@ -301,7 +301,14 @@ mod tests {
     fn the_splitter_and_the_block_parser_agree_on_directives() {
         // `@layout : title` used to be content to the splitter but a
         // directive to the block parser, and `@:` the other way round.
-        for line in ["@layout: title", "@layout : title", "@: x", "@a b: x", "@x", "text"] {
+        for line in [
+            "@layout: title",
+            "@layout : title",
+            "@: x",
+            "@a b: x",
+            "@x",
+            "text",
+        ] {
             assert_eq!(
                 is_directive(line),
                 super::super::directives::parse_directive_line(line).is_some(),

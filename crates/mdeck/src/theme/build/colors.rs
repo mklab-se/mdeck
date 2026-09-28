@@ -34,14 +34,21 @@ pub(super) struct Palette {
 
 /// Parse one colour value; `key` names it in the error (`colors.<key>`).
 pub(super) fn parse(key: &str, s: &str) -> Result<Color32, ThemeError> {
-    parse_color(s)
-        .map(|[r, g, b, a]| Color32::from_rgba_unmultiplied(r, g, b, a))
-        .ok_or_else(|| {
-            ThemeError::invalid(
-                format!("colors.{key}"),
-                format!("'{s}' is not a colour (use #rrggbb)"),
-            )
-        })
+    channels(key, s).map(|[r, g, b, a]| Color32::from_rgba_unmultiplied(r, g, b, a))
+}
+
+/// A colour painted opaque: its channels as written, any alpha ignored.
+pub(super) fn parse_opaque(key: &str, s: &str) -> Result<Color32, ThemeError> {
+    channels(key, s).map(|[r, g, b, _]| Color32::from_rgb(r, g, b))
+}
+
+fn channels(key: &str, s: &str) -> Result<[u8; 4], ThemeError> {
+    parse_color(s).ok_or_else(|| {
+        ThemeError::invalid(
+            format!("colors.{key}"),
+            format!("'{s}' is not a colour (use #rrggbb)"),
+        )
+    })
 }
 
 /// An optional colour: `None` when unset, an error when not a colour.

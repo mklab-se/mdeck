@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
   directive when slides are split, as it already was when the slide is read; `@:` is not.
 - The diagram debug overlay (`R`) shows the routes the slide and `--check` compute (measured
   lane capacities and the configured routing weights), not a default configuration's.
+- A theme's `page.surface` given with alpha (`#80808080`) is painted in the colour written; it
+  came out darker.
 
 ## [1.16.0] - 2026-09-28
 

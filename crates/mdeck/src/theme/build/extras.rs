@@ -2,8 +2,6 @@
 
 use std::path::{Path, PathBuf};
 
-use eframe::egui::Color32;
-
 use super::super::file::{self, ThemeFile};
 use super::super::{Page, ThemeArt, ThemeError};
 use super::{colors, range};
@@ -56,10 +54,12 @@ pub(super) fn logo(f: &file::Logo, warnings: &mut Vec<String>) -> Result<Option<
 /// `page:`; setting `surface` turns the page on.
 pub(super) fn page(f: &file::Page) -> Result<Option<Page>, ThemeError> {
     let Some(s) = &f.surface else { return Ok(None) };
-    let surface = colors::parse("page.surface", s)?;
+    // Nothing lies behind the surface, so it is painted opaque in the
+    // colour as written.
+    let surface = colors::parse_opaque("page.surface", s)?;
     let key = |k: &str| format!("page.{k}");
     Ok(Some(Page {
-        surface: Color32::from_rgb(surface.r(), surface.g(), surface.b()),
+        surface,
         margin: range(&key("margin"), f.margin, 0.0, 300.0)?.unwrap_or(56.0),
         shadow: range(&key("shadow"), f.shadow, 0.0, 1.0)?.unwrap_or(0.5),
         grain: range(&key("grain"), f.grain, 0.0, 1.0)?.unwrap_or(0.5),
@@ -91,6 +91,7 @@ pub(super) fn art(f: &ThemeFile) -> Result<ThemeArt, ThemeError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use eframe::egui::Color32;
 
     #[test]
     fn logo_placement_is_checked_without_a_file() {
@@ -148,6 +149,19 @@ mod tests {
         })
         .unwrap_err();
         assert_eq!(e.to_string(), "page.margin: 400 must be between 0 and 300");
+    }
+
+    #[test]
+    fn a_translucent_surface_keeps_its_colour() {
+        // The surface is painted opaque. Its channels used to be read
+        // premultiplied, so #80808080 came out as a darker #404040.
+        let p = page(&file::Page {
+            surface: Some("#80808080".into()),
+            ..Default::default()
+        })
+        .unwrap()
+        .unwrap();
+        assert_eq!(p.surface, Color32::from_rgb(0x80, 0x80, 0x80));
     }
 
     #[test]
