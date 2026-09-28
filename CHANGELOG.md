@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- A directive written with a space before the colon (`@layout : title`) is treated as a
+  directive when slides are split, as it already was when the slide is read; `@:` is not.
+
 ## [1.16.0] - 2026-09-28
 
 ### Fixed

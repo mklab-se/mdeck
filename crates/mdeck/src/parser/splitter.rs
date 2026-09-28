@@ -288,17 +288,27 @@ fn is_dash_separator(line: &str) -> bool {
     line.len() >= 3 && line.chars().all(|c| c == '-')
 }
 
+/// A `@key: value` line, by the same rule the block parser reads them with.
 fn is_directive(line: &str) -> bool {
-    line.starts_with('@')
-        && line.contains(':')
-        && line[1..line.find(':').unwrap()]
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+    super::directives::parse_directive_line(line).is_some()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_splitter_and_the_block_parser_agree_on_directives() {
+        // `@layout : title` used to be content to the splitter but a
+        // directive to the block parser, and `@:` the other way round.
+        for line in ["@layout: title", "@layout : title", "@: x", "@a b: x", "@x", "text"] {
+            assert_eq!(
+                is_directive(line),
+                super::super::directives::parse_directive_line(line).is_some(),
+                "{line}"
+            );
+        }
+    }
 
     #[test]
     fn dash_separators_need_blank_lines_around_them() {
