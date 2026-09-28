@@ -33,7 +33,6 @@ pub(super) const STEPS: f32 = 65535.0;
 pub enum Strategy {
     Draw,
     Hatch,
-    #[allow(dead_code)] // the watercolour engine's
     Bloom,
     Develop,
 }

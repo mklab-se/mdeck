@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- The **watercolour engine** and its `watercolour` theme
+  ([#17](https://github.com/mklab-se/mdeck/issues/17)): cold-press paper on a table, and a
+  slide's generated watercolour blooms onto it, a pale first wash and then the colour spreading
+  from where the paint is heaviest, the dark accents last. Without art the slide's
+  `@illustration`, the countdown and the end words are drawn in ink with loose washes. Sample
+  `samples/engines/watercolour.md`.
+- The **darkroom engine** and its `darkroom` theme: a red safelight over the bench, and a
+  slide's generated black-and-white photograph develops as a print on white fibre paper,
+  shadows first, before the white light comes on and the print shows its true greys. Without
+  art the slide's `@illustration` becomes a photogram. Sample `samples/engines/darkroom.md`.
+- With these, all five media proposed in #17 are in: blueprint, sketch, chalkboard,
+  watercolour and darkroom.
+
 ## [1.14.0] - 2026-09-28
 
 ### Added

@@ -11,7 +11,8 @@ use super::{Built, Theme};
 /// behind a cargo feature (`ember`, `autumn` and `winter` on particles,
 /// `marquee` on led, `departures` on splitflap, `etch` on laser, `stack` on
 /// blocks, `blueprint` on blueprint, `sketchbook` on sketch,
-/// `chalkboard` on chalkboard) is left out of a build without that feature.
+/// `chalkboard` on chalkboard, `watercolour` on watercolour, `darkroom` on
+/// darkroom) is left out of a build without that feature.
 pub const BUILTIN: &[(&str, &str)] = &[
     ("dark", include_str!("../../themes/dark.yaml")),
     ("light", include_str!("../../themes/light.yaml")),
@@ -38,6 +39,10 @@ pub const BUILTIN: &[(&str, &str)] = &[
     ("sketchbook", include_str!("../../themes/sketchbook.yaml")),
     #[cfg(feature = "chalkboard")]
     ("chalkboard", include_str!("../../themes/chalkboard.yaml")),
+    #[cfg(feature = "watercolour")]
+    ("watercolour", include_str!("../../themes/watercolour.yaml")),
+    #[cfg(feature = "darkroom")]
+    ("darkroom", include_str!("../../themes/darkroom.yaml")),
 ];
 
 /// The theme used when nothing names one.
@@ -489,6 +494,8 @@ mod tests {
                 "blueprint",
                 "sketchbook",
                 "chalkboard",
+                "watercolour",
+                "darkroom",
                 "brand"
             ]
         );

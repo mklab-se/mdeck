@@ -277,48 +277,56 @@ pub(super) fn hatch_order(
     (when, path)
 }
 
-/// Watercolour: each wash spreads from where the paint is heaviest, the
-/// dark accents dropped in last.
+/// Watercolour: washes spread outward from a few pools where the paint is
+/// heaviest, with ragged wet edges, the darkest paint settling last.
 pub(super) fn bloom_order(ink: &[f32], w: usize, h: usize) -> Vec<u16> {
-    // distance from the heaviest paint, through painted pixels only
-    let n = w * h;
-    let mut dist = vec![u32::MAX; n];
-    let mut queue = VecDeque::new();
-    for (i, &a) in ink.iter().enumerate() {
-        if a > 0.55 {
-            dist[i] = 0;
-            queue.push_back(i);
-        }
-    }
-    let mut far = 1u32;
-    while let Some(i) = queue.pop_front() {
-        let (x, y) = ((i % w) as i32, (i / w) as i32);
-        for (dx, dy) in NEIGHBOURS {
-            let (nx, ny) = (x + dx, y + dy);
-            if nx < 0 || ny < 0 || nx >= w as i32 || ny >= h as i32 {
-                continue;
+    // the pools: the heaviest cells of a coarse grid, a few of them
+    const GRID: usize = 8;
+    const POOLS: usize = 5;
+    let (cw, ch) = (w.div_ceil(GRID), h.div_ceil(GRID));
+    let mut cells: Vec<(f32, usize, usize)> = Vec::new();
+    for gy in 0..GRID {
+        for gx in 0..GRID {
+            let (mut sum, mut n, mut best, mut at) = (0.0, 0usize, -1.0, (0, 0));
+            for y in gy * ch..((gy + 1) * ch).min(h) {
+                for x in gx * cw..((gx + 1) * cw).min(w) {
+                    let v = ink[y * w + x];
+                    sum += v;
+                    n += 1;
+                    if v > best {
+                        best = v;
+                        at = (x, y);
+                    }
+                }
             }
-            let j = ny as usize * w + nx as usize;
-            if dist[j] == u32::MAX && ink[j] > 0.02 {
-                dist[j] = dist[i] + 1;
-                far = far.max(dist[j]);
-                queue.push_back(j);
+            if n > 0 {
+                cells.push((sum / n as f32, at.0, at.1));
             }
         }
     }
-    (0..n)
+    cells.sort_by(|a, b| b.0.total_cmp(&a.0));
+    let pools: Vec<(f32, f32)> = cells
+        .iter()
+        .take(POOLS)
+        .map(|c| (c.1 as f32, c.2 as f32))
+        .collect();
+    let mut dist = vec![0.0_f32; w * h];
+    let mut far = 1.0_f32;
+    for y in 0..h {
+        for x in 0..w {
+            let d = pools
+                .iter()
+                .map(|p| ((x as f32 - p.0).powi(2) + (y as f32 - p.1).powi(2)).sqrt())
+                .fold(f32::MAX, f32::min);
+            dist[y * w + x] = d;
+            far = far.max(d);
+        }
+    }
+    (0..w * h)
         .map(|i| {
-            let d = if dist[i] == u32::MAX {
-                1.0
-            } else {
-                dist[i] as f32 / far as f32
-            };
-            let wet = 0.75 * d.sqrt() + 0.12 * value_noise(i % w, i / w, 48.0);
-            let t = if ink[i] > 0.85 {
-                0.7 + 0.3 * wet
-            } else {
-                wet * 0.9
-            };
+            let wet = 0.82 * dist[i] / far + 0.16 * value_noise(i % w, i / w, 40.0);
+            // the darkest paint settles a touch later than the wash around it
+            let t = wet * 0.9 + 0.08 * ink[i];
             (t.clamp(0.0, 1.0) * STEPS) as u16
         })
         .collect()

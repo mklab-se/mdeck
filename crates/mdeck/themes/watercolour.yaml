@@ -1,0 +1,49 @@
+# Watercolour: a sheet of cold-press paper on a pale wooden table. Each
+# slide's generated watercolour blooms onto the paper, a pale first wash
+# and then the colour spreading from where the paint is heaviest
+# (watercolour engine). Make the paintings with `mdeck ai art`; without
+# them, `@illustration` point clouds are drawn in ink with a loose wash.
+name: Watercolour
+extends: light
+engine: watercolour
+countdown: burst
+colors:
+  background: "#fbf8f1"      # cold-press paper
+  text: "#4a4640"
+  heading: "#2b2a33"         # sepia-grey ink
+  muted: "#8f8a80"
+  rule: "#e3dccd"
+  accent: "#c8553d"          # cadmium red
+  accent-soft: "#e7a25b"     # yellow ochre
+  secondary: "#4d7ea8"       # cerulean
+  code-background: "#f1ece1"
+  code-text: "#2b2a33"
+  positive: "#5b8c5a"
+  negative: "#c8553d"
+  series:
+    - "#4d7ea8" # cerulean
+    - "#c8553d" # cadmium red
+    - "#e7a25b" # ochre
+    - "#5b8c5a" # sap green
+    - "#8a6fb0" # violet
+    - "#d98fa0" # rose
+    - "#6aa6a0" # teal
+    - "#8f8a80" # grey
+particles:
+  light: "#ffffff"
+  cool: "#4d7ea8"
+fonts:
+  display: spectral-light
+  body: hanken-regular
+  lead: hanken-light
+  strong: hanken-medium
+  mono: jetbrains-mono
+sizes: { h1: 100, h2: 70, h3: 48, body: 36, code: 28 }
+text: { line-height: 1.45 }
+code: { syntax: InspiredGitHub }
+page:                        # the sheet on a pale table
+  surface: "#d9d2c3"
+  margin: 40
+  shadow: 0.45
+  grain: 0.8
+  radius: 2

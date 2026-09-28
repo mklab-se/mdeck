@@ -6,7 +6,7 @@
 
 <p align="center">
   Write your talk in any markdown editor. MDeck turns it into slides that look amazing:<br>
-  laid out, animated and themed, with charts, diagrams, illustrations and nine presentation engines.
+  laid out, animated and themed, with charts, diagrams, illustrations and eleven presentation engines.
 </p>
 
 <p align="center">
@@ -45,6 +45,10 @@
   <tr>
     <td><img src="media/showcase/blueprint-why.jpg" alt="Generated line art inked onto a blueprint sheet"><br><sub><b>Blueprint</b>: a drawing made for every slide with <code>mdeck ai art</code></sub></td>
     <td><img src="media/showcase/blueprint-title.jpg" alt="A title slide over a dim blueprint drawing of a ship launch"><br><sub>The title sheet, its drawing dim behind the copy</sub></td>
+  </tr>
+  <tr>
+    <td><img src="media/gallery/sketch-page.jpg" alt="A graphite drawing of a workshop on a sketchbook page"><br><sub><b>Sketchbook</b>: graphite drawings, pencilled in as the slide opens</sub></td>
+    <td><img src="media/gallery/darkroom-print.jpg" alt="A black-and-white photograph as a print in a darkroom"><br><sub><b>Darkroom</b>: photographs that develop under a safelight</sub></td>
   </tr>
 </table>
 
@@ -143,12 +147,12 @@ updates every time you save.
 - **Charts and diagrams from text.** Seventeen visualizations, from bar charts
   to Gantt charts and routed architecture diagrams, all animated.
   [Visualizations](docs/visualizations.md)
-- **Fifteen themes, and yours.** Your brand in a few lines of YAML, or converted
+- **Seventeen themes, and yours.** Your brand in a few lines of YAML, or converted
   from your design system. [Themes](docs/themes.md)
-- **Nine engines.** A particle field, an LED wall, a departure board, a laser,
-  falling blocks, a blueprint, a sketchbook and a chalkboard that draw a
-  picture made for every slide, or a clean flat page: one line switches.
-  [Engines](docs/engines.md)
+- **Eleven engines.** A particle field, an LED wall, a departure board, a
+  laser, falling blocks, five art media (blueprint, sketchbook, chalkboard,
+  watercolour, darkroom) that draw a picture made for every slide, or a clean
+  flat page: one line switches. [Engines](docs/engines.md)
 - **A real presenter tool.** Transitions, grid overview, pen and arrows,
   speaker notes, multiple monitors, clickers. [Presenting](docs/presenting.md)
 - **Pixel-perfect export.** PNG at any resolution, and PDF with or without

@@ -14,6 +14,7 @@ pub mod art;
 pub mod blocks;
 pub mod blueprint;
 pub mod chalkboard;
+pub mod darkroom;
 #[cfg(test)]
 mod example;
 mod host;
@@ -25,6 +26,7 @@ pub mod plain;
 pub mod sketch;
 pub mod splitflap;
 pub mod stage;
+pub mod watercolour;
 
 pub use host::{Host, Shot};
 pub use stage::{CountPhase, FrameCx, Mask, Place, Stage};
@@ -54,6 +56,10 @@ pub enum EngineKind {
     Sketch,
     /// A chalkboard: generated line art drawn in chalk on a slate.
     Chalkboard,
+    /// Watercolour: generated paintings that bloom onto cold-press paper.
+    Watercolour,
+    /// A darkroom: generated photographs that develop under a safelight.
+    Darkroom,
 }
 
 /// What an engine can show. The core uses it for fallbacks (an illustration
@@ -92,6 +98,8 @@ impl EngineKind {
         EngineKind::Blueprint,
         EngineKind::Sketch,
         EngineKind::Chalkboard,
+        EngineKind::Watercolour,
+        EngineKind::Darkroom,
     ];
 
     pub fn from_name(name: &str) -> Option<Self> {
@@ -109,6 +117,8 @@ impl EngineKind {
             EngineKind::Blueprint => "blueprint",
             EngineKind::Sketch => "sketch",
             EngineKind::Chalkboard => "chalkboard",
+            EngineKind::Watercolour => "watercolour",
+            EngineKind::Darkroom => "darkroom",
         }
     }
 
@@ -133,6 +143,8 @@ impl EngineKind {
             EngineKind::Blueprint => cfg!(feature = "blueprint"),
             EngineKind::Sketch => cfg!(feature = "sketch"),
             EngineKind::Chalkboard => cfg!(feature = "chalkboard"),
+            EngineKind::Watercolour => cfg!(feature = "watercolour"),
+            EngineKind::Darkroom => cfg!(feature = "darkroom"),
         }
     }
 
@@ -178,7 +190,11 @@ impl EngineKind {
                 end_act: true,
                 art: false,
             },
-            EngineKind::Blueprint | EngineKind::Sketch | EngineKind::Chalkboard => Capabilities {
+            EngineKind::Blueprint
+            | EngineKind::Sketch
+            | EngineKind::Chalkboard
+            | EngineKind::Watercolour
+            | EngineKind::Darkroom => Capabilities {
                 paints: true,
                 editorial: true,
                 board: false,
@@ -213,6 +229,8 @@ impl EngineKind {
             EngineKind::Blueprint => Box::new(blueprint::Blueprint::new()),
             EngineKind::Sketch => Box::new(sketch::Sketch::new()),
             EngineKind::Chalkboard => Box::new(chalkboard::Chalkboard::new()),
+            EngineKind::Watercolour => Box::new(watercolour::Watercolour::new()),
+            EngineKind::Darkroom => Box::new(darkroom::Darkroom::new()),
         }
     }
 
@@ -222,6 +240,8 @@ impl EngineKind {
             EngineKind::Blueprint => Some(&blueprint::MEDIUM),
             EngineKind::Sketch => Some(&sketch::MEDIUM),
             EngineKind::Chalkboard => Some(&chalkboard::MEDIUM),
+            EngineKind::Watercolour => Some(&watercolour::MEDIUM),
+            EngineKind::Darkroom => Some(&darkroom::MEDIUM),
             _ => None,
         }
     }
@@ -268,6 +288,8 @@ impl EngineKind {
             EngineKind::Blueprint => blueprint::END_CAPTION_DELAY,
             EngineKind::Sketch => sketch::END_CAPTION_DELAY,
             EngineKind::Chalkboard => chalkboard::END_CAPTION_DELAY,
+            EngineKind::Watercolour => watercolour::END_CAPTION_DELAY,
+            EngineKind::Darkroom => darkroom::END_CAPTION_DELAY,
             EngineKind::Plain => 0.0,
         }
     }
@@ -494,7 +516,7 @@ mod tests {
         assert_eq!(EngineKind::from_name("fireworks"), None);
         assert_eq!(
             EngineKind::names(),
-            "plain, particles, led, splitflap, laser, blocks, blueprint, sketch, chalkboard"
+            "plain, particles, led, splitflap, laser, blocks, blueprint, sketch, chalkboard, watercolour, darkroom"
         );
     }
 

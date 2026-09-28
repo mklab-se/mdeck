@@ -175,11 +175,38 @@ The title, the drawing faint behind it.
 
 <img src="media/gallery/chalkboard-title.jpg" width="720">
 
+### Watercolour
+
+The `watercolour` engine and theme: each slide's generated watercolour
+blooms onto cold-press paper, a pale wash first and then the colour
+spreading from where the paint is heaviest:
+
+<img src="media/gallery/watercolour-blooming.jpg" width="720">
+
+and dry:
+
+<img src="media/gallery/watercolour-page.jpg" width="720">
+
+<img src="media/gallery/watercolour-title.jpg" width="720">
+
+### Darkroom
+
+The `darkroom` engine and theme: each slide's generated photograph develops
+as a print under the red safelight:
+
+<img src="media/gallery/darkroom-developing.jpg" width="720">
+
+then the white light comes on:
+
+<img src="media/gallery/darkroom-print.jpg" width="720">
+
+<img src="media/gallery/darkroom-title.jpg" width="720">
+
 ---
 
 ## Themes
 
-Fifteen built-in themes, all written as theme files, and your own in a few lines
+Seventeen built-in themes, all written as theme files, and your own in a few lines
 of YAML (spec section 9.4). These stills are from `samples/themes/`.
 
 ### The four seasons

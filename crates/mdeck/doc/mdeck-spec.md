@@ -55,8 +55,8 @@ date: 2026-02-28
 
 | Field         | Type   | Default   | Description                                        |
 |---------------|--------|-----------|----------------------------------------------------|
-| `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`, `"marquee"`, `"departures"`, `"etch"`, `"stack"`, `"blueprint"`, `"sketchbook"`, `"chalkboard"`), a custom theme name, or a path to a theme file (section 9.4) |
-| `@engine`     | string | (theme's) | Run the deck on this engine instead of the theme's: `"plain"`, `"particles"`, `"led"`, `"splitflap"`, `"laser"`, `"blocks"`, `"blueprint"`, `"sketch"`, `"chalkboard"` (section 9.6) |
+| `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`, `"marquee"`, `"departures"`, `"etch"`, `"stack"`, `"blueprint"`, `"sketchbook"`, `"chalkboard"`, `"watercolour"`, `"darkroom"`), a custom theme name, or a path to a theme file (section 9.4) |
+| `@engine`     | string | (theme's) | Run the deck on this engine instead of the theme's: `"plain"`, `"particles"`, `"led"`, `"splitflap"`, `"laser"`, `"blocks"`, `"blueprint"`, `"sketch"`, `"chalkboard"`, `"watercolour"`, `"darkroom"` (section 9.6) |
 | `@transition` | string | `"slide"` | Default transition: `"fade"`, `"slide"`, `"spatial"`, `"none"` |
 | `@image-style` | string | none      | Default AI image generation style (name or description) |
 | `@icon-style`  | string | none      | Default AI icon generation style (name or description)  |
@@ -921,6 +921,13 @@ of earlier drawings wiped off it; generated line art is drawn in chalk.
 | White chalk (headings, drawings) | `#F6F6EF` |
 | Yellow, pink and blue chalk (`accent`, `accent-soft`, `secondary`) | `#F3D46B`, `#F2A7B4`, `#9FD3E6` |
 
+**`watercolour`** and **`darkroom`**
+
+| Theme | Feel | Engine | Background | Accent |
+|---|---|---|---|---|
+| `watercolour` | cold-press paper on a pale table (`page:`), sepia-grey ink, an editorial serif; generated watercolours bloom onto the paper | watercolour | `#FBF8F1` | `#C8553D` |
+| `darkroom` | a darkroom under a red safelight (`accent`); generated black-and-white photographs develop as prints | darkroom | `#141011` | `#FF4B3A` |
+
 Every theme can draw the symbols text faces usually lack: circled numbers and letters (①②③, ⓐ), check marks, arrows, geometric shapes and stars. Noto Sans Symbols and DejaVu Sans are bundled as the last fallback of every font family, so such characters never render as boxes.
 
 Chinese, Japanese and Korean text draws with a font borrowed from the system, since a CJK face is too large to bundle: PingFang, Hiragino or Arial Unicode on macOS, Microsoft YaHei, Yu Gothic or Malgun Gothic on Windows, Noto Sans CJK, WenQuanYi or Droid Sans Fallback on Linux (`fonts-noto-cjk` on Debian and Ubuntu). It is added after the symbol faces in every family, on the family's own baseline. To use a specific file, set `MDECK_CJK_FONT=/path/to/font.ttc`. When no font on the machine covers a script the deck uses, `mdeck --check` warns (`fonts` category) and presenting or exporting prints the same warning; the text then draws as boxes.
@@ -1108,7 +1115,7 @@ match wins:
    `%APPDATA%\mdeck\themes\` on Windows
 3. the built-in themes (`dark`, `light`, `nord`, `ember`, `spring`, `summer`,
    `autumn`, `winter`, `marquee`, `departures`, `etch`, `stack`, `blueprint`,
-   `sketchbook`, `chalkboard`)
+   `sketchbook`, `chalkboard`, `watercolour`, `darkroom`)
 
 `@theme` may also be a path to a file (`@theme: brand/acme.yaml`), relative
 to the deck. A user or deck theme may reuse a built-in name to replace it.
@@ -1365,6 +1372,8 @@ from the theme, so every theme looks like itself on every engine.
 | `blueprint` | a draftsman's sheet: generated line art inked stroke by stroke, construction lines first (theme `blueprint`, section 9.7) | yes, as technical pen lines when a slide has no art | no | digits drawn with a technical pen; the words, then they fade |
 | `sketch` | a sketchbook page: generated graphite drawings drawn in with a pencil, outlines first, then the shading (theme `sketchbook`, section 9.7) | yes, in pencil when a slide has no art | no | digits drawn in pencil; the words, then they fade |
 | `chalkboard` | a slate in a wooden frame: generated line art drawn in chalk, stroke by stroke (theme `chalkboard`, section 9.7) | yes, in chalk when a slide has no art | no | digits drawn in chalk; the words, then they fade |
+| `watercolour` | cold-press paper: generated watercolours bloom onto it, a pale wash first, then the colour spreading (theme `watercolour`, section 9.7) | yes, in ink with a loose wash when a slide has no art | no | digits in ink and wash; the words, then they fade |
+| `darkroom` | a darkroom under a red safelight: generated photographs develop as prints, then the white light comes on (theme `darkroom`, section 9.7) | yes, as a photogram when a slide has no art | no | digits glowing white like a photogram; the words, then they fade |
 
 **The LED engine.** The slide sits on a wall of LEDs, a few pixels apart,
 their unlit lenses just visible. Nothing ever moves: pictures appear by
@@ -1472,6 +1481,24 @@ behind the title. Without art, the slide's `@illustration` is drawn in
 chalk, and so are the countdown and the end words. Line art is shared with
 the blueprint, so a deck switches between the two without new pictures.
 
+**The watercolour engine.** With the `watercolour` theme every slide is a
+sheet of cold-press paper on a table. A slide's generated watercolour
+(section 9.7) blooms onto the paper: a pale first wash over the whole
+picture, then the colour spreading outward from where the paint is heaviest,
+wet edges arriving softly, the dark accents dropped in last. Without art the
+slide's `@illustration` is drawn in ink (`heading`) with loose washes of
+`accent`, `secondary` and `accent-soft` laid along it a moment later, and so
+are the countdown and the end words. Line art is drawn as an ink drawing.
+
+**The darkroom engine.** The slides are in a darkroom, a red safelight
+(`accent`) glowing above. A slide's generated photograph (section 9.7) is a
+print on white fibre paper with a border and a shadow; it develops in place,
+the shadows first and the highlights last, everything red under the
+safelight, and when it is done the white light comes on and the print shows
+its true greys. On a title slide the photograph sits dim behind the title.
+Without art the slide's `@illustration` becomes a photogram: its shape left
+white on a black print. The countdown and the end words glow the same way.
+
 **Choosing one.** A theme names its engine (`engine:` in section 9.4). A deck
 can run on another engine without touching the theme:
 
@@ -1501,7 +1528,8 @@ Building MDeck with `--no-default-features` leaves them out (and with them
 the themes that run on them: `ember`, `autumn` and `winter` on particles,
 `marquee` on led, `departures` on splitflap, `etch` on laser, `stack` on
 blocks, `blueprint` on blueprint, `sketchbook` on sketch, `chalkboard` on
-chalkboard, and the built-in illustrations); themes and
+chalkboard, `watercolour` on watercolour, `darkroom` on darkroom, and the
+built-in illustrations); themes and
 decks that ask for one then use `plain`, with a warning.
 
 ### 9.7 Generated art
@@ -1517,6 +1545,8 @@ cost, and it works offline.
 | `blueprint` | line art (black ink on white, inked by the engine in the theme's colours) | construction lines, then ink along the strokes, then dimension lines |
 | `sketch` | graphite and ink drawings in the MKLab house style (tonal) | outlines along the lines, then shading in sweeping bands, with a pencil |
 | `chalkboard` | line art, the same pictures as the blueprint's | chalk along the strokes, grainy, with a stick of chalk shedding dust |
+| `watercolour` | loose watercolours on white paper (tonal) | a pale wash, then the colour blooming from where the paint is heaviest |
+| `darkroom` | black-and-white documentary photographs (tonal) | developing as a print, shadows first, under a red safelight |
 
 **Which slides get a picture.** The slides with room for one: title,
 section, quote, bullet and copy slides (the editorial layouts; not slides

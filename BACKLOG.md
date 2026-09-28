@@ -275,14 +275,25 @@ A slide with both an illustration and a story keeps the story (`--check`
 warns). Letting an illustration stand as a silent backdrop behind a cast, or
 enter on a beat, would remove the either/or.
 
-### 6.x Art-driven engines: sketch, blueprint, chalkboard, watercolour, darkroom (L, proposed, #17)
-Illustrations generated per deck with the configured AI (`@art`, `mdeck ai art`,
-cached next to the deck like stories) and drawn onto the slide as it opens.
-Line art (medium-neutral, rendered by blueprint, chalkboard and pencil in theme
-colours) and tonal art (sketchbook hatching, watercolour, photographs). A
-`page:` theme block for paper surfaces, style cards per medium, a time-map
-reveal shader. Every medium works without AI. Experiments and plan on the issue;
-blueprint first, then sketch, chalkboard, watercolour and darkroom.
+### 6.10 Art engines: what is left after #17 (M)
+The art engines shipped in 1.12 to 1.15 (blueprint, sketch, chalkboard,
+watercolour, darkroom; `@art`, `mdeck ai art`, `S`, `page:` and `art:` in
+themes). Left out of that round, each a decision or a follow-up:
+
+- **Medium-specific slide changes.** The proposal had a page turn (sketch),
+  an eraser wipe (chalkboard), sheets swapped (blueprint), a new sheet laid on
+  top (watercolour) and the print sliding out (darkroom). Today the old
+  picture fades while the new one draws in, under the deck's own transition.
+  Doing it properly needs an engine hook into slide transitions (only the
+  `board` capability owns them now). Recommendation: add a transition hook
+  for engines and do the page turn first.
+- **The reveal runs on the CPU** (a time map, one pass per frame into a
+  texture, pictures capped at 900 px). A GPU shader would allow full
+  resolution pictures; not needed at today's sizes.
+- **Line art on laser and LED.** Both could trace a slide's line art instead
+  of its point cloud. Small once wanted.
+- **A hand-lettered heading face** for sketch and chalkboard, as a theme
+  option. Needs a bundled face with a suitable licence.
 
 ## 7. Documentation and onboarding
 

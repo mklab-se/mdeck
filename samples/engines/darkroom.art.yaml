@@ -1,0 +1,39 @@
+# Generated art for the art engines (like blueprint), written by `mdeck ai art`.
+# Set `pinned: true` to keep a picture for its slide number whatever the slide says.
+version: 1
+slides:
+- slide: 1
+  title: The Night Shift
+  hash: 84a50ec6a06a6637
+  style: darkroom-30821963
+  file: art/darkroom-01-darkroom-380877.jpg
+  scene: A lone dock worker walking along a wet quay at night under a streetlight, fishing boats moored beside him.
+  generated: 2026-09-28 12:59
+- slide: 2
+  title: Every slide gets a photograph
+  hash: 37b6164cff02322e
+  style: darkroom-30821963
+  file: art/darkroom-02-darkroom-390043.jpg
+  scene: In a cramped harbour darkroom, a dock worker leans over a shallow tray as a rain-streaked photograph of fishing boats slowly emerges beneath a red safelight; beyond the window, the wet pier waits in darkness for dawn.
+  generated: 2026-09-28 12:59
+- slide: 3
+  title: The boats come in
+  hash: fbcc7192b8549be8
+  style: darkroom-30821963
+  file: art/darkroom-03-darkroom-380416.jpg
+  scene: A fishing boat coming into harbour at dawn, gulls following it, mist on the water.
+  generated: 2026-09-28 12:59
+- slide: 4
+  title: Patience
+  hash: b7203db7e00188fd
+  style: darkroom-30821963
+  file: art/darkroom-04-darkroom-386744.jpg
+  scene: A patient photographer stands motionless beside a glowing enlarger while a fishing boat’s image gradually appears in a tray, its reflected light trembling across the darkroom floor and the rain-blurred harbour beyond.
+  generated: 2026-09-28 12:59
+- slide: 7
+  title: Lights on
+  hash: d3e9866f32e8feda
+  style: darkroom-30821963
+  file: art/darkroom-07-darkroom-427771.jpg
+  scene: A harbour café at dawn, a waiter setting out chairs, the first sunlight on the wet cobbles.
+  generated: 2026-09-28 13:00

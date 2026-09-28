@@ -8,7 +8,8 @@ like itself on every engine, and any deck switches with one line:
 
 ```yaml
 ---
-@engine: led        # plain, particles, led, splitflap, laser, blocks, blueprint, sketch or chalkboard
+@engine: led        # plain, particles, led, splitflap, laser, blocks, blueprint, sketch,
+                    # chalkboard, watercolour or darkroom
 ---
 ```
 
@@ -143,6 +144,21 @@ blueprint, so a deck switches between the two for free.
   <img src="../media/gallery/chalkboard-board.jpg" width="45%">
 </p>
 
+**Watercolour** (`watercolour`, theme `watercolour`). Cold-press paper on a
+table. The slide's watercolour blooms onto it: a pale first wash, then the
+colour spreading from where the paint is heaviest, soft wet edges, the dark
+accents last.
+
+**Darkroom** (`darkroom`, theme `darkroom`). A red safelight glows over the
+bench, and the slide's black-and-white photograph develops as a print,
+shadows first; then the white light comes on and the print shows its true
+greys. Without a photograph, the `@illustration` becomes a photogram.
+
+<p align="center">
+  <img src="../media/gallery/watercolour-page.jpg" width="45%">&nbsp;&nbsp;
+  <img src="../media/gallery/darkroom-developing.jpg" width="45%">
+</p>
+
 **Making the art** is one command, and it only runs when you ask:
 
 ```bash
@@ -173,7 +189,7 @@ and it works offline. Edit a slide and its picture goes stale (still shown,
 and `mdeck talk.md --check` says so; `mdeck ai art talk.md --stale` redraws
 those). Press `S` while presenting to draw the current slide's picture in
 the background. A slide without a picture still works: its `@illustration`
-is drawn with a technical pen, in pencil on the sketchbook, or in chalk.
+is drawn in the medium: a technical pen, pencil, chalk, ink and wash, or a photogram.
 
 `mdeck talk.md --engine led` tries an engine without touching the deck, and
 `mdeck talk.md --check` lists anything the chosen engine does not show. Try

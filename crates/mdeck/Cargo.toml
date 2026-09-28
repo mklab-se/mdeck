@@ -55,6 +55,8 @@ default = [
     "blueprint",
     "sketch",
     "chalkboard",
+    "watercolour",
+    "darkroom",
 ]
 # The particles engine: the particle field, editorial layouts, stories and the
 # built-in point cloud illustrations.
@@ -78,6 +80,12 @@ sketch = []
 # The chalkboard engine: generated line art drawn in chalk on a slate, and
 # the `chalkboard` theme.
 chalkboard = []
+# The watercolour engine: generated paintings that bloom onto cold-press
+# paper, and the `watercolour` theme.
+watercolour = []
+# The darkroom engine: generated photographs that develop under a red
+# safelight, and the `darkroom` theme.
+darkroom = []
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/mdeck-v{ version }-{ target }.{ archive-format }"

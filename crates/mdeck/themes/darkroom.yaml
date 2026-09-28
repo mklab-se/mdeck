@@ -1,0 +1,42 @@
+# Darkroom: slides in a darkroom under a red safelight. Each slide's
+# generated black-and-white photograph develops as a print, the shadows
+# first, then the white light comes on (darkroom engine). Make the
+# photographs with `mdeck ai art`; without them, `@illustration` point
+# clouds become photograms.
+name: Darkroom
+extends: dark
+engine: darkroom
+countdown: burst
+colors:
+  background: "#141011"      # the darkroom
+  text: "#d9ccc6"
+  heading: "#f7eee9"
+  muted: "#98827c"
+  rule: "#2e2426"
+  accent: "#ff4b3a"          # the safelight
+  accent-soft: "#ff9a7a"
+  secondary: "#e8d9b5"       # fibre paper
+  code-background: "#1c1718"
+  code-text: "#eadfd9"
+  positive: "#9fd39a"
+  negative: "#ff6a5a"
+  series:
+    - "#f7eee9" # paper white
+    - "#ff4b3a" # safelight
+    - "#b9aca6" # silver
+    - "#ff9a7a" # warm
+    - "#7f6f6a" # grey
+    - "#e8d9b5" # cream
+    - "#d46b5c" # rust
+    - "#5a4d4a" # dark grey
+particles:
+  light: "#ffffff"
+  cool: "#ff9a7a"
+fonts:
+  display: spectral-light
+  body: hanken-regular
+  lead: hanken-light
+  strong: hanken-medium
+  mono: jetbrains-mono
+sizes: { h1: 100, h2: 70, h3: 48, body: 36, code: 28 }
+text: { line-height: 1.45 }

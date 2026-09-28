@@ -65,7 +65,6 @@ pub const SKETCH: Card = Card {
 };
 
 /// Loose watercolour on cold-press paper.
-#[allow(dead_code)] // the watercolour engine's
 pub const WATERCOLOUR: Card = Card {
     name: "watercolour",
     prompt: "A loose, luminous watercolour painting on white cold-press paper: soft \
@@ -87,7 +86,6 @@ pub const WATERCOLOUR: Card = Card {
 };
 
 /// Black-and-white photographs, printed in the darkroom.
-#[allow(dead_code)] // the darkroom engine's
 pub const DARKROOM: Card = Card {
     name: "darkroom",
     prompt: "A black-and-white documentary photograph printed on fibre paper: natural \
