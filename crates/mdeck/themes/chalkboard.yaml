@@ -1,0 +1,48 @@
+# Chalkboard: a green slate in a wooden frame, with the ghosts of earlier
+# drawings wiped off it. Each slide's generated line art is drawn in chalk,
+# breaking up on the slate and shedding dust (chalkboard engine). Make the
+# art with `mdeck ai art`; without it, `@illustration` point clouds are
+# drawn in chalk.
+name: Chalkboard
+extends: dark
+engine: chalkboard
+countdown: burst
+colors:
+  background: "#26352f"      # green slate
+  text: "#dfe5df"
+  heading: "#f6f6ef"         # white chalk
+  muted: "#9db0a5"
+  rule: "#3e5048"
+  accent: "#f3d46b"          # yellow chalk
+  accent-soft: "#f2a7b4"     # pink chalk
+  secondary: "#9fd3e6"       # blue chalk
+  code-background: "#1f2c27"
+  code-text: "#e6ece6"
+  positive: "#a8e0a0"
+  negative: "#f2a7b4"
+  series:
+    - "#f6f6ef" # white
+    - "#f3d46b" # yellow
+    - "#9fd3e6" # blue
+    - "#f2a7b4" # pink
+    - "#a8e0a0" # green
+    - "#f5b979" # orange
+    - "#c9b7ef" # lilac
+    - "#9db0a5" # grey
+particles:
+  light: "#ffffff"
+  cool: "#9fd3e6"
+fonts:
+  display: hanken-light
+  body: hanken-regular
+  lead: hanken-light
+  strong: hanken-medium
+  mono: jetbrains-mono
+sizes: { h1: 100, h2: 70, h3: 48, body: 38, code: 28 }
+text: { line-height: 1.45 }
+page:                        # the board in its wooden frame
+  surface: "#6e4a2c"
+  margin: 30
+  shadow: 0.6
+  grain: 0.3
+  radius: 4

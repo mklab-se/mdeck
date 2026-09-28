@@ -38,6 +38,19 @@ pub enum Strategy {
     Develop,
 }
 
+/// How a medium reveals its pictures.
+#[derive(Clone, Copy, Debug)]
+pub struct Reveal {
+    /// How long a pixel takes to arrive, as a share of the reveal.
+    pub soft: f32,
+    /// A faint first pass (construction lines, an underdrawing): its
+    /// opacity, and how much faster than the ink it runs.
+    pub ghost: f32,
+    pub ghost_speed: f32,
+    /// How much the medium breaks up on its surface (chalk on slate), 0..1.
+    pub grain: f32,
+}
+
 /// A picture ready to be drawn in.
 pub struct Prepared {
     pub width: usize,
@@ -63,24 +76,36 @@ impl Prepared {
     /// pixels. `soft` is how long a pixel takes to arrive (0..1 of the
     /// reveal), `ghost` the opacity of a faint first pass that runs ahead
     /// at `ghost_speed` (a draftsman's construction lines; 0 for none).
-    pub fn reveal(&self, t: f32, soft: f32, ghost: f32, ghost_speed: f32) -> Vec<egui::Color32> {
-        let soft = soft.max(1e-3);
+    pub fn reveal(&self, t: f32, r: &Reveal) -> Vec<egui::Color32> {
+        let soft = r.soft.max(1e-3);
         let t_now = t * STEPS;
         let span = soft * STEPS;
-        let g_now = t * ghost_speed * STEPS;
+        let g_now = t * r.ghost_speed * STEPS;
         let develop = self.strategy == Strategy::Develop;
+        let w_px = self.width.max(1);
         self.rgba
             .iter()
             .zip(&self.when)
-            .map(|(px, &w)| {
+            .enumerate()
+            .map(|(i, (px, &w))| {
                 let w = w as f32;
                 let mut k = ((t_now - w) / span).clamp(0.0, 1.0);
-                if ghost > 0.0 {
-                    k = k.max(ghost * ((g_now - w) / span).clamp(0.0, 1.0));
+                if r.ghost > 0.0 {
+                    k = k.max(r.ghost * ((g_now - w) / span).clamp(0.0, 1.0));
                 }
                 if develop {
                     // the print darkens into place instead of fading in
                     k = k * k * (3.0 - 2.0 * k);
+                }
+                if r.grain > 0.0 {
+                    // the medium skips on a rough surface, in clumps of a
+                    // couple of pixels
+                    let (x, y) = ((i % w_px) as u32, (i / w_px) as u32);
+                    let clump = crate::engines::hash01(
+                        (x / 2).wrapping_mul(7919) ^ (y / 2).wrapping_mul(104_729),
+                    );
+                    let fine = crate::engines::hash01(i as u32);
+                    k *= 1.0 - r.grain * (0.65 * clump + 0.35 * fine);
                 }
                 let a = px[3] as f32 / 255.0 * k;
                 egui::Color32::from_rgba_premultiplied(
@@ -96,7 +121,15 @@ impl Prepared {
     /// The finished picture, premultiplied.
     #[cfg(test)]
     pub fn finished(&self) -> Vec<egui::Color32> {
-        self.reveal(1.0 + 1e-3, 1e-3, 0.0, 1.0)
+        self.reveal(
+            1.0 + 1e-3,
+            &Reveal {
+                soft: 1e-3,
+                ghost: 0.0,
+                ghost_speed: 1.0,
+                grain: 0.0,
+            },
+        )
     }
 
     /// Where the hand is at `t`, in 0..1 of the picture, while it draws.
@@ -311,8 +344,24 @@ mod tests {
     fn reveal_runs_from_nothing_to_the_picture() {
         let p = prepare_image(drawing(), ArtKind::Line, Strategy::Draw);
         let ink = |px: &[egui::Color32]| px.iter().map(|c| c.a() as u64).sum::<u64>();
-        let none = ink(&p.reveal(0.0, 0.02, 0.0, 1.0));
-        let half = ink(&p.reveal(0.5, 0.02, 0.0, 1.0));
+        let none = ink(&p.reveal(
+            0.0,
+            &Reveal {
+                soft: 0.02,
+                ghost: 0.0,
+                ghost_speed: 1.0,
+                grain: 0.0,
+            },
+        ));
+        let half = ink(&p.reveal(
+            0.5,
+            &Reveal {
+                soft: 0.02,
+                ghost: 0.0,
+                ghost_speed: 1.0,
+                grain: 0.0,
+            },
+        ));
         let full = ink(&p.finished());
         assert_eq!(none, 0);
         assert!(half > 0 && half < full, "{half} {full}");

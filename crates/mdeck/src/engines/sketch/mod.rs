@@ -41,6 +41,7 @@ const REVEAL: Reveal = Reveal {
     soft: 0.02,
     ghost: 0.0,
     ghost_speed: 1.0,
+    grain: 0.0,
 };
 
 /// A line-art picture on the sketchbook is drawn with a faint underdrawing.
@@ -48,6 +49,7 @@ const LINE_REVEAL: Reveal = Reveal {
     soft: 0.02,
     ghost: 0.12,
     ghost_speed: 2.0,
+    grain: 0.0,
 };
 
 pub struct Sketch {

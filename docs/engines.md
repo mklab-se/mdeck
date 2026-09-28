@@ -8,7 +8,7 @@ like itself on every engine, and any deck switches with one line:
 
 ```yaml
 ---
-@engine: led        # plain, particles, led, splitflap, laser, blocks, blueprint or sketch
+@engine: led        # plain, particles, led, splitflap, laser, blocks, blueprint, sketch or chalkboard
 ---
 ```
 
@@ -132,6 +132,17 @@ stroke as the pencil sweeps across the page.
   <img src="../media/gallery/sketch-page.jpg" width="45%">
 </p>
 
+**Chalkboard** (`chalkboard`, theme `chalkboard`). A green slate in a
+wooden frame, with the ghosts of earlier lessons wiped off it. The slide's
+line art is drawn in chalk, breaking up on the slate, a stick of chalk at
+the point and dust falling from it. It uses the same pictures as the
+blueprint, so a deck switches between the two for free.
+
+<p align="center">
+  <img src="../media/gallery/chalkboard-drawing.jpg" width="45%">&nbsp;&nbsp;
+  <img src="../media/gallery/chalkboard-board.jpg" width="45%">
+</p>
+
 **Making the art** is one command, and it only runs when you ask:
 
 ```bash
@@ -162,7 +173,7 @@ and it works offline. Edit a slide and its picture goes stale (still shown,
 and `mdeck talk.md --check` says so; `mdeck ai art talk.md --stale` redraws
 those). Press `S` while presenting to draw the current slide's picture in
 the background. A slide without a picture still works: its `@illustration`
-is drawn with a technical pen, or in pencil on the sketchbook.
+is drawn with a technical pen, in pencil on the sketchbook, or in chalk.
 
 `mdeck talk.md --engine led` tries an engine without touching the deck, and
 `mdeck talk.md --check` lists anything the chosen engine does not show. Try

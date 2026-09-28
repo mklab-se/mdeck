@@ -160,11 +160,26 @@ The title page, its drawing faint behind the copy.
 
 <img src="media/gallery/sketch-title.jpg" width="720">
 
+### Chalkboard
+
+The `chalkboard` engine and theme: a slate in a wooden frame, generated line
+art drawn in chalk with a stick of chalk at the point:
+
+<img src="media/gallery/chalkboard-drawing.jpg" width="720">
+
+and the finished board:
+
+<img src="media/gallery/chalkboard-board.jpg" width="720">
+
+The title, the drawing faint behind it.
+
+<img src="media/gallery/chalkboard-title.jpg" width="720">
+
 ---
 
 ## Themes
 
-Fourteen built-in themes, all written as theme files, and your own in a few lines
+Fifteen built-in themes, all written as theme files, and your own in a few lines
 of YAML (spec section 9.4). These stills are from `samples/themes/`.
 
 ### The four seasons

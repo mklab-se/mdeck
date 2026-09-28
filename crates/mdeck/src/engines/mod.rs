@@ -13,6 +13,7 @@
 pub mod art;
 pub mod blocks;
 pub mod blueprint;
+pub mod chalkboard;
 #[cfg(test)]
 mod example;
 mod host;
@@ -51,6 +52,8 @@ pub enum EngineKind {
     Blueprint,
     /// A sketchbook: generated graphite drawings drawn in with a pencil.
     Sketch,
+    /// A chalkboard: generated line art drawn in chalk on a slate.
+    Chalkboard,
 }
 
 /// What an engine can show. The core uses it for fallbacks (an illustration
@@ -88,6 +91,7 @@ impl EngineKind {
         EngineKind::Blocks,
         EngineKind::Blueprint,
         EngineKind::Sketch,
+        EngineKind::Chalkboard,
     ];
 
     pub fn from_name(name: &str) -> Option<Self> {
@@ -104,6 +108,7 @@ impl EngineKind {
             EngineKind::Blocks => "blocks",
             EngineKind::Blueprint => "blueprint",
             EngineKind::Sketch => "sketch",
+            EngineKind::Chalkboard => "chalkboard",
         }
     }
 
@@ -127,6 +132,7 @@ impl EngineKind {
             EngineKind::Blocks => cfg!(feature = "blocks"),
             EngineKind::Blueprint => cfg!(feature = "blueprint"),
             EngineKind::Sketch => cfg!(feature = "sketch"),
+            EngineKind::Chalkboard => cfg!(feature = "chalkboard"),
         }
     }
 
@@ -172,7 +178,7 @@ impl EngineKind {
                 end_act: true,
                 art: false,
             },
-            EngineKind::Blueprint | EngineKind::Sketch => Capabilities {
+            EngineKind::Blueprint | EngineKind::Sketch | EngineKind::Chalkboard => Capabilities {
                 paints: true,
                 editorial: true,
                 board: false,
@@ -206,6 +212,7 @@ impl EngineKind {
             EngineKind::Blocks => Box::new(blocks::Blocks::new()),
             EngineKind::Blueprint => Box::new(blueprint::Blueprint::new()),
             EngineKind::Sketch => Box::new(sketch::Sketch::new()),
+            EngineKind::Chalkboard => Box::new(chalkboard::Chalkboard::new()),
         }
     }
 
@@ -214,6 +221,7 @@ impl EngineKind {
         match self {
             EngineKind::Blueprint => Some(&blueprint::MEDIUM),
             EngineKind::Sketch => Some(&sketch::MEDIUM),
+            EngineKind::Chalkboard => Some(&chalkboard::MEDIUM),
             _ => None,
         }
     }
@@ -259,6 +267,7 @@ impl EngineKind {
             EngineKind::Blocks => blocks::END_CAPTION_DELAY,
             EngineKind::Blueprint => blueprint::END_CAPTION_DELAY,
             EngineKind::Sketch => sketch::END_CAPTION_DELAY,
+            EngineKind::Chalkboard => chalkboard::END_CAPTION_DELAY,
             EngineKind::Plain => 0.0,
         }
     }
@@ -485,7 +494,7 @@ mod tests {
         assert_eq!(EngineKind::from_name("fireworks"), None);
         assert_eq!(
             EngineKind::names(),
-            "plain, particles, led, splitflap, laser, blocks, blueprint, sketch"
+            "plain, particles, led, splitflap, laser, blocks, blueprint, sketch, chalkboard"
         );
     }
 

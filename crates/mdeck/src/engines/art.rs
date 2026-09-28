@@ -25,16 +25,7 @@ pub struct Drawing {
     shown: f32,
 }
 
-/// How a medium reveals its pictures.
-#[derive(Clone, Copy, Debug)]
-pub struct Reveal {
-    /// How long a pixel takes to arrive, as a share of the reveal.
-    pub soft: f32,
-    /// A faint first pass (construction lines, an underdrawing): its
-    /// opacity, and how much faster than the ink it runs.
-    pub ghost: f32,
-    pub ghost_speed: f32,
-}
+pub use crate::render::art::prepare::Reveal;
 
 impl Drawing {
     pub fn new(
@@ -81,9 +72,7 @@ impl Drawing {
         let t = self.progress(now).min(1.0 + reveal.soft);
         let stale = self.texture.is_none() || (t - self.shown).abs() > 0.002;
         if stale {
-            let pixels = self
-                .picture
-                .reveal(t, reveal.soft, reveal.ghost, reveal.ghost_speed);
+            let pixels = self.picture.reveal(t, &reveal);
             let image = egui::ColorImage::new([self.picture.width, self.picture.height], pixels);
             match &mut self.texture {
                 Some(tex) => tex.set(image, egui::TextureOptions::LINEAR),

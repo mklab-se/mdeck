@@ -4,7 +4,7 @@ An **engine** is what a theme does beyond colours and type: the layer it
 paints under the slides, and what it plays for the countdown and the end.
 MDeck ships `plain`, `particles` (the Ember theme), `led` (Marquee),
 `splitflap` (Departures), `laser` (Etch), `blocks` (Stack) and the art
-engines `blueprint` and `sketch` (Sketchbook). This guide is for adding one. Read spec sections 9.6
+engines `blueprint`, `sketch` (Sketchbook) and `chalkboard`. This guide is for adding one. Read spec sections 9.6
 and 9.7 first for what users see.
 
 The rule that makes engines safe to add: **the core decides what a slide
@@ -138,8 +138,9 @@ shared (`render::art`); the engine only decides the medium:
   new slide starts its picture or its pen strokes, the old one fades, the
   countdown and the end act get pen strokes, `still` settles everything);
   an art engine's `update` calls it and its `paint` draws what the canvas
-  holds. Blueprint and sketch are each under 300 lines of engine plus their
-  drawing helpers.
+  holds. Blueprint, sketch and chalkboard are each under 300 lines of
+  engine plus their drawing helpers. `Reveal::grain` breaks a medium up on
+  its surface (chalk on slate).
 - **Without art**, draw the slide's `@illustration` in your medium:
   `engines::art::fallback_strokes` turns the figure, the countdown digit or
   the end words into timed pen strokes (`render::strokes::Picture`).

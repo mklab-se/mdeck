@@ -42,6 +42,7 @@ const REVEAL: Reveal = Reveal {
     soft: 0.018,
     ghost: 0.16,
     ghost_speed: 2.4,
+    grain: 0.0,
 };
 
 pub struct Blueprint {

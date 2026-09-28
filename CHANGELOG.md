@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- The **chalkboard engine** and its `chalkboard` theme, the third art engine
+  ([#17](https://github.com/mklab-se/mdeck/issues/17)): a green slate in a wooden frame with
+  the ghosts of earlier drawings wiped off it. A slide's generated line art is drawn in chalk
+  along its strokes, breaking up in clumps on the slate, with a stick of chalk at the point and
+  dust falling from it. It shares line art with the blueprint, so a deck switches between the
+  two without new pictures. Without art, the slide's `@illustration`, the countdown and the end
+  words are drawn in chalk. Sample `samples/engines/chalkboard.md`.
+- `Reveal::grain` lets a medium break up on its surface (engine guide).
+
 ## [1.13.0] - 2026-09-28
 
 ### Added

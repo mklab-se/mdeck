@@ -58,7 +58,7 @@ Diagram nodes can request their own icons:
 
 ## Draw a picture for every slide
 
-On an art engine (`blueprint` or `sketch`, see [Engines](engines.md#art-engines-a-drawing-made-for-every-slide)),
+On an art engine (`blueprint`, `sketch` or `chalkboard`, see [Engines](engines.md#art-engines-a-drawing-made-for-every-slide)),
 each slide gets a picture made for it, drawn in as the slide opens:
 
 ```bash
