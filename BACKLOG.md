@@ -275,6 +275,17 @@ A slide with both an illustration and a story keeps the story (`--check`
 warns). Letting an illustration stand as a silent backdrop behind a cast, or
 enter on a beat, would remove the either/or.
 
+### 6.x More engines and a modular engine interface (L, needs a decision, #16)
+Split-flap board, LED array, laser etching and falling blocks, plus a documented
+engine interface. Plan (on the issue): separate the engine-neutral intent (a
+`Stage`: illustration cloud, glyph masks, hints, beats) from painting, put
+`Plain` and `Particles` behind an `Engine` trait with `Capabilities`
+(native / degraded / unsupported, used for fallbacks and `--check`), guarded by
+pixel-identical golden exports. Then LED array first (validates the interface),
+a contributor guide, split-flap (the capability test), laser and blocks, and
+crates only once the trait is stable. Decisions needed: module boundary before
+crates, per-deck `@engine`, split-flap text rules, showcase theme names.
+
 ## 7. Documentation and onboarding
 
 - Generate the keyboard-shortcut table for the HUD, README, spec and
