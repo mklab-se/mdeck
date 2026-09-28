@@ -7,8 +7,13 @@
 
 use super::{Drift, Group, Home};
 
+// Only the particles engine builds scenes, so a build without it leaves the
+// builders unused (see the note on dead code in `main.rs`).
+#[cfg_attr(not(feature = "particles"), allow(unused_imports))]
 pub use hints::from_hints;
+#[cfg_attr(not(feature = "particles"), allow(unused_imports))]
 pub use layouts::{constellation, for_slide};
+#[cfg_attr(not(feature = "particles"), allow(unused_imports))]
 pub use moments::{
     burst, digit, end_bang, end_dance, end_words, illustration_backdrop, illustration_stage,
 };

@@ -36,8 +36,6 @@ struct Particle {
     lateral: f32,
 }
 
-/// Particles in the presentation window (the site uses 520 on desktop).
-pub const DEFAULT_COUNT: usize = 900;
 /// Reference slide width the site's pixel sizes were tuned for.
 const REF_WIDTH: f32 = 1440.0;
 /// Gain over the site's values: decks are watched on projectors that are

@@ -17,6 +17,9 @@ mod field;
 mod rng;
 mod scene;
 
-pub use field::{DEFAULT_COUNT, Field};
+pub use field::Field;
 pub use rng::Rng;
 pub use scene::{DEFAULT_TINTS, Drift, Group, Home, Palette, Scene, Tint};
+
+/// Particles in the presentation window (the site uses 520 on desktop).
+pub const DEFAULT_COUNT: usize = 900;
