@@ -61,6 +61,14 @@ impl GridLayout {
         self.rect.top() + self.padding + 40.0 * self.scale
     }
 
+    /// The area cells are drawn in (below the title, above the hint).
+    pub(super) fn clip(&self) -> Rect {
+        Rect::from_min_max(
+            pos2(self.rect.left(), self.top()),
+            pos2(self.rect.right(), self.rect.bottom() - self.padding),
+        )
+    }
+
     /// Height the grid can show without scrolling.
     pub(super) fn available_height(&self) -> f32 {
         self.rect.bottom() - self.top() - self.padding

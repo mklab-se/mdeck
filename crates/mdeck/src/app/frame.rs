@@ -270,7 +270,7 @@ impl PresentationApp {
                 self.draw_grid(ui, ctx, rect, selected, scale);
             }
             AppMode::OverviewTransition { selected, entering } => {
-                self.draw_overview_transition(ui, ctx, rect, scale, selected, entering);
+                self.draw_overview_transition(ui, ctx, rect, scale, (selected, entering));
             }
         }
 

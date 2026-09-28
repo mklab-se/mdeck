@@ -74,104 +74,98 @@ pub(super) fn release_outcome(active: ActiveDraw, released_this_frame: bool) -> 
     }
 }
 
+/// One mouse button's state this frame.
+#[derive(Debug, Clone, Copy)]
+struct Button {
+    pressed: bool,
+    down: bool,
+    released: bool,
+}
+
+impl Button {
+    fn read(pointer: &egui::PointerState, button: egui::PointerButton) -> Self {
+        Self {
+            pressed: pointer.button_pressed(button),
+            down: pointer.button_down(button),
+            released: pointer.button_released(button),
+        }
+    }
+}
+
+impl ActiveDraw {
+    /// The pointer moved to `local` with the left (`pen`) or right button
+    /// held: grow the stroke or move the arrow's head, and turn a pending
+    /// click into a drag once it passes the threshold.
+    fn drag(&mut self, local: egui::Pos2, pen: bool) {
+        match self {
+            ActiveDraw::PenPending { origin, points } if pen => {
+                points.push(local);
+                if origin.distance(local) > DRAG_THRESHOLD {
+                    let points = std::mem::take(points);
+                    *self = ActiveDraw::PenDrawing { points };
+                }
+            }
+            ActiveDraw::PenDrawing { points } if pen => points.push(local),
+            ActiveDraw::ArrowPending { origin, current } if !pen => {
+                *current = local;
+                if origin.distance(local) > DRAG_THRESHOLD {
+                    let from = *origin;
+                    *self = ActiveDraw::ArrowDrawing {
+                        from,
+                        current: local,
+                    };
+                }
+            }
+            ActiveDraw::ArrowDrawing { current, .. } if !pen => *current = local,
+            _ => {}
+        }
+    }
+}
+
 impl PresentationApp {
     pub(super) fn handle_mouse_input(&mut self, ctx: &egui::Context) {
-        let (
-            primary_pressed,
-            primary_down,
-            primary_released,
-            secondary_pressed,
-            secondary_down,
-            secondary_released,
-            pointer_pos,
-        ) = ctx.input(|i| {
-            let p = &i.pointer;
+        let (primary, secondary, pointer_pos) = ctx.input(|i| {
             (
-                p.button_pressed(egui::PointerButton::Primary),
-                p.button_down(egui::PointerButton::Primary),
-                p.button_released(egui::PointerButton::Primary),
-                p.button_pressed(egui::PointerButton::Secondary),
-                p.button_down(egui::PointerButton::Secondary),
-                p.button_released(egui::PointerButton::Secondary),
-                p.hover_pos(),
+                Button::read(&i.pointer, egui::PointerButton::Primary),
+                Button::read(&i.pointer, egui::PointerButton::Secondary),
+                i.pointer.hover_pos(),
             )
         });
 
         let Some(pos) = pointer_pos else {
             // Pointer left the window. Once no button is held, whatever was
-            // pending can never complete as a click or stroke — drop it.
-            if !primary_down && !secondary_down {
+            // pending can never complete as a click or stroke: drop it.
+            if !primary.down && !secondary.down {
                 self.active_draw = ActiveDraw::None;
             }
             return;
         };
         let local = self.screen_to_local(pos);
 
-        // Left button press → start PenPending
-        if primary_pressed {
+        if primary.pressed {
+            // Left button press: a click or the start of a pen stroke
             self.active_draw = ActiveDraw::PenPending {
                 origin: local,
                 points: vec![local],
             };
-            return;
-        }
-
-        // Right button press → start ArrowPending
-        if secondary_pressed {
+        } else if secondary.pressed {
+            // Right button press: a click or the start of an arrow
             self.active_draw = ActiveDraw::ArrowPending {
                 origin: local,
                 current: local,
             };
-            return;
-        }
-
-        // Left button held
-        if primary_down {
-            match &mut self.active_draw {
-                ActiveDraw::PenPending { origin, points } => {
-                    points.push(local);
-                    if origin.distance(local) > DRAG_THRESHOLD {
-                        let pts = std::mem::take(points);
-                        self.active_draw = ActiveDraw::PenDrawing { points: pts };
-                    }
-                }
-                ActiveDraw::PenDrawing { points } => {
-                    points.push(local);
-                }
-                _ => {}
-            }
+        } else if primary.down || secondary.down {
+            self.active_draw.drag(local, primary.down);
             ctx.request_repaint();
-            return;
+        } else if !matches!(self.active_draw, ActiveDraw::None) {
+            // No button held: commit or navigate only on an observed release
+            let active = std::mem::replace(&mut self.active_draw, ActiveDraw::None);
+            self.release(active, primary.released || secondary.released);
         }
+    }
 
-        // Right button held
-        if secondary_down {
-            match &mut self.active_draw {
-                ActiveDraw::ArrowPending { origin, current } => {
-                    *current = local;
-                    if origin.distance(local) > DRAG_THRESHOLD {
-                        let from = *origin;
-                        self.active_draw = ActiveDraw::ArrowDrawing {
-                            from,
-                            current: local,
-                        };
-                    }
-                }
-                ActiveDraw::ArrowDrawing { current, .. } => {
-                    *current = local;
-                }
-                _ => {}
-            }
-            ctx.request_repaint();
-            return;
-        }
-
-        // No button held — commit or navigate only on an observed release
-        if matches!(self.active_draw, ActiveDraw::None) {
-            return;
-        }
-        let active = std::mem::replace(&mut self.active_draw, ActiveDraw::None);
-        match release_outcome(active, primary_released || secondary_released) {
+    fn release(&mut self, active: ActiveDraw, released_this_frame: bool) {
+        match release_outcome(active, released_this_frame) {
             ReleaseOutcome::NavigateForward => self.navigate_forward(),
             ReleaseOutcome::NavigateBackward => self.navigate_backward(),
             ReleaseOutcome::CommitPen(points) => self.pen_strokes.push(PenStroke {
@@ -263,6 +257,38 @@ mod tests {
                 to: p(50.0, 20.0)
             }
         );
+    }
+
+    #[test]
+    fn dragging_past_the_threshold_turns_a_click_into_a_stroke() {
+        let mut d = ActiveDraw::PenPending {
+            origin: p(0.0, 0.0),
+            points: vec![p(0.0, 0.0)],
+        };
+        d.drag(p(1.0, 1.0), true);
+        assert!(matches!(d, ActiveDraw::PenPending { .. }));
+        d.drag(p(20.0, 0.0), true);
+        let ActiveDraw::PenDrawing { points } = &d else {
+            panic!("still pending");
+        };
+        assert_eq!(points.len(), 3);
+        // the right button does not move a pen stroke
+        d.drag(p(40.0, 0.0), false);
+        assert!(matches!(&d, ActiveDraw::PenDrawing { points } if points.len() == 3));
+    }
+
+    #[test]
+    fn dragging_an_arrow_moves_its_head() {
+        let mut d = ActiveDraw::ArrowPending {
+            origin: p(0.0, 0.0),
+            current: p(0.0, 0.0),
+        };
+        d.drag(p(30.0, 0.0), false);
+        d.drag(p(50.0, 10.0), false);
+        assert!(matches!(
+            d,
+            ActiveDraw::ArrowDrawing { from, current } if from == p(0.0, 0.0) && current == p(50.0, 10.0)
+        ));
     }
 
     #[test]

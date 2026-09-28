@@ -39,26 +39,14 @@ impl PresentationApp {
         );
         ui.painter().galley(title_pos, galley, title_color);
 
+        self.draw_attribution(ui, rect, scale);
+    }
+
+    /// "Powered by MDeck" with the logo, in the bottom-right corner.
+    fn draw_attribution(&mut self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
         // Bottom-right attribution block: logo + text
         let margin = 32.0 * scale;
         let logo_height = 48.0 * scale;
-
-        // Load logo texture lazily
-        if self.end_logo_texture.is_none() {
-            static LOGO_BYTES: &[u8] = include_bytes!("../../media/logo-small.png");
-            if let Ok(img) = image::load_from_memory(LOGO_BYTES) {
-                let rgba = img.to_rgba8();
-                let (w, h) = (rgba.width() as usize, rgba.height() as usize);
-                let pixels = rgba.into_raw();
-                let color_image = egui::ColorImage::from_rgba_unmultiplied([w, h], &pixels);
-                let texture = ui.ctx().load_texture(
-                    "mdeck-end-logo",
-                    color_image,
-                    egui::TextureOptions::LINEAR,
-                );
-                self.end_logo_texture = Some(texture);
-            }
-        }
 
         let text_color = egui::Color32::from_gray(140);
         let url_color = egui::Color32::from_gray(100);
@@ -84,7 +72,7 @@ impl PresentationApp {
         let block_y = rect.bottom() - margin - logo_height;
 
         // Draw logo
-        if let Some(ref texture) = self.end_logo_texture {
+        if let Some(texture) = self.end_logo(ui.ctx()) {
             let logo_rect = egui::Rect::from_min_size(
                 egui::pos2(block_x, block_y),
                 egui::vec2(logo_width, logo_height),
@@ -110,6 +98,25 @@ impl PresentationApp {
             url_galley,
             url_color,
         );
+    }
+
+    /// The embedded MDeck logo, loaded on first use.
+    fn end_logo(&mut self, ctx: &egui::Context) -> Option<egui::TextureHandle> {
+        if self.end_logo_texture.is_none() {
+            static LOGO_BYTES: &[u8] = include_bytes!("../../media/logo-small.png");
+            if let Ok(img) = image::load_from_memory(LOGO_BYTES) {
+                let rgba = img.to_rgba8();
+                let (w, h) = (rgba.width() as usize, rgba.height() as usize);
+                let pixels = rgba.into_raw();
+                let color_image = egui::ColorImage::from_rgba_unmultiplied([w, h], &pixels);
+                self.end_logo_texture = Some(ctx.load_texture(
+                    "mdeck-end-logo",
+                    color_image,
+                    egui::TextureOptions::LINEAR,
+                ));
+            }
+        }
+        self.end_logo_texture.clone()
     }
 
     /// An engine's end slide: the engine plays its own end act (see

@@ -173,6 +173,23 @@ impl PresentationApp {
             }
         }
 
+        let scroll_offset = self.animate_slide_scroll(ctx, idx, overflow);
+
+        // Render slide clipped to the slide rect so content doesn't bleed outside
+        self.draw_slide(ui, idx, rect, 1.0, scale, scroll_offset);
+
+        self.draw_scroll_hints(ui, rect, scale, scroll_offset, overflow);
+
+        // Draw annotations on top of slide content
+        self.draw_annotations(ui, scale);
+
+        // Footer, counter, FPS
+        self.draw_presentation_chrome(ui, rect, scale);
+    }
+
+    /// Ease slide `idx`'s scroll toward its target, clamped to `overflow`
+    /// (frame-rate independent). Returns the offset to draw with.
+    fn animate_slide_scroll(&mut self, ctx: &egui::Context, idx: usize, overflow: f32) -> f32 {
         // Clamp target
         self.views[idx].scroll_target = self.views[idx].scroll_target.clamp(0.0, overflow);
 
@@ -187,11 +204,19 @@ impl PresentationApp {
             self.views[idx].scroll = current + diff * smooth_factor(dt, SCROLL_SMOOTH_RATE);
             ctx.request_repaint();
         }
-        let scroll_offset = self.views[idx].scroll;
+        self.views[idx].scroll
+    }
 
-        // Render slide clipped to the slide rect so content doesn't bleed outside
-        self.draw_slide(ui, idx, rect, 1.0, scale, scroll_offset);
-
+    /// Fades at the edges that have more content past them, and the arrows
+    /// that say so.
+    fn draw_scroll_hints(
+        &self,
+        ui: &egui::Ui,
+        rect: egui::Rect,
+        scale: f32,
+        scroll_offset: f32,
+        overflow: f32,
+    ) {
         // Draw fade-out gradient at bottom
         let fade_h = 80.0 * scale;
         if scroll_offset < overflow - 0.5 {
@@ -229,12 +254,6 @@ impl PresentationApp {
             );
             ui.painter().galley(pos, galley, indicator_color);
         }
-
-        // Draw annotations on top of slide content
-        self.draw_annotations(ui, scale);
-
-        // Footer, counter, FPS
-        self.draw_presentation_chrome(ui, rect, scale);
     }
 
     pub(super) fn draw_presentation(
