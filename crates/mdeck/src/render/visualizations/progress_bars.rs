@@ -1,4 +1,4 @@
-use eframe::egui::{self, FontId, Pos2, Stroke};
+use eframe::egui::{self, Color32, FontId, Pos2, Stroke};
 
 use crate::theme::Theme;
 
@@ -81,6 +81,20 @@ impl RowLayout {
     fn row_y(&self, i: usize) -> f32 {
         self.start_y + i as f32 * (self.bar_height + self.row_spacing)
     }
+
+    /// Row `i`'s full track.
+    fn track_rect(&self, i: usize) -> egui::Rect {
+        egui::Rect::from_min_size(
+            Pos2::new(self.bar_left, self.row_y(i)),
+            egui::vec2(self.bar_width, self.bar_height),
+        )
+    }
+
+    /// Width of row `i`'s fill for `value` percent, grown to `anim`.
+    fn fill_width(&self, value: f32, anim: f32) -> f32 {
+        let fill_frac = (value / 100.0) * anim;
+        self.bar_width * fill_frac
+    }
 }
 
 pub fn draw_progress_bars(
@@ -93,7 +107,6 @@ pub fn draw_progress_bars(
     let super::VizCtx {
         ui,
         theme,
-        opacity,
         scale,
         reveal_step,
         ..
@@ -125,7 +138,6 @@ pub fn draw_progress_bars(
     );
 
     let rows = RowLayout::new(pos, max_width, height, scale, n);
-    let label_width = rows.label_width;
 
     // All labels share one font size so rows read as a unit
     let label_texts: Vec<&str> = entries.iter().map(|e| e.label.as_str()).collect();
@@ -134,55 +146,99 @@ pub fn draw_progress_bars(
             painter,
             &label_texts,
             &label_font,
-            label_width,
+            rows.label_width,
             theme.body_size * VIZ_FONT_MIN * scale,
         ),
         theme.body_family(),
     );
 
+    let bars = BarRows {
+        rows,
+        label_font,
+        pct_font,
+        palette: &palette,
+    };
     for (i, entry) in entries.iter().enumerate() {
         let step = steps.get(i).copied().unwrap_or(0);
         if step > reveal_step {
             continue;
         }
-
         let anim = cx.anim(step);
+        bars.draw_label(cx, i, &entry.label);
+        bars.draw_bar(cx, i, entry.value, anim);
+    }
 
-        let row_y = rows.row_y(i);
+    height
+}
+
+/// Paints the rows of a `RowLayout`.
+struct BarRows<'a> {
+    rows: RowLayout,
+    label_font: FontId,
+    pct_font: FontId,
+    palette: &'a [Color32],
+}
+
+impl BarRows<'_> {
+    /// Row `i`'s label on the left, fitted to the label column.
+    fn draw_label(&self, cx: &super::VizCtx, i: usize, label: &str) {
+        let super::VizCtx {
+            theme,
+            opacity,
+            scale,
+            ..
+        } = *cx;
+        let painter = cx.ui.painter();
+        let RowLayout {
+            label_width,
+            bar_left,
+            bar_height,
+            ..
+        } = self.rows;
+        let row_y = self.rows.row_y(i);
+
+        let label_color = Theme::with_opacity(theme.foreground, opacity * 0.9);
+        let galley = fit_text(
+            painter,
+            label,
+            self.label_font.clone(),
+            label_color,
+            label_width,
+            self.label_font.size,
+        );
+        let label_y = row_y + (bar_height - galley.rect.height()) / 2.0;
+        let label_x = bar_left - 12.0 * scale - galley.rect.width();
+        painter.galley(Pos2::new(label_x, label_y), galley, label_color);
+    }
+
+    /// Row `i`'s track, its fill grown to `anim`, and the percentage on the
+    /// right.
+    fn draw_bar(&self, cx: &super::VizCtx, i: usize, value: f32, anim: f32) {
+        let super::VizCtx {
+            ui,
+            theme,
+            opacity,
+            scale,
+            ..
+        } = *cx;
+        let painter = ui.painter();
         let RowLayout {
             bar_left,
             bar_width,
             bar_height,
             ..
-        } = rows;
-
-        // Label on the left, fitted to the label column
-        let label_color = Theme::with_opacity(theme.foreground, opacity * 0.9);
-        let galley = fit_text(
-            painter,
-            &entry.label,
-            label_font.clone(),
-            label_color,
-            label_width,
-            label_font.size,
-        );
-        let label_y = row_y + (bar_height - galley.rect.height()) / 2.0;
-        let label_x = bar_left - 12.0 * scale - galley.rect.width();
-        painter.galley(Pos2::new(label_x, label_y), galley, label_color);
+        } = self.rows;
+        let row_y = self.rows.row_y(i);
 
         // Track background
         let track_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
-        let track_rect = egui::Rect::from_min_size(
-            Pos2::new(bar_left, row_y),
-            egui::vec2(bar_width, bar_height),
-        );
+        let track_rect = self.rows.track_rect(i);
         painter.rect_filled(track_rect, VIZ_CORNER_TRACK * scale, track_color);
 
         // Fill bar
-        let color = palette[i % palette.len()];
+        let color = self.palette[i % self.palette.len()];
         let fill_color = Theme::with_opacity(color, opacity * theme.fill_opacity());
-        let fill_frac = (entry.value / 100.0) * anim;
-        let fill_width = bar_width * fill_frac;
+        let fill_width = self.rows.fill_width(value, anim);
         if fill_width > 0.0 {
             let fill_rect = egui::Rect::from_min_size(
                 Pos2::new(bar_left, row_y),
@@ -202,15 +258,13 @@ pub fn draw_progress_bars(
         );
 
         // Percentage on the right
-        let pct_text = format!("{:.0}%", entry.value);
+        let pct_text = format!("{:.0}%", value);
         let pct_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_LABEL);
-        let pct_galley = painter.layout_no_wrap(pct_text, pct_font.clone(), pct_color);
+        let pct_galley = painter.layout_no_wrap(pct_text, self.pct_font.clone(), pct_color);
         let pct_y = row_y + (bar_height - pct_galley.rect.height()) / 2.0;
         let pct_x = bar_left + bar_width + 12.0 * scale;
         painter.galley(Pos2::new(pct_x, pct_y), pct_galley, pct_color);
     }
-
-    height
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
@@ -280,5 +334,17 @@ mod tests {
         assert_eq!(few.bar_width, 1000.0 - 60.0 - 200.0 - 12.0 - 90.0);
         let many = RowLayout::new(Pos2::new(0.0, 0.0), 1000.0, 500.0, 1.0, 30);
         assert_eq!(many.bar_height, 28.0);
+    }
+
+    #[test]
+    fn test_row_layout_track_and_fill() {
+        let rows = RowLayout::new(Pos2::new(0.0, 0.0), 1000.0, 500.0, 1.0, 2);
+        let track = rows.track_rect(1);
+        assert_eq!(track.min, Pos2::new(rows.bar_left, rows.row_y(1)));
+        assert_eq!(track.width(), rows.bar_width);
+        assert_eq!(track.height(), rows.bar_height);
+        assert_eq!(rows.fill_width(50.0, 1.0), rows.bar_width * 0.5);
+        assert_eq!(rows.fill_width(50.0, 0.5), rows.bar_width * 0.25);
+        assert_eq!(rows.fill_width(80.0, 0.0), 0.0);
     }
 }

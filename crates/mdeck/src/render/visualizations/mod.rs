@@ -10,6 +10,7 @@ mod fit;
 mod frame;
 mod legend;
 mod reveal;
+mod ring;
 mod values;
 
 pub mod bar_chart;
@@ -34,6 +35,7 @@ pub use fit::*;
 pub use frame::*;
 pub use legend::*;
 pub use reveal::*;
+pub use ring::*;
 pub use values::*;
 
 /// What every chart draws with: where, in which theme, how far revealed.

@@ -3,9 +3,8 @@ use eframe::egui::{Pos2, Stroke};
 use crate::theme::Theme;
 
 use super::{
-    VIZ_OPACITY_BORDER_RING, VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR, VizReveal, assign_steps,
-    draw_side_legend, parse_label_value, parse_reveal_prefix, reveal_anim_progress, sector_mesh,
-    share_legend_items, side_legend_width,
+    VIZ_OPACITY_BORDER_RING, VIZ_STROKE_BORDER, VizReveal, assign_steps, draw_side_legend,
+    parse_label_value, parse_reveal_prefix, ring_layout, share_legend_items,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -55,8 +54,7 @@ pub fn draw_pie_chart(
         theme,
         opacity,
         scale,
-        reveal_step,
-        reveal_timestamp,
+        ..
     } = *cx;
     let entries = parse_pie_chart(content);
     if entries.is_empty() {
@@ -71,7 +69,6 @@ pub fn draw_pie_chart(
 
     let reveals: Vec<VizReveal> = entries.iter().map(|e| e.reveal).collect();
     let steps = assign_steps(&reveals);
-    let palette = theme.edge_palette();
     let painter = ui.painter();
 
     // Compute total for percentages
@@ -81,73 +78,15 @@ pub fn draw_pie_chart(
     }
 
     // Layout: pie on left side, legend on right
-    let legend_width = side_legend_width(max_width, scale);
-    let pie_area_width = max_width - legend_width;
-    let pie_radius = (pie_area_width.min(height) / 2.0 - 30.0 * scale).max(40.0 * scale);
-    let pie_cx = pos.x + pie_area_width / 2.0;
-    crate::render::hints::push(
-        ui.ctx(),
-        crate::render::hints::Hint::Circle {
-            center: Pos2::new(pie_cx, pos.y + height / 2.0),
-            radius: pie_radius,
-        },
-    );
-    let pie_cy = pos.y + height / 2.0;
-
-    // Draw pie slices
-    let mut angle_offset = -std::f32::consts::FRAC_PI_2; // start at top
-    let mut needs_repaint = false;
-
-    let bg_color = Theme::with_opacity(theme.background, opacity);
-
-    for (i, entry) in entries.iter().enumerate() {
-        let step = steps.get(i).copied().unwrap_or(0);
-        if step > reveal_step {
-            continue;
-        }
-
-        let (anim, repaint) = reveal_anim_progress(step, reveal_step, reveal_timestamp);
-        if repaint {
-            needs_repaint = true;
-        }
-
-        let full_sweep = (entry.value / total) * 2.0 * std::f32::consts::PI;
-        let sweep = full_sweep * anim;
-        let color = Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity());
-
-        // Single mesh per slice: no anti-aliasing seams between segments
-        painter.add(sector_mesh(
-            Pos2::new(pie_cx, pie_cy),
-            0.0,
-            pie_radius,
-            angle_offset,
-            sweep,
-            color,
-        ));
-
-        // Separator line between slices
-        let end_angle = angle_offset + sweep;
-        let sep_end = Pos2::new(
-            pie_cx + (pie_radius + 1.0) * end_angle.cos(),
-            pie_cy + (pie_radius + 1.0) * end_angle.sin(),
-        );
-        painter.line_segment(
-            [Pos2::new(pie_cx, pie_cy), sep_end],
-            Stroke::new(VIZ_STROKE_SEPARATOR * scale, bg_color),
-        );
-
-        angle_offset += sweep;
-    }
-
-    if needs_repaint {
-        ui.ctx().request_repaint();
-    }
+    let ring = ring_layout(pos, max_width, height, scale, 0.0);
+    let values: Vec<f32> = entries.iter().map(|e| e.value).collect();
+    ring.draw_slices(cx, &values, total, &steps);
 
     // Draw subtle border ring
     let ring_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_BORDER_RING);
     painter.circle_stroke(
-        Pos2::new(pie_cx, pie_cy),
-        pie_radius,
+        ring.center,
+        ring.outer_radius,
         Stroke::new(VIZ_STROKE_BORDER * scale, ring_color),
     );
 
@@ -157,15 +96,14 @@ pub fn draw_pie_chart(
     draw_side_legend(
         cx,
         &items,
-        pos.x + pie_area_width,
+        pos.x + ring.area_width,
         pos.y,
-        legend_width,
+        ring.legend_width,
         height,
     );
 
     height
 }
-
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

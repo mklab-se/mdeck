@@ -160,6 +160,12 @@ fn stack_slots(chart_width: f32, n: usize, scale: f32) -> (f32, f32) {
     (bar_gap, bar_width)
 }
 
+/// Left edge of category `ci`'s stack in a frame starting at `left`, with
+/// `(bar_gap, bar_width)` from `stack_slots`.
+fn slot_left(left: f32, (bar_gap, bar_width): (f32, f32), ci: usize) -> f32 {
+    left + bar_gap + ci as f32 * (bar_width + bar_gap)
+}
+
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
 pub fn draw_stacked_bar(
@@ -207,28 +213,8 @@ pub fn draw_stacked_bar(
         false,
     );
 
-    let (bar_gap, bar_width) = stack_slots(frame.width, num_categories, scale);
-    let slot_x = |ci: usize| frame.left + bar_gap + ci as f32 * (bar_width + bar_gap);
-
-    // Category labels below bars
-    let painter = cx.ui.painter();
-    let label_font = cx.font(VIZ_FONT_CATEGORY_LABEL);
-    let label_color = cx.fg(VIZ_OPACITY_LABEL);
-    for (ci, cat_name) in data.categories.iter().enumerate() {
-        let bx = slot_x(ci);
-        let galley = painter.layout(
-            cat_name.clone(),
-            label_font.clone(),
-            label_color,
-            bar_width + bar_gap,
-        );
-        let lx = bx + (bar_width - galley.rect.width()) / 2.0;
-        painter.galley(
-            Pos2::new(lx, frame.bottom + 6.0 * scale),
-            galley,
-            label_color,
-        );
-    }
+    let slots = stack_slots(frame.width, num_categories, scale);
+    draw_category_labels(cx, &data.categories, &frame, slots);
 
     let stacks = Stacks {
         series: &data.series,
@@ -236,10 +222,10 @@ pub fn draw_stacked_bar(
         palette: &palette,
         range,
         frame,
-        bar_width,
+        bar_width: slots.1,
     };
     for ci in 0..num_categories {
-        stacks.draw(cx, ci, slot_x(ci));
+        stacks.draw(cx, ci, slot_left(frame.left, slots, ci));
     }
 
     frame.draw_titles(
@@ -252,9 +238,45 @@ pub fn draw_stacked_bar(
         },
     );
 
-    // Legend across the top
-    let legend: Vec<(String, Color32)> = data
-        .series
+    draw_series_legend(cx, &data.series, &steps, pos.x, max_width, &layout);
+
+    height
+}
+
+/// Category labels below their stacks, each wrapped to its slot.
+fn draw_category_labels(cx: &VizCtx, categories: &[String], frame: &PlotFrame, slots: (f32, f32)) {
+    let painter = cx.ui.painter();
+    let (bar_gap, bar_width) = slots;
+    let label_font = cx.font(VIZ_FONT_CATEGORY_LABEL);
+    let label_color = cx.fg(VIZ_OPACITY_LABEL);
+    for (ci, cat_name) in categories.iter().enumerate() {
+        let bx = slot_left(frame.left, slots, ci);
+        let galley = painter.layout(
+            cat_name.clone(),
+            label_font.clone(),
+            label_color,
+            bar_width + bar_gap,
+        );
+        let lx = bx + (bar_width - galley.rect.width()) / 2.0;
+        painter.galley(
+            Pos2::new(lx, frame.bottom + 6.0 * cx.scale),
+            galley,
+            label_color,
+        );
+    }
+}
+
+/// The revealed series' names across the top, from `left`, `max_width` wide.
+fn draw_series_legend(
+    cx: &VizCtx,
+    series: &[StackedSeries],
+    steps: &[usize],
+    left: f32,
+    max_width: f32,
+    layout: &StackedLayout,
+) {
+    let palette = cx.theme.edge_palette();
+    let legend: Vec<(String, Color32)> = series
         .iter()
         .enumerate()
         .filter(|(si, _)| steps.get(*si).copied().unwrap_or(0) <= cx.reveal_step)
@@ -266,13 +288,11 @@ pub fn draw_stacked_bar(
     draw_legend_row(
         cx,
         &legend,
-        pos.x,
+        left,
         max_width,
         layout.legend_top,
         layout.legend_height,
     );
-
-    height
 }
 
 /// The segments of every category's stack.
@@ -437,5 +457,12 @@ mod tests {
         assert_eq!(l.frame.height, 500.0 - 40.0 - 60.0 - 40.0 - 30.0);
         assert_eq!(l.legend_top, 15.0);
         assert_eq!(stack_slots(412.0, 4, 1.0), (12.0, 88.0));
+    }
+
+    #[test]
+    fn test_slot_left_steps_by_bar_and_gap() {
+        let slots = stack_slots(412.0, 4, 1.0);
+        assert_eq!(slot_left(100.0, slots, 0), 112.0);
+        assert_eq!(slot_left(100.0, slots, 3), 112.0 + 3.0 * 100.0);
     }
 }
