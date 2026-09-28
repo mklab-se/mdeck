@@ -599,6 +599,11 @@ impl Theme {
     }
 
     /// Body text one step brighter, for list items in the particles copy column.
+    /// A light page (engines that add light switch to ink on one).
+    pub fn is_light(&self) -> bool {
+        luminance(self.background) > 0.5
+    }
+
     pub fn bright_text(&self) -> Color32 {
         mix(self.foreground, self.heading_color, 0.6)
     }

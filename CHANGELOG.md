@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- The LED engine and its `marquee` theme ([#16](https://github.com/mklab-se/mdeck/issues/16)):
+  a wall of RGB LEDs behind every slide, unlit lenses just visible. Illustrations power on
+  from their centre, each LED flickering as it strikes, and shimmer between the theme's
+  colours; brightness follows the point cloud's density so a picture keeps its structure.
+  Title slides get a marquee border of chasing bulbs, other slides a faint aurora away from
+  the copy, a reveal sends a band of light across the wall, and charts get a peak marker
+  over every bar, trails along lines and a halo around pies. The countdown is lit digit by
+  digit before a white-hot ring runs out over the wall; the end words die out LED by LED.
+  `@engine: led` puts any theme on it. Spec sections 9.1 and 9.6; sample
+  `samples/engines/led.md`.
+
+### Fixed
+
+- The editorial layouts (particles and LED engines) drew all their text white: the fade-in
+  replaced every run's colour. Text now keeps the theme's colours, so Ember shows its intended
+  tokens (the ember numeral in the eyebrow, `*emphasis*` in ember, a quieter lead), and a
+  light theme on an editorial engine is readable instead of white on white.
+- On a light theme the particle field blended additively and vanished into the page; it now
+  draws like ink.
+
 ## [1.8.0] - 2026-09-28
 
 ### Added

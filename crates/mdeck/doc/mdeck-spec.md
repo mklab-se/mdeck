@@ -55,8 +55,8 @@ date: 2026-02-28
 
 | Field         | Type   | Default   | Description                                        |
 |---------------|--------|-----------|----------------------------------------------------|
-| `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`), a custom theme name, or a path to a theme file (section 9.4) |
-| `@engine`     | string | (theme's) | Run the deck on this engine instead of the theme's: `"plain"`, `"particles"` (section 9.6) |
+| `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`, `"marquee"`), a custom theme name, or a path to a theme file (section 9.4) |
+| `@engine`     | string | (theme's) | Run the deck on this engine instead of the theme's: `"plain"`, `"particles"`, `"led"` (section 9.6) |
 | `@transition` | string | `"slide"` | Default transition: `"fade"`, `"slide"`, `"spatial"`, `"none"` |
 | `@image-style` | string | none      | Default AI image generation style (name or description) |
 | `@icon-style`  | string | none      | Default AI icon generation style (name or description)  |
@@ -837,6 +837,23 @@ cluster per item as the items reveal, a quote slide burns like a candle, a
 code slide rains. Slides whose content fills the frame (code, tables, charts,
 diagrams, images) keep their regular layouts with the Ember palette.
 
+**`marquee`**
+
+A wall of RGB LEDs in a dark room, on the **LED engine** (section 9.6):
+near-black with the faint grid of unlit lenses, hot pink and cyan light,
+warm amber bulbs chasing around the title slide, and Hanken Grotesk for the
+copy. Illustrations, the countdown digits and the end words appear by
+lighting LEDs.
+
+| Property        | Value           |
+|-----------------|-----------------|
+| Background      | `#06070B`       |
+| Primary text    | `#B9BCCB`       |
+| Heading text    | `#F6F6FB`       |
+| Accent          | `#FF2D78`       |
+| LED gradient    | `#FF2D78` → `#FF9CC2` → `#35D6FF` |
+| Marquee bulbs   | `#FFC043`       |
+
 Every theme can draw the symbols text faces usually lack: circled numbers and letters (①②③, ⓐ), check marks, arrows, geometric shapes and stars. Noto Sans Symbols and DejaVu Sans are bundled as the last fallback of every font family, so such characters never render as boxes.
 
 Chinese, Japanese and Korean text draws with a font borrowed from the system, since a CJK face is too large to bundle: PingFang, Hiragino or Arial Unicode on macOS, Microsoft YaHei, Yu Gothic or Malgun Gothic on Windows, Noto Sans CJK, WenQuanYi or Droid Sans Fallback on Linux (`fonts-noto-cjk` on Debian and Ubuntu). It is added after the symbol faces in every family, on the family's own baseline. To use a specific file, set `MDECK_CJK_FONT=/path/to/font.ttc`. When no font on the machine covers a script the deck uses, `mdeck --check` warns (`fonts` category) and presenting or exporting prints the same warning; the text then draws as boxes.
@@ -1023,7 +1040,7 @@ match wins:
    `~/Library/Application Support/mdeck/themes/` on macOS,
    `%APPDATA%\mdeck\themes\` on Windows
 3. the built-in themes (`dark`, `light`, `nord`, `ember`, `spring`, `summer`,
-   `autumn`, `winter`)
+   `autumn`, `winter`, `marquee`)
 
 `@theme` may also be a path to a file (`@theme: brand/acme.yaml`), relative
 to the deck. A user or deck theme may reuse a built-in name to replace it.
@@ -1052,8 +1069,8 @@ The full set of keys:
 ```yaml
 name: Acme
 extends: dark
-engine: plain              # plain | particles
-countdown: none            # none | plain | burst (burst needs the particles engine)
+engine: plain              # plain | particles | led (section 9.6)
+countdown: none            # none | plain | burst (burst: the engine's own countdown)
 colors:                    # #rgb, #rrggbb or #rrggbbaa
   background: "#0b1020"    # slide background
   text: "#c9d1e3"          # body text
@@ -1077,7 +1094,7 @@ annotations:               # the presenter's pen (drag) and arrow (Shift+drag) t
   pen-outline: "#1e82b4"
   arrow: "#ffc832"
   arrow-outline: "#c88c00"
-particles:                 # particles engine only: particle tints besides the accents
+particles:                 # particles and led engines: tints besides the accents
   light: "#d7d7e1"
   cool: "#afc3f0"
 fonts:                     # a bundled face, or a .ttf/.otf file in the theme folder
@@ -1174,8 +1191,9 @@ Then decide what the web system cannot tell you:
 - **Fonts become files or bundled faces.** Use a bundled face when the design
   system names the same family (Spectral, Hanken Grotesk, JetBrains Mono);
   otherwise put TTF/OTF files in the theme folder.
-- **Pick the engine.** A dark, atmospheric brand can use `engine: particles` and
-  `countdown: burst`; most brands want `plain`.
+- **Pick the engine.** A dark, atmospheric brand can use `engine: particles`
+  (glowing particles) or `engine: led` (an LED wall) with `countdown: burst`;
+  most brands want `plain`.
 - **Check contrast.** `mdeck theme check` flags text that is hard to read.
 
 Tools for the loop of converting, looking and adjusting:
@@ -1249,6 +1267,22 @@ from the theme, so every theme looks like itself on every engine.
 |---|---|---|---|---|
 | `plain` | slides on a flat background | no | no | plain numerals |
 | `particles` | a living field of glowing particles that morphs from slide to slide and follows the content, editorial copy layouts (section 9.1, Ember) | yes | yes | particle digits that burst; the words, a swirl and a bang |
+| `led` | a fixed wall of RGB LEDs behind every slide, editorial copy layouts (theme `marquee`) | yes | no | LED digits, then a white-hot ring runs out over the wall; the words, then every LED dies out |
+
+**The LED engine.** The slide sits on a wall of LEDs, a few pixels apart,
+their unlit lenses just visible. Nothing ever moves: pictures appear by
+lighting LEDs. An `@illustration` powers on from its centre outward, each LED
+flickering as it strikes, and then shimmers slowly between the theme's
+`accent`, `accent-soft` and `particles.cool`; the hottest cores whiten toward
+`particles.light`. Brightness follows the point cloud's density, so strokes
+stay brighter than fills and the picture keeps its structure. Title slides get
+a marquee border of chasing bulbs in `secondary`; slides without an
+illustration get a slow, faint aurora on the side away from the copy. A reveal
+sends one band of light across the wall. On charts and diagrams the wall
+serves the content: a peak marker floats over each bar like a level meter's,
+lines and routed edges leave a soft trail, pies and donuts get a halo ring,
+and nothing lights inside the chart itself. On a light theme the LEDs read as
+a printed dot matrix.
 
 **Choosing one.** A theme names its engine (`engine:` in section 9.4). A deck
 can run on another engine without touching the theme:
@@ -1274,10 +1308,10 @@ lists every such slide under the `engine` category (for example
 and presenting or exporting prints one summary line when a deck has any.
 
 Engines are part of MDeck and each one is a cargo feature, on by default.
-Building MDeck with `--no-default-features` leaves the particles engine out
-(and with it the `ember`, `autumn` and `winter` themes and the built-in
-illustrations); themes and decks that ask for it then use `plain`, with a
-warning.
+Building MDeck with `--no-default-features` leaves them out (and with them
+the themes that run on them: `ember`, `autumn` and `winter` on particles,
+`marquee` on led, and the built-in illustrations); themes and decks that ask
+for one then use `plain`, with a warning.
 
 ---
 

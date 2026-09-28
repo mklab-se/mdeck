@@ -597,16 +597,7 @@ fn draw_pieces(
         let a = opacity * progress;
         let rise = (1.0 - progress) * 14.0 * scale;
         let pos = Pos2::new(left + piece.indent, y + rise);
-        let color = piece
-            .galley
-            .job
-            .sections
-            .first()
-            .map(|s| s.format.color)
-            .unwrap_or(theme.foreground);
-        let tint = fade(Color32::WHITE, a);
-        crate::render::math::galley_tinted(painter, pos, piece.galley.clone(), tint);
-        let _ = color;
+        crate::render::math::galley_faded(painter, pos, piece.galley.clone(), a);
         if piece.dot {
             let first_line_h = piece
                 .galley
@@ -768,30 +759,30 @@ fn render_title(
     let centered = |g: &egui::Galley| rect.center().x - g.rect.width() / 2.0;
 
     let p0 = stagger(age, 0);
-    crate::render::math::galley_tinted(
+    crate::render::math::galley_faded(
         painter,
         Pos2::new(centered(&eyebrow), y + (1.0 - p0) * 14.0 * scale),
         eyebrow.clone(),
-        fade(Color32::WHITE, opacity * p0),
+        opacity * p0,
     );
     y += eyebrow.rect.height() + gap1;
     if let Some(g) = title {
         let p = stagger(age, 1);
-        crate::render::math::galley_tinted(
+        crate::render::math::galley_faded(
             painter,
             Pos2::new(centered(&g), y + (1.0 - p) * 14.0 * scale),
             g.clone(),
-            fade(Color32::WHITE, opacity * p),
+            opacity * p,
         );
         y += g.rect.height() + gap2;
     }
     if let Some(g) = sub {
         let p = stagger(age, 2);
-        crate::render::math::galley_tinted(
+        crate::render::math::galley_faded(
             painter,
             Pos2::new(centered(&g), y + (1.0 - p) * 14.0 * scale),
             g.clone(),
-            fade(Color32::WHITE, opacity * p),
+            opacity * p,
         );
     }
 
@@ -806,14 +797,14 @@ fn render_title(
             sz.eyebrow * 0.85,
             1.0,
         ));
-        crate::render::math::galley_tinted(
+        crate::render::math::galley_faded(
             painter,
             Pos2::new(
                 rect.center().x - hint.rect.width() / 2.0,
                 rect.bottom() - 62.0 * scale,
             ),
             hint,
-            fade(Color32::WHITE, opacity * p * 0.9),
+            opacity * p * 0.9,
         );
     }
     if stagger(age, 6) < 1.0 {
@@ -858,22 +849,22 @@ fn render_section(
 
     let painter = ui.painter();
     let p0 = stagger(age, 0);
-    crate::render::math::galley_tinted(
+    crate::render::math::galley_faded(
         painter,
         Pos2::new(column.left(), top + (1.0 - p0) * 14.0 * scale),
         eyebrow.clone(),
-        fade(Color32::WHITE, opacity * p0),
+        opacity * p0,
     );
     if let Some(g) = title {
         let p = stagger(age, 1);
-        crate::render::math::galley_tinted(
+        crate::render::math::galley_faded(
             painter,
             Pos2::new(
                 column.left(),
                 top + eyebrow.rect.height() + gap + (1.0 - p) * 14.0 * scale,
             ),
             g,
-            fade(Color32::WHITE, opacity * p),
+            opacity * p,
         );
     }
 }
@@ -997,11 +988,11 @@ fn render_quote(
     let mut place = |g: std::sync::Arc<egui::Galley>, y: &mut f32, extra: f32| {
         let p = stagger(age, nth);
         nth += 1;
-        crate::render::math::galley_tinted(
+        crate::render::math::galley_faded(
             painter,
             Pos2::new(x, *y + (1.0 - p) * 14.0 * scale),
             g.clone(),
-            fade(Color32::WHITE, opacity * p),
+            opacity * p,
         );
         *y += g.rect.height() + extra;
         p
@@ -1068,11 +1059,11 @@ fn render_copy(
     pillow(ui.painter(), copy, opacity * ease_out(age / 0.9), theme);
 
     let p0 = stagger(age, 0);
-    crate::render::math::galley_tinted(
+    crate::render::math::galley_faded(
         ui.painter(),
         Pos2::new(column.left(), top + (1.0 - p0) * 14.0 * scale),
         eyebrow.clone(),
-        fade(Color32::WHITE, opacity * p0),
+        opacity * p0,
     );
     draw_pieces(
         ui,

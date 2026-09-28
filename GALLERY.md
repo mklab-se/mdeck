@@ -43,11 +43,40 @@ routed edges in their direction while dust keeps to the margins.
 
 ### An illustration
 
-`@illustration: robot` at the top of the slide, and the particles settle into a
+`@illustration: robot` under the slide's heading, and the particles settle into a
 point cloud beside the copy: a hint of the thing, never a picture of it. Thirty-eight
 are built in; `mdeck illustration generate` makes more from a description.
 
 <img src="media/gallery/ember-illustration.png" width="720">
+
+---
+
+## Engines
+
+The same slides on other engines (spec section 9.6); any deck switches with
+`@engine` in its frontmatter. These stills are from `samples/engines/`.
+
+### LED wall
+
+The `led` engine and its `marquee` theme: a wall of RGB LEDs behind every
+slide. Title slides get a marquee border of chasing bulbs, with the
+illustration dim behind the copy.
+
+<img src="media/gallery/marquee-title.jpg" width="720">
+
+An illustration powers on from its centre, LED by LED, and shimmers between
+the theme's colours. Brightness follows the point cloud's density, so the
+filament stays brighter than the glass.
+
+<img src="media/gallery/marquee-illustration.jpg" width="720">
+
+On a chart, a peak marker floats over every bar like a level meter's.
+
+<img src="media/gallery/marquee-chart.jpg" width="720">
+
+The countdown, lit digit by digit.
+
+<img src="media/gallery/marquee-countdown.jpg" width="720">
 
 ---
 

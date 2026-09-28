@@ -343,6 +343,10 @@ impl ExportApp {
         } else {
             self.max_steps.get(idx).copied().unwrap_or(0)
         };
+        // Developer stills of an engine's motion (see doc/engines.md):
+        // MDECK_EXPORT_AT=<seconds> rehearses the engine from a cold start,
+        // MDECK_EXPORT_MOMENT=3|2|1|burst|end shows the countdown or the end.
+        let rehearsal = Rehearsal::from_env();
         if self.theme.engine.paints() {
             let slide = &self.presentation.slides[idx];
             let story = self
@@ -351,24 +355,27 @@ impl ExportApp {
                 .and_then(|r| r.as_ref())
                 .map(|r| r.script.clone());
             let theme = self.theme.clone();
-            self.engine.frame(
-                ui,
-                crate::engines::Shot {
-                    rect,
-                    slide: Some(slide),
-                    story: story.as_ref(),
-                    story_version: 0,
-                    index: idx,
-                    reveal,
-                    end: false,
-                    countdown: None,
-                    theme: &theme,
-                    scale,
-                    opacity: 1.0,
-                    still: true,
-                },
-                &mut self.illustrations,
-            );
+            let shot = crate::engines::Shot {
+                rect,
+                slide: (!rehearsal.end).then_some(slide),
+                story: story.as_ref(),
+                story_version: 0,
+                index: idx,
+                reveal,
+                end: rehearsal.end,
+                countdown: rehearsal.countdown,
+                theme: &theme,
+                scale,
+                opacity: 1.0,
+                still: true,
+            };
+            match rehearsal.at {
+                Some(t) => self.engine.rehearse(ui, shot, &mut self.illustrations, t),
+                None => self.engine.frame(ui, shot, &mut self.illustrations),
+            }
+        }
+        if rehearsal.end || rehearsal.countdown.is_some() {
+            return;
         }
         let cx = render::SlideContext {
             index: idx,
@@ -403,6 +410,34 @@ impl ExportApp {
         let title = self.presentation.meta.title.clone().unwrap_or_default();
         if let Some(job) = self.notes.as_mut() {
             job.draw(ui, origin, page, &self.notes_theme, &title, n, count);
+        }
+    }
+}
+
+/// Developer settings for looking at an engine's motion in export.
+struct Rehearsal {
+    at: Option<f32>,
+    countdown: Option<(crate::engines::CountPhase, f32)>,
+    end: bool,
+}
+
+impl Rehearsal {
+    fn from_env() -> Self {
+        let at = std::env::var("MDECK_EXPORT_AT")
+            .ok()
+            .and_then(|v| v.trim().parse::<f32>().ok());
+        let moment = std::env::var("MDECK_EXPORT_MOMENT").unwrap_or_default();
+        let countdown = match moment.trim() {
+            "3" => Some((crate::engines::CountPhase::Digit(3), 0.5)),
+            "2" => Some((crate::engines::CountPhase::Digit(2), 0.5)),
+            "1" => Some((crate::engines::CountPhase::Digit(1), 0.5)),
+            "burst" => Some((crate::engines::CountPhase::Burst, 0.0)),
+            _ => None,
+        };
+        Rehearsal {
+            at,
+            countdown,
+            end: moment.trim() == "end",
         }
     }
 }

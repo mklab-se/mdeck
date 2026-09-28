@@ -17,6 +17,7 @@ use crate::render::story::Script;
 use crate::theme::Theme;
 
 /// One frame's worth of input from the presentation window or the export.
+#[derive(Clone, Copy)]
 pub struct Shot<'a> {
     pub rect: egui::Rect,
     /// The slide to show (the target during a transition); `None` on the end slide.
@@ -87,6 +88,55 @@ impl Host {
             return;
         }
         let now = Instant::now();
+        let dt = self
+            .last_tick
+            .map(|t| now.duration_since(t).as_secs_f32())
+            .unwrap_or(1.0 / 60.0);
+        self.last_tick = Some(now);
+        // The end slide runs its own clock from the moment it is entered.
+        let end_elapsed = if shot.end {
+            let started = *self.end_started.get_or_insert(now);
+            now.duration_since(started).as_secs_f32()
+        } else {
+            self.end_started = None;
+            0.0
+        };
+        let still = shot.still;
+        self.step(ui, &shot, lib, dt, end_elapsed, still, true);
+    }
+
+    /// Run the engine from a cold start through `seconds` of simulated time
+    /// at 60 frames a second, then paint that frame: a still of the motion
+    /// (`MDECK_EXPORT_AT`, for looking at animations in export). A burst
+    /// runs its progress over the rehearsal.
+    pub fn rehearse(&mut self, ui: &egui::Ui, shot: Shot, lib: &mut Library, seconds: f32) {
+        *self = Host::new(shot.theme.engine);
+        if !self.kind.paints() {
+            return;
+        }
+        let dt = 1.0 / 60.0;
+        let steps = (seconds.max(0.0) / dt).round() as usize;
+        for k in 0..=steps {
+            let t = k as f32 * dt;
+            let mut s = shot;
+            if let Some((CountPhase::Burst, _)) = s.countdown {
+                s.countdown = Some((CountPhase::Burst, (t / 1.2).min(1.0)));
+            }
+            self.step(ui, &s, lib, dt, t, false, k == steps);
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn step(
+        &mut self,
+        ui: &egui::Ui,
+        shot: &Shot,
+        lib: &mut Library,
+        dt: f32,
+        end_elapsed: f32,
+        still: bool,
+        paint: bool,
+    ) {
         let caps = self.kind.capabilities();
 
         // Renderers publish geometry while the slide draws (after this call),
@@ -105,11 +155,6 @@ impl Host {
                 self.hints_key = fp;
             }
         }
-        let dt = self
-            .last_tick
-            .map(|t| now.duration_since(t).as_secs_f32())
-            .unwrap_or(1.0 / 60.0);
-        self.last_tick = Some(now);
 
         let face = shot.theme.display_family();
         if self.mask_face.as_ref() != Some(&face) {
@@ -118,7 +163,6 @@ impl Host {
             self.mask_face = Some(face);
         }
 
-        // The end slide runs its own clock from the moment it is entered.
         let moment = if let Some((phase, progress)) = shot.countdown {
             match phase {
                 CountPhase::Digit(digit) => Moment::Countdown {
@@ -129,21 +173,17 @@ impl Host {
                 CountPhase::Burst => Moment::Burst { progress },
             }
         } else if shot.end {
-            let started = *self.end_started.get_or_insert(now);
             let words = self
                 .end_words
                 .get_or_insert_with(|| text_mask(ui, shot.theme, "THE END"))
                 .clone();
             Moment::End {
-                elapsed: now.duration_since(started).as_secs_f32(),
+                elapsed: end_elapsed,
                 words,
             }
         } else {
             Moment::Slide
         };
-        if !shot.end {
-            self.end_started = None;
-        }
 
         let rect_aspect = shot.rect.width() / shot.rect.height();
         let title = shot
@@ -179,11 +219,13 @@ impl Host {
             scale: shot.scale,
             opacity: shot.opacity,
             dt,
-            still: shot.still,
+            still,
             theme: shot.theme,
         };
         self.engine.update(&cx, &stage, lib);
-        self.engine.paint(ui, &cx, &stage);
+        if paint {
+            self.engine.paint(ui, &cx, &stage);
+        }
         self.last_index = Some(shot.index);
     }
 

@@ -11,6 +11,7 @@
 //! `crates/mdeck/doc/engines.md`.
 
 mod host;
+pub mod led;
 mod masks;
 pub mod particles;
 pub mod plain;
@@ -30,6 +31,8 @@ pub enum EngineKind {
     /// A living particle field under every slide, editorial copy layouts,
     /// story beats and point cloud illustrations.
     Particles,
+    /// A wall of RGB LEDs that light up illustrations, digits and words.
+    Led,
 }
 
 /// What an engine can show. The core uses it for fallbacks (an illustration
@@ -53,7 +56,8 @@ pub struct Capabilities {
 
 impl EngineKind {
     /// Every engine, in the order `mdeck theme list` and the docs show them.
-    pub const ALL: &'static [EngineKind] = &[EngineKind::Plain, EngineKind::Particles];
+    pub const ALL: &'static [EngineKind] =
+        &[EngineKind::Plain, EngineKind::Particles, EngineKind::Led];
 
     pub fn from_name(name: &str) -> Option<Self> {
         Self::ALL.iter().copied().find(|k| k.name() == name)
@@ -63,6 +67,7 @@ impl EngineKind {
         match self {
             EngineKind::Plain => "plain",
             EngineKind::Particles => "particles",
+            EngineKind::Led => "led",
         }
     }
 
@@ -80,6 +85,7 @@ impl EngineKind {
         match self {
             EngineKind::Plain => true,
             EngineKind::Particles => cfg!(feature = "particles"),
+            EngineKind::Led => cfg!(feature = "led"),
         }
     }
 
@@ -101,6 +107,14 @@ impl EngineKind {
                 countdown: true,
                 end_act: true,
             },
+            EngineKind::Led => Capabilities {
+                paints: true,
+                editorial: true,
+                illustrations: true,
+                stories: false,
+                countdown: true,
+                end_act: true,
+            },
         }
     }
 
@@ -109,6 +123,7 @@ impl EngineKind {
         match self {
             EngineKind::Plain => Box::new(plain::Plain),
             EngineKind::Particles => Box::new(particles::Particles::new()),
+            EngineKind::Led => Box::new(led::Led::new()),
         }
     }
 
@@ -137,7 +152,8 @@ impl EngineKind {
     pub fn end_caption_delay(self) -> f32 {
         match self {
             EngineKind::Particles => particles::END_CAPTION_DELAY,
-            _ => 0.0,
+            EngineKind::Led => led::END_CAPTION_DELAY,
+            EngineKind::Plain => 0.0,
         }
     }
 }

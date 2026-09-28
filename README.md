@@ -246,6 +246,35 @@ and any theme can ask for one.
 Try the decks in `samples/ember/`: plain text, visualizations, images,
 illustrations, and stories. The format spec has the full vocabulary.
 
+---
+
+## Engines
+
+The particle field is one **engine**. Others show the same slides in a whole
+different way, and any deck switches with one line of frontmatter:
+
+```yaml
+---
+@engine: led
+---
+```
+
+**LED wall** (`led`, theme `marquee`). The slide sits on a wall of RGB LEDs,
+their unlit lenses just visible. Nothing moves: illustrations power on from
+their centre, each LED flickering as it strikes, and shimmer between the
+theme's colours. Title slides get a marquee border of chasing bulbs, charts
+get peak markers floating over their bars, and the countdown is lit digit by
+digit before a white-hot ring runs out over the wall.
+
+<p align="center">
+  <img src="media/gallery/marquee-title.jpg" width="45%">&nbsp;&nbsp;
+  <img src="media/gallery/marquee-illustration.jpg" width="45%">
+</p>
+
+`mdeck talk.md --engine led` tries an engine without touching the deck, and
+`mdeck talk.md --check` lists anything the chosen engine does not show. Try
+`samples/engines/`.
+
 ## Writing slides
 
 ### Slides and layouts

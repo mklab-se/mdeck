@@ -1,0 +1,46 @@
+# Marquee: a wall of RGB LEDs in a dark room. Near-black with the faint grid
+# of unlit lenses, hot pink and cyan light, and warm amber bulbs chasing
+# around the title (LED engine).
+name: Marquee
+extends: dark
+engine: led
+countdown: burst
+colors:
+  background: "#06070b"      # the wall with the power off
+  text: "#b9bccb"
+  heading: "#f6f6fb"
+  muted: "#80859a"
+  rule: "#1c1f2b"
+  accent: "#ff2d78"          # hot pink LEDs
+  accent-soft: "#ff9cc2"
+  secondary: "#ffc043"       # marquee bulbs
+  code-background: "#0e1017"
+  code-text: "#d9dbe6"
+  positive: "#3ee089"
+  negative: "#ff5470"
+  series:
+    - "#ff2d78" # pink
+    - "#35d6ff" # cyan
+    - "#ffc043" # bulb
+    - "#3ee089" # green
+    - "#a66bff" # violet
+    - "#ff7a3d" # orange
+    - "#f6f6fb" # white
+    - "#6c7cff" # blue
+particles:                   # the LED palette besides the accents
+  light: "#fff4f8"           # the hottest cores
+  cool: "#35d6ff"            # cyan, the far end of the gradient
+fonts:
+  display: hanken-medium
+  body: hanken-regular
+  lead: hanken-light
+  strong: hanken-medium
+  mono: jetbrains-mono
+sizes: { h1: 100, h2: 70, h3: 48, body: 38, code: 28 }
+text: { line-height: 1.4 }
+charts: { fill-opacity: 0.85 }
+annotations:
+  pen: "#35d6ff"
+  pen-outline: "#0b6c85"
+  arrow: "#ffc043"
+  arrow-outline: "#a67410"

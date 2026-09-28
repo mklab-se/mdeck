@@ -175,12 +175,7 @@ pub fn finish(job: &mut egui::text::LayoutJob) {
 /// epaint keeps a glyph's section private, so placeholders are matched to
 /// their sections by order: the n-th placeholder glyph is the n-th section
 /// whose text starts with the mark.
-pub fn paint_galley(
-    painter: &egui::Painter,
-    pos: Pos2,
-    galley: &egui::Galley,
-    tint: Option<Color32>,
-) {
+pub fn paint_galley(painter: &egui::Painter, pos: Pos2, galley: &egui::Galley, opacity: f32) {
     let job = &galley.job;
     if !job.text.contains(MARK) {
         return;
@@ -227,7 +222,12 @@ pub fn paint_galley(
                 left = ((job.wrap.max_width - width) / 2.0).max(0.0) - placed.pos.x;
             }
             let origin = pos + placed.pos.to_vec2() + vec2(left, baseline);
-            paint_list(painter, origin, em, tint.unwrap_or(format.color), &dl);
+            let color = if opacity < 1.0 {
+                format.color.gamma_multiply(opacity.max(0.0))
+            } else {
+                format.color
+            };
+            paint_list(painter, origin, em, color, &dl);
         }
     }
 }
@@ -252,13 +252,22 @@ pub fn first_baseline(galley: &egui::Galley) -> Option<f32> {
 /// `painter.galley` plus the formulas inside it.
 pub fn galley(painter: &egui::Painter, pos: Pos2, galley: Arc<egui::Galley>, fallback: Color32) {
     painter.galley(pos, galley.clone(), fallback);
-    paint_galley(painter, pos, &galley, None);
+    paint_galley(painter, pos, &galley, 1.0);
 }
 
-/// `painter.galley_with_override_text_color` plus the formulas inside it.
-pub fn galley_tinted(painter: &egui::Painter, pos: Pos2, galley: Arc<egui::Galley>, tint: Color32) {
-    painter.galley_with_override_text_color(pos, galley.clone(), tint);
-    paint_galley(painter, pos, &galley, Some(tint));
+/// [`galley`] at `opacity` (0..1): every run keeps its own colour and fades
+/// with the rest (for entry animations).
+pub fn galley_faded(painter: &egui::Painter, pos: Pos2, galley: Arc<egui::Galley>, opacity: f32) {
+    let fallback = galley
+        .job
+        .sections
+        .first()
+        .map_or(Color32::WHITE, |s| s.format.color);
+    painter.add(
+        egui::epaint::TextShape::new(pos, galley.clone(), fallback)
+            .with_opacity_factor(opacity.clamp(0.0, 1.0)),
+    );
+    paint_galley(painter, pos, &galley, opacity);
 }
 
 #[cfg(test)]

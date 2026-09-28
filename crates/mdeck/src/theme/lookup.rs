@@ -7,8 +7,9 @@ use std::path::{Path, PathBuf};
 use super::file::ThemeFile;
 use super::{Built, Theme};
 
-/// The built-in themes, in `Shift+T` order. `ember`, `autumn` and `winter` run
-/// on the particles engine, so a build without the `particles` feature leaves them out.
+/// The built-in themes, in `Shift+T` order. A theme that runs on an engine
+/// behind a cargo feature (`ember`, `autumn` and `winter` on particles,
+/// `marquee` on led) is left out of a build without that feature.
 pub const BUILTIN: &[(&str, &str)] = &[
     ("dark", include_str!("../../themes/dark.yaml")),
     ("light", include_str!("../../themes/light.yaml")),
@@ -21,6 +22,8 @@ pub const BUILTIN: &[(&str, &str)] = &[
     ("autumn", include_str!("../../themes/autumn.yaml")),
     #[cfg(feature = "particles")]
     ("winter", include_str!("../../themes/winter.yaml")),
+    #[cfg(feature = "led")]
+    ("marquee", include_str!("../../themes/marquee.yaml")),
 ];
 
 /// The theme used when nothing names one.
@@ -445,7 +448,8 @@ mod tests {
         assert_eq!(
             names,
             [
-                "dark", "light", "nord", "ember", "spring", "summer", "autumn", "winter", "brand"
+                "dark", "light", "nord", "ember", "spring", "summer", "autumn", "winter",
+                "marquee", "brand"
             ]
         );
         assert!(matches!(l.available()[0].origin, Origin::User(_)));

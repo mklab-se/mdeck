@@ -343,6 +343,8 @@ pub struct Field {
     renderer: gl::GlowRenderer,
     /// Linear-ish RGB per tint, from the theme.
     tints: [[f32; 3]; 5],
+    /// Drawing on a light page: ink instead of light.
+    light: bool,
 }
 
 fn rgb(c: Color32) -> [f32; 3] {
@@ -357,6 +359,11 @@ impl Field {
     /// Set the particle colours, in [`Tint`] order (see [`DEFAULT_TINTS`]).
     pub fn set_tints(&mut self, tints: [Color32; 5]) {
         self.tints = tints.map(rgb);
+    }
+
+    /// On a light page the particles blend like ink (no trails, dark links).
+    pub fn set_light(&mut self, light: bool) {
+        self.light = light;
     }
 
     pub fn new(count: usize, seed: u64) -> Self {
@@ -394,6 +401,7 @@ impl Field {
             time: 0.0,
             renderer: gl::GlowRenderer::default(),
             tints: DEFAULT_TINTS.map(rgb),
+            light: false,
         }
     }
 
@@ -692,7 +700,8 @@ impl Field {
                 if la < 0.01 {
                     continue;
                 }
-                let color = Color32::from_rgba_unmultiplied(255, 255, 255, (la * 255.0) as u8);
+                let ink = if self.light { 40 } else { 255 };
+                let color = Color32::from_rgba_unmultiplied(ink, ink, ink, (la * 255.0) as u8);
                 painter.line_segment(
                     [Pos2::new(p.x, p.y), Pos2::new(q.x, q.y)],
                     egui::Stroke::new(1.0, color),
@@ -721,7 +730,8 @@ impl Field {
                 }
             })
             .collect();
-        self.renderer.paint(painter, rect, sprites, wakes);
+        self.renderer
+            .paint(painter, rect, sprites, wakes && !self.light, self.light);
     }
 }
 

@@ -121,13 +121,16 @@ const QUAD_FRAG: &str = r#"
 
 impl GlowRenderer {
     /// Queue a paint callback drawing `sprites` over `rect`, with wakes when
-    /// `wakes` is set (never for stills).
+    /// `wakes` is set (never for stills). On a light background (`light`)
+    /// the sprites blend normally instead of adding light, which would vanish
+    /// into the page.
     pub fn paint(
         &self,
         painter: &egui::Painter,
         rect: egui::Rect,
         sprites: Vec<Sprite>,
         wakes: bool,
+        light: bool,
     ) {
         if sprites.is_empty() && !wakes {
             return;
@@ -145,10 +148,10 @@ impl GlowRenderer {
                     return;
                 };
                 unsafe {
-                    if wakes {
+                    if wakes && !light {
                         draw_with_wakes(gl, obj, &info, &sprites, gl_painter.intermediate_fbo());
                     } else {
-                        draw_sprites(gl, obj, &info, &sprites);
+                        draw_sprites(gl, obj, &info, &sprites, light);
                     }
                 }
             })),
@@ -367,6 +370,7 @@ unsafe fn draw_sprites(
     obj: &GlObjects,
     info: &egui::PaintCallbackInfo,
     sprites: &[Sprite],
+    light: bool,
 ) {
     // Six vertices (two triangles) per sprite.
     let mut data: Vec<f32> = Vec::with_capacity(sprites.len() * 6 * STRIDE);
@@ -403,8 +407,13 @@ unsafe fn draw_sprites(
 
         gl.enable(glow::BLEND);
         gl.blend_equation(glow::FUNC_ADD);
-        // Additive: light accumulates, overlaps saturate toward white.
-        gl.blend_func(glow::SRC_ALPHA, glow::ONE);
+        // Additive: light accumulates, overlaps saturate toward white. On a
+        // light page, ink instead: normal blending.
+        if light {
+            gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+        } else {
+            gl.blend_func(glow::SRC_ALPHA, glow::ONE);
+        }
         gl.disable(glow::DEPTH_TEST);
         gl.disable(glow::CULL_FACE);
 
@@ -473,7 +482,7 @@ unsafe fn draw_with_wakes(
     unsafe {
         let vp = info.viewport_in_pixels();
         if !ensure_wake(gl, obj, vp.width_px, vp.height_px) {
-            draw_sprites(gl, obj, info, sprites);
+            draw_sprites(gl, obj, info, sprites, false);
             return;
         }
         let (fbo, tex, prev) = {
@@ -488,7 +497,7 @@ unsafe fn draw_with_wakes(
         gl.disable(glow::SCISSOR_TEST);
         gl.disable(glow::BLEND);
         draw_quad(gl, obj, tex[prev], WAKE_DECAY, WAKE_CUT);
-        draw_sprites(gl, obj, info, sprites);
+        draw_sprites(gl, obj, info, sprites, false);
 
         // 2. back to the screen: add the buffer over the slide background
         gl.bind_framebuffer(glow::FRAMEBUFFER, screen_fbo);

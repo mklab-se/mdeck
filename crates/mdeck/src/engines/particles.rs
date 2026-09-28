@@ -157,6 +157,7 @@ impl Engine for Particles {
             theme.secondary,
             theme.particle_cool,
         ]);
+        field.set_light(theme.is_light());
         if cx.still {
             return;
         }
