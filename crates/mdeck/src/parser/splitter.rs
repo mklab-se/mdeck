@@ -6,9 +6,9 @@
 /// 3. Heading-level splits: a heading at or above the slide level starts a new slide
 ///
 /// The `slide_level` parameter controls which heading level triggers splits:
-/// - `Some(n)` — explicitly set via `@slide-level: n` in frontmatter; headings at
+/// - `Some(n)`: explicitly set via `@slide-level: n` in frontmatter; headings at
 ///   level 1..=n all split slides.
-/// - `None` — inferred: if there is exactly one H1, both H1 and H2 split (level 2);
+/// - `None`: inferred: if there is exactly one H1, both H1 and H2 split (level 2);
 ///   if there are multiple H1s, only H1 splits (level 1).
 pub fn split(body: &str, slide_level: Option<u8>) -> Vec<String> {
     // Normalize line endings
@@ -138,7 +138,7 @@ impl FenceTracker {
     }
 
     /// Feed the next line. Returns `true` if the line belongs to a fenced code
-    /// block — including the opening and closing fence lines themselves.
+    /// block: including the opening and closing fence lines themselves.
     pub fn observe(&mut self, line: &str) -> bool {
         let trimmed = line.trim();
         if let Some((fence_char, fence_len)) = self.open {
@@ -408,7 +408,7 @@ mod tests {
 
     #[test]
     fn test_explicit_slide_level() {
-        // Explicit @slide-level: 3 — H1, H2, and H3 all split
+        // Explicit @slide-level: 3: H1, H2, and H3 all split
         let body = "# Title\n\n## Part\n\n### Detail\n\nContent";
         let slides = split(body, Some(3));
         assert_eq!(slides.len(), 3, "Expected 3 slides, got {:?}", slides);
@@ -416,7 +416,7 @@ mod tests {
 
     #[test]
     fn test_explicit_slide_level_1() {
-        // Explicit @slide-level: 1 — only H1 splits, even with single H1
+        // Explicit @slide-level: 1: only H1 splits, even with single H1
         let body = "# Title\n\nSubtitle\n\n## Section\n\nContent";
         let slides = split(body, Some(1));
         assert_eq!(slides.len(), 1);

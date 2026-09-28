@@ -40,9 +40,9 @@ impl RoutingGraph {
             .collect();
 
         // In doubled coordinates:
-        // Cell centers: (col*2, row*2) — both even
-        // Junctions: one odd, one even — e.g., (col*2+1, row*2) or (col*2, row*2+1)
-        // Street intersections: both odd — e.g., (col*2+1, row*2+1)
+        // Cell centers: (col*2, row*2): both even
+        // Junctions: one odd, one even: e.g., (col*2+1, row*2) or (col*2, row*2+1)
+        // Street intersections: both odd: e.g., (col*2+1, row*2+1)
         //
         // The grid spans from (min_col, min_row) to (max_col, max_row) in cell centers.
         // Boundary streets are at col = min_col - 0.5 and max_col + 0.5,

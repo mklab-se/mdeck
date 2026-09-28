@@ -125,7 +125,7 @@ impl Config {
             std::fs::create_dir_all(parent)?;
         }
         let yaml = serde_norway::to_string(self)?;
-        let contents = format!("# MDeck configuration — https://github.com/mklab-se/mdeck\n{yaml}");
+        let contents = format!("# MDeck configuration: https://github.com/mklab-se/mdeck\n{yaml}");
         std::fs::write(path, contents)?;
         Ok(())
     }

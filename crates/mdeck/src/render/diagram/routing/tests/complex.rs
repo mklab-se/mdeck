@@ -213,7 +213,7 @@ fn linear_chain_5_nodes() {
     let output = route_all_edges(&nodes, &edges, &config(3, 3));
     assert_all_success(&output);
     let route = get_route(&output, 0);
-    // Must route around B, C, D — can't go through occupied cells.
+    // Must route around B, C, D: can't go through occupied cells.
     assert!(route.complexity.length > 4.0);
 }
 
@@ -253,7 +253,7 @@ fn route_with_wide_gap() {
 
 #[test]
 fn many_edges_same_pair() {
-    // 3 edges between same pair of nodes — must use different lanes.
+    // 3 edges between same pair of nodes: must use different lanes.
     let nodes = vec![node("A", 1, 1), node("B", 2, 1)];
     let edges = vec![edge("A", "B"), edge("A", "B"), edge("A", "B")];
     let output = route_all_edges(&nodes, &edges, &config(5, 5));

@@ -55,7 +55,7 @@ impl LaneOccupancy {
     /// endpoints. Detects two types of crossings:
     ///
     /// 1. **Pass-through**: perpendicular claimed segments on BOTH sides of a
-    ///    node — a route goes straight through, always a crossing regardless of
+    ///    node: a route goes straight through, always a crossing regardless of
     ///    lane.
     ///
     /// 2. **Turn conflict**: perpendicular claimed segment on ONE side only

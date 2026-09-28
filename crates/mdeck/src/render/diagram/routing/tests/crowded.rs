@@ -18,7 +18,7 @@ fn lane_capacity_1_two_edges() {
 
 #[test]
 fn progressive_lane_filling() {
-    // With capacity 3, route 3 edges on same segment — each uses a different lane.
+    // With capacity 3, route 3 edges on same segment: each uses a different lane.
     let nodes = vec![node("A", 1, 1), node("B", 2, 1)];
     let edges = vec![edge("A", "B"), edge("A", "B"), edge("A", "B")];
     let output = route_all_edges(&nodes, &edges, &config(3, 3));

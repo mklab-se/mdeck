@@ -9,7 +9,7 @@ use super::types::{
     CostWeights, Direction, GridCoord, Lane, Route, RouteComplexity, SegmentId, Waypoint,
 };
 
-/// State key for the visited set — identifies a unique search state.
+/// State key for the visited set: identifies a unique search state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct StateKey {
     coord: GridCoord,

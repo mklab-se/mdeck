@@ -26,7 +26,7 @@ impl PresentationApp {
             hint_color,
         );
 
-        // "The End" centered — large enough to read from distance
+        // "The End" centered: large enough to read from distance
         let title_color = egui::Color32::from_gray(220);
         let galley = ui.painter().layout_no_wrap(
             "The End".to_string(),

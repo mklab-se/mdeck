@@ -27,7 +27,7 @@ impl PresentationApp {
             return;
         }
 
-        // On last real slide — transition to end slide
+        // On last real slide: transition to end slide
         if idx >= self.slide_count().saturating_sub(1) {
             self.views[idx].reset_scroll();
             self.mode = AppMode::Presentation { end: true };

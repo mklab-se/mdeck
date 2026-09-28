@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 /// Human-readable shortcut table: (keys, description).
 ///
-/// Keep this in sync with [`map_key`] — a unit test checks that every key
+/// Keep this in sync with [`map_key`]: a unit test checks that every key
 /// mentioned here actually maps to an action.
 pub const SHORTCUTS: &[(&str, &str)] = &[
     ("Space/N/→/PgDn/Enter", "Next slide / reveal"),
@@ -208,7 +208,7 @@ pub fn scroll_target_to_show(
 pub enum MonitorMoveOutcome {
     /// The window ended up on the requested monitor.
     Landed,
-    /// No monitor there — wrap around to the primary monitor at the origin.
+    /// No monitor there: wrap around to the primary monitor at the origin.
     Wrap,
     /// Already at the origin (or wrap attempted): there is no other monitor.
     Failed,
@@ -256,7 +256,7 @@ pub fn shortcut_card() -> String {
     out
 }
 
-/// Pad to `width` characters (not bytes — the table contains arrows).
+/// Pad to `width` characters (not bytes: the table contains arrows).
 fn pad(s: &str, width: usize) -> String {
     let len = s.chars().count();
     let mut out = s.to_string();
@@ -382,7 +382,7 @@ mod tests {
         let t0 = Instant::now();
         assert!(!dt.tap(t0));
         assert!(dt.tap(t0 + Duration::from_millis(500)));
-        // A completed double tap resets — the next tap starts over
+        // A completed double tap resets: the next tap starts over
         assert!(!dt.tap(t0 + Duration::from_millis(600)));
     }
 

@@ -149,7 +149,7 @@ impl PresentationApp {
         let overflow = content_height - available_height;
 
         if overflow <= 0.0 {
-            // No overflow — render normally, reset scroll
+            // No overflow: render normally, reset scroll
             self.views[idx].reset_scroll();
             self.pending_reveal_scroll = false;
             self.draw_presentation(ui, ctx, rect, scale);
@@ -409,7 +409,7 @@ impl PresentationApp {
         ui.painter()
             .galley(counter_pos, counter_galley, counter_color);
 
-        // FPS overlay — presenter-only, shown with the HUD (H) so the audience never sees it
+        // FPS overlay: presenter-only, shown with the HUD (H) so the audience never sees it
         if !self.show_hud {
             return;
         }

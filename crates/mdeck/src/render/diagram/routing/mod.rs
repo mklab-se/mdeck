@@ -22,9 +22,9 @@ use types::{DiagramEdge, DiagramNode, GridCoord, RouteResult, RoutingConfig, Rou
 /// is parallelized across 4 initial directions via rayon.
 ///
 /// # Arguments
-/// * `nodes` — Diagram nodes with names and grid positions.
-/// * `edges` — Diagram edges connecting nodes by name.
-/// * `config` — Routing configuration (lane capacities).
+/// * `nodes`: Diagram nodes with names and grid positions.
+/// * `edges`: Diagram edges connecting nodes by name.
+/// * `config`: Routing configuration (lane capacities).
 ///
 /// # Returns
 /// A `RoutingOutput` with a result for each edge.

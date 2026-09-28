@@ -624,7 +624,7 @@ mod tests {
     fn find_matching_slide_edited_stays_at_index() {
         let old_raw = "old content";
         let new_slides = vec![slide("a"), slide("new content"), slide("c")];
-        // Old raw doesn't match any new slide — clamp to old index
+        // Old raw doesn't match any new slide: clamp to old index
         assert_eq!(find_matching_slide(Some(old_raw), 1, &new_slides), 1);
     }
 

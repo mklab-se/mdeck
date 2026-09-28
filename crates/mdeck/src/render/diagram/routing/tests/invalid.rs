@@ -89,7 +89,7 @@ fn mixed_success_and_failure() {
 
 #[test]
 fn duplicate_node_names() {
-    // Two nodes with same name — last one wins in the HashMap.
+    // Two nodes with same name: last one wins in the HashMap.
     let nodes = vec![node("A", 1, 1), node("A", 2, 2), node("B", 3, 3)];
     let edges = vec![edge("A", "B")];
     let output = route_all_edges(&nodes, &edges, &config(3, 3));
@@ -98,7 +98,7 @@ fn duplicate_node_names() {
 
 #[test]
 fn zero_h_capacity() {
-    // Zero horizontal lane capacity — edges can still use vertical lanes.
+    // Zero horizontal lane capacity: edges can still use vertical lanes.
     let nodes = vec![node("A", 1, 1), node("B", 1, 2)];
     let edges = vec![edge("A", "B")];
     let output = route_all_edges(&nodes, &edges, &config(0, 3));
@@ -108,7 +108,7 @@ fn zero_h_capacity() {
 
 #[test]
 fn zero_v_capacity() {
-    // Zero vertical lane capacity — edges can still use horizontal lanes.
+    // Zero vertical lane capacity: edges can still use horizontal lanes.
     let nodes = vec![node("A", 1, 1), node("B", 2, 1)];
     let edges = vec![edge("A", "B")];
     let output = route_all_edges(&nodes, &edges, &config(3, 0));
@@ -117,7 +117,7 @@ fn zero_v_capacity() {
 
 #[test]
 fn zero_both_capacities() {
-    // Zero capacity in both directions — no route possible (except self-edge).
+    // Zero capacity in both directions: no route possible (except self-edge).
     let nodes = vec![node("A", 1, 1), node("B", 2, 1)];
     let edges = vec![edge("A", "B")];
     let output = route_all_edges(&nodes, &edges, &config(0, 0));

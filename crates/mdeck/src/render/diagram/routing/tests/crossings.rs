@@ -293,7 +293,7 @@ fn count_crossings_no_perpendicular_at_non_intersection() {
     );
     occ.claim(seg_at_junction, 0);
 
-    // Another horizontal segment sharing endpoint (1,0) — parallel, not perpendicular
+    // Another horizontal segment sharing endpoint (1,0): parallel, not perpendicular
     let seg = SegmentId::new(
         GridCoord { col2: 1, row2: 0 },
         GridCoord { col2: 2, row2: 0 },
@@ -461,7 +461,7 @@ fn turn_conflict_vertical_segment_from_left() {
 #[test]
 fn turn_conflict_pass_through_always_detects() {
     // When both sides are claimed (pass-through), crossing is detected
-    // regardless of lane — even lane 0.
+    // regardless of lane: even lane 0.
     let mut occ = LaneOccupancy::new();
 
     let v_above = SegmentId::new(
@@ -490,7 +490,7 @@ fn turn_conflict_pass_through_always_detects() {
 fn hub_node_crossings_not_counted_in_routing() {
     // Routes converging at a hub node should not count as crossings.
     // A(1,2) enters API(2,2) from the west, B(2,1) enters API from the north.
-    // A third route C(2,3) exits API going south — this should NOT count
+    // A third route C(2,3) exits API going south: this should NOT count
     // crossings at the API center where the first two routes also pass through.
     let nodes = vec![
         node("A", 1, 2),
@@ -563,7 +563,7 @@ fn crossing_avoidance_simple() {
 fn crossing_avoidance_perpendicular_edges() {
     // A(1,1) B(3,1) on top row, C(2,1) in between.
     // D(2,0) above, E(2,2) below.
-    // Wait — this test needs nodes positioned so that a horizontal edge and vertical edge
+    // Wait: this test needs nodes positioned so that a horizontal edge and vertical edge
     // would naturally cross at an intersection.
     //
     // Grid layout (3x3):
@@ -952,7 +952,7 @@ fn hub_and_spoke_diagram_routes() {
         "validates should exit API on lane +1 (south of center)"
     );
 
-    // Verify path goes through (1,2) — west from API, then south to Auth.
+    // Verify path goes through (1,2): west from API, then south to Auth.
     let validates_coords: Vec<(f64, f64)> = validates_route
         .waypoints
         .iter()
@@ -962,7 +962,7 @@ fn hub_and_spoke_diagram_routes() {
     assert_eq!(validates_coords.last(), Some(&(1.0, 3.0)), "ends at Auth");
     assert!(
         validates_coords.contains(&(1.0, 2.0)),
-        "validates should pass through (1,2) — the turn point. Got: {:?}",
+        "validates should pass through (1,2): the turn point. Got: {:?}",
         validates_coords
     );
 
@@ -992,7 +992,7 @@ fn hub_and_spoke_diagram_routes() {
         "queries should exit API on lane +1 (south of center)"
     );
 
-    // Verify path goes through (3,2) — east from API, then south to DB.
+    // Verify path goes through (3,2): east from API, then south to DB.
     let queries_coords: Vec<(f64, f64)> = queries_route
         .waypoints
         .iter()
@@ -1002,7 +1002,7 @@ fn hub_and_spoke_diagram_routes() {
     assert_eq!(queries_coords.last(), Some(&(3.0, 3.0)), "ends at DB");
     assert!(
         queries_coords.contains(&(3.0, 2.0)),
-        "queries should pass through (3,2) — the turn point. Got: {:?}",
+        "queries should pass through (3,2): the turn point. Got: {:?}",
         queries_coords
     );
 
