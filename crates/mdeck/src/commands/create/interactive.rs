@@ -24,7 +24,7 @@ pub async fn run_interactive_chat(
 
     let mut history: Vec<ailloy::Message> =
         vec![ailloy::Message::system(INTERACTIVE_SYSTEM_PROMPT)];
-    history.push(ailloy::Message::user(&opening_message(
+    history.push(ailloy::Message::user(opening_message(
         content,
         initial_prompt,
     )));

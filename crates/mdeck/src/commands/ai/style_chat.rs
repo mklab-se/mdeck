@@ -213,7 +213,7 @@ pub(super) async fn run_interactive_style(name: Option<String>, icon: bool) -> R
     let client = ailloy::Client::for_capability("chat")?;
 
     let mut history: Vec<ailloy::Message> = vec![ailloy::Message::system(STYLE_SYSTEM_PROMPT)];
-    history.push(ailloy::Message::user(&greeting(name.as_deref(), icon)));
+    history.push(ailloy::Message::user(greeting(name.as_deref(), icon)));
 
     eprintln!();
     let response = stream_chat_response(&client, &history).await?;
