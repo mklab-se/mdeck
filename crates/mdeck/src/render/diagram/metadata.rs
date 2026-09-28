@@ -106,8 +106,9 @@ fn extract_prompt(meta_str: &str, prompt: &mut Option<String>) -> String {
 
     if let Some(end) = rest.find(quote_char) {
         *prompt = Some(rest[..end].to_string());
-        // Remove the prompt portion from the metadata string
-        let prompt_end = prefix + "prompt:".len() + (after_colon.len() - rest.len()) + end + 1;
+        // Remove the prompt portion from the metadata string. `rest` is a
+        // suffix of `meta_str`, which places the closing quote exactly.
+        let prompt_end = meta_str.len() - rest.len() + end + 1;
         let mut result = meta_str[..prefix].to_string();
         if prompt_end < meta_str.len() {
             result.push_str(&meta_str[prompt_end..]);
@@ -156,6 +157,16 @@ mod tests {
         let rest = extract_prompt("icon: x, prompt:'a, b', pos: 1,2", &mut prompt);
         assert_eq!(prompt.as_deref(), Some("a, b"));
         assert_eq!(rest, "icon: x, , pos: 1,2");
+
+        // A space after the colon (and `prompt :`) must not leave the
+        // closing quote behind.
+        let mut prompt = None;
+        let rest = extract_prompt("icon: x, prompt: 'a b', pos: 1,2", &mut prompt);
+        assert_eq!(prompt.as_deref(), Some("a b"));
+        assert_eq!(rest, "icon: x, , pos: 1,2");
+        let rest = extract_prompt("prompt :  \"c\", pos: 1,2", &mut prompt);
+        assert_eq!(prompt.as_deref(), Some("c"));
+        assert_eq!(rest, ", pos: 1,2");
 
         // An unquoted or unterminated prompt is left alone
         let mut prompt = None;

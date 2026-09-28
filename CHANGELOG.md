@@ -13,6 +13,10 @@ All notable changes to this project will be documented in this file.
 - `mdeck ai create` reads visualization opportunities with a JSON parser, so `\u00e5`-style
   escapes and quotes inside values come through intact.
 - Error messages show their cause: "AI request failed" now says why it failed.
+- Diagram nodes with a space after `prompt:` (`prompt: 'a server rack'`) no longer leave the
+  closing quote in the rest of the node's metadata.
+- Diagram routing falls back to three lanes per corridor when no node could be measured, instead
+  of treating the corridor as unlimited.
 
 ### Changed
 

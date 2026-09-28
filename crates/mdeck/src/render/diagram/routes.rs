@@ -200,16 +200,16 @@ fn lane_capacity(
     lane_spacing: f32,
     gap: impl Fn(&egui::Rect) -> f32,
 ) -> i32 {
-    let mut min_gap = f32::MAX;
-    for row in 0..grid.rows {
-        for col in 0..grid.cols {
-            if let Some(rect) = find_rect_at(grid, node_rects, col, row) {
-                min_gap = min_gap.min(gap(&rect));
-            }
-        }
-    }
-    if !min_gap.is_finite() || min_gap <= 0.0 || lane_spacing <= 0.0 {
-        return 3; // sensible default
+    let min_gap = (0..grid.rows)
+        .flat_map(|row| (0..grid.cols).map(move |col| (col, row)))
+        .filter_map(|(col, row)| find_rect_at(grid, node_rects, col, row))
+        .map(|rect| gap(&rect))
+        .reduce(f32::min);
+    let Some(min_gap) = min_gap.filter(|g| g.is_finite() && *g > 0.0) else {
+        return 3; // nothing measured: a sensible default
+    };
+    if lane_spacing <= 0.0 {
+        return 3;
     }
     let capacity = (min_gap / lane_spacing).floor() as i32;
     capacity.max(1)
@@ -365,6 +365,16 @@ mod tests {
         assert_eq!(compute_v_capacity(&grid, &rects, 0.0), 3);
         // A gap narrower than one lane still leaves one
         assert_eq!(compute_v_capacity(&grid, &rects, 100.0), 1);
+    }
+
+    #[test]
+    fn capacity_defaults_when_no_node_is_measured() {
+        // Occupied cells whose nodes have no rect: nothing to measure a gap
+        // from, so the default applies (it used to be i32::MAX lanes).
+        let grid = two_by_two(&[(0, 0), (1, 1)]);
+        let rects = HashMap::new();
+        assert_eq!(compute_h_capacity(&grid, &rects, 20.0), 3);
+        assert_eq!(compute_v_capacity(&grid, &rects, 20.0), 3);
     }
 
     #[test]
