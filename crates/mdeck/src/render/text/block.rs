@@ -163,19 +163,13 @@ pub fn draw_block(cx: &BlockCx, block: &Block, pos: Pos2, max_width: f32) -> f32
             path,
             directives,
         } => draw_image(cx, path, alt, directives, pos, max_width),
-        Block::Diagram { content } => draw_diagram_sized(
-            cx.ui,
-            content,
-            cx.theme,
-            pos,
-            max_width,
-            0.0,
-            cx.opacity,
-            cx.image_cache,
-            cx.reveal_step,
-            None,
-            cx.scale,
-        ),
+        Block::Diagram { content } => {
+            let cx = BlockCx {
+                reveal_timestamp: None,
+                ..*cx
+            };
+            draw_diagram_sized(&cx, content, pos, max_width, 0.0)
+        }
         Block::Chart { kind, content } => {
             let viz = VizCtx {
                 reveal_timestamp: None,

@@ -45,17 +45,11 @@ pub fn render(cx: &BlockCx, slide: &Slide, rect: egui::Rect) {
         let remaining_height = rect.bottom() - y - padding;
         if remaining_height > 50.0 * scale {
             diagram::draw_diagram_sized(
-                ui,
+                cx,
                 content,
-                theme,
                 Pos2::new(content_left, y),
                 content_width,
                 remaining_height,
-                cx.opacity,
-                cx.image_cache,
-                cx.reveal_step,
-                cx.reveal_timestamp,
-                scale,
             );
         }
     }
