@@ -275,16 +275,17 @@ A slide with both an illustration and a story keeps the story (`--check`
 warns). Letting an illustration stand as a silent backdrop behind a cast, or
 enter on a beat, would remove the either/or.
 
-### 6.x More engines and a modular engine interface (L, needs a decision, #16)
+### 6.x More engines and a modular engine interface (L, decided, #16)
 Split-flap board, LED array, laser etching and falling blocks, plus a documented
-engine interface. Plan (on the issue): separate the engine-neutral intent (a
-`Stage`: illustration cloud, glyph masks, hints, beats) from painting, put
-`Plain` and `Particles` behind an `Engine` trait with `Capabilities`
-(native / degraded / unsupported, used for fallbacks and `--check`), guarded by
-pixel-identical golden exports. Then LED array first (validates the interface),
-a contributor guide, split-flap (the capability test), laser and blocks, and
-crates only once the trait is stable. Decisions needed: module boundary before
-crates, per-deck `@engine`, split-flap text rules, showcase theme names.
+engine interface. Decided (2026-09-28, plan on the issue): a module boundary
+first (`src/engines/<name>/`, an `Engine` trait over an engine-neutral `Stage`,
+`Capabilities`, a registry), crates maybe later. The theme sets the engine and
+`@engine` in the frontmatter overrides it, with `--check` and startup feedback
+for content an engine cannot show. The split-flap board is the whole slide:
+all text on a fixed grid, flap transitions, `--check` warns on overflow, no
+typeset fallback. One showcase theme per engine: `marquee`, `departures`,
+`etch`, `stack`. Order: refactor with golden exports, LED, contributor guide,
+split-flap, laser and blocks.
 
 ## 7. Documentation and onboarding
 
