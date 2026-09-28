@@ -275,6 +275,15 @@ A slide with both an illustration and a story keeps the story (`--check`
 warns). Letting an illustration stand as a silent backdrop behind a cast, or
 enter on a beat, would remove the either/or.
 
+### 6.x Art-driven engines: sketch, blueprint, chalkboard, watercolour, darkroom (L, proposed, #17)
+Illustrations generated per deck with the configured AI (`@art`, `mdeck ai art`,
+cached next to the deck like stories) and drawn onto the slide as it opens.
+Line art (medium-neutral, rendered by blueprint, chalkboard and pencil in theme
+colours) and tonal art (sketchbook hatching, watercolour, photographs). A
+`page:` theme block for paper surfaces, style cards per medium, a time-map
+reveal shader. Every medium works without AI. Experiments and plan on the issue;
+blueprint first, then sketch, chalkboard, watercolour and darkroom.
+
 ## 7. Documentation and onboarding
 
 - Generate the keyboard-shortcut table for the HUD, README, spec and
