@@ -122,6 +122,7 @@ mod tests {
             story: None,
             story_version: 0,
             figure: Some(figure),
+            art: None,
             hints: &[],
             hints_key: 0,
             deck_title: None,

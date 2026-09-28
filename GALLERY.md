@@ -127,11 +127,28 @@ On a title slide the stack stands dim behind the copy.
 
 <img src="media/gallery/stack-title.jpg" width="720">
 
+### Blueprint
+
+The first art engine, `blueprint`, and its theme: each slide gets line art
+generated for it (`mdeck ai art`), inked onto a Prussian blue sheet.
+Mid-drawing, construction lines run ahead of the ink under the drafting
+machine's crosshair:
+
+<img src="media/gallery/blueprint-drawing.jpg" width="720">
+
+and the finished sheet, with its dimension lines and title block:
+
+<img src="media/gallery/blueprint-sheet.jpg" width="720">
+
+On a title slide the drawing stands dim behind the copy.
+
+<img src="media/gallery/blueprint-title.jpg" width="720">
+
 ---
 
 ## Themes
 
-Twelve built-in themes, all written as theme files, and your own in a few lines
+Thirteen built-in themes, all written as theme files, and your own in a few lines
 of YAML (spec section 9.4). These stills are from `samples/themes/`.
 
 ### The four seasons

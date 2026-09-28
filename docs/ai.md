@@ -56,6 +56,25 @@ Diagram nodes can request their own icons:
 - Gateway (icon: generate-image, prompt: "An API gateway router")
 ```
 
+## Draw a picture for every slide
+
+On an art engine (`blueprint`, see [Engines](engines.md#art-engines-a-drawing-made-for-every-slide)),
+each slide gets a picture made for it, drawn in as the slide opens:
+
+```bash
+mdeck ai art talk.md               # every slide that takes art and has none
+mdeck ai art talk.md --dry-run     # list the slides and where each scene comes from
+mdeck ai art talk.md --stale       # redraw the slides you edited since
+mdeck ai art talk.md --slide 4     # redraw one
+mdeck ai art talk.md --node microsoft-foundry/gpt-image-2   # another image node
+```
+
+`@art:` in the frontmatter is the deck's world and under a slide's heading
+that slide's scene; otherwise the chat model writes the scene from the
+slide's copy and notes. Pictures are made four at a time (about 20 seconds
+each), kept in `art/` next to the deck, and recorded in `talk.art.yaml`. A
+theme's `art:` block can set the house style ([Themes](themes.md#pages-and-art)).
+
 ## AI agents
 
 `mdeck ai skill` prints a setup guide for coding agents such as Claude Code;

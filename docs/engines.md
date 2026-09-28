@@ -8,7 +8,7 @@ like itself on every engine, and any deck switches with one line:
 
 ```yaml
 ---
-@engine: led        # plain, particles, led, splitflap, laser or blocks
+@engine: led        # plain, particles, led, splitflap, laser, blocks or blueprint
 ---
 ```
 
@@ -100,6 +100,58 @@ next slide clears the stack like a completed line.
   <img src="../media/gallery/etch-beam.jpg" width="45%">&nbsp;&nbsp;
   <img src="../media/gallery/stack-falling.jpg" width="45%">
 </p>
+
+## Art engines: a drawing made for every slide
+
+The engines above draw what is already there. **Art engines** draw a picture
+made for each slide by the image model you configured, and draw it in as the
+slide opens. You write a slide about a harbour bridge, and a draughtsman
+inks one onto the sheet.
+
+**Blueprint** (`blueprint`, theme `blueprint`). Every slide is a Prussian
+blue drawing sheet on a drafting table: a fine grid, a ruled border, a title
+block with the deck's title and the sheet number. The slide's line art is
+inked the way a draughtsman works: faint construction lines run ahead, the
+ink follows stroke by stroke under the crosshair of a drafting machine, and
+dimension lines are ruled around the finished drawing. On a title slide the
+drawing sits large and dim behind the title.
+
+<p align="center">
+  <img src="../media/gallery/blueprint-drawing.jpg" width="45%">&nbsp;&nbsp;
+  <img src="../media/gallery/blueprint-title.jpg" width="45%">
+</p>
+
+**Making the art** is one command, and it only runs when you ask:
+
+```bash
+mdeck ai art talk.md            # a picture for every slide that takes one
+mdeck ai art talk.md --dry-run  # which slides, and where each scene comes from
+mdeck ai art talk.md --slide 4  # redraw one
+```
+
+Say what a slide's picture shows with `@art:` under its heading, or let the
+chat model write the scene from the slide's copy and notes. `@art:` in the
+frontmatter sets the deck's world (setting, era, recurring characters), and
+`@art: none` keeps a slide free of art. Pictures never contain text, and
+only slides with room beside or behind the copy get one:
+
+```markdown
+---
+@theme: blueprint
+@art: A Victorian harbour town where a small team builds modern machines.
+---
+
+# The Harbour Bridge
+@art: A great iron suspension bridge under construction across a harbour.
+```
+
+The pictures go in `art/` next to the deck and `talk.art.yaml` records which
+slide each belongs to. Presenting never calls the AI: no waiting, no cost,
+and it works offline. Edit a slide and its picture goes stale (still shown,
+and `mdeck talk.md --check` says so; `mdeck ai art talk.md --stale` redraws
+those). Press `S` while presenting to draw the current slide's picture in
+the background. A slide without a picture still works: its `@illustration`
+is drawn with a technical pen.
 
 `mdeck talk.md --engine led` tries an engine without touching the deck, and
 `mdeck talk.md --check` lists anything the chosen engine does not show. Try

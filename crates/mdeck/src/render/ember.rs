@@ -1104,7 +1104,9 @@ pub fn measure_content_height(
 // Chrome
 // ---------------------------------------------------------------------------
 
-/// Counter and progress hairline, as on the site's talk decks.
+/// Counter and progress hairline, as on the site's talk decks. Engines
+/// that number their slides themselves (the blueprint's title block) leave
+/// the counter out.
 pub fn draw_chrome(
     painter: &egui::Painter,
     theme: &Theme,
@@ -1112,6 +1114,7 @@ pub fn draw_chrome(
     cx: &SlideContext,
     scale: f32,
 ) {
+    let counter = !theme.engine.numbers_slides();
     let (index, count) = (cx.index, cx.count);
     let size = 15.0 * scale;
     let font = egui::FontId::new(size, theme.mono_family());
@@ -1125,15 +1128,17 @@ pub fn draw_chrome(
     job.append(&format!("{:02}", index + 1), 0.0, fmt(theme.bright_text()));
     job.append(&format!(" · {:02}", count), 0.0, fmt(theme.muted));
     let galley = painter.layout_job(job);
-    crate::render::math::galley(
-        painter,
-        Pos2::new(
-            rect.right() - 32.0 * scale - galley.rect.width(),
-            rect.bottom() - 26.0 * scale - galley.rect.height(),
-        ),
-        galley,
-        theme.muted,
-    );
+    if counter {
+        crate::render::math::galley(
+            painter,
+            Pos2::new(
+                rect.right() - 32.0 * scale - galley.rect.width(),
+                rect.bottom() - 26.0 * scale - galley.rect.height(),
+            ),
+            galley,
+            theme.muted,
+        );
+    }
 
     // beat ticks: how many steps this slide still has in it
     if let Some((cur, total)) = cx.beats
@@ -1241,6 +1246,7 @@ mod tests {
             scene_script: None,
             illustration: None,
             logo: None,
+            art: None,
         };
         assert!(handles(&mk(Layout::Title, vec![])));
         assert!(handles(&mk(Layout::Bullet, vec![])));

@@ -40,6 +40,9 @@ pub struct PresentationMeta {
     pub logo_opacity: Option<String>,
     /// `@logo-height`: height in px on a 1920x1080 slide.
     pub logo_height: Option<String>,
+    /// `@art` in the frontmatter: the deck's world for generated art
+    /// (setting, era, recurring characters).
+    pub art: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -61,6 +64,26 @@ pub struct Slide {
     pub illustration: Option<String>,
     /// This slide's `@logo`: a PNG or SVG path, or `none` to hide the logo here.
     pub logo: Option<String>,
+    /// This slide's `@art`: the scene to draw, or `none` for no art here.
+    pub art: Option<String>,
+}
+
+impl Slide {
+    /// The plain text of the slide's first heading.
+    pub fn title(&self) -> Option<String> {
+        self.blocks.iter().find_map(|b| match b {
+            Block::Heading { inlines, .. } => Some(
+                inlines
+                    .iter()
+                    .filter_map(|i| match i {
+                        Inline::Text(s) => Some(s.as_str()),
+                        _ => None,
+                    })
+                    .collect::<String>(),
+            ),
+            _ => None,
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -226,7 +249,14 @@ pub enum Layout {
 
 /// Directives that apply to the slide they are written in. These are honoured
 /// anywhere at the top level of a slide, not only at its start.
-pub const SLIDE_DIRECTIVES: &[&str] = &["layout", "illustration", "logo", "background", "class"];
+pub const SLIDE_DIRECTIVES: &[&str] = &[
+    "layout",
+    "illustration",
+    "logo",
+    "art",
+    "background",
+    "class",
+];
 
 /// Directives that only mean something in the frontmatter. Written inside a
 /// slide they are removed from its content and ignored (`--check` says so).
@@ -279,6 +309,9 @@ pub fn parse(content: &str, _base_path: &Path) -> Presentation {
             let logo = directive(&directives, "logo")
                 .map(|v| v.trim().to_string())
                 .filter(|v| !v.is_empty());
+            let art = directive(&directives, "art")
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty());
             Slide {
                 directives,
                 blocks,
@@ -289,6 +322,7 @@ pub fn parse(content: &str, _base_path: &Path) -> Presentation {
                 scene_script,
                 illustration,
                 logo,
+                art,
             }
         })
         .collect();

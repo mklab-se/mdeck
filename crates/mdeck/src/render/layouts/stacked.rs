@@ -196,6 +196,7 @@ mod tests {
             scene_script: None,
             illustration: None,
             logo: None,
+            art: None,
         }
     }
 

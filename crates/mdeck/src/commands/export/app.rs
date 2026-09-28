@@ -81,6 +81,8 @@ pub(super) struct ExportApp {
     notes_theme: Theme,
     /// The logo on every slide page.
     logos: render::logo::Logos,
+    /// Generated art for the art engines.
+    art: render::art::gallery::DeckArt,
 }
 
 impl ExportApp {
@@ -135,8 +137,11 @@ impl ExportApp {
         for p in &problems {
             eprintln!("warning: theme: {p}");
         }
+        let mut art = render::art::gallery::DeckArt::new(Some(deck), false);
+        art.sync(&presentation, &theme);
         Self {
             logos,
+            art,
             presentation,
             theme,
             image_cache,
@@ -333,6 +338,9 @@ impl ExportApp {
             egui::vec2(self.width as f32, self.height as f32),
         );
         let scale = (rect.width() / 1920.0).min(rect.height() / 1080.0);
+        // A theme's page puts the slide on a sheet.
+        let rect = render::page::draw(ui.painter(), rect, &self.theme, scale);
+        let scale = (rect.width() / 1920.0).min(rect.height() / 1080.0);
 
         let idx = self.current_slide;
         if idx >= self.presentation.slides.len() {
@@ -356,11 +364,14 @@ impl ExportApp {
                 .map(|r| r.script.clone());
             let theme = self.theme.clone();
             let deck_title = self.presentation.meta.title.clone();
+            self.art.sync(&self.presentation, &theme);
+            let art = self.art.picture(idx);
             let shot = crate::engines::Shot {
                 rect,
                 slide: (!rehearsal.end).then_some(slide),
                 story: story.as_ref(),
                 story_version: 0,
+                art: art.as_ref(),
                 index: idx,
                 reveal,
                 end: rehearsal.end,

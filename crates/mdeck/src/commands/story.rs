@@ -79,21 +79,6 @@ fn slide_text(slide: &Slide) -> String {
     out
 }
 
-fn slide_title(slide: &Slide) -> Option<String> {
-    slide.blocks.iter().find_map(|b| match b {
-        Block::Heading { inlines, .. } => Some(
-            inlines
-                .iter()
-                .filter_map(|i| match i {
-                    Inline::Text(s) => Some(s.as_str()),
-                    _ => None,
-                })
-                .collect::<String>(),
-        ),
-        _ => None,
-    })
-}
-
 /// Build the user message for one slide.
 fn user_prompt(pres: &Presentation, index: usize, cast_so_far: &[String]) -> String {
     let slide = &pres.slides[index];
@@ -113,7 +98,7 @@ fn user_prompt(pres: &Presentation, index: usize, cast_so_far: &[String]) -> Str
                 "{}{}. {}",
                 if i == index { "> " } else { "  " },
                 i + 1,
-                slide_title(s).unwrap_or_else(|| "(untitled)".into())
+                s.title().unwrap_or_else(|| "(untitled)".into())
             )
         })
         .collect();
@@ -143,7 +128,7 @@ fn user_prompt(pres: &Presentation, index: usize, cast_so_far: &[String]) -> Str
 }
 
 /// Pull the JSON object out of a model reply that may wrap it in a fence.
-fn extract_json(reply: &str) -> &str {
+pub(crate) fn extract_json(reply: &str) -> &str {
     let t = reply.trim();
     let t = t
         .strip_prefix("```json")
@@ -276,7 +261,7 @@ fn upsert(sc: &mut Sidecar, pres: &Presentation, index: usize, script: Script) {
     let slide = &pres.slides[index];
     let entry = Entry {
         slide: index + 1,
-        title: slide_title(slide),
+        title: slide.title(),
         hash: sidecar::slide_hash(slide, pres.meta.story.as_deref()),
         generated: Some(timestamp()),
         pinned: false,
@@ -420,7 +405,7 @@ pub async fn run(
     let mut failures = 0usize;
     let mut lib = Library::for_deck(Some(base));
     for i in targets {
-        let title = slide_title(&pres.slides[i]).unwrap_or_default();
+        let title = pres.slides[i].title().unwrap_or_default();
         if !quiet {
             eprint!("  slide {:>2}  {:<40} ", i + 1, truncate(&title, 40));
         }

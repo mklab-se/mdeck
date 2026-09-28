@@ -8,7 +8,7 @@ use std::time::Instant;
 use eframe::egui;
 
 use super::masks::{glyph_mask, text_mask, trim_flag};
-use super::stage::{CountPhase, Figure, FrameCx, Mask, Moment, Stage, figure_box};
+use super::stage::{Art, CountPhase, Figure, FrameCx, Mask, Moment, Stage, figure_box};
 use super::{Engine, EngineKind};
 use crate::parser::Slide;
 use crate::render::hints::{self, Hint};
@@ -24,6 +24,8 @@ pub struct Shot<'a> {
     pub slide: Option<&'a Slide>,
     pub story: Option<&'a Script>,
     pub story_version: u64,
+    /// The slide's generated picture, when it has one and it is loaded.
+    pub art: Option<&'a std::sync::Arc<crate::render::art::prepare::Prepared>>,
     pub index: usize,
     pub reveal: usize,
     /// On the end slide.
@@ -205,6 +207,15 @@ impl Host {
         } else {
             None
         };
+        let art = if caps.art {
+            shot.slide.zip(shot.art).map(|(slide, picture)| Art {
+                place: figure_box(picture.aspect(), slide.layout, rect_aspect, title),
+                picture: picture.clone(),
+                backdrop: title,
+            })
+        } else {
+            None
+        };
         let stage = Stage {
             moment,
             index: shot.index,
@@ -214,6 +225,7 @@ impl Host {
             story: if caps.stories { shot.story } else { None },
             story_version: shot.story_version,
             figure,
+            art,
             hints: &self.hints,
             hints_key: self.hints_key,
             deck_title: shot.deck_title,

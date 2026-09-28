@@ -1,4 +1,5 @@
 pub mod ai;
+pub mod art;
 pub mod check;
 pub mod completion;
 pub mod config;

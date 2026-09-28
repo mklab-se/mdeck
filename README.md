@@ -6,7 +6,7 @@
 
 <p align="center">
   Write your talk in any markdown editor. MDeck turns it into slides that look amazing:<br>
-  laid out, animated and themed, with charts, diagrams, illustrations and six presentation engines.
+  laid out, animated and themed, with charts, diagrams, illustrations and seven presentation engines.
 </p>
 
 <p align="center">
@@ -41,6 +41,10 @@
   <tr>
     <td><img src="media/showcase/etch-gear.jpg" alt="A laser etching a gear"><br><sub><b>Laser</b>: a beam etches each illustration</sub></td>
     <td><img src="media/showcase/stack-gear.jpg" alt="A gear built from falling blocks"><br><sub><b>Falling blocks</b>: pictures built block by block</sub></td>
+  </tr>
+  <tr>
+    <td><img src="media/showcase/blueprint-why.jpg" alt="Generated line art inked onto a blueprint sheet"><br><sub><b>Blueprint</b>: a drawing made for every slide with <code>mdeck ai art</code></sub></td>
+    <td><img src="media/showcase/blueprint-title.jpg" alt="A title slide over a dim blueprint drawing of a ship launch"><br><sub>The title sheet, its drawing dim behind the copy</sub></td>
   </tr>
 </table>
 
@@ -139,17 +143,18 @@ updates every time you save.
 - **Charts and diagrams from text.** Seventeen visualizations, from bar charts
   to Gantt charts and routed architecture diagrams, all animated.
   [Visualizations](docs/visualizations.md)
-- **Twelve themes, and yours.** Your brand in a few lines of YAML, or converted
+- **Thirteen themes, and yours.** Your brand in a few lines of YAML, or converted
   from your design system. [Themes](docs/themes.md)
-- **Six engines.** A particle field, an LED wall, a departure board, a laser,
-  falling blocks, or a clean flat page: one line switches.
-  [Engines](docs/engines.md)
+- **Seven engines.** A particle field, an LED wall, a departure board, a laser,
+  falling blocks, a blueprint that inks a drawing made for every slide, or a
+  clean flat page: one line switches. [Engines](docs/engines.md)
 - **A real presenter tool.** Transitions, grid overview, pen and arrows,
   speaker notes, multiple monitors, clickers. [Presenting](docs/presenting.md)
 - **Pixel-perfect export.** PNG at any resolution, and PDF with or without
   speaker notes. [Export](docs/export.md)
 - **AI when you want it.** A full deck from a PDF, a document or one sentence;
-  images and icons in your own style. [AI features](docs/ai.md)
+  images and icons in your own style; a drawing made for every slide, generated
+  once and presented offline. [AI features](docs/ai.md)
 - **One fast binary.** Written in Rust, GPU rendered, 60 fps, no runtime
   dependencies.
 
@@ -167,7 +172,7 @@ updates every time you save.
 | [Engines](docs/engines.md) | Ember's particles, stories and illustrations, and the other engines |
 | [Presenting](docs/presenting.md) | Keys, mouse, start options |
 | [Export](docs/export.md) | PNG and PDF |
-| [AI features](docs/ai.md) | Decks from documents, image generation, AI agents |
+| [AI features](docs/ai.md) | Decks from documents, image generation, art for every slide, AI agents |
 | [Commands](docs/commands.md) | Every command and flag |
 | [Gallery](GALLERY.md) | Every layout, visualization, theme and engine as exported slides |
 | [Format specification](crates/mdeck/doc/mdeck-spec.md) | The complete reference (also `mdeck spec`) |

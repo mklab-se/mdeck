@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Art engines** ([#17](https://github.com/mklab-se/mdeck/issues/17)): engines that draw a
+  picture generated for each slide with the configured image model, drawn in as the slide
+  opens. The first is the **blueprint engine** and its `blueprint` theme: every slide is a
+  Prussian blue drawing sheet on a drafting table, with a grid, a ruled border and a title
+  block carrying the deck's title and the sheet number. The slide's line art is inked the way
+  a draughtsman works: construction lines run ahead, the ink follows stroke by stroke under a
+  drafting machine's crosshair, and dimension lines are ruled around the finished drawing.
+  Without art, the slide's `@illustration` is drawn with a technical pen, as are the countdown
+  and the end words. Sample `samples/engines/blueprint.md`.
+- `mdeck ai art talk.md` draws the pictures (`--slide`, `--stale`, `--force`, `--dry-run`,
+  `--engine`, `--node`), four at a time with retries. `@art:` in the frontmatter sets the
+  deck's world, under a slide's heading its scene (otherwise the chat model writes one from
+  the copy and notes), and `@art: none` skips a slide. Pictures go in `art/` next to the deck
+  and `talk.art.yaml` records them by slide hash and style, with `pinned: true` to keep one.
+  Presenting never calls the AI. `S` while presenting draws the current slide's picture in
+  the background.
+- `mdeck --check` names slides without a picture and stale pictures (`art` category), and
+  presenting prints one line when a deck on an art engine lacks art. An `@art` scene on an
+  engine that draws no art is reported under `engine`.
+- Themes gain a `page:` block (the slide as a sheet on a surface, with shadow and paper grain,
+  on any engine) and an `art:` block (the kind, style prompt and style swatches of generated
+  art).
+
+### Changed
+
+- `S` does AI for the current slide on either kind of engine: a story on the particles
+  engine, a picture on an art engine.
+
 ## [1.11.1] - 2026-09-28
 
 ### Added

@@ -20,6 +20,8 @@ pub enum CheckCategory {
     Directive,
     /// Content the deck's engine does not show, and `@engine` problems.
     Engine,
+    /// Generated art for the art engines: missing, stale, unreadable.
+    Art,
 }
 
 impl fmt::Display for CheckCategory {
@@ -33,6 +35,7 @@ impl fmt::Display for CheckCategory {
             CheckCategory::Theme => write!(f, "theme"),
             CheckCategory::Directive => write!(f, "directive"),
             CheckCategory::Engine => write!(f, "engine"),
+            CheckCategory::Art => write!(f, "art"),
         }
     }
 }

@@ -8,10 +8,11 @@ line of frontmatter, or write your own in a few lines of YAML.
 
 ## Built-in themes and transitions
 
-Twelve built-in themes: **light**, **dark**, **nord**, **ember**, four
+Thirteen built-in themes: **light**, **dark**, **nord**, **ember**, four
 seasons, **spring**, **summer**, **autumn** and **winter**, and a showcase
 theme for each engine, **marquee** (LED), **departures** (split-flap),
-**etch** (laser) and **stack** (blocks). Transitions are
+**etch** (laser), **stack** (blocks) and **blueprint** (generated line art on
+a drafting sheet). Transitions are
 **slide**, **fade**, **spatial**, and **none**. Set them in the frontmatter or
 cycle them live with `Shift+T` and `T`. Every theme draws symbols (①, ✓, →) from
 bundled fallback faces, and Chinese, Japanese and Korean from a font on your
@@ -59,8 +60,32 @@ run code. Custom themes work everywhere a built-in one does: presenting,
 `Shift+T`, PNG and PDF export, and `--check`.
 
 **Engines.** The engine is what a theme does beyond colours and type: the
-particle field, the LED wall, the departure board, the laser or the falling
-blocks. See [Engines](engines.md).
+particle field, the LED wall, the departure board, the laser, the falling
+blocks or a blueprint's generated drawings. See [Engines](engines.md).
+
+## Pages and art
+
+A `page:` block lays every slide on a sheet with a surface around it: paper
+on a desk, a blueprint on a drafting table. It works on every engine.
+
+```yaml
+page:
+  surface: "#0a1b33"     # around the sheet
+  margin: 26             # px on a 1920x1080 slide
+  shadow: 0.7            # 0 to 1
+  grain: 0.25            # paper fibre, 0 to 1
+  radius: 2
+```
+
+On an art engine, an `art:` block sets the house style of the generated
+pictures, so a brand's illustration style is theme data like its colours:
+
+```yaml
+art:
+  kind: line             # line (ink the engine draws) or tonal (a finished picture)
+  style: "detailed graphite and ink, cross-hatching, old craft meets modern technology"
+  references: [refs/teacup.jpg, refs/street.jpg]   # your own style swatches
+```
 
 ## Logos
 

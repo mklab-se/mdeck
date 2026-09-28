@@ -1,0 +1,48 @@
+# Blueprint: a draftsman's sheet. Prussian blue with a fine grid, a ruled
+# border and a title block; each slide's generated line art is inked in
+# pale blue-white, construction lines first (blueprint engine). Make the
+# art with `mdeck ai art`; without it, `@illustration` point clouds are
+# drawn as technical pen lines.
+name: Blueprint
+extends: dark
+engine: blueprint
+countdown: burst
+colors:
+  background: "#123a6e"      # Prussian blue
+  text: "#d4e3f7"
+  heading: "#f4f8ff"         # the ink
+  muted: "#8fb0d9"
+  rule: "#8fb4e3"            # grid and construction lines
+  accent: "#ffd166"          # a yellow pencil mark
+  accent-soft: "#bcd6f5"
+  secondary: "#9fe0ff"
+  code-background: "#0e2f5a"
+  code-text: "#e3edfb"
+  positive: "#8fe3b0"
+  negative: "#ff9b8a"
+  series:
+    - "#f4f8ff" # ink
+    - "#ffd166" # pencil
+    - "#9fe0ff" # cyan
+    - "#ff9b8a" # red pencil
+    - "#8fe3b0" # green
+    - "#c3b5ff" # violet
+    - "#8fb0d9" # pale blue
+    - "#ffb3d1" # pink
+particles:
+  light: "#ffffff"           # the pen's glint
+  cool: "#bcd6f5"
+fonts:
+  display: hanken-light
+  body: hanken-regular
+  lead: hanken-light
+  strong: hanken-medium
+  mono: jetbrains-mono
+sizes: { h1: 96, h2: 68, h3: 46, body: 36, code: 28 }
+text: { line-height: 1.45 }
+page:                        # the sheet on a drafting table
+  surface: "#0a1b33"
+  margin: 26
+  shadow: 0.7
+  grain: 0.25
+  radius: 2

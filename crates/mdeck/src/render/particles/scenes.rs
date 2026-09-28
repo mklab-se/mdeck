@@ -787,6 +787,7 @@ mod tests {
             scene_script: None,
             illustration: None,
             logo: None,
+            art: None,
         };
         let scene = for_slide(&slide, 3);
         let steps: Vec<Option<usize>> = scene
@@ -813,6 +814,7 @@ mod tests {
             scene_script: None,
             illustration: None,
             logo: None,
+            art: None,
         }
     }
 
@@ -911,6 +913,7 @@ mod tests {
                 scene_script: None,
                 illustration: None,
                 logo: None,
+                art: None,
             };
             let scene = for_slide(&slide, 1);
             assert!(scene.groups.len() >= 2, "{layout:?} has too few groups");

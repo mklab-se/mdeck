@@ -46,6 +46,27 @@ impl Countdown {
     }
 }
 
+/// The slide as a sheet on a surface: paper on a desk, a board on a wall.
+/// The sheet is the theme's background; sizes are px on a 1920x1080 slide.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Page {
+    pub surface: Color32,
+    pub margin: f32,
+    /// 0 to 1.
+    pub shadow: f32,
+    /// 0 to 1.
+    pub grain: f32,
+    pub radius: f32,
+}
+
+/// A theme's say in generated artwork (`art:` in the theme file).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ThemeArt {
+    pub kind: Option<crate::render::art::ArtKind>,
+    pub style: Option<String>,
+    pub references: Vec<PathBuf>,
+}
+
 /// Font family per role. Roles, not weights: egui draws one face per family.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ThemeFonts {
@@ -108,6 +129,10 @@ pub struct Theme {
     pub syntax: String,
     /// A logo in a corner of every slide (a deck's `@logo` overrides it).
     pub logo: Option<crate::render::logo::Logo>,
+    /// The slide as a sheet on a surface (`page:`); `None` fills the window.
+    pub page: Option<Page>,
+    /// What generated artwork looks like (`art:`), over the engine's own style.
+    pub art: ThemeArt,
     /// The file this theme was read from (`None` for built-ins).
     pub source: Option<PathBuf>,
 }
@@ -450,6 +475,44 @@ impl Theme {
             }
         };
 
+        let page = match &f.page.surface {
+            None => None,
+            Some(s) => {
+                let surface = color("page.surface", &Some(s.clone()))?
+                    .ok_or("page.surface is not a colour")?;
+                let range = |key: &str, v: Option<f32>, lo: f32, hi: f32, default: f32| match v {
+                    None => Ok(default),
+                    Some(x) if (lo..=hi).contains(&x) => Ok(x),
+                    Some(x) => Err(format!("page.{key}: {x} must be between {lo} and {hi}")),
+                };
+                Some(Page {
+                    surface: Color32::from_rgb(surface.r(), surface.g(), surface.b()),
+                    margin: range("margin", f.page.margin, 0.0, 300.0, 56.0)?,
+                    shadow: range("shadow", f.page.shadow, 0.0, 1.0, 0.5)?,
+                    grain: range("grain", f.page.grain, 0.0, 1.0, 0.5)?,
+                    radius: range("radius", f.page.radius, 0.0, 60.0, 6.0)?,
+                })
+            }
+        };
+        let art = ThemeArt {
+            kind: match f.art.kind.as_deref() {
+                None => None,
+                Some(k) => Some(
+                    crate::render::art::ArtKind::from_name(k)
+                        .ok_or_else(|| format!("art.kind: '{k}' is not line or tonal"))?,
+                ),
+            },
+            style: f.art.style.clone().filter(|s| !s.trim().is_empty()),
+            references: f
+                .art
+                .references
+                .clone()
+                .unwrap_or_default()
+                .into_iter()
+                .map(PathBuf::from)
+                .collect(),
+        };
+
         // Renderers set their own alpha on theme colours (fades, glows), so a
         // translucent colour from a design system (`#ffffff0f`, a 6% hairline)
         // is composited over the background once, here.
@@ -501,6 +564,8 @@ impl Theme {
             fill_opacity,
             syntax,
             logo,
+            page,
+            art,
             source: None,
         };
         Ok(Built { theme, warnings })

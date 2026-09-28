@@ -3,7 +3,9 @@
 An **engine** is what a theme does beyond colours and type: the layer it
 paints under the slides, and what it plays for the countdown and the end.
 MDeck ships `plain`, `particles` (the Ember theme), `led` (Marquee),
-`splitflap` (Departures), `laser` (Etch) and `blocks` (Stack). This guide is for adding one. Read spec section 9.6 first for what users see.
+`splitflap` (Departures), `laser` (Etch), `blocks` (Stack) and the first art
+engine, `blueprint`. This guide is for adding one. Read spec sections 9.6
+and 9.7 first for what users see.
 
 The rule that makes engines safe to add: **the core decides what a slide
 wants to show; an engine decides how it looks.** An engine never parses
@@ -19,7 +21,8 @@ All of it lives in `crates/mdeck/src/engines/`.
 | `EngineKind` | `mod.rs` | The value a theme carries (`engine: led`). The registry: name, cargo feature, capabilities, constructor. |
 | `Capabilities` | `mod.rs` | What the engine can show. The core uses it for fallbacks and `--check` for warnings. |
 | `Engine` | `mod.rs` | The trait your runtime implements: `update`, then `paint`. |
-| `Stage`, `Moment`, `Figure`, `Place` | `stage.rs` | What the slide wants to show this frame. |
+| `Stage`, `Moment`, `Figure`, `Art`, `Place` | `stage.rs` | What the slide wants to show this frame. |
+| `Drawing`, `Reveal`, `fallback_strokes` | `art.rs` | What art engines share: a generated picture drawn in, and pen strokes when there is none. |
 | `FrameCx` | `stage.rs` | The frame: rect, scale, opacity, `dt`, `still`, theme. |
 | `Host` | `host.rs` | The engine-neutral half, owned by the app and the export. You get it for free. |
 
@@ -36,6 +39,10 @@ Every frame the host builds a `Stage`:
   on the right beside the copy, or large and centred behind a title
   (`backdrop`). The cloud's points are in importance order: the first sixty
   already sketch the subject.
+- `art`: on an art engine, the slide's generated picture (`mdeck ai art`),
+  loaded and prepared (trimmed, paper keyed out, with a time map), with
+  `place` chosen like a figure's. `None` until it has loaded, or when the
+  slide has none: then draw the `figure` in your medium instead.
 - `hints` and `hints_key`: the geometry the slide's renderers drew last frame
   (`Bar`, `Path`, `Circle`, `Point`, and `Frame` for boxes to keep out of),
   so an engine can serve a chart instead of decorating around it.
@@ -95,11 +102,41 @@ once.
 | `stories` | Plays story beats (and they add reveal steps). |
 | `countdown` | Draws the opening countdown itself (`countdown: burst`). |
 | `end_act` | Plays an act of its own on the end slide. |
+| `art` | Draws generated art: the host fills `Stage::art`, and `EngineKind::medium` says which kind of picture to generate and how to draw it in. |
 
 What an engine cannot show is reported, never silently dropped:
 `engines::unsupported` names it per slide, `mdeck --check` lists it under the
 `engine` category, and presenting and exporting print one summary line. If
 your engine cannot show a kind of content, add its message there.
+
+## Art engines
+
+An art engine draws a picture generated for each slide. The pipeline is
+shared (`render::art`); the engine only decides the medium:
+
+- **The medium.** A `render::art::Medium` in the engine's module (`MEDIUM`),
+  returned by `EngineKind::medium`: its name, the kind of picture it asks for
+  by default (`ArtKind::Line`, black ink lines the engine draws in its own
+  colours, shared by every line medium; or `ArtKind::Tonal`, a finished
+  picture in the medium), its own style card for tonal pictures
+  (`render::art::style`), and how tonal pictures are drawn in
+  (`prepare::Strategy`: `Draw` along the ink, `Hatch` outlines then tone,
+  `Bloom` washes spreading, `Develop` shadows first). Line art is always
+  drawn with `Draw`.
+- **Generation and caching** are the core's: `mdeck ai art` and the `S` key
+  generate in the medium's style, `render::art::sidecar` records pictures by
+  slide hash and style id, and `render::art::gallery::DeckArt` loads and
+  prepares them (on worker threads in the window, before drawing in export).
+- **Drawing in.** `engines::art::Drawing` wraps a prepared picture:
+  `paint(ui, rect, now, tint, reveal)` reveals it through its time map into
+  a texture (a CPU pass per frame while it runs, then no more uploads) and
+  `tip(now, rect)` is where the drawing hand is. `Reveal` sets how soft the
+  arrival is and an optional faint pass that runs ahead (construction lines,
+  an underdrawing). Line art is white with the ink as alpha, so the tint is
+  your ink colour.
+- **Without art**, draw the slide's `@illustration` in your medium:
+  `engines::art::fallback_strokes` turns the figure, the countdown digit or
+  the end words into timed pen strokes (`render::strokes::Picture`).
 
 ## Adding one: the checklist
 
@@ -113,7 +150,8 @@ your engine cannot show a kind of content, add its message there.
 4. A showcase theme: `crates/mdeck/themes/<theme>.yaml` with `engine: <name>`,
    listed in `theme::lookup::BUILTIN` behind the same feature.
 5. `samples/engines/<name>.md`, a deck that shows what the engine is good at.
-6. Docs: spec sections 9.1 (the theme) and 9.6 (the engine), the `@engine`
+6. Docs: spec sections 9.1 (the theme) and 9.6 (the engine; 9.7 for an art
+   engine), the `@engine`
    and `@theme` lists in the spec and `spec --short`, README, GALLERY
    (stills as JPEG), CHANGELOG.
 7. Look at it (below), then run the golden check so no other engine moved.

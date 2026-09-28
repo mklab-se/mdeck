@@ -66,6 +66,16 @@ pub struct Figure {
     pub place: Place,
 }
 
+/// A slide's generated picture (`mdeck ai art`), loaded and prepared.
+#[derive(Clone)]
+pub struct Art {
+    pub picture: Arc<crate::render::art::prepare::Prepared>,
+    /// On a title slide the picture sits large and dim behind the copy.
+    pub backdrop: bool,
+    /// Where it goes, as slide fractions (see [`figure_box`]).
+    pub place: Place,
+}
+
 /// A box in slide fractions: left, top, width and height (0..1 of the
 /// slide's width and height).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -91,6 +101,8 @@ pub struct Stage<'a> {
     /// Changes whenever a story is regenerated.
     pub story_version: u64,
     pub figure: Option<Figure>,
+    /// The slide's generated picture, on engines that draw art.
+    pub art: Option<Art>,
     /// Geometry the slide's renderers drew last frame (charts, diagrams,
     /// images), and its fingerprint (changes when the geometry does).
     pub hints: &'a [Hint],

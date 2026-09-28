@@ -1,3 +1,4 @@
+mod ai;
 mod drawing;
 mod helpers;
 mod input;
@@ -227,6 +228,10 @@ struct PresentationApp {
     stories: Vec<Option<Resolved>>,
     /// Point cloud illustrations resolved for this deck.
     illustrations: render::illustration::Library,
+    /// Generated art for the art engines, loaded in the background.
+    art: render::art::gallery::DeckArt,
+    /// Background `S` art generation in flight: receives (slide, result).
+    art_rx: Option<mpsc::Receiver<(usize, Result<(), String>)>>,
     /// Bumped whenever `stories` changes so cached scenes rebuild.
     story_version: u64,
     /// Background `S` generation in flight: receives (slide, result).
@@ -380,10 +385,42 @@ impl PresentationApp {
 
         let now = Instant::now();
         let illustrations = render::illustration::Library::for_deck(file.parent());
+        let mut art = render::art::gallery::DeckArt::new(Some(&file), true);
+        art.sync(&presentation, pending_theme.as_ref().unwrap_or(&theme));
+        if !quiet {
+            for p in art.problems() {
+                eprintln!("warning: art: {p}");
+            }
+            if let (Some(c), Some(medium)) = (
+                art.coverage(&presentation),
+                resolved_engine(&theme, &pending_theme).medium(),
+            ) && (c.missing > 0 || c.stale > 0)
+            {
+                let mut parts = Vec::new();
+                if c.missing > 0 {
+                    parts.push(format!(
+                        "{} of {} slides have no picture",
+                        c.missing, c.wanted
+                    ));
+                }
+                if c.stale > 0 {
+                    parts.push(format!("{} stale", c.stale));
+                }
+                eprintln!(
+                    "warning: art for the {} engine: {}; run `mdeck ai art {}` (or press S on a slide)",
+                    medium.name,
+                    parts.join(", "),
+                    file.file_name().unwrap_or_default().to_string_lossy()
+                );
+            }
+        }
+        art.preload();
         let mut app = Self {
             presentation,
             file_path: file,
             illustrations,
+            art,
+            art_rx: None,
             current_slide: 0,
             watcher_rx,
             _watcher: watcher,
@@ -499,88 +536,6 @@ impl PresentationApp {
             .get(index)
             .and_then(|r| r.as_ref())
             .map(|r| &r.script)
-    }
-
-    /// Re-read the sidecar and rebuild per-slide stories and step counts.
-    fn reload_stories(&mut self) {
-        self.stories = load_stories(&self.file_path, &self.presentation, true);
-        self.max_steps = slide_max_steps(
-            &self.presentation,
-            &self.stories,
-            self.theme.engine.plays_stories(),
-        );
-        for (i, r) in self.reveal_steps.iter_mut().enumerate() {
-            *r = (*r).min(self.max_steps[i]);
-        }
-        self.story_version += 1;
-    }
-
-    /// `S`: write a story for the current slide with AI, in the background.
-    fn generate_story(&mut self) {
-        if !self.theme.engine.plays_stories() {
-            self.toast = Some(Toast::new(
-                "Stories need a theme on the particles engine (Shift+T)".into(),
-            ));
-            return;
-        }
-        if self.story_rx.is_some() {
-            self.toast = Some(Toast::new("A story is already being written…".into()));
-            return;
-        }
-        if !crate::commands::ai::has_capability("chat") {
-            self.toast = Some(Toast::new(
-                "AI is not configured: run `mdeck ai enable`".into(),
-            ));
-            return;
-        }
-        let idx = self.current_slide;
-        if self
-            .stories
-            .get(idx)
-            .and_then(|r| r.as_ref())
-            .is_some_and(|r| r.source == story_sidecar::Source::Pinned)
-        {
-            self.toast = Some(Toast::new(
-                "This slide's story is pinned (hand-written)".into(),
-            ));
-            return;
-        }
-        let (tx, rx) = mpsc::channel();
-        self.story_rx = Some(rx);
-        let deck = self.file_path.clone();
-        std::thread::spawn(move || {
-            let result = crate::commands::story::generate_one_blocking(&deck, idx)
-                .map(|_| ())
-                .map_err(|e| e.to_string());
-            let _ = tx.send((idx, result));
-        });
-        self.toast = Some(Toast::new(format!(
-            "Writing a story for slide {}…",
-            idx + 1
-        )));
-    }
-
-    fn poll_story(&mut self) {
-        let Some(rx) = &self.story_rx else {
-            return;
-        };
-        match rx.try_recv() {
-            Ok((idx, Ok(()))) => {
-                self.story_rx = None;
-                self.reload_stories();
-                self.toast = Some(Toast::new(format!("Story ready for slide {}", idx + 1)));
-            }
-            Ok((idx, Err(e))) => {
-                self.story_rx = None;
-                self.incident_log
-                    .record("story_error", &format!("slide {}", idx + 1), &e);
-                self.toast = Some(Toast::new(format!("Story failed: {e}")));
-            }
-            Err(mpsc::TryRecvError::Empty) => {}
-            Err(mpsc::TryRecvError::Disconnected) => {
-                self.story_rx = None;
-            }
-        }
     }
 
     fn slide_count(&self) -> usize {
@@ -952,6 +907,7 @@ impl PresentationApp {
         // progress (clamped to the new step count) and scroll position.
         self.stories = load_stories(&self.file_path, &new_presentation, true);
         self.illustrations.reset();
+        self.art.invalidate();
         self.story_version += 1;
         self.max_steps = slide_max_steps(
             &new_presentation,
@@ -1320,7 +1276,7 @@ impl PresentationApp {
                 }
             }
             Action::ToggleHud => self.show_hud = !self.show_hud,
-            Action::GenerateStory => self.generate_story(),
+            Action::Generate => self.generate(),
             Action::CycleRawOverlay => {
                 self.raw_overlay_side = match self.raw_overlay_side {
                     RawOverlaySide::Off => RawOverlaySide::Left,
@@ -1404,6 +1360,7 @@ impl eframe::App for PresentationApp {
         }
 
         self.poll_story();
+        self.poll_art();
 
         // Check for file changes
         if self.watcher_rx.try_recv().is_ok() {
@@ -1535,6 +1492,12 @@ impl eframe::App for PresentationApp {
                     return;
                 }
 
+                // A theme's page puts the slide on a sheet.
+                let rect = if self.on_end_slide {
+                    rect
+                } else {
+                    render::page::draw(ui.painter(), rect, &self.theme, Self::compute_scale(rect))
+                };
                 let scale = Self::compute_scale(rect);
 
                 // The engine's layer goes under everything.
@@ -1552,6 +1515,9 @@ impl eframe::App for PresentationApp {
                     let story = self.story(target).cloned();
                     let theme = self.theme.clone();
                     let deck_title = self.presentation.meta.title.clone();
+                    self.art.repaint_on(ctx);
+                    self.art.sync(&self.presentation, &theme);
+                    let art = if end { None } else { self.art.picture(target) };
                     let countdown =
                         self.countdown
                             .as_ref()
@@ -1571,6 +1537,7 @@ impl eframe::App for PresentationApp {
                             slide,
                             story: story.as_ref(),
                             story_version: self.story_version,
+                            art: art.as_ref(),
                             index: target,
                             reveal,
                             end,
@@ -2037,6 +2004,7 @@ mod tests {
             scene_script: None,
             illustration: None,
             logo: None,
+            art: None,
         }
     }
 

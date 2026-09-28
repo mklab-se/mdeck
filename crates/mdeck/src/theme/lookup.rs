@@ -10,7 +10,7 @@ use super::{Built, Theme};
 /// The built-in themes, in `Shift+T` order. A theme that runs on an engine
 /// behind a cargo feature (`ember`, `autumn` and `winter` on particles,
 /// `marquee` on led, `departures` on splitflap, `etch` on laser, `stack` on
-/// blocks) is left out of a build without that feature.
+/// blocks, `blueprint` on blueprint) is left out of a build without that feature.
 pub const BUILTIN: &[(&str, &str)] = &[
     ("dark", include_str!("../../themes/dark.yaml")),
     ("light", include_str!("../../themes/light.yaml")),
@@ -31,6 +31,8 @@ pub const BUILTIN: &[(&str, &str)] = &[
     ("etch", include_str!("../../themes/etch.yaml")),
     #[cfg(feature = "blocks")]
     ("stack", include_str!("../../themes/stack.yaml")),
+    #[cfg(feature = "blueprint")]
+    ("blueprint", include_str!("../../themes/blueprint.yaml")),
 ];
 
 /// The theme used when nothing names one.
@@ -314,6 +316,18 @@ fn absolutize(file: &mut ThemeFile, base: &Path, warnings: &mut Vec<String>) {
             }
         }
     }
+    if let Some(refs) = file.art.references.as_mut() {
+        refs.retain_mut(|v| match super::confined_path(base, v) {
+            Ok(p) => {
+                *v = p.to_string_lossy().to_string();
+                true
+            }
+            Err(e) => {
+                warnings.push(format!("art.references: {e}; left out"));
+                false
+            }
+        });
+    }
 }
 
 /// A built-in theme file, unmerged.
@@ -467,6 +481,7 @@ mod tests {
                 "departures",
                 "etch",
                 "stack",
+                "blueprint",
                 "brand"
             ]
         );

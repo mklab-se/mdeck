@@ -34,6 +34,10 @@ pub struct ThemeFile {
     pub code: Code,
     #[serde(default)]
     pub logo: Logo,
+    #[serde(default)]
+    pub page: Page,
+    #[serde(default)]
+    pub art: Art,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -122,6 +126,37 @@ pub struct Logo {
     pub opacity: Option<f32>,
 }
 
+/// The slide as a sheet on a surface: paper on a desk, a board on a wall.
+/// The sheet is `colors.background`; setting `surface` turns the page on.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Page {
+    /// The colour around the sheet.
+    pub surface: Option<String>,
+    /// Space between the sheet and the slide's edge, px on a 1920x1080 slide.
+    pub margin: Option<f32>,
+    /// How strongly the sheet's shadow shows, 0 to 1.
+    pub shadow: Option<f32>,
+    /// How strongly the sheet's texture shows, 0 to 1.
+    pub grain: Option<f32>,
+    /// Corner radius of the sheet, px on a 1920x1080 slide.
+    pub radius: Option<f32>,
+}
+
+/// Generated artwork: what kind of picture the deck's art engine asks for,
+/// in what style, with which reference images.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Art {
+    /// `line` (ink lines on white, drawn in the engine's medium) or `tonal`
+    /// (a picture in the medium itself).
+    pub kind: Option<String>,
+    /// The style prompt, instead of the engine's built-in one.
+    pub style: Option<String>,
+    /// Style swatches in the theme folder, sent as references.
+    pub references: Option<Vec<String>>,
+}
+
 /// `child` wins wherever it sets a key.
 fn pick<T: Clone>(child: &Option<T>, parent: &Option<T>) -> Option<T> {
     child.clone().or_else(|| parent.clone())
@@ -198,6 +233,18 @@ impl ThemeFile {
                 position: pick(&self.logo.position, &parent.logo.position),
                 height: pick(&self.logo.height, &parent.logo.height),
                 opacity: pick(&self.logo.opacity, &parent.logo.opacity),
+            },
+            page: Page {
+                surface: pick(&self.page.surface, &parent.page.surface),
+                margin: pick(&self.page.margin, &parent.page.margin),
+                shadow: pick(&self.page.shadow, &parent.page.shadow),
+                grain: pick(&self.page.grain, &parent.page.grain),
+                radius: pick(&self.page.radius, &parent.page.radius),
+            },
+            art: Art {
+                kind: pick(&self.art.kind, &parent.art.kind),
+                style: pick(&self.art.style, &parent.art.style),
+                references: pick(&self.art.references, &parent.art.references),
             },
         }
     }

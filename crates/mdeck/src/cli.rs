@@ -198,6 +198,29 @@ pub enum AiCommands {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Draw a picture for every slide on an art engine, like blueprint (saved in art/ next to the deck, recorded in <deck>.art.yaml)
+    Art {
+        /// Markdown file to process
+        file: PathBuf,
+        /// Only this slide (1-based); redraws it even when its picture is current
+        #[arg(long)]
+        slide: Option<usize>,
+        /// Only redraw slides whose picture has gone stale
+        #[arg(long)]
+        stale: bool,
+        /// Redraw even when a slide's picture is current
+        #[arg(long)]
+        force: bool,
+        /// List the slides that would be drawn, without generating anything
+        #[arg(long)]
+        dry_run: bool,
+        /// Draw for this engine instead of the deck's (e.g. blueprint)
+        #[arg(long)]
+        engine: Option<String>,
+        /// Use this image node instead of the default (see `ailloy ai config list-nodes`)
+        #[arg(long)]
+        node: Option<String>,
+    },
     /// Show AI status (same as running `mdeck ai` without a subcommand)
     Status,
     /// AI agent skill information — helps set up Claude Code skills for mdeck

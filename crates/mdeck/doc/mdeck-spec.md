@@ -55,8 +55,8 @@ date: 2026-02-28
 
 | Field         | Type   | Default   | Description                                        |
 |---------------|--------|-----------|----------------------------------------------------|
-| `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`, `"marquee"`, `"departures"`, `"etch"`, `"stack"`), a custom theme name, or a path to a theme file (section 9.4) |
-| `@engine`     | string | (theme's) | Run the deck on this engine instead of the theme's: `"plain"`, `"particles"`, `"led"`, `"splitflap"`, `"laser"`, `"blocks"` (section 9.6) |
+| `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`, `"marquee"`, `"departures"`, `"etch"`, `"stack"`, `"blueprint"`), a custom theme name, or a path to a theme file (section 9.4) |
+| `@engine`     | string | (theme's) | Run the deck on this engine instead of the theme's: `"plain"`, `"particles"`, `"led"`, `"splitflap"`, `"laser"`, `"blocks"`, `"blueprint"` (section 9.6) |
 | `@transition` | string | `"slide"` | Default transition: `"fade"`, `"slide"`, `"spatial"`, `"none"` |
 | `@image-style` | string | none      | Default AI image generation style (name or description) |
 | `@icon-style`  | string | none      | Default AI icon generation style (name or description)  |
@@ -65,6 +65,7 @@ date: 2026-02-28
 | `@logo-position` | string | `top-right` | `top-left`, `top-right`, `bottom-left`, `bottom-right` |
 | `@logo-opacity` | number | `0.6` | 0 to 1, or a percentage (`40%`) |
 | `@logo-height` | number | `56` | Height in px on a 1920x1080 slide (8 to 400) |
+| `@art`         | string | none       | The deck's world for generated art on an art engine: setting, era, recurring characters. A slide's own `@art` is its scene (section 9.7) |
 
 Reserved fields that are parsed but not yet applied: `@aspect`, `@code-theme`,
 `@footer`. They are accepted so that files stay forward compatible; see
@@ -633,6 +634,7 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 | `@icon-style`  | global         | style name or description                 | none           |
 | `@logo`        | global, slide  | PNG or SVG path, or `none` (section 9.5)  | the theme's    |
 | `@logo-position` / `@logo-opacity` / `@logo-height` | global | see section 9.5 | the theme's |
+| `@art`         | global, slide  | global: the deck's world; slide: this slide's scene, or `none` for no picture (section 9.7) | none |
 
 **Reserved directives** are parsed and accepted but not applied yet:
 `@background`, `@footer`, `@class`, `@code-theme`, `@aspect`, and per-slide
@@ -877,6 +879,21 @@ Two themes for two more engines (section 9.6):
 | `etch` | a laser engraver's slate: deep graphite, an editorial serif, a beam that etches each picture white-hot and cools it to a pale engraved line | laser | `#0C0D0F` | `#FF5A1F` |
 | `stack` | a night-blue playfield where pictures are built from bright bevelled blocks in pink, yellow, cyan, orange and violet | blocks | `#0D0E1A` | `#FF4F8B` |
 
+**`blueprint`**
+
+A draftsman's sheet for the first art engine (sections 9.6 and 9.7): a
+Prussian blue sheet with a fine grid, a ruled border and a title block, laid
+on a dark drafting table (`page:`), with generated line art inked in
+blue-white, construction lines first.
+
+| Property        | Value           |
+|-----------------|-----------------|
+| Sheet           | `#123A6E`       |
+| Drafting table  | `#0A1B33`       |
+| Ink (headings, drawings) | `#F4F8FF` |
+| Grid and construction lines | `#8FB4E3` |
+| Accent (a yellow pencil mark) | `#FFD166` |
+
 Every theme can draw the symbols text faces usually lack: circled numbers and letters (①②③, ⓐ), check marks, arrows, geometric shapes and stars. Noto Sans Symbols and DejaVu Sans are bundled as the last fallback of every font family, so such characters never render as boxes.
 
 Chinese, Japanese and Korean text draws with a font borrowed from the system, since a CJK face is too large to bundle: PingFang, Hiragino or Arial Unicode on macOS, Microsoft YaHei, Yu Gothic or Malgun Gothic on Windows, Noto Sans CJK, WenQuanYi or Droid Sans Fallback on Linux (`fonts-noto-cjk` on Debian and Ubuntu). It is added after the symbol faces in every family, on the family's own baseline. To use a specific file, set `MDECK_CJK_FONT=/path/to/font.ttc`. When no font on the machine covers a script the deck uses, `mdeck --check` warns (`fonts` category) and presenting or exporting prints the same warning; the text then draws as boxes.
@@ -1063,7 +1080,7 @@ match wins:
    `~/Library/Application Support/mdeck/themes/` on macOS,
    `%APPDATA%\mdeck\themes\` on Windows
 3. the built-in themes (`dark`, `light`, `nord`, `ember`, `spring`, `summer`,
-   `autumn`, `winter`, `marquee`, `departures`, `etch`, `stack`)
+   `autumn`, `winter`, `marquee`, `departures`, `etch`, `stack`, `blueprint`)
 
 `@theme` may also be a path to a file (`@theme: brand/acme.yaml`), relative
 to the deck. A user or deck theme may reuse a built-in name to replace it.
@@ -1143,9 +1160,32 @@ logo:                      # a logo in a corner of every slide (section 9.5)
   position: top-right      # top-left | top-right | bottom-left | bottom-right
   height: 56               # px on a 1920x1080 slide
   opacity: 0.6             # 0 to 1
+page:                      # lay every slide on a sheet with a surface around it
+  surface: "#0a1b33"       # what is around the sheet (a desk, a drafting table)
+  margin: 26               # px around the sheet on a 1920x1080 slide (0 to 200)
+  shadow: 0.7              # the sheet's shadow on the surface, 0 to 1 (default 0.5)
+  grain: 0.25              # paper fibre on the sheet, 0 to 1 (default 0.5)
+  radius: 2                # corner radius in px (0 to 60, default 6)
+art:                       # how generated art looks on an art engine (section 9.7)
+  kind: line               # line (ink lines the engine draws) | tonal (a finished picture)
+  style: "graphite and ink, cross-hatching, old craft meets modern technology"
+  references: [refs/teacup.jpg, refs/street.jpg]   # style swatches, in the theme folder
 ```
 
 Unknown keys are errors, so a typo never goes unnoticed.
+
+**The page.** With a `page:` block the slide is a sheet (the theme's
+`background`) lying on `surface`, with a soft shadow and a fine paper grain.
+Everything on the slide, the engine's layer included, draws on the sheet.
+`surface` is required for a page; the other keys have defaults. It works on
+every engine.
+
+**Art.** On an art engine (section 9.7) the `art:` block sets the house style
+of the deck's generated pictures. `kind` overrides the medium's own kind,
+`style` replaces the medium's style prompt (the part that carries the look),
+and `references` replaces the medium's bundled style swatches with your own
+images (paths inside the theme folder; sent to image models that accept
+reference images). Pictures made in one style are never shown in another.
 
 **Engines.** The engine decides what a theme does beyond colours and type
 (section 9.6). A theme picks one by name with `engine:`; a deck can run on
@@ -1294,6 +1334,7 @@ from the theme, so every theme looks like itself on every engine.
 | `splitflap` | the slide is a departure board: all its text on a grid of split flaps (theme `departures`) | no | no | digits in solid flaps, then the board scrambles awake; the words, then the board clears |
 | `laser` | a beam from in front of the screen etches each picture onto the slide, editorial copy layouts (theme `etch`) | yes | no | digits etched in a flash, then burned away in a spray of sparks; the words, then they fade |
 | `blocks` | pictures built from falling blocks, editorial copy layouts (theme `stack`) | yes | no | digits in falling blocks that burst apart; the words, then a line clear |
+| `blueprint` | a draftsman's sheet: generated line art inked stroke by stroke, construction lines first (theme `blueprint`, section 9.7) | yes, as technical pen lines when a slide has no art | no | digits drawn with a technical pen; the words, then they fade |
 
 **The LED engine.** The slide sits on a wall of LEDs, a few pixels apart,
 their unlit lenses just visible. Nothing ever moves: pictures appear by
@@ -1363,6 +1404,21 @@ blocks are bevelled, in `accent`, `secondary`, `particles.cool`,
 flashes and clears row by row, like a completed line. Slides without an
 illustration stay calm. Exports show the settled stack.
 
+**The blueprint engine.** Every slide is a Prussian blue drawing sheet: a
+fine grid in `rule` with heavier lines every fifth square, a ruled double
+border with zone ticks, and a title block in the bottom-right corner with the
+deck's title and the sheet number (the blueprint numbers its sheets itself,
+so the editorial counter is left out). A slide's generated line art (section
+9.7) is inked in `heading` colour the way a draughtsman works: faint
+construction lines in `rule` run ahead, the ink follows stroke by stroke,
+large shapes first and details after, under the crosshair of a drafting
+machine, and dimension lines are ruled under and beside the finished drawing.
+On a title slide the drawing sits large and dim behind the title. Without
+art, the slide's `@illustration` is drawn as technical pen lines, and the
+countdown and the end words are drawn the same way. The `blueprint` theme
+lays the sheet on a drafting table (`page:` in section 9.4). Exports show the
+finished sheet.
+
 **Choosing one.** A theme names its engine (`engine:` in section 9.4). A deck
 can run on another engine without touching the theme:
 
@@ -1391,8 +1447,80 @@ Engines are part of MDeck and each one is a cargo feature, on by default.
 Building MDeck with `--no-default-features` leaves them out (and with them
 the themes that run on them: `ember`, `autumn` and `winter` on particles,
 `marquee` on led, `departures` on splitflap, `etch` on laser, `stack` on
-blocks, and the built-in illustrations); themes and decks that ask
-for one then use `plain`, with a warning.
+blocks, `blueprint` on blueprint, and the built-in illustrations); themes and
+decks that ask for one then use `plain`, with a warning.
+
+### 9.7 Generated art
+
+**Art engines** draw a picture made for each slide, generated with the AI
+image model you configured, and draw it in as the slide opens. The picture
+is made once, by an explicit command, and cached next to the deck: MDeck
+never calls the AI while presenting, so there is no waiting, no surprise
+cost, and it works offline.
+
+| Engine | Picture | How it is drawn in |
+|---|---|---|
+| `blueprint` | line art (black ink on white, inked by the engine in the theme's colours) | construction lines, then ink along the strokes, then dimension lines |
+
+**Which slides get a picture.** The slides with room for one: title,
+section, quote, bullet and copy slides (the editorial layouts; not slides
+with code, tables, charts, diagrams or images). `@art: none` on a slide
+leaves it without.
+
+**Scenes.** `@art:` under a slide's heading says what its picture shows.
+Without it, the chat model writes a scene from the slide's copy and speaker
+notes: one concrete visual metaphor with a single focal subject. `@art:` in
+the frontmatter is the deck's world (setting, era, recurring characters),
+and every scene keeps to it. Pictures never contain text; the slide's own
+words stay typeset.
+
+```markdown
+---
+title: The Harbour Bridge
+@theme: blueprint
+@art: A Victorian harbour town where a small team builds modern machines.
+---
+
+# The Harbour Bridge
+@art: A great iron suspension bridge under construction across a harbour.
+
+# Every slide gets its own drawing
+
+- The chat model writes this slide's scene from its copy
+
+# Numbers stay typeset
+@art: none
+
+- No picture here
+```
+
+**Making the art.** `mdeck ai art talk.md` draws a picture for every slide
+that takes one and has none that is current, four at a time with retries
+(about 20 seconds each). `--slide N` redraws one slide, `--stale` only the
+slides whose picture has gone stale, `--force` all of them, `--dry-run` lists
+what would be drawn, `--engine` draws for another art engine than the deck's,
+and `--node` uses another image node than the default. Pressing `S` while
+presenting draws the current slide's picture in the background.
+
+**Where it is kept.** The pictures go in `art/` next to the deck and are
+recorded in `talk.art.yaml`: per picture the slide number, a hash of the
+slide's source and the deck's world, the style it was made in, the file and
+the scene. Editing a slide makes its picture **stale**: it is still shown,
+and `mdeck --check` says so. Set `pinned: true` on an entry to keep a picture
+for its slide number whatever the slide says (it is never stale and never
+redrawn); `file:` may then point at any PNG or JPEG of your own. Line art is
+shared by every line medium, so switching a deck between line media costs
+nothing.
+
+**Style.** Each medium has a style card: a style prompt and two small
+neutral style swatches (a still life and a street), sent as reference images
+to models that accept them. A theme's `art:` block (section 9.4) replaces
+either.
+
+**Without art.** An art engine never needs the AI to present: a slide with
+no picture shows its `@illustration` in the medium, or just the page and its
+typography. `mdeck --check` and the line printed when presenting name the
+slides without a picture and the command that draws them.
 
 ---
 
@@ -2046,6 +2174,7 @@ in-app HUD (`H`) show the same table.
 | F | Toggle fullscreen |
 | M | Move the fullscreen window to the next monitor (remembered in config) |
 | H | Toggle the presenter HUD |
+| S | AI for the current slide, in the background: a story on the particles engine (section 9.1), a picture on an art engine (section 9.7) |
 | `.` or B | Blackout |
 | R | Debug overlay (left, right, off) |
 | Esc | Clear drawings on the current slide; twice within a second quits |

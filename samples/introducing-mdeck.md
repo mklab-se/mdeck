@@ -189,13 +189,13 @@ Set a theme globally in frontmatter:
 
 Built-in themes: **light**, **dark**, **nord**, **ember**, the four seasons
 **spring**, **summer**, **autumn** and **winter**, and **marquee**,
-**departures**, **etch** and **stack**.
+**departures**, **etch**, **stack** and **blueprint**.
 
 Cycle themes live with `Shift+T`, and transitions with `T`.
 
 ---
 
-# Six Engines
+# Seven Engines
 
 The same slides, a whole different show:
 
@@ -204,6 +204,7 @@ The same slides, a whole different show:
 - **splitflap**: every slide on a departure board
 - **laser**: a beam etches each picture onto the slide
 - **blocks**: pictures built from falling blocks
+- **blueprint**: a drawing made for every slide (`mdeck ai art`), inked onto a blue sheet
 
 One line switches, `@engine: led`, or try one with `mdeck deck.md --engine laser`.
 

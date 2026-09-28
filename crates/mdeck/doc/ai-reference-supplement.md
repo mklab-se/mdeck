@@ -64,6 +64,12 @@ Available config keys:
 - `mdeck ai story <deck.md> [--slide N | --range A-B] [--stale] [--force]` — write Ember story
   scripts (cast, flows, beats) into `<deck>.scenes.yaml`; ```` ```@story ```` fences are the
   author's hints, ```` ```@scene ```` fences are hand-written scripts and are left alone
+- `mdeck ai art <deck.md> [--slide N] [--stale] [--force] [--dry-run] [--engine E] [--node N]`:
+  draw a picture per slide for an art engine (`blueprint`) with the image model; pictures go in
+  `art/` next to the deck and `<deck>.art.yaml` records them. `@art: "..."` in the frontmatter is
+  the deck's world (setting, era, characters); under a slide's heading it is that slide's scene
+  (otherwise the chat model writes one from the copy and notes); `@art: none` skips a slide.
+  Only title, section, quote, bullet and copy slides take art. Pictures never contain text.
 - `mdeck illustration generate --name <n> --description "..."` — make a point cloud
   illustration for the Ember field (`--user` for the user library, `--force` to overwrite);
   `mdeck illustration import <image> --name <n>` converts an existing image, `list` shows what

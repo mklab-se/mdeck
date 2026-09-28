@@ -10,7 +10,9 @@
 //! [`EngineKind`] with its [`Capabilities`], and a cargo feature. The guide is
 //! `crates/mdeck/doc/engines.md`.
 
+pub mod art;
 pub mod blocks;
+pub mod blueprint;
 #[cfg(test)]
 mod example;
 mod host;
@@ -44,6 +46,8 @@ pub enum EngineKind {
     Laser,
     /// Illustrations, digits and words built from falling blocks.
     Blocks,
+    /// A draftsman's blueprint: generated line art inked onto a blue sheet.
+    Blueprint,
 }
 
 /// What an engine can show. The core uses it for fallbacks (an illustration
@@ -66,6 +70,8 @@ pub struct Capabilities {
     pub countdown: bool,
     /// Plays an act of its own on the end slide.
     pub end_act: bool,
+    /// Draws generated art (`@art`, `mdeck ai art`) in its medium.
+    pub art: bool,
 }
 
 impl EngineKind {
@@ -77,6 +83,7 @@ impl EngineKind {
         EngineKind::SplitFlap,
         EngineKind::Laser,
         EngineKind::Blocks,
+        EngineKind::Blueprint,
     ];
 
     pub fn from_name(name: &str) -> Option<Self> {
@@ -91,6 +98,7 @@ impl EngineKind {
             EngineKind::SplitFlap => "splitflap",
             EngineKind::Laser => "laser",
             EngineKind::Blocks => "blocks",
+            EngineKind::Blueprint => "blueprint",
         }
     }
 
@@ -112,6 +120,7 @@ impl EngineKind {
             EngineKind::SplitFlap => cfg!(feature = "splitflap"),
             EngineKind::Laser => cfg!(feature = "laser"),
             EngineKind::Blocks => cfg!(feature = "blocks"),
+            EngineKind::Blueprint => cfg!(feature = "blueprint"),
         }
     }
 
@@ -125,6 +134,7 @@ impl EngineKind {
                 stories: false,
                 countdown: false,
                 end_act: false,
+                art: false,
             },
             EngineKind::Particles => Capabilities {
                 paints: true,
@@ -134,6 +144,7 @@ impl EngineKind {
                 stories: true,
                 countdown: true,
                 end_act: true,
+                art: false,
             },
             EngineKind::Led => Capabilities {
                 paints: true,
@@ -143,6 +154,7 @@ impl EngineKind {
                 stories: false,
                 countdown: true,
                 end_act: true,
+                art: false,
             },
             EngineKind::SplitFlap => Capabilities {
                 paints: true,
@@ -152,6 +164,17 @@ impl EngineKind {
                 stories: false,
                 countdown: true,
                 end_act: true,
+                art: false,
+            },
+            EngineKind::Blueprint => Capabilities {
+                paints: true,
+                editorial: true,
+                board: false,
+                illustrations: true,
+                stories: false,
+                countdown: true,
+                end_act: true,
+                art: true,
             },
             EngineKind::Laser | EngineKind::Blocks => Capabilities {
                 paints: true,
@@ -161,6 +184,7 @@ impl EngineKind {
                 stories: false,
                 countdown: true,
                 end_act: true,
+                art: false,
             },
         }
     }
@@ -174,7 +198,21 @@ impl EngineKind {
             EngineKind::SplitFlap => Box::new(splitflap::SplitFlap::new()),
             EngineKind::Laser => Box::new(laser::Laser::new()),
             EngineKind::Blocks => Box::new(blocks::Blocks::new()),
+            EngineKind::Blueprint => Box::new(blueprint::Blueprint::new()),
         }
+    }
+
+    /// The medium an art engine draws in (`None`: the engine draws no art).
+    pub fn medium(self) -> Option<&'static crate::render::art::Medium> {
+        match self {
+            EngineKind::Blueprint => Some(&blueprint::MEDIUM),
+            _ => None,
+        }
+    }
+
+    /// Prints the slide number itself, so the editorial counter is left out.
+    pub fn numbers_slides(self) -> bool {
+        self == EngineKind::Blueprint
     }
 
     /// Paints a layer of its own under the slide.
@@ -211,6 +249,7 @@ impl EngineKind {
             EngineKind::SplitFlap => splitflap::END_CAPTION_DELAY,
             EngineKind::Laser => laser::END_CAPTION_DELAY,
             EngineKind::Blocks => blocks::END_CAPTION_DELAY,
+            EngineKind::Blueprint => blueprint::END_CAPTION_DELAY,
             EngineKind::Plain => 0.0,
         }
     }
@@ -292,6 +331,21 @@ pub fn unsupported(kind: EngineKind, slide: &Slide, has_story: bool) -> Vec<Stri
     if caps.board {
         out.extend(splitflap::problems(slide));
     }
+    if !caps.art
+        && let Some(scene) = crate::render::art::slide_scene(slide)
+    {
+        let short: String = scene.chars().take(40).collect();
+        let media: Vec<&str> = EngineKind::ALL
+            .iter()
+            .filter(|k| k.capabilities().art)
+            .map(|k| k.name())
+            .collect();
+        out.push(format!(
+            "@art: '{short}' is not drawn by the {} engine (engines that draw art: {})",
+            kind.name(),
+            media.join(", ")
+        ));
+    }
     if has_story && !caps.stories {
         out.push(format!(
             "the slide's story is not played by the {} engine",
@@ -370,6 +424,8 @@ mod tests {
             "crate::render::illustration",
             "crate::render::image_cache",
             "crate::render::story",
+            "crate::render::art",
+            "crate::render::strokes",
             "crate::render::particles",
             "crate::render::fonts",
             "crate::render::ember",
@@ -420,7 +476,7 @@ mod tests {
         assert_eq!(EngineKind::from_name("fireworks"), None);
         assert_eq!(
             EngineKind::names(),
-            "plain, particles, led, splitflap, laser, blocks"
+            "plain, particles, led, splitflap, laser, blocks, blueprint"
         );
     }
 

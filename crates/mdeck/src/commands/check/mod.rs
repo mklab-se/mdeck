@@ -116,12 +116,13 @@ pub fn run(file: PathBuf, verbose: u8, quiet: bool, engine: Option<String>) -> a
     for w in theme_warnings(&presentation, defaults.theme.as_deref(), base_path) {
         report.add(w);
     }
-    let (kind, problems) = deck_engine(
+    let (theme, problems) = deck_theme(
         &presentation,
         defaults.theme.as_deref(),
         base_path,
         engine.as_deref(),
     )?;
+    let kind = theme.engine;
     for message in problems {
         report.add(CheckWarning {
             slide: 0,
@@ -131,6 +132,9 @@ pub fn run(file: PathBuf, verbose: u8, quiet: bool, engine: Option<String>) -> a
     }
     let with_story: Vec<bool> = stories.iter().map(Option::is_some).collect();
     for w in engine_warnings(&presentation, &with_story, kind) {
+        report.add(w);
+    }
+    for w in art_warnings(&file, &presentation, &theme) {
         report.add(w);
     }
 
@@ -147,24 +151,83 @@ pub fn run(file: PathBuf, verbose: u8, quiet: bool, engine: Option<String>) -> a
     }
 }
 
-/// The engine the deck runs on (`--engine`, `@engine`, then the theme's) and
-/// any problem with the deck's `@engine`. An unknown `--engine` is an error.
-pub fn deck_engine(
+/// The theme the deck runs in, on the engine it runs on (`--engine`,
+/// `@engine`, then the theme's), and any problem with the deck's `@engine`.
+/// An unknown `--engine` is an error.
+pub fn deck_theme(
     presentation: &parser::Presentation,
     config_default: Option<&str>,
     base: &std::path::Path,
     cli: Option<&str>,
-) -> anyhow::Result<(crate::engines::EngineKind, Vec<String>)> {
+) -> anyhow::Result<(crate::theme::Theme, Vec<String>)> {
     use crate::theme::lookup;
     let (kind, problems) = crate::engines::choose(cli, presentation.meta.engine.as_deref())
         .map_err(|e| anyhow::anyhow!("{e}"))?;
-    if let Some(kind) = kind {
-        return Ok((kind, problems));
-    }
     let name = lookup::select(presentation.meta.theme.as_deref(), config_default);
     let themes = lookup::Lookup::for_deck(Some(base));
     let (theme, _) = lookup::resolve_or_default(&themes, &name);
-    Ok((theme.engine, problems))
+    Ok((crate::engines::with_engine(theme, kind), problems))
+}
+
+/// Generated art on an art engine: the sidecar cannot be read, pictures
+/// are stale (per slide) or missing (one line for the deck).
+pub fn art_warnings(
+    deck: &std::path::Path,
+    presentation: &parser::Presentation,
+    theme: &crate::theme::Theme,
+) -> Vec<CheckWarning> {
+    use render::art::sidecar::Source;
+    let Some(medium) = theme.engine.medium() else {
+        return Vec::new();
+    };
+    let mut art = render::art::gallery::DeckArt::new(Some(deck), false);
+    art.sync(presentation, theme);
+    let mut out: Vec<CheckWarning> = art
+        .problems()
+        .iter()
+        .map(|p| CheckWarning {
+            slide: 0,
+            category: CheckCategory::Art,
+            message: format!("art sidecar could not be read: {p}"),
+        })
+        .collect();
+    let mut missing = Vec::new();
+    for (i, (slide, r)) in presentation.slides.iter().zip(art.resolved()).enumerate() {
+        if !render::art::wants_art(slide) {
+            continue;
+        }
+        match r {
+            None => missing.push(i + 1),
+            Some(r) if !r.file.exists() => out.push(CheckWarning {
+                slide: i + 1,
+                category: CheckCategory::Art,
+                message: format!("art file {} is missing", r.file.display()),
+            }),
+            Some(r) if r.source == Source::Stale => out.push(CheckWarning {
+                slide: i + 1,
+                category: CheckCategory::Art,
+                message: "art is stale (the slide changed since it was drawn); run `mdeck ai art --stale`".into(),
+            }),
+            _ => {}
+        }
+    }
+    if !missing.is_empty() {
+        let list: Vec<String> = missing.iter().map(|n| n.to_string()).collect();
+        out.push(CheckWarning {
+            slide: 0,
+            category: CheckCategory::Art,
+            message: format!(
+                "{} slide{} no picture for the {} engine ({}); run `mdeck ai art {}` to draw {}",
+                missing.len(),
+                if missing.len() == 1 { " has" } else { "s have" },
+                medium.name,
+                list.join(", "),
+                deck.file_name().unwrap_or_default().to_string_lossy(),
+                if missing.len() == 1 { "it" } else { "them" },
+            ),
+        });
+    }
+    out
 }
 
 /// Content the deck's engine will not show, one warning per slide and thing.
@@ -452,6 +515,7 @@ mod tests {
             scene_script: None,
             illustration: None,
             logo: None,
+            art: None,
         }
     }
 

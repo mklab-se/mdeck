@@ -210,6 +210,7 @@ mod tests {
                 scene_script: None,
                 illustration: None,
                 logo: None,
+                art: None,
             };
 
             let geo = geometry(rect, 1.0);

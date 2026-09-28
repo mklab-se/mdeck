@@ -74,6 +74,7 @@ fn parse_frontmatter(yaml_str: &str) -> PresentationMeta {
         logo_position: get_string(&map, "@logo-position"),
         logo_opacity: get_string(&map, "@logo-opacity"),
         logo_height: get_string(&map, "@logo-height"),
+        art: get_string(&map, "@art"),
     }
 }
 
@@ -124,6 +125,7 @@ fn parse_frontmatter_manual(yaml_str: &str) -> PresentationMeta {
                 "@logo-position" => meta.logo_position = Some(value.to_string()),
                 "@logo-opacity" => meta.logo_opacity = Some(value.to_string()),
                 "@logo-height" => meta.logo_height = Some(value.to_string()),
+                "@art" => meta.art = Some(value.to_string()),
                 _ => {}
             }
         }

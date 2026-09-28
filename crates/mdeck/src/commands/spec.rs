@@ -29,11 +29,12 @@ SLIDE SEPARATION
 FRONTMATTER (YAML at top of file)
   title, author, date     Standard metadata
   @theme: name            Theme: dark, light, nord, ember, spring, summer,
-                          autumn, winter, marquee, departures, etch, stack, or a
-                          custom one (see THEMES)
+                          autumn, winter, marquee, departures, etch, stack,
+                          blueprint, or a custom one (see THEMES)
   @engine: name           Run on this engine instead of the theme's: plain,
-                          particles, led, splitflap, laser, blocks
+                          particles, led, splitflap, laser, blocks, blueprint
                           (try one with --engine name)
+  @art: "..."             The deck's world for generated art (art engines)
   @transition: slide|fade|spatial|none
   @aspect: 16:9|4:3|16:10
   @footer: "text"         Footer on every slide
@@ -42,6 +43,7 @@ SLIDE DIRECTIVES (on their own line, under the slide's heading)
   @layout: name         Override the inferred layout
   @illustration: name   Point cloud illustration (particles engine)
   @logo: file|none      This slide's logo, or none to hide it
+  @art: "..."|none      This slide's picture on an art engine, or none
 
 LAYOUTS (auto-inferred, override with @layout: name)
   title        H1 + optional subtitle
@@ -74,6 +76,12 @@ PARTICLES ENGINE (ember, autumn, winter, and custom themes on it)
   ```@story             English hint for `mdeck ai story` (cast, flows, beats)
   mdeck illustration generate --name NAME --description "..."   New cloud via AI
   mdeck illustration import IMAGE --name NAME | list | show NAME | contribute NAME
+
+ART ENGINES (blueprint; mdeck spec, section 9.7)
+  mdeck ai art deck.md  Draw a picture per slide (--slide N, --stale, --force,
+                        --dry-run, --engine, --node); kept in art/ and deck.art.yaml
+  S                     While presenting: draw this slide's picture
+  Without art           The slide's @illustration is drawn in the medium
 
 KEYBOARD & MOUSE
 "#,
@@ -125,7 +133,9 @@ THEMES (custom themes are YAML files; mdeck spec, section 9.4)
   themes/<name>.yaml     Next to the deck (or <name>/theme.yaml with fonts)
   user folder            ~/.config/mdeck/themes (macOS: ~/Library/Application Support)
   extends: dark          Unset keys come from another theme
-  engine: plain|particles  Flat slides, or the living particle field
+  engine: plain|particles|...  What the theme does beyond colours (section 9.6)
+  page: { surface, margin, shadow, grain, radius }   The slide as a sheet on a surface
+  art: { kind, style, references }   House style of generated art
   mdeck theme list | check <n> | preview <n> -o <dir>
   mdeck theme new <n> [--from <design system folder>]
 "#,

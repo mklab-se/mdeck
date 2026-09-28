@@ -1,3 +1,4 @@
+pub mod art;
 pub mod diagram;
 pub mod ember;
 pub mod fonts;
@@ -7,8 +8,10 @@ pub mod image_cache;
 pub mod layouts;
 pub mod logo;
 pub mod math;
+pub mod page;
 pub mod particles;
 pub mod story;
+pub mod strokes;
 pub mod syntax;
 pub mod text;
 pub mod transition;
@@ -236,6 +239,7 @@ mod tests {
             scene_script: None,
             illustration: None,
             logo: None,
+            art: None,
         }
     }
 

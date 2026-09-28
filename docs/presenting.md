@@ -18,7 +18,7 @@ MDeck reloads it in place, staying on the current slide.
 | M | Move to the next monitor |
 | `.` or B | Blackout |
 | H | Presenter HUD with shortcuts (and the current story beat's line) |
-| S | Particles engine: write an AI story for this slide |
+| S | AI for this slide: a story on the particles engine, a picture on an art engine |
 | Esc | Clear drawings; press twice to quit (Q twice and Ctrl+C twice also quit) |
 
 | Mouse | Action |
