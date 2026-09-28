@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use colored::Colorize;
 
+use crate::commands::ai_reply;
 use crate::parser::{self, Block, Inline, Presentation, Slide};
 use crate::render::illustration::Library;
 use crate::render::story::sidecar::{self, Entry, Sidecar};
@@ -127,19 +128,6 @@ fn user_prompt(pres: &Presentation, index: usize, cast_so_far: &[String]) -> Str
     msg
 }
 
-/// Pull the JSON object out of a model reply that may wrap it in a fence.
-pub(crate) fn extract_json(reply: &str) -> &str {
-    let t = reply.trim();
-    let t = t
-        .strip_prefix("```json")
-        .or_else(|| t.strip_prefix("```"))
-        .map(|r| r.trim_end_matches("```"))
-        .unwrap_or(t);
-    let start = t.find('{').unwrap_or(0);
-    let end = t.rfind('}').map(|i| i + 1).unwrap_or(t.len());
-    t[start..end.max(start)].trim()
-}
-
 /// Ask the model for one slide's script, retrying once with the validation
 /// error when the first answer does not pass.
 pub async fn generate_script(
@@ -150,15 +138,12 @@ pub async fn generate_script(
     lib: &mut Library,
 ) -> Result<Script> {
     let system = format!("{SYSTEM_PROMPT}{}\n", story::vocabulary(&lib.names()));
-    let mut history = vec![
+    let history = vec![
         ailloy::Message::system(&system),
         ailloy::Message::user(user_prompt(pres, index, cast_so_far)),
     ];
-    let mut last_err = String::new();
-    for attempt in 0..2 {
-        let response = client.chat(&history).await.context("AI request failed")?;
-        let json = extract_json(&response.content).to_string();
-        let parsed = Script::parse(&json).and_then(|script| {
+    let validate = |reply: &str| {
+        Script::parse(ai_reply::json_object(reply)).and_then(|script| {
             let layout = pres.slides[index].layout;
             let unknown = script.unknown_kinds(lib);
             if !unknown.is_empty() {
@@ -181,21 +166,20 @@ pub async fn generate_script(
                     list.join(", ")
                 ))
             }
-        });
-        match parsed {
-            Ok(script) => return Ok(script),
-            Err(e) => {
-                last_err = e.clone();
-                if attempt == 0 {
-                    history.push(ailloy::Message::assistant(&response.content));
-                    history.push(ailloy::Message::user(format!(
-                        "That script is invalid: {e}. Fix it and answer with the corrected JSON object only."
-                    )));
-                }
-            }
-        }
-    }
-    bail!("model produced an invalid script: {last_err}")
+        })
+    };
+    ai_reply::chat_client_validated(
+        client,
+        history,
+        validate,
+        |e| {
+            format!(
+                "That script is invalid: {e}. Fix it and answer with the corrected JSON object only."
+            )
+        },
+        "model produced an invalid script",
+    )
+    .await
 }
 
 /// Parse `--range 3-7` (1-based, inclusive).
@@ -213,10 +197,7 @@ fn parse_range(range: &str, count: usize) -> Result<Vec<usize>> {
 /// sidecar afresh, writes the entry, and returns the script. Blocks; call it
 /// from a worker thread.
 pub fn generate_one_blocking(deck: &Path, index: usize) -> Result<Script> {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?;
-    rt.block_on(async {
+    crate::commands::util::block_on(async {
         let content = std::fs::read_to_string(deck)?;
         let base = deck.parent().unwrap_or(Path::new("."));
         let pres = parser::parse(&content, base);
@@ -239,7 +220,7 @@ pub fn generate_one_blocking(deck: &Path, index: usize) -> Result<Script> {
         upsert(&mut sc, &pres, index, script.clone());
         sidecar::save(deck, &sc).map_err(|e| anyhow::anyhow!(e))?;
         Ok(script)
-    })
+    })?
 }
 
 fn known_cast(sc: &Sidecar) -> Vec<String> {
@@ -429,7 +410,9 @@ pub async fn run(
                     if !quiet {
                         eprintln!(
                             "{}",
-                            serde_yaml::to_string(&script).unwrap_or_default().dimmed()
+                            serde_norway::to_string(&script)
+                                .unwrap_or_default()
+                                .dimmed()
                         );
                     }
                     continue;
@@ -475,13 +458,6 @@ fn truncate(s: &str, n: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn extracts_json_from_fenced_replies() {
-        let fenced = "Here you go:\n```json\n{\"cast\": []}\n```";
-        assert_eq!(extract_json(fenced), "{\"cast\": []}");
-        assert_eq!(extract_json("  {\"a\":1}  "), "{\"a\":1}");
-    }
 
     #[test]
     fn ranges_are_one_based_and_inclusive() {

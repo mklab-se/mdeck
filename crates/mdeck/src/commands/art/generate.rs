@@ -309,7 +309,7 @@ pub(super) async fn scenes(
             ailloy::Message::user(scene_request(pres, &ask)),
         ];
         let response = client.chat(&messages).await.context("AI request failed")?;
-        let json = crate::commands::story::extract_json(&response.content);
+        let json = crate::commands::ai_reply::json_object(&response.content);
         let parsed: serde_json::Value =
             serde_json::from_str(json).context("the chat model did not answer with JSON")?;
         let list = parsed["scenes"]

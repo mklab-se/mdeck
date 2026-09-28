@@ -39,43 +39,87 @@ fn find_closing_delimiter(s: &str) -> Option<(usize, usize)> {
 
 /// Render a YAML scalar as the string a user would expect to see:
 /// `title: 2026` → "2026", `draft: true` → "true". Non-scalars are ignored.
-fn value_to_string(value: &serde_yaml::Value) -> Option<String> {
+fn value_to_string(value: &serde_norway::Value) -> Option<String> {
     match value {
-        serde_yaml::Value::String(s) => Some(s.clone()),
-        serde_yaml::Value::Number(n) => Some(n.to_string()),
-        serde_yaml::Value::Bool(b) => Some(b.to_string()),
+        serde_norway::Value::String(s) => Some(s.clone()),
+        serde_norway::Value::Number(n) => Some(n.to_string()),
+        serde_norway::Value::Bool(b) => Some(b.to_string()),
         _ => None,
     }
 }
 
-fn parse_frontmatter(yaml_str: &str) -> PresentationMeta {
-    // Try to parse as YAML HashMap
-    let map: HashMap<String, serde_yaml::Value> = match serde_yaml::from_str(yaml_str) {
-        Ok(m) => m,
-        Err(_) => return parse_frontmatter_manual(yaml_str),
-    };
-
-    PresentationMeta {
-        title: get_string(&map, "title"),
-        author: get_string(&map, "author"),
-        date: get_string(&map, "date"),
-        theme: get_string(&map, "@theme"),
-        transition: get_string(&map, "@transition"),
-        aspect: get_string(&map, "@aspect"),
-        code_theme: get_string(&map, "@code-theme"),
-        footer: get_string(&map, "@footer"),
-        image_style: get_string(&map, "@image-style"),
-        icon_style: get_string(&map, "@icon-style"),
-        slide_level: get_u8(&map, "@slide-level"),
-        story: get_string(&map, "@story"),
-        countdown: get_string(&map, "@countdown").map(|v| parse_switch(&v)),
-        engine: get_string(&map, "@engine"),
-        logo: get_string(&map, "@logo"),
-        logo_position: get_string(&map, "@logo-position"),
-        logo_opacity: get_string(&map, "@logo-opacity"),
-        logo_height: get_string(&map, "@logo-height"),
-        art: get_string(&map, "@art"),
+/// Deck keys are written `@theme: dark`, and `@` cannot start a plain YAML
+/// key, so quote those keys (`"@theme": dark`) before handing the block to
+/// the YAML parser.
+fn quote_directive_keys(yaml_str: &str) -> String {
+    let mut out = String::with_capacity(yaml_str.len() + 16);
+    for line in yaml_str.lines() {
+        match line.split_once(':') {
+            Some((key, rest))
+                if key.starts_with('@')
+                    && key[1..]
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') =>
+            {
+                out.push('"');
+                out.push_str(key);
+                out.push_str("\":");
+                out.push_str(rest);
+            }
+            _ => out.push_str(line),
+        }
+        out.push('\n');
     }
+    out
+}
+
+/// The frontmatter as `key → value` strings: parsed as YAML when it is YAML,
+/// otherwise read line by line (`key: value`, quotes trimmed), so a stray
+/// colon in a title does not lose the rest of the block.
+fn frontmatter_pairs(yaml_str: &str) -> Vec<(String, String)> {
+    let parsed: Result<HashMap<String, serde_norway::Value>, _> =
+        serde_norway::from_str(&quote_directive_keys(yaml_str));
+    match parsed {
+        Ok(map) => map
+            .into_iter()
+            .filter_map(|(k, v)| value_to_string(&v).map(|v| (k, v)))
+            .collect(),
+        Err(_) => yaml_str
+            .lines()
+            .filter_map(|line| line.trim().split_once(':'))
+            .map(|(k, v)| (k.trim().to_string(), v.trim().trim_matches('"').to_string()))
+            .collect(),
+    }
+}
+
+fn parse_frontmatter(yaml_str: &str) -> PresentationMeta {
+    let mut meta = PresentationMeta::default();
+    for (key, value) in frontmatter_pairs(yaml_str) {
+        let text = Some(value.clone());
+        match key.as_str() {
+            "title" => meta.title = text,
+            "author" => meta.author = text,
+            "date" => meta.date = text,
+            "@theme" => meta.theme = text,
+            "@transition" => meta.transition = text,
+            "@aspect" => meta.aspect = text,
+            "@code-theme" => meta.code_theme = text,
+            "@footer" => meta.footer = text,
+            "@image-style" => meta.image_style = text,
+            "@icon-style" => meta.icon_style = text,
+            "@slide-level" => meta.slide_level = value.trim().parse().ok(),
+            "@story" => meta.story = text,
+            "@countdown" => meta.countdown = Some(parse_switch(&value)),
+            "@engine" => meta.engine = text,
+            "@logo" => meta.logo = text,
+            "@logo-position" => meta.logo_position = text,
+            "@logo-opacity" => meta.logo_opacity = text,
+            "@logo-height" => meta.logo_height = text,
+            "@art" => meta.art = text,
+            _ => {}
+        }
+    }
+    meta
 }
 
 /// `true`/`on`/`yes`/`1` → true; anything else → false.
@@ -84,53 +128,6 @@ fn parse_switch(value: &str) -> bool {
         value.trim().to_ascii_lowercase().as_str(),
         "true" | "on" | "yes" | "1"
     )
-}
-
-fn get_string(map: &HashMap<String, serde_yaml::Value>, key: &str) -> Option<String> {
-    map.get(key).and_then(value_to_string)
-}
-
-fn get_u8(map: &HashMap<String, serde_yaml::Value>, key: &str) -> Option<u8> {
-    map.get(key).and_then(|v| match v {
-        serde_yaml::Value::Number(n) => n.as_u64().and_then(|n| u8::try_from(n).ok()),
-        serde_yaml::Value::String(s) => s.trim().parse().ok(),
-        _ => None,
-    })
-}
-
-/// Fallback: parse key: value lines manually
-fn parse_frontmatter_manual(yaml_str: &str) -> PresentationMeta {
-    let mut meta = PresentationMeta::default();
-    for line in yaml_str.lines() {
-        let line = line.trim();
-        if let Some((key, value)) = line.split_once(':') {
-            let key = key.trim();
-            let value = value.trim().trim_matches('"');
-            match key {
-                "title" => meta.title = Some(value.to_string()),
-                "author" => meta.author = Some(value.to_string()),
-                "date" => meta.date = Some(value.to_string()),
-                "@theme" => meta.theme = Some(value.to_string()),
-                "@transition" => meta.transition = Some(value.to_string()),
-                "@aspect" => meta.aspect = Some(value.to_string()),
-                "@code-theme" => meta.code_theme = Some(value.to_string()),
-                "@footer" => meta.footer = Some(value.to_string()),
-                "@image-style" => meta.image_style = Some(value.to_string()),
-                "@icon-style" => meta.icon_style = Some(value.to_string()),
-                "@slide-level" => meta.slide_level = value.parse().ok(),
-                "@story" => meta.story = Some(value.to_string()),
-                "@countdown" => meta.countdown = Some(parse_switch(value)),
-                "@engine" => meta.engine = Some(value.to_string()),
-                "@logo" => meta.logo = Some(value.to_string()),
-                "@logo-position" => meta.logo_position = Some(value.to_string()),
-                "@logo-opacity" => meta.logo_opacity = Some(value.to_string()),
-                "@logo-height" => meta.logo_height = Some(value.to_string()),
-                "@art" => meta.art = Some(value.to_string()),
-                _ => {}
-            }
-        }
-    }
-    meta
 }
 
 #[cfg(test)]
@@ -154,6 +151,25 @@ mod tests {
         assert_eq!(meta.engine.as_deref(), Some("particles"));
         let (meta, _) = extract("---\n@engine: particles\n: broken yaml [\n---\n# A\n");
         assert_eq!(meta.engine.as_deref(), Some("particles"), "manual fallback");
+    }
+
+    #[test]
+    fn directive_keys_go_through_yaml() {
+        // `@` keys used to make the whole block invalid YAML, so every deck
+        // fell back to line splitting: comments and single quotes leaked in.
+        let (meta, _) = extract(
+            "---\ntitle: 'Quoted' # a comment\n@theme: dark # house style\n@footer: 'Acme, 2026'\n---\n# A\n",
+        );
+        assert_eq!(meta.title.as_deref(), Some("Quoted"));
+        assert_eq!(meta.theme.as_deref(), Some("dark"));
+        assert_eq!(meta.footer.as_deref(), Some("Acme, 2026"));
+    }
+
+    #[test]
+    fn stray_colon_falls_back_to_lines() {
+        let (meta, _) = extract("---\ntitle: Rust: the good parts\n@theme: light\n---\n# A\n");
+        assert_eq!(meta.title.as_deref(), Some("Rust: the good parts"));
+        assert_eq!(meta.theme.as_deref(), Some("light"));
     }
 
     #[test]

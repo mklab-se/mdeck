@@ -67,14 +67,14 @@ pub fn load(deck: &Path) -> Result<Option<Sidecar>, String> {
         return Ok(None);
     }
     let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-    serde_yaml::from_str(&text)
+    serde_norway::from_str(&text)
         .map(Some)
         .map_err(|e| format!("{}: {e}", path.display()))
 }
 
 pub fn save(deck: &Path, sidecar: &Sidecar) -> Result<PathBuf, String> {
     let path = path_for(deck);
-    let text = serde_yaml::to_string(sidecar).map_err(|e| e.to_string())?;
+    let text = serde_norway::to_string(sidecar).map_err(|e| e.to_string())?;
     let header = "# Generated art for the art engines (like blueprint), written by `mdeck ai art`.\n# Set `pinned: true` to keep a picture for its slide number whatever the slide says.\n";
     std::fs::write(&path, format!("{header}{text}"))
         .map_err(|e| format!("{}: {e}", path.display()))?;
@@ -319,8 +319,8 @@ mod tests {
         );
         assert_eq!(sc.slides.len(), 2);
         assert_eq!(sc.slides[0].file, "art/a2.jpg");
-        let text = serde_yaml::to_string(&sc).unwrap();
-        let back: Sidecar = serde_yaml::from_str(&text).unwrap();
+        let text = serde_norway::to_string(&sc).unwrap();
+        let back: Sidecar = serde_norway::from_str(&text).unwrap();
         assert_eq!(back.slides, sc.slides);
     }
 

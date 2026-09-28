@@ -106,7 +106,7 @@ impl Config {
                 anyhow::anyhow!("Failed to read config: {e}")
             }
         })?;
-        let config: Config = serde_yaml::from_str(&contents)?;
+        let config: Config = serde_norway::from_str(&contents)?;
         Ok(config)
     }
 
@@ -124,7 +124,7 @@ impl Config {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let yaml = serde_yaml::to_string(self)?;
+        let yaml = serde_norway::to_string(self)?;
         let contents = format!("# MDeck configuration — https://github.com/mklab-se/mdeck\n{yaml}");
         std::fs::write(path, contents)?;
         Ok(())
@@ -146,10 +146,10 @@ impl Config {
             .unwrap_or(false);
         if removed {
             // Clear default if it referenced this style
-            if let Some(ref defaults) = self.defaults
+            if let Some(defaults) = &mut self.defaults
                 && defaults.image_style.as_deref() == Some(name)
             {
-                self.defaults.as_mut().unwrap().image_style = None;
+                defaults.image_style = None;
             }
             // Clean up empty map
             if self.styles.as_ref().is_some_and(|m| m.is_empty()) {
@@ -192,10 +192,10 @@ impl Config {
             .map(|m| m.remove(name).is_some())
             .unwrap_or(false);
         if removed {
-            if let Some(ref defaults) = self.defaults
+            if let Some(defaults) = &mut self.defaults
                 && defaults.icon_style.as_deref() == Some(name)
             {
-                self.defaults.as_mut().unwrap().icon_style = None;
+                defaults.icon_style = None;
             }
             if self.icon_styles.as_ref().is_some_and(|m| m.is_empty()) {
                 self.icon_styles = None;

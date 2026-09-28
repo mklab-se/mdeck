@@ -448,18 +448,12 @@ impl Cli {
     pub fn run(self) -> anyhow::Result<()> {
         match self.command {
             Some(Commands::Ai { command }) => {
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()?;
-                rt.block_on(crate::commands::ai::run(command, self.quiet))
+                crate::commands::util::block_on(crate::commands::ai::run(command, self.quiet))?
             }
             Some(Commands::Config { command }) => crate::commands::config::run(command),
-            Some(Commands::Illustration { command }) => {
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()?;
-                rt.block_on(crate::commands::illustration::run(command, self.quiet))
-            }
+            Some(Commands::Illustration { command }) => crate::commands::util::block_on(
+                crate::commands::illustration::run(command, self.quiet),
+            )?,
             Some(Commands::Completion { shell }) => {
                 crate::commands::completion::run(shell);
                 Ok(())
@@ -492,10 +486,7 @@ impl Cli {
                 engine,
             ),
             Some(Commands::Theme { command }) => {
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()?;
-                rt.block_on(crate::commands::theme::run(command, self.quiet))
+                crate::commands::util::block_on(crate::commands::theme::run(command, self.quiet))?
             }
             Some(Commands::Spec { short }) => {
                 crate::commands::spec::run(short);

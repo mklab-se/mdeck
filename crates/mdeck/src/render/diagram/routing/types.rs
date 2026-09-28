@@ -142,13 +142,6 @@ impl Direction {
         matches!(self, Direction::East | Direction::West)
     }
 
-    /// Whether this direction is vertical (North/South).
-    #[cfg(test)]
-    #[allow(dead_code)]
-    pub fn is_vertical(self) -> bool {
-        !self.is_horizontal()
-    }
-
     /// Whether a transition from `self` to `other` constitutes a turn.
     pub fn is_turn(self, other: Direction) -> bool {
         self.is_horizontal() != other.is_horizontal()
@@ -186,13 +179,6 @@ impl SegmentId {
     /// Whether this segment is horizontal.
     pub fn is_horizontal(&self) -> bool {
         self.from.row2 == self.to.row2
-    }
-
-    /// Whether this segment is vertical.
-    #[cfg(test)]
-    #[allow(dead_code)]
-    pub fn is_vertical(&self) -> bool {
-        self.from.col2 == self.to.col2
     }
 }
 
@@ -281,7 +267,6 @@ pub struct DiagramNode {
 pub struct DiagramEdge {
     pub source: String,
     pub target: String,
-    #[allow(dead_code)]
     pub label: Option<String>,
 }
 

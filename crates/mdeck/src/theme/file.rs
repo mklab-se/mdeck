@@ -164,7 +164,7 @@ fn pick<T: Clone>(child: &Option<T>, parent: &Option<T>) -> Option<T> {
 
 impl ThemeFile {
     pub fn parse(yaml: &str) -> Result<Self, String> {
-        serde_yaml::from_str(yaml).map_err(|e| e.to_string())
+        serde_norway::from_str(yaml).map_err(|e| e.to_string())
     }
 
     /// This file with every unset key taken from `parent`. `name` and

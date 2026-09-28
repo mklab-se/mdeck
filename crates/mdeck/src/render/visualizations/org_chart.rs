@@ -81,8 +81,6 @@ struct LayoutNode {
     x: f32,
     y: f32,
     depth: usize,
-    #[allow(dead_code)]
-    child_count: usize,
 }
 
 fn build_layout(
@@ -136,13 +134,11 @@ fn build_layout(
         let n = level.len();
         let spacing = area_width / (n + 1) as f32;
         for (i, node) in level.iter().enumerate() {
-            let child_count = children_map.get(node).map_or(0, |c| c.len());
             layout_nodes.push(LayoutNode {
                 label: node.clone(),
                 x: spacing * (i + 1) as f32,
                 y: level_height * depth as f32 + level_height * 0.5,
                 depth,
-                child_count,
             });
         }
     }

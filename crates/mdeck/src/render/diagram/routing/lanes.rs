@@ -38,15 +38,6 @@ impl LaneOccupancy {
         }
     }
 
-    /// Find the first available lane on a segment, spiraling from center.
-    #[cfg(test)]
-    #[allow(dead_code)]
-    pub fn first_available(&self, seg: &SegmentId, capacity: i32) -> Option<Lane> {
-        spiral_lanes(capacity)
-            .into_iter()
-            .find(|lane| self.is_available(seg, *lane))
-    }
-
     /// Get all available lanes on a segment, ordered by preference (center first, spiral out).
     pub fn available_lanes(&self, seg: &SegmentId, capacity: i32) -> Vec<Lane> {
         spiral_lanes(capacity)
@@ -141,31 +132,6 @@ impl LaneOccupancy {
         }
 
         crossings
-    }
-
-    /// Get the set of claimed lanes on a segment.
-    #[cfg(test)]
-    #[allow(dead_code)]
-    pub fn claimed_lanes(&self, seg: &SegmentId) -> Option<&HashSet<Lane>> {
-        self.claimed.get(seg)
-    }
-
-    /// Count how many lanes are claimed on a segment.
-    #[cfg(test)]
-    #[allow(dead_code)]
-    pub fn claimed_count(&self, seg: &SegmentId) -> usize {
-        self.claimed.get(seg).map_or(0, |s| s.len())
-    }
-
-    /// Build a route from waypoint coordinates.
-    #[cfg(test)]
-    #[allow(dead_code)]
-    pub fn build_route_from_waypoints(waypoints: Vec<Waypoint>) -> Route {
-        let complexity = compute_complexity(&waypoints);
-        Route {
-            waypoints,
-            complexity,
-        }
     }
 }
 

@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- Frontmatter is read as YAML again. The `@` keys (`@theme: dark`) are not valid plain YAML
+  keys, so every real deck fell back to splitting lines at the first colon: a trailing
+  `# comment` or single quotes ended up in the value. Lines that are not valid YAML (a title
+  with a second colon) are still read line by line.
+- `mdeck ai create` reads visualization opportunities with a JSON parser, so `\u00e5`-style
+  escapes and quotes inside values come through intact.
+- Error messages show their cause: "AI request failed" now says why it failed.
+
+### Changed
+
+- YAML goes through `serde_norway`, the maintained fork of the archived `serde_yaml`.
+
 ## [1.15.2] - 2026-09-28
 
 ### Fixed

@@ -177,7 +177,7 @@ pub const MAX_SAY_CHARS: usize = 160;
 impl Script {
     /// Parse a script from YAML or JSON (JSON is valid YAML).
     pub fn parse(text: &str) -> Result<Script, String> {
-        let script: Script = serde_yaml::from_str(text).map_err(|e| e.to_string())?;
+        let script: Script = serde_norway::from_str(text).map_err(|e| e.to_string())?;
         script.validate()?;
         Ok(script)
     }

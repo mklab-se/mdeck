@@ -5,7 +5,8 @@ use std::path::Path;
 use anyhow::{Context, Result};
 
 /// A structured visualization opportunity extracted from the AI outline.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(default)]
 pub struct VisualizationOpportunity {
     pub visualization_name: String,
     pub description: String,
@@ -15,130 +16,46 @@ pub struct VisualizationOpportunity {
     pub ascii_mockup: String,
 }
 
-/// Extract visualization opportunities from the AI outline JSON.
+impl VisualizationOpportunity {
+    /// Named and described well enough to report; an unnamed one is "Unknown".
+    fn reportable(mut self) -> Option<Self> {
+        if self.visualization_name.is_empty() && self.description.is_empty() {
+            return None;
+        }
+        if self.visualization_name.is_empty() {
+            self.visualization_name = "Unknown".to_string();
+        }
+        Some(self)
+    }
+}
+
+/// Extract visualization opportunities from the AI outline: the JSON array
+/// under `"opportunities"`, wherever it sits in the reply. Anything that does
+/// not parse yields no opportunities rather than an error.
 pub fn extract_opportunities(outline: &str) -> Vec<VisualizationOpportunity> {
-    let mut opportunities = Vec::new();
-
-    // Find the "opportunities" array in the JSON
-    let Some(start) = outline.find("\"opportunities\"") else {
-        return opportunities;
+    let Some(key) = outline.find("\"opportunities\"") else {
+        return Vec::new();
     };
-    let Some(arr_start) = outline[start..].find('[') else {
-        return opportunities;
+    let Some(open) = outline[key..].find('[') else {
+        return Vec::new();
     };
-    let arr_content = &outline[start + arr_start..];
-
-    // Find matching closing bracket
-    let mut depth = 0;
-    let mut end = 0;
-    for (i, c) in arr_content.char_indices() {
-        match c {
-            '[' => depth += 1,
-            ']' => {
-                depth -= 1;
-                if depth == 0 {
-                    end = i + c.len_utf8();
-                    break;
-                }
-            }
-            _ => {}
-        }
-    }
-    if end == 0 {
-        return opportunities;
-    }
-
-    let arr_str = &arr_content[..end];
-
-    // Parse individual opportunity objects
-    let mut obj_depth = 0;
-    let mut obj_start = None;
-    for (i, c) in arr_str.char_indices() {
-        match c {
-            '{' => {
-                if obj_depth == 0 {
-                    obj_start = Some(i);
-                }
-                obj_depth += 1;
-            }
-            '}' => {
-                obj_depth -= 1;
-                if obj_depth == 0
-                    && let Some(start) = obj_start
-                {
-                    let obj = &arr_str[start..i + c.len_utf8()];
-                    if let Some(opp) = parse_opportunity(obj) {
-                        opportunities.push(opp);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    opportunities
+    // Read exactly one array; whatever follows it is ignored.
+    serde_json::Deserializer::from_str(&outline[key + open..])
+        .into_iter::<Vec<VisualizationOpportunity>>()
+        .next()
+        .and_then(Result::ok)
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(VisualizationOpportunity::reportable)
+        .collect()
 }
 
-/// Parse a single opportunity JSON object.
-fn parse_opportunity(json: &str) -> Option<VisualizationOpportunity> {
-    fn extract_field(json: &str, field: &str) -> String {
-        let pattern = format!("\"{field}\"");
-        let Some(pos) = json.find(&pattern) else {
-            return String::new();
-        };
-        let after = &json[pos + pattern.len()..];
-        // Skip `: "`
-        let Some(quote_start) = after.find('"') else {
-            return String::new();
-        };
-        let value_start = &after[quote_start + 1..];
-        let mut result = String::new();
-        let mut escaped = false;
-        for c in value_start.chars() {
-            if escaped {
-                match c {
-                    'n' => result.push('\n'),
-                    't' => result.push('\t'),
-                    'r' => result.push('\r'),
-                    _ => result.push(c), // \", \\, etc.
-                }
-                escaped = false;
-            } else if c == '\\' {
-                escaped = true;
-            } else if c == '"' {
-                break;
-            } else {
-                result.push(c);
-            }
-        }
-        result
-    }
-
-    let viz_name = extract_field(json, "visualization_name");
-    let description = extract_field(json, "description");
-
-    if description.is_empty() && viz_name.is_empty() {
-        return None;
-    }
-
-    Some(VisualizationOpportunity {
-        visualization_name: if viz_name.is_empty() {
-            "Unknown".to_string()
-        } else {
-            viz_name
-        },
-        description,
-        data_description: extract_field(json, "data_description"),
-        rendering_description: extract_field(json, "rendering_description"),
-        suggested_syntax: extract_field(json, "suggested_syntax"),
-        ascii_mockup: extract_field(json, "ascii_mockup"),
-    })
-}
-
-/// Expose `parse_opportunity` for tests in the parent module.
+/// Parse a single opportunity JSON object (tests in the parent module).
 #[cfg(test)]
 pub fn parse_opportunity_for_test(json: &str) -> Option<VisualizationOpportunity> {
-    parse_opportunity(json)
+    serde_json::from_str::<VisualizationOpportunity>(json)
+        .ok()
+        .and_then(VisualizationOpportunity::reportable)
 }
 
 /// Write visualization opportunities to a file in GitHub-issue-ready format.

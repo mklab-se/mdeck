@@ -13,6 +13,13 @@
 //! cleared) every frame and then added onto the slide. Two textures
 //! ping-pong; if the framebuffer cannot be created the sprites are drawn
 //! straight to the screen, crisp and without trails.
+//!
+//! **Safety.** glow's calls are `unsafe` because they need a current GL
+//! context and live GL object names. Every `unsafe fn` here has one contract:
+//! call it from inside the `egui_glow` paint callback (where egui has made
+//! its context current), with objects created by [`create_objects`] on that
+//! same context. The callback is the only caller; each `SAFETY:` comment
+//! below points back to this contract.
 
 use std::sync::{Arc, Mutex};
 
@@ -142,11 +149,14 @@ impl GlowRenderer {
                 let gl = gl_painter.gl();
                 let mut guard = objects.lock().unwrap_or_else(|p| p.into_inner());
                 if guard.is_none() {
+                    // SAFETY: inside the egui_glow callback, so `gl` is current.
                     *guard = unsafe { create_objects(gl) };
                 }
                 let Some(obj) = guard.as_mut() else {
                     return;
                 };
+                // SAFETY: inside the egui_glow callback, and `obj` was created
+                // on this context above.
                 unsafe {
                     if wakes && !light {
                         draw_with_wakes(gl, obj, &info, &sprites, gl_painter.intermediate_fbo());
@@ -163,7 +173,11 @@ impl GlowRenderer {
 /// GLSL prefixes for this context. Desktop GL 3.2+ core profiles (macOS)
 /// reject the legacy `attribute`/`varying` keywords and `#version 120`, so
 /// the shaders are written in the legacy dialect and mapped with macros.
-fn shader_prefixes(gl: &glow::Context) -> (String, String) {
+///
+/// # Safety
+/// See the module docs: call with the callback's current context.
+unsafe fn shader_prefixes(gl: &glow::Context) -> (String, String) {
+    // SAFETY: the caller holds the current context (module contract).
     let lang = unsafe { gl.get_parameter_string(glow::SHADING_LANGUAGE_VERSION) };
     if lang.contains("ES") {
         (
@@ -179,6 +193,7 @@ fn shader_prefixes(gl: &glow::Context) -> (String, String) {
 }
 
 unsafe fn compile(gl: &glow::Context, kind: u32, src: &str) -> Option<glow::Shader> {
+    // SAFETY: the caller upholds the module contract (current context).
     unsafe {
         let shader = gl.create_shader(kind).ok()?;
         gl.shader_source(shader, src);
@@ -201,6 +216,7 @@ unsafe fn link(
     fs_src: &str,
     attribs: &[&str],
 ) -> Option<glow::Program> {
+    // SAFETY: the caller upholds the module contract (current context).
     unsafe {
         let (vp, fp) = shader_prefixes(gl);
         let vs = compile(gl, glow::VERTEX_SHADER, &format!("{vp}{vs_src}"))?;
@@ -229,6 +245,7 @@ unsafe fn link(
 }
 
 unsafe fn create_objects(gl: &glow::Context) -> Option<GlObjects> {
+    // SAFETY: the caller upholds the module contract (current context).
     unsafe {
         let sprites = link(gl, SPRITE_VERT, SPRITE_FRAG, &["a_pos", "a_uv", "a_color"])?;
         let u_screen = gl.get_uniform_location(sprites, "u_screen");
@@ -248,6 +265,8 @@ unsafe fn create_objects(gl: &glow::Context) -> Option<GlObjects> {
         ];
         gl.bind_vertex_array(Some(quad_vao));
         gl.bind_buffer(glow::ARRAY_BUFFER, Some(quad_vbo));
+        // SAFETY: `verts` is a live, initialised `[f32; 24]`; viewing its
+        // bytes as `u8` for exactly `size_of_val` bytes is always valid.
         let bytes: &[u8] =
             std::slice::from_raw_parts(verts.as_ptr() as *const u8, std::mem::size_of_val(&verts));
         gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, bytes, glow::STATIC_DRAW);
@@ -273,6 +292,7 @@ unsafe fn create_objects(gl: &glow::Context) -> Option<GlObjects> {
 
 /// Create (or resize) the two wake buffers for a viewport of `w × h` pixels.
 unsafe fn ensure_wake(gl: &glow::Context, obj: &mut GlObjects, w: i32, h: i32) -> bool {
+    // SAFETY: the caller upholds the module contract (current context).
     unsafe {
         if obj.wake_failed || w <= 0 || h <= 0 {
             return false;
@@ -293,9 +313,19 @@ unsafe fn ensure_wake(gl: &glow::Context, obj: &mut GlObjects, w: i32, h: i32) -
         let mut fbo = Vec::new();
         let mut tex = Vec::new();
         for _ in 0..2 {
-            let (Ok(t), Ok(f)) = (gl.create_texture(), gl.create_framebuffer()) else {
-                obj.wake_failed = true;
-                return false;
+            let (t, f) = match (gl.create_texture(), gl.create_framebuffer()) {
+                (Ok(t), Ok(f)) => (t, f),
+                (t, f) => {
+                    // Do not leak whichever half (or earlier pair) succeeded.
+                    t.into_iter()
+                        .chain(tex.drain(..))
+                        .for_each(|t| gl.delete_texture(t));
+                    f.into_iter()
+                        .chain(fbo.drain(..))
+                        .for_each(|f| gl.delete_framebuffer(f));
+                    obj.wake_failed = true;
+                    return false;
+                }
             };
             gl.bind_texture(glow::TEXTURE_2D, Some(t));
             gl.tex_image_2d(
@@ -397,6 +427,7 @@ unsafe fn draw_sprites(
         return;
     }
 
+    // SAFETY: the caller upholds the module contract (current context).
     unsafe {
         gl.use_program(Some(obj.sprites));
         gl.uniform_2_f32(
@@ -446,6 +477,7 @@ unsafe fn draw_sprites(
 
 /// Draw the full-screen quad sampling `tex` with the given decay and cut.
 unsafe fn draw_quad(gl: &glow::Context, obj: &GlObjects, tex: glow::Texture, decay: f32, cut: f32) {
+    // SAFETY: the caller upholds the module contract (current context).
     unsafe {
         gl.use_program(Some(obj.quad));
         gl.active_texture(glow::TEXTURE0);
@@ -479,6 +511,7 @@ unsafe fn draw_with_wakes(
     sprites: &[Sprite],
     screen_fbo: Option<glow::Framebuffer>,
 ) {
+    // SAFETY: the caller upholds the module contract (current context).
     unsafe {
         let vp = info.viewport_in_pixels();
         if !ensure_wake(gl, obj, vp.width_px, vp.height_px) {

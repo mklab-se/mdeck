@@ -7,6 +7,7 @@ use anyhow::{Context, Result, bail};
 use colored::Colorize;
 
 use crate::cli::ThemeCommands;
+use crate::commands::ai_reply;
 use crate::theme::file::ThemeFile;
 use crate::theme::lookup::{self, Lookup, Origin};
 use crate::theme::validate;
@@ -425,16 +426,9 @@ fn user_prompt(name: &str, sources: &Sources, fonts: &[String], logos: &[String]
     p
 }
 
-/// Strip code fences a model may add despite being asked not to.
+/// The theme YAML in a reply, without a code fence the model may add.
 fn strip_fences(s: &str) -> String {
-    let t = s.trim();
-    let t = t
-        .strip_prefix("```yaml")
-        .or_else(|| t.strip_prefix("```yml"))
-        .or_else(|| t.strip_prefix("```"))
-        .unwrap_or(t);
-    let t = t.strip_suffix("```").unwrap_or(t);
-    format!("{}\n", t.trim())
+    format!("{}\n", ai_reply::strip_fence(s, &["yaml", "yml"]))
 }
 
 /// Ask for the theme, check it the way MDeck will load it, and retry once
@@ -448,15 +442,13 @@ async fn generate(
     dir: &Path,
     out_file: &Path,
 ) -> Result<String> {
-    let mut history = vec![
+    let history = vec![
         ailloy::Message::system(SYSTEM_PROMPT),
         ailloy::Message::user(user_prompt(name, sources, fonts, logos)),
     ];
-    let mut last_err = String::new();
-    for attempt in 0..2 {
-        let response = client.chat(&history).await.context("AI request failed")?;
-        let yaml = strip_fences(&response.content);
-        let verdict = ThemeFile::parse(&yaml).and_then(|_| {
+    let validate = |reply: &str| {
+        let yaml = strip_fences(reply);
+        ThemeFile::parse(&yaml).and_then(|_| {
             // Load it for real (fonts, extends) from where it will live.
             std::fs::write(out_file, &yaml).map_err(|e| e.to_string())?;
             let l = written_in(dir);
@@ -465,23 +457,25 @@ async fn generate(
                 .into_iter()
                 .find(|f| f.origin != Origin::Builtin)
                 .ok_or_else(|| "the written theme could not be found".to_string())?;
-            l.load_found(&found).map(|_| ())
-        });
-        match verdict {
-            Ok(()) => return Ok(yaml),
-            Err(e) => {
-                last_err = e.clone();
-                if attempt == 0 {
-                    history.push(ailloy::Message::assistant(&response.content));
-                    history.push(ailloy::Message::user(format!(
-                        "MDeck rejects that theme: {e}. Fix it and answer with the corrected YAML only."
-                    )));
-                }
-            }
-        }
+            l.load_found(&found).map(|_| yaml)
+        })
+    };
+    let theme = ai_reply::chat_client_validated(
+        client,
+        history,
+        validate,
+        |e| {
+            format!(
+                "MDeck rejects that theme: {e}. Fix it and answer with the corrected YAML only."
+            )
+        },
+        "the model did not produce a valid theme",
+    )
+    .await;
+    if theme.is_err() {
+        let _ = std::fs::remove_file(out_file);
     }
-    let _ = std::fs::remove_file(out_file);
-    bail!("the model did not produce a valid theme: {last_err}")
+    theme
 }
 
 /// A sampler deck that shows every part of a theme once.

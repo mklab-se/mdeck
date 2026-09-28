@@ -1,5 +1,14 @@
 //! Small shared helpers for CLI commands.
 
+/// Run `fut` to completion on a fresh single-threaded runtime. The CLI and
+/// the app's worker threads are synchronous; the AI client is async.
+pub fn block_on<F: Future>(fut: F) -> anyhow::Result<F::Output> {
+    Ok(tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?
+        .block_on(fut))
+}
+
 /// Truncate `s` to at most `max_chars` characters (not bytes), appending
 /// `...` when something was cut. Safe for multi-byte text (å, ä, ö, —, emoji).
 pub fn truncate_chars(s: &str, max_chars: usize) -> String {

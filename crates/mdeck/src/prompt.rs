@@ -10,11 +10,9 @@ pub const DEFAULT_ICON_STYLE: &str = "Clean, modern icon illustration. \
     sizes with clear silhouette and balanced proportions. No text, no background clutter.";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-#[allow(dead_code)]
 pub enum Orientation {
     Horizontal,
     Vertical,
-    Square,
 }
 
 /// Build a prompt for a presentation image by combining style + user prompt + orientation hint.
@@ -22,7 +20,6 @@ pub fn build_image_prompt(style: &str, user_prompt: &str, orientation: Orientati
     let orientation_hint = match orientation {
         Orientation::Horizontal => "Horizontal format with wide aspect ratio.",
         Orientation::Vertical => "Vertical/portrait format with tall aspect ratio.",
-        Orientation::Square => "Square format.",
     };
 
     format!(

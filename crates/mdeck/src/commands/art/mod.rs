@@ -248,10 +248,7 @@ pub async fn run(
 /// Draw the picture for one slide from a running app (the `S` key), for the
 /// theme it is showing. Blocks; call it from a worker thread.
 pub fn generate_one_blocking(deck: &Path, index: usize, theme: &Theme) -> Result<()> {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?;
-    rt.block_on(async {
+    crate::commands::util::block_on(async {
         let content = std::fs::read_to_string(deck)?;
         let base = deck.parent().unwrap_or(Path::new("."));
         let pres = parser::parse(&content, base);
@@ -304,7 +301,7 @@ pub fn generate_one_blocking(deck: &Path, index: usize, theme: &Theme) -> Result
         );
         sidecar::save(deck, &sc).map_err(|e| anyhow::anyhow!(e))?;
         Ok(())
-    })
+    })?
 }
 
 #[cfg(test)]

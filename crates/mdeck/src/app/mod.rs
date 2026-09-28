@@ -1322,8 +1322,9 @@ impl eframe::App for PresentationApp {
         // Theme font files registered since last frame become drawable one
         // frame after they are installed; a waiting theme switches then.
         self.font_sync.sync(ctx);
-        if self.pending_theme.is_some() && self.font_sync.ready() {
-            let theme = self.pending_theme.take().expect("checked");
+        if self.font_sync.ready()
+            && let Some(theme) = self.pending_theme.take()
+        {
             self.apply_theme(theme);
         } else if self.pending_theme.is_some() {
             ctx.request_repaint();

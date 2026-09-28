@@ -1,4 +1,5 @@
 pub mod ai;
+pub mod ai_reply;
 pub mod art;
 pub mod check;
 pub mod completion;

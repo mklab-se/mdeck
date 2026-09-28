@@ -47,14 +47,12 @@ pub struct PresentationMeta {
 
 #[derive(Debug, Clone)]
 pub struct Slide {
-    #[allow(dead_code)]
     pub directives: Vec<Directive>,
     pub blocks: Vec<Block>,
     pub layout: Layout,
     /// The original raw markdown source text for this slide.
     pub raw_source: String,
     /// Speaker notes for this slide (content after `???` separator).
-    #[allow(dead_code)]
     pub notes: Option<String>,
     /// English hint for AI story generation (a ```@story fence).
     pub story_hint: Option<String>,
@@ -212,7 +210,13 @@ pub enum Inline {
     },
     Link {
         text: Vec<Inline>,
-        #[allow(dead_code)]
+        #[cfg_attr(
+            not(test),
+            expect(
+                dead_code,
+                reason = "slides draw link text only; the target is kept in the document model"
+            )
+        )]
         url: String,
     },
 }
@@ -585,7 +589,6 @@ fn count_next_steps(items: &[ListItem]) -> usize {
 }
 
 /// Extract plain text from inline elements.
-#[allow(dead_code)]
 pub fn inlines_to_text(inlines: &[Inline]) -> String {
     let mut text = String::new();
     for inline in inlines {

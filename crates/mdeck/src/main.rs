@@ -24,7 +24,7 @@ fn main() {
     }
 
     if let Err(e) = cli.run() {
-        eprintln!("{} {e}", "Error:".red().bold());
+        eprintln!("{} {e:#}", "Error:".red().bold());
         std::process::exit(1);
     }
 }

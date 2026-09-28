@@ -510,32 +510,12 @@ async fn run_generation(
         }
     }
 
-    let cleaned = strip_markdown_fences(&assembled);
-    Ok(cleaned)
+    Ok(strip_markdown_fences(&assembled))
 }
 
-/// Strip markdown code fences if the AI wrapped the response.
+/// The deck in a reply, without a code fence the model may wrap it in.
 fn strip_markdown_fences(text: &str) -> String {
-    let trimmed = text.trim();
-    if let Some(rest) = trimmed.strip_prefix("```markdown")
-        && let Some(content) = rest.strip_suffix("```")
-    {
-        return content.trim().to_string();
-    }
-    if let Some(rest) = trimmed.strip_prefix("```md")
-        && let Some(content) = rest.strip_suffix("```")
-    {
-        return content.trim().to_string();
-    }
-    if let Some(rest) = trimmed.strip_prefix("```")
-        && let Some(content) = rest.strip_suffix("```")
-    {
-        let first_line = content.lines().next().unwrap_or("");
-        if first_line.trim().is_empty() || first_line.trim() == "---" {
-            return content.trim().to_string();
-        }
-    }
-    trimmed.to_string()
+    super::ai_reply::strip_fence(text, &["markdown", "md"]).to_string()
 }
 
 // ── Output resolution ───────────────────────────────────────────────────────
@@ -849,6 +829,18 @@ mod tests {
         assert_eq!(opps.len(), 2);
         assert_eq!(opps[0].visualization_name, "Swimlane");
         assert_eq!(opps[1].visualization_name, "Sankey");
+    }
+
+    #[test]
+    fn test_extract_opportunities_json_escapes() {
+        // The old hand-written scanner turned `\u00e5` into `u00e5` and cut a
+        // value at an escaped quote followed by more text.
+        let outline = r#"{"opportunities": [{"visualization_name": "R\u00e5 data",
+            "description": "Say \"hi\" then go", "extra": 3}], "slides": []}"#;
+        let opps = extract_opportunities(outline);
+        assert_eq!(opps.len(), 1);
+        assert_eq!(opps[0].visualization_name, "Rå data");
+        assert_eq!(opps[0].description, "Say \"hi\" then go");
     }
 
     #[test]
