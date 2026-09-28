@@ -18,8 +18,18 @@ pub(super) struct ArrowAnnotation {
     pub(super) slide_index: usize,
 }
 
+/// Pen strokes and arrows over the slides, and the one being drawn.
+#[derive(Default)]
+pub(super) struct Ink {
+    pub(super) strokes: Vec<PenStroke>,
+    pub(super) arrows: Vec<ArrowAnnotation>,
+    pub(super) active: ActiveDraw,
+}
+
 /// Tracks an in-progress mouse interaction
+#[derive(Default)]
 pub(super) enum ActiveDraw {
+    #[default]
     None,
     /// Left button held: collecting points, might still be a click
     PenPending {
@@ -27,9 +37,7 @@ pub(super) enum ActiveDraw {
         points: Vec<egui::Pos2>,
     },
     /// Left button held: drag threshold exceeded, definitely drawing
-    PenDrawing {
-        points: Vec<egui::Pos2>,
-    },
+    PenDrawing { points: Vec<egui::Pos2> },
     /// Right button held: collecting start/end, might still be a click
     ArrowPending {
         origin: egui::Pos2,
@@ -136,7 +144,7 @@ impl PresentationApp {
             // Pointer left the window. Once no button is held, whatever was
             // pending can never complete as a click or stroke: drop it.
             if !primary.down && !secondary.down {
-                self.active_draw = ActiveDraw::None;
+                self.ink.active = ActiveDraw::None;
             }
             return;
         };
@@ -144,22 +152,22 @@ impl PresentationApp {
 
         if primary.pressed {
             // Left button press: a click or the start of a pen stroke
-            self.active_draw = ActiveDraw::PenPending {
+            self.ink.active = ActiveDraw::PenPending {
                 origin: local,
                 points: vec![local],
             };
         } else if secondary.pressed {
             // Right button press: a click or the start of an arrow
-            self.active_draw = ActiveDraw::ArrowPending {
+            self.ink.active = ActiveDraw::ArrowPending {
                 origin: local,
                 current: local,
             };
         } else if primary.down || secondary.down {
-            self.active_draw.drag(local, primary.down);
+            self.ink.active.drag(local, primary.down);
             ctx.request_repaint();
-        } else if !matches!(self.active_draw, ActiveDraw::None) {
+        } else if !matches!(self.ink.active, ActiveDraw::None) {
             // No button held: commit or navigate only on an observed release
-            let active = std::mem::replace(&mut self.active_draw, ActiveDraw::None);
+            let active = std::mem::replace(&mut self.ink.active, ActiveDraw::None);
             self.release(active, primary.released || secondary.released);
         }
     }
@@ -168,12 +176,12 @@ impl PresentationApp {
         match release_outcome(active, released_this_frame) {
             ReleaseOutcome::NavigateForward => self.navigate_forward(),
             ReleaseOutcome::NavigateBackward => self.navigate_backward(),
-            ReleaseOutcome::CommitPen(points) => self.pen_strokes.push(PenStroke {
+            ReleaseOutcome::CommitPen(points) => self.ink.strokes.push(PenStroke {
                 points,
                 start: Instant::now(),
                 slide_index: self.current_slide,
             }),
-            ReleaseOutcome::CommitArrow { from, to } => self.arrows.push(ArrowAnnotation {
+            ReleaseOutcome::CommitArrow { from, to } => self.ink.arrows.push(ArrowAnnotation {
                 from,
                 to,
                 start: Instant::now(),

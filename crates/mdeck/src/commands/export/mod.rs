@@ -1,7 +1,7 @@
 //! `mdeck export`: slides to PNG files, or to one PDF (optionally with
 //! speaker notes pages).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use eframe::egui;
@@ -135,95 +135,23 @@ pub fn run(args: ExportArgs) -> anyhow::Result<()> {
         anyhow::bail!("--notes needs --format pdf (notes pages only exist in PDF export)");
     }
 
-    let content = std::fs::read_to_string(&file)?;
-    let base_path = file
-        .parent()
-        .unwrap_or(std::path::Path::new("."))
-        .to_path_buf();
-    let presentation = parser::parse(&content);
-
-    if presentation.slides.is_empty() {
-        anyhow::bail!("No slides found in {}", file.display());
-    }
-    crate::commands::check::warn_missing_cjk_font(&presentation);
-
-    // Same precedence as presenting: --theme, then @theme, then the config
-    // default, then the built-in default. An explicit --theme must exist.
-    let themes = crate::theme::lookup::Lookup::for_deck(Some(&base_path));
-    let theme = match theme {
-        ThemeChoice::Given(theme) => *theme,
-        ThemeChoice::Named(name) => {
-            let built = themes.load(&name).map_err(|e| anyhow::anyhow!("{e}"))?;
-            deck::report_theme_problems(&built.warnings);
-            built.theme
-        }
-        ThemeChoice::Deck => {
-            let defaults = crate::config::Config::load_or_default()
-                .defaults
-                .unwrap_or_default();
-            deck::deck_theme(&themes, &presentation, defaults.theme.as_deref()).0
-        }
-    };
-
-    // --engine, then @engine, then the theme's own.
-    let (cli_engine, _) =
-        crate::engines::choose(engine.as_deref(), None).map_err(|e| anyhow::anyhow!("{e}"))?;
-    let theme =
-        crate::engines::with_engine(theme, deck::deck_engine(cli_engine, &presentation, false));
-    let deck = Deck::open(file.clone(), presentation, &theme, false, false);
-    if let Some(line) =
-        crate::engines::unsupported_summary(theme.engine, &deck.presentation, &deck.with_story())
-    {
-        eprintln!("warning: {line}");
-    }
-
+    let (deck, theme) = open_deck(&file, theme, engine.as_deref())?;
     std::fs::create_dir_all(&output_dir)?;
-
-    let slide_total = deck.slide_count();
-    let targets = select_slides(slide, range.as_deref(), slide_total)?;
-    let slide_count = targets.len();
-    let which = if slide_count == slide_total {
-        format!("{slide_count} slides")
-    } else {
-        let span = if slide_count > 1 {
-            format!("-{}", targets[slide_count - 1] + 1)
-        } else {
-            String::new()
-        };
-        format!(
-            "{slide_count} of {slide_total} slides ({}{span})",
-            targets[0] + 1
-        )
-    };
+    let targets = select_slides(slide, range.as_deref(), deck.slide_count())?;
     let pdf_path = (format == Format::Pdf).then(|| output_dir.join(pdf_filename(&file, notes)));
-    let target = pdf_path.as_ref().unwrap_or(&output_dir);
     eprintln!(
-        "{} {which} to {} ({width}x{height}{})",
+        "{} {} to {} ({width}x{height}{})",
         if debug { "Debug export:" } else { "Exporting" },
-        target.display(),
+        describe_targets(&targets, deck.slide_count()),
+        pdf_path.as_ref().unwrap_or(&output_dir).display(),
         if notes { ", with speaker notes" } else { "" },
     );
 
     let meta = &deck.presentation.meta;
-    let title = meta
-        .title
-        .clone()
-        .unwrap_or_else(|| "mdeck export".to_string());
     let pdf_meta = pdf::Meta {
         title: meta.title.clone(),
         author: meta.author.clone(),
     };
-
-    let viewport = egui::ViewportBuilder::default()
-        .with_inner_size([width as f32, height as f32])
-        .with_title(&title)
-        .with_decorations(false);
-
-    let options = eframe::NativeOptions {
-        viewport,
-        ..Default::default()
-    };
-
     let doc = Arc::new(Mutex::new(pdf::PdfDoc::new()));
     let output = match format {
         Format::Png => Output::Png {
@@ -239,6 +167,96 @@ pub fn run(args: ExportArgs) -> anyhow::Result<()> {
         height,
         debug,
         targets,
+    };
+    render_pages(deck, theme, output, job)?;
+
+    if let Some(path) = pdf_path {
+        let doc = std::mem::take(&mut *doc.lock().unwrap_or_else(|p| p.into_inner()));
+        write_pdf(&path, doc, &pdf_meta)?;
+    }
+    eprintln!("Export complete.");
+    Ok(())
+}
+
+/// Parse the deck and resolve its theme with the same precedence as
+/// presenting: `--theme`, then `@theme`, then the config default, then the
+/// built-in default (an explicit `--theme` must exist); and its engine:
+/// `--engine`, then `@engine`, then the theme's own.
+fn open_deck(
+    file: &Path,
+    choice: ThemeChoice,
+    engine: Option<&str>,
+) -> anyhow::Result<(Deck, crate::theme::Theme)> {
+    let content = std::fs::read_to_string(file)?;
+    let presentation = parser::parse(&content);
+    if presentation.slides.is_empty() {
+        anyhow::bail!("No slides found in {}", file.display());
+    }
+    crate::commands::check::warn_missing_cjk_font(&presentation);
+
+    let themes = crate::theme::lookup::Lookup::for_deck(file.parent());
+    let theme = match choice {
+        ThemeChoice::Given(theme) => *theme,
+        ThemeChoice::Named(name) => {
+            let built = themes.load(&name).map_err(|e| anyhow::anyhow!("{e}"))?;
+            deck::report_theme_problems(&built.warnings);
+            built.theme
+        }
+        ThemeChoice::Deck => {
+            let defaults = crate::config::Config::load_or_default()
+                .defaults
+                .unwrap_or_default();
+            deck::deck_theme(&themes, &presentation, defaults.theme.as_deref()).0
+        }
+    };
+    let (cli_engine, _) =
+        crate::engines::choose(engine, None).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let theme =
+        crate::engines::with_engine(theme, deck::deck_engine(cli_engine, &presentation, false));
+    let deck = Deck::open(file.to_path_buf(), presentation, &theme, false, false);
+    if let Some(line) =
+        crate::engines::unsupported_summary(theme.engine, &deck.presentation, &deck.with_story())
+    {
+        eprintln!("warning: {line}");
+    }
+    Ok((deck, theme))
+}
+
+/// "12 slides", or "3 of 12 slides (4-6)" for a selection.
+fn describe_targets(targets: &[usize], total: usize) -> String {
+    let count = targets.len();
+    if count == total {
+        return format!("{count} slides");
+    }
+    let span = if count > 1 {
+        format!("-{}", targets[count - 1] + 1)
+    } else {
+        String::new()
+    };
+    format!("{count} of {total} slides ({}{span})", targets[0] + 1)
+}
+
+/// Open the export window and render every page of `job` into `output`.
+/// A failed save fails the export rather than passing for success.
+fn render_pages(
+    deck: Deck,
+    theme: crate::theme::Theme,
+    output: Output,
+    job: Job,
+) -> anyhow::Result<()> {
+    let title = deck
+        .presentation
+        .meta
+        .title
+        .clone()
+        .unwrap_or_else(|| "mdeck export".to_string());
+    let viewport = egui::ViewportBuilder::default()
+        .with_inner_size([job.width as f32, job.height as f32])
+        .with_title(&title)
+        .with_decorations(false);
+    let options = eframe::NativeOptions {
+        viewport,
+        ..Default::default()
     };
     let error: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let error_clone = error.clone();
@@ -257,29 +275,25 @@ pub fn run(args: ExportArgs) -> anyhow::Result<()> {
         }),
     )
     .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-    // A failed save must not look like success: propagate it as an error
     let failed = error.lock().unwrap_or_else(|p| p.into_inner()).take();
-    if let Some(e) = failed {
-        anyhow::bail!("Export failed: {e}");
+    match failed {
+        Some(e) => anyhow::bail!("Export failed: {e}"),
+        None => Ok(()),
     }
+}
 
-    if let Some(path) = pdf_path {
-        let doc = std::mem::take(&mut *doc.lock().unwrap_or_else(|p| p.into_inner()));
-        if doc.page_count() == 0 {
-            anyhow::bail!("Export failed: no pages were rendered");
-        }
-        let pages = doc.page_count();
-        std::fs::write(&path, doc.finish(&pdf_meta))
-            .map_err(|e| anyhow::anyhow!("Failed to write {}: {e}", path.display()))?;
-        eprintln!(
-            "Wrote {} ({pages} page{}).",
-            path.display(),
-            if pages == 1 { "" } else { "s" }
-        );
+fn write_pdf(path: &Path, doc: pdf::PdfDoc, meta: &pdf::Meta) -> anyhow::Result<()> {
+    if doc.page_count() == 0 {
+        anyhow::bail!("Export failed: no pages were rendered");
     }
-
-    eprintln!("Export complete.");
+    let pages = doc.page_count();
+    std::fs::write(path, doc.finish(meta))
+        .map_err(|e| anyhow::anyhow!("Failed to write {}: {e}", path.display()))?;
+    eprintln!(
+        "Wrote {} ({pages} page{}).",
+        path.display(),
+        if pages == 1 { "" } else { "s" }
+    );
     Ok(())
 }
 
@@ -337,6 +351,13 @@ mod tests {
             export_filename(2, 150, Some(7), 120),
             "slide-003-step-007.png"
         );
+    }
+
+    #[test]
+    fn targets_describe_the_whole_deck_or_the_selection() {
+        assert_eq!(describe_targets(&[0, 1, 2], 3), "3 slides");
+        assert_eq!(describe_targets(&[3, 4, 5], 12), "3 of 12 slides (4-6)");
+        assert_eq!(describe_targets(&[6], 12), "1 of 12 slides (7)");
     }
 
     #[test]

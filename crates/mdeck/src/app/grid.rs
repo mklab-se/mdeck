@@ -1,7 +1,23 @@
 //! Where the overview grid (`G`) puts each slide: pure geometry shared by
 //! drawing, mouse hit-testing and scrolling the selection into view.
 
-use eframe::egui::{Rect, pos2, vec2};
+use eframe::egui::{self, Rect, pos2, vec2};
+
+/// The overview grid's pointer and scroll state.
+#[derive(Debug, Default)]
+pub(super) struct GridState {
+    /// The cell under the mouse.
+    pub(super) hover: Option<usize>,
+    /// Whether hover shows (false once the keyboard takes over).
+    pub(super) use_hover: bool,
+    /// Where the mouse was, to tell a real move from a still pointer.
+    pub(super) last_hover_pos: Option<egui::Pos2>,
+    /// The animated scroll offset and where it is heading.
+    pub(super) scroll: f32,
+    pub(super) scroll_target: f32,
+    /// Seed the scroll so the selected cell is in view before the zoom-out.
+    pub(super) seed_scroll: bool,
+}
 
 /// The grid of `count` slides laid out in `rect` at `scale`.
 #[derive(Debug, Clone, Copy)]

@@ -6,11 +6,12 @@ use std::time::{Duration, Instant};
 
 use eframe::egui;
 
+use super::input::ActiveDraw;
 use super::keys::{self, KeyMode, map_key};
 use super::overlays::{draw_hud, draw_raw_markdown_overlay};
 use super::{
-    ActiveDraw, AppMode, CountdownPhase, DRAW_FADE_DURATION, PresentationApp,
-    REVEAL_IN_FLIGHT_WINDOW, RawOverlaySide, ViewportSnapshot,
+    AppMode, CountdownPhase, DRAW_FADE_DURATION, PresentationApp, REVEAL_IN_FLIGHT_WINDOW,
+    RawOverlaySide, ViewportSnapshot,
 };
 use crate::deck::EngineFrame;
 use crate::parser;
@@ -53,9 +54,9 @@ impl PresentationApp {
         self.transition.is_some()
             || self.overview_transition_start.is_some()
             || self.toast.is_some()
-            || !self.pen_strokes.is_empty()
-            || !self.arrows.is_empty()
-            || !matches!(self.active_draw, ActiveDraw::None)
+            || !self.ink.strokes.is_empty()
+            || !self.ink.arrows.is_empty()
+            || !matches!(self.ink.active, ActiveDraw::None)
             || self.monitor_move.is_some()
             || self
                 .views
@@ -72,10 +73,10 @@ impl PresentationApp {
         if let Some(ref mut t) = self.overview_transition_start {
             *t = (*t + jump).min(now);
         }
-        for stroke in &mut self.pen_strokes {
+        for stroke in &mut self.ink.strokes {
             stroke.start = (stroke.start + jump).min(now);
         }
-        for arrow in &mut self.arrows {
+        for arrow in &mut self.ink.arrows {
             arrow.start = (arrow.start + jump).min(now);
         }
         if let Some(ref mut t) = self.toast {
@@ -98,7 +99,7 @@ impl PresentationApp {
         } else if self.pending_theme.is_some() {
             ctx.request_repaint();
         }
-        self.update_fps();
+        self.fps.tick();
         self.preload_upcoming_images(ctx);
 
         // Detect frame gaps (sleep, occlusion, scheduling) and shift animation
@@ -142,14 +143,14 @@ impl PresentationApp {
         }
 
         // Poll for diagram precache report
-        if let Some(ref rx) = self.precache_report_rx
+        if let Some(ref rx) = self.jobs.precache_report
             && let Ok(report) = rx.try_recv()
         {
-            if report.has_warnings() && !self.quiet && !self.precache_report_printed {
+            if report.has_warnings() && !self.quiet && !self.jobs.report_printed {
                 report.print_brief();
-                self.precache_report_printed = true;
+                self.jobs.report_printed = true;
             }
-            self.precache_report_rx = None;
+            self.jobs.precache_report = None;
         }
     }
 
@@ -240,11 +241,13 @@ impl PresentationApp {
     /// Drop annotations and toasts that have faded, and finish animations.
     fn expire(&mut self, ctx: &egui::Context) {
         // Expire old annotations
-        self.pen_strokes
+        self.ink
+            .strokes
             .retain(|s| s.start.elapsed().as_secs_f32() < DRAW_FADE_DURATION);
-        self.arrows
+        self.ink
+            .arrows
             .retain(|a| a.start.elapsed().as_secs_f32() < DRAW_FADE_DURATION);
-        if !self.pen_strokes.is_empty() || !self.arrows.is_empty() {
+        if !self.ink.strokes.is_empty() || !self.ink.arrows.is_empty() {
             ctx.request_repaint();
         }
 
@@ -293,12 +296,12 @@ impl PresentationApp {
 
         // Entering the grid: start with the selected cell in view so the
         // zoom-out lands on a visible cell instead of one below the fold.
-        if self.grid_seed_scroll {
-            self.grid_seed_scroll = false;
+        if self.grid.seed_scroll {
+            self.grid.seed_scroll = false;
             if let AppMode::OverviewTransition { selected, .. } = self.mode {
-                let seed = self.grid(rect, scale).scroll_to_show(selected, 0.0);
-                self.grid_scroll_offset = seed;
-                self.grid_scroll_target = seed;
+                let seed = self.grid_layout(rect, scale).scroll_to_show(selected, 0.0);
+                self.grid.scroll = seed;
+                self.grid.scroll_target = seed;
             }
         }
 

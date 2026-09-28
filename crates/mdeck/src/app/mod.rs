@@ -16,11 +16,10 @@ mod overview;
 mod reload;
 mod toast;
 
-use actions::{MonitorMove, ViewportSnapshot};
+use actions::{MonitorMove, QuitTaps, ViewportSnapshot};
 use countdown::{Countdown, CountdownPhase};
-use grid::GridLayout;
-use input::{ActiveDraw, ArrowAnnotation, PenStroke};
-use keys::DoubleTap;
+use grid::{GridLayout, GridState};
+use input::Ink;
 pub use launch::run;
 use toast::Toast;
 
@@ -98,6 +97,51 @@ impl SlideView {
     }
 }
 
+/// Work running off the frame loop.
+#[derive(Default)]
+struct Jobs {
+    /// Cancels the background diagram route pre-caching thread.
+    precache_cancel: Arc<AtomicBool>,
+    /// The check report from the pre-caching thread.
+    precache_report: Option<mpsc::Receiver<CheckReport>>,
+    /// Whether that report has been printed.
+    report_printed: bool,
+    /// `S` art generation in flight: receives (slide, result).
+    art: Option<mpsc::Receiver<(usize, Result<(), String>)>>,
+    /// `S` story generation in flight: receives (slide, result).
+    story: Option<mpsc::Receiver<(usize, Result<(), String>)>>,
+}
+
+/// Frames per second, measured over half-second windows (shown with the HUD).
+struct Fps {
+    frames: u32,
+    per_second: f32,
+    since: Instant,
+}
+
+impl Fps {
+    /// Count a frame; the rate updates every half second.
+    fn tick(&mut self) {
+        self.frames += 1;
+        let elapsed = self.since.elapsed().as_secs_f32();
+        if elapsed >= 0.5 {
+            self.per_second = self.frames as f32 / elapsed;
+            self.frames = 0;
+            self.since = Instant::now();
+        }
+    }
+}
+
+impl Default for Fps {
+    fn default() -> Self {
+        Self {
+            frames: 0,
+            per_second: 0.0,
+            since: Instant::now(),
+        }
+    }
+}
+
 struct PresentationApp {
     /// The deck and everything resolved for it, shared with export.
     deck: Deck,
@@ -124,38 +168,22 @@ struct PresentationApp {
     show_hud: bool,
     raw_overlay_side: RawOverlaySide,
     toast: Option<Toast>,
-    ctrl_c_tap: DoubleTap,
-    esc_tap: DoubleTap,
-    quit_tap: DoubleTap,
     /// Reveal progress and scroll position, one per slide.
     views: Vec<SlideView>,
-    frame_count: u32,
-    fps: f32,
-    fps_update: Instant,
+    /// The double-tap quit keys (Esc, Q, Ctrl+C).
+    taps: QuitTaps,
+    fps: Fps,
+    /// Pen strokes and arrows over the slides.
+    ink: Ink,
+    /// The overview grid's pointer and scroll.
+    grid: GridState,
+    /// Work running off the frame loop.
+    jobs: Jobs,
     overview_transition_start: Option<Instant>,
-    pen_strokes: Vec<PenStroke>,
-    arrows: Vec<ArrowAnnotation>,
-    active_draw: ActiveDraw,
     /// Cached slide rect from last frame, used for mouse coordinate conversion
     last_slide_rect: egui::Rect,
-    /// Which grid cell the mouse is hovering over
-    hover_slide: Option<usize>,
-    /// Whether to show hover effect (false when keyboard took over)
-    use_hover: bool,
-    /// Last known hover position, used to detect actual mouse movement
-    last_hover_pos: Option<egui::Pos2>,
-    /// Current animated scroll position in grid
-    grid_scroll_offset: f32,
-    /// Target scroll position in grid
-    grid_scroll_target: f32,
     /// Hash of last loaded file content (to skip spurious watcher events)
     last_content_hash: u64,
-    /// Cancel flag for the background diagram route pre-caching thread.
-    precache_cancel: Arc<AtomicBool>,
-    /// Receives the check report from the background precache thread.
-    precache_report_rx: Option<mpsc::Receiver<CheckReport>>,
-    /// Whether the precache report has already been printed.
-    precache_report_printed: bool,
     /// Suppress non-essential output.
     quiet: bool,
     /// Whether the screen is blacked out (toggled with `.` or `B`).
@@ -166,8 +194,6 @@ struct PresentationApp {
     pending_nav: Option<PendingNav>,
     /// A reveal step was just added; scroll to show it once content is measured.
     pending_reveal_scroll: bool,
-    /// Seed the grid scroll so the selected cell is visible before the zoom-out.
-    grid_seed_scroll: bool,
     /// Cached texture for the embedded logo (loaded once on first draw).
     end_logo_texture: Option<egui::TextureHandle>,
     /// Shared slide position for recovery after display errors.
@@ -176,10 +202,6 @@ struct PresentationApp {
     incident_log: Arc<IncidentLog>,
     /// Timestamp of the previous frame, used to detect power-state time jumps.
     last_frame: Instant,
-    /// Background `S` art generation in flight: receives (slide, result).
-    art_rx: Option<mpsc::Receiver<(usize, Result<(), String>)>>,
-    /// Background `S` generation in flight: receives (slide, result).
-    story_rx: Option<mpsc::Receiver<(usize, Result<(), String>)>>,
     /// Opening countdown, while it runs.
     countdown: Option<Countdown>,
 }
@@ -262,18 +284,8 @@ impl PresentationApp {
         }
     }
 
-    fn update_fps(&mut self) {
-        self.frame_count += 1;
-        let elapsed = self.fps_update.elapsed().as_secs_f32();
-        if elapsed >= 0.5 {
-            self.fps = self.frame_count as f32 / elapsed;
-            self.frame_count = 0;
-            self.fps_update = Instant::now();
-        }
-    }
-
     /// The overview grid for this deck in `rect`.
-    fn grid(&self, rect: egui::Rect, scale: f32) -> GridLayout {
+    fn grid_layout(&self, rect: egui::Rect, scale: f32) -> GridLayout {
         GridLayout::new(self.slide_count(), rect, scale)
     }
 

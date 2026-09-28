@@ -2,7 +2,7 @@
 //! and the event loop.
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, mpsc};
 use std::time::Instant;
 
@@ -20,9 +20,9 @@ use crate::theme::{Theme, lookup};
 use super::helpers::{
     hash_content, load_app_icon, print_incident_summary, resolve_setting, spawn_file_watcher,
 };
-use super::input::ActiveDraw;
-use super::keys::DoubleTap;
-use super::{AppMode, DOUBLE_TAP_WINDOW, PresentationApp, RawOverlaySide, SlideView};
+use super::{
+    AppMode, Fps, GridState, Ink, Jobs, PresentationApp, QuitTaps, RawOverlaySide, SlideView,
+};
 
 /// The watcher that tells the window its deck file changed.
 pub(super) struct FileWatch {
@@ -95,7 +95,6 @@ impl PresentationApp {
         let now = Instant::now();
         Self {
             deck,
-            art_rx: None,
             current_slide: 0,
             watcher_rx,
             _watcher: watcher,
@@ -110,40 +109,26 @@ impl PresentationApp {
             show_hud: false,
             raw_overlay_side: RawOverlaySide::Off,
             toast: None,
-            ctrl_c_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
-            esc_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
-            quit_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
             views: vec![SlideView::default(); slide_count],
-            frame_count: 0,
-            fps: 0.0,
-            fps_update: now,
+            taps: QuitTaps::default(),
+            fps: Fps::default(),
+            ink: Ink::default(),
+            grid: GridState::default(),
+            jobs: Jobs::default(),
             overview_transition_start: None,
-            pen_strokes: Vec::new(),
-            arrows: Vec::new(),
-            active_draw: ActiveDraw::None,
             last_slide_rect: egui::Rect::ZERO,
-            hover_slide: None,
-            use_hover: false,
-            last_hover_pos: None,
-            grid_scroll_offset: 0.0,
-            grid_scroll_target: 0.0,
             last_content_hash: content_hash,
-            precache_cancel: Arc::new(AtomicBool::new(false)),
-            precache_report_rx: None,
-            precache_report_printed: false,
             quiet,
             blackout: false,
             monitor_move: None,
             pending_nav: None,
             pending_reveal_scroll: false,
-            grid_seed_scroll: false,
             end_logo_texture: None,
             shared_slide: None,
             incident_log,
             last_frame: now,
             cli_engine,
             engine_override,
-            story_rx: None,
             countdown: None,
         }
     }
@@ -339,36 +324,45 @@ pub fn run(
                 cli_engine,
             };
             let mut app = PresentationApp::new(file_clone, presentation, watch, launch);
-            app.current_slide = initial_slide;
-            app.shared_slide = Some(shared);
-            if initial_overview {
-                app.mode = AppMode::Grid {
-                    selected: initial_slide,
-                };
-            } else if initial_slide == 0 {
-                // Starting on a chosen slide (an agent checking its work, a
-                // presenter resuming) skips the opener.
-                app.start_countdown();
-            }
-            app.spawn_diagram_precache();
+            app.start_at(initial_slide, initial_overview, shared);
             Ok(Box::new(app))
         }),
     );
+    report_exit(result, &incident_log, &shared_slide)
+}
 
-    match result {
-        Ok(()) => {
-            print_incident_summary(&incident_log);
-            Ok(())
+/// The window closed: summarise incidents, and log a display error together
+/// with the slide it happened on.
+fn report_exit(
+    result: eframe::Result,
+    incident_log: &IncidentLog,
+    shared_slide: &AtomicUsize,
+) -> anyhow::Result<()> {
+    if let Err(e) = &result {
+        let slide = shared_slide.load(Ordering::Relaxed);
+        incident_log.record(
+            "display_error",
+            "eframe display error",
+            &format!("{e}\nslide: {slide}"),
+        );
+    }
+    print_incident_summary(incident_log);
+    result.map_err(|e| anyhow::anyhow!("{e}"))
+}
+
+impl PresentationApp {
+    /// Open on `slide` (in the grid with `overview`), publishing the position
+    /// to `shared` for the incident log. Only the first slide gets the opening
+    /// countdown: starting on a chosen slide (an agent checking its work, a
+    /// presenter resuming) skips it.
+    fn start_at(&mut self, slide: usize, overview: bool, shared: Arc<AtomicUsize>) {
+        self.current_slide = slide;
+        self.shared_slide = Some(shared);
+        if overview {
+            self.mode = AppMode::Grid { selected: slide };
+        } else if slide == 0 {
+            self.start_countdown();
         }
-        Err(e) => {
-            let slide = shared_slide.load(Ordering::Relaxed);
-            incident_log.record(
-                "display_error",
-                "eframe display error",
-                &format!("{e}\nslide: {slide}"),
-            );
-            print_incident_summary(&incident_log);
-            Err(anyhow::anyhow!("{e}"))
-        }
+        self.spawn_diagram_precache();
     }
 }

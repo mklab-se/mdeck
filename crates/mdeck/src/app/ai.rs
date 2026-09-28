@@ -27,7 +27,7 @@ impl PresentationApp {
 
     /// Draw the current slide's picture for the art engine on screen.
     pub(super) fn generate_art(&mut self) {
-        if self.art_rx.is_some() {
+        if self.jobs.art.is_some() {
             self.toast = Some(Toast::new("A picture is already being drawn…".into()));
             return;
         }
@@ -48,7 +48,7 @@ impl PresentationApp {
             return;
         }
         let (tx, rx) = mpsc::channel();
-        self.art_rx = Some(rx);
+        self.jobs.art = Some(rx);
         let deck = self.deck.file.clone();
         let theme = self.theme.clone();
         std::thread::spawn(move || {
@@ -63,26 +63,26 @@ impl PresentationApp {
     }
 
     pub(super) fn poll_art(&mut self) {
-        let Some(rx) = &self.art_rx else {
+        let Some(rx) = &self.jobs.art else {
             return;
         };
         match rx.try_recv() {
             Ok((idx, Ok(()))) => {
-                self.art_rx = None;
+                self.jobs.art = None;
                 self.deck.art.invalidate();
                 self.deck.art.sync(&self.deck.presentation, &self.theme);
                 self.deck.art.preload();
                 self.toast = Some(Toast::new(format!("Picture ready for slide {}", idx + 1)));
             }
             Ok((idx, Err(e))) => {
-                self.art_rx = None;
+                self.jobs.art = None;
                 self.incident_log
                     .record("art_error", &format!("slide {}", idx + 1), &e);
                 self.toast = Some(Toast::new(format!("Drawing failed: {e}")));
             }
             Err(mpsc::TryRecvError::Empty) => {}
             Err(mpsc::TryRecvError::Disconnected) => {
-                self.art_rx = None;
+                self.jobs.art = None;
             }
         }
     }
@@ -95,7 +95,7 @@ impl PresentationApp {
             ));
             return;
         }
-        if self.story_rx.is_some() {
+        if self.jobs.story.is_some() {
             self.toast = Some(Toast::new("A story is already being written…".into()));
             return;
         }
@@ -119,7 +119,7 @@ impl PresentationApp {
             return;
         }
         let (tx, rx) = mpsc::channel();
-        self.story_rx = Some(rx);
+        self.jobs.story = Some(rx);
         let deck = self.deck.file.clone();
         std::thread::spawn(move || {
             let result = crate::commands::story::generate_one_blocking(&deck, idx)
@@ -134,24 +134,24 @@ impl PresentationApp {
     }
 
     pub(super) fn poll_story(&mut self) {
-        let Some(rx) = &self.story_rx else {
+        let Some(rx) = &self.jobs.story else {
             return;
         };
         match rx.try_recv() {
             Ok((idx, Ok(()))) => {
-                self.story_rx = None;
+                self.jobs.story = None;
                 self.reload_stories();
                 self.toast = Some(Toast::new(format!("Story ready for slide {}", idx + 1)));
             }
             Ok((idx, Err(e))) => {
-                self.story_rx = None;
+                self.jobs.story = None;
                 self.incident_log
                     .record("story_error", &format!("slide {}", idx + 1), &e);
                 self.toast = Some(Toast::new(format!("Story failed: {e}")));
             }
             Err(mpsc::TryRecvError::Empty) => {}
             Err(mpsc::TryRecvError::Disconnected) => {
-                self.story_rx = None;
+                self.jobs.story = None;
             }
         }
     }

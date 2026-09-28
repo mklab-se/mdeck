@@ -94,16 +94,16 @@ impl PresentationApp {
             self.default_transition = TransitionKind::from_name(name);
         }
 
-        self.precache_cancel.store(true, Ordering::Relaxed);
+        self.jobs.precache_cancel.store(true, Ordering::Relaxed);
         render::diagram::clear_route_cache();
         render::visualizations::word_cloud::clear_cache();
-        self.precache_cancel = Arc::new(AtomicBool::new(false));
+        self.jobs.precache_cancel = Arc::new(AtomicBool::new(false));
         self.transition = None;
         self.pending_nav = None;
         self.leave_end_slide();
-        self.pen_strokes.clear();
-        self.arrows.clear();
-        self.active_draw = ActiveDraw::None;
+        self.ink.strokes.clear();
+        self.ink.arrows.clear();
+        self.ink.active = ActiveDraw::None;
 
         // Clamp grid selection (both the grid and its zoom animation carry one)
         match self.mode {
@@ -147,9 +147,9 @@ impl PresentationApp {
 
         let rx = render::diagram::precache_all_diagrams_with_report(
             diagrams,
-            self.precache_cancel.clone(),
+            self.jobs.precache_cancel.clone(),
         );
-        self.precache_report_rx = Some(rx);
-        self.precache_report_printed = false;
+        self.jobs.precache_report = Some(rx);
+        self.jobs.report_printed = false;
     }
 }

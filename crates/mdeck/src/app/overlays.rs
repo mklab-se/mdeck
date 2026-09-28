@@ -56,7 +56,7 @@ impl PresentationApp {
         let arrow_outline_size = arrow_size + 3.0 * scale;
 
         // Draw completed pen strokes
-        for stroke in &self.pen_strokes {
+        for stroke in &self.ink.strokes {
             if stroke.slide_index != idx || stroke.points.len() < 2 {
                 continue;
             }
@@ -84,7 +84,7 @@ impl PresentationApp {
         }
 
         // Draw completed arrows
-        for arrow in &self.arrows {
+        for arrow in &self.ink.arrows {
             if arrow.slide_index != idx {
                 continue;
             }
@@ -110,7 +110,7 @@ impl PresentationApp {
         }
 
         // Draw active drawing in progress
-        match &self.active_draw {
+        match &self.ink.active {
             ActiveDraw::PenDrawing { points } if points.len() >= 2 => {
                 let outline_color = self.pen_outline_color(1.0);
                 let color = self.pen_color(1.0);

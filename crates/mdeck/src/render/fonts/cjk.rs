@@ -122,114 +122,126 @@ pub struct Candidate {
 
 /// Font files that carry CJK glyphs, in the order they are tried on this
 /// platform. `MDECK_CJK_FONT` comes first when set.
+/// System fonts with CJK glyphs on macOS, most preferred first.
+#[cfg(target_os = "macos")]
+const MACOS_FONTS: &[(&str, Scripts)] = &[
+    ("/System/Library/Fonts/PingFang.ttc", Scripts::HAN),
+    ("/System/Library/Fonts/Hiragino Sans GB.ttc", Scripts::HAN),
+    ("/System/Library/Fonts/STHeiti Light.ttc", Scripts::HAN),
+    (
+        "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+        Scripts::HAN_KANA,
+    ),
+    (
+        "/System/Library/Fonts/Hiragino Sans W3.ttc",
+        Scripts::HAN_KANA,
+    ),
+    (
+        "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+        Scripts::HANGUL,
+    ),
+    (
+        "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
+        Scripts::HANGUL,
+    ),
+    (
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        Scripts::ALL,
+    ),
+    ("/Library/Fonts/Arial Unicode.ttf", Scripts::ALL),
+];
+
+/// Font files with CJK glyphs in the Windows font folder, most preferred first.
+#[cfg(target_os = "windows")]
+const WINDOWS_FONTS: &[(&str, Scripts)] = &[
+    ("msyh.ttc", Scripts::HAN),          // Microsoft YaHei (Simplified)
+    ("msyhl.ttc", Scripts::HAN),         // Microsoft YaHei Light
+    ("msjh.ttc", Scripts::HAN),          // Microsoft JhengHei (Traditional)
+    ("simsun.ttc", Scripts::HAN),        // SimSun
+    ("simhei.ttf", Scripts::HAN),        // SimHei
+    ("yugothm.ttc", Scripts::HAN_KANA),  // Yu Gothic
+    ("meiryo.ttc", Scripts::HAN_KANA),   // Meiryo
+    ("msgothic.ttc", Scripts::HAN_KANA), // MS Gothic
+    ("malgun.ttf", Scripts::HANGUL),     // Malgun Gothic
+    ("gulim.ttc", Scripts::HANGUL),      // Gulim
+    ("ARIALUNI.TTF", Scripts::ALL),      // Arial Unicode (Office)
+];
+
+/// Where Linux distributions install CJK fonts, most preferred first.
+#[cfg(all(unix, not(target_os = "macos")))]
+const LINUX_FONTS: &[(&str, Scripts)] = &[
+    (
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        Scripts::ALL,
+    ),
+    (
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+        Scripts::ALL,
+    ),
+    (
+        "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+        Scripts::ALL,
+    ),
+    (
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        Scripts::ALL,
+    ),
+    (
+        "/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf",
+        Scripts::ALL,
+    ),
+    (
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        Scripts::ALL,
+    ),
+    (
+        "/usr/share/fonts/wenquanyi/wqy-microhei/wqy-microhei.ttc",
+        Scripts::ALL,
+    ),
+    (
+        "/usr/share/fonts/wqy-microhei/wqy-microhei.ttc",
+        Scripts::ALL,
+    ),
+    ("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", Scripts::ALL),
+    ("/usr/share/fonts/wqy-zenhei/wqy-zenhei.ttc", Scripts::ALL),
+    (
+        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+        Scripts::ALL,
+    ),
+    (
+        "/usr/share/fonts/droid/DroidSansFallbackFull.ttf",
+        Scripts::ALL,
+    ),
+    (
+        "/usr/share/fonts/TTF/DroidSansFallbackFull.ttf",
+        Scripts::ALL,
+    ),
+];
+
 pub fn cjk_font_candidates() -> Vec<Candidate> {
     let mut v = Vec::new();
-    let mut push = |path: PathBuf, covers: Scripts| v.push(Candidate { path, covers });
     if let Ok(p) = std::env::var(CJK_FONT_ENV)
         && !p.trim().is_empty()
     {
-        push(PathBuf::from(p), Scripts::ALL);
-    }
-    #[cfg(target_os = "macos")]
-    for (path, covers) in [
-        ("/System/Library/Fonts/PingFang.ttc", Scripts::HAN),
-        ("/System/Library/Fonts/Hiragino Sans GB.ttc", Scripts::HAN),
-        ("/System/Library/Fonts/STHeiti Light.ttc", Scripts::HAN),
-        (
-            "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
-            Scripts::HAN_KANA,
-        ),
-        (
-            "/System/Library/Fonts/Hiragino Sans W3.ttc",
-            Scripts::HAN_KANA,
-        ),
-        (
-            "/System/Library/Fonts/AppleSDGothicNeo.ttc",
-            Scripts::HANGUL,
-        ),
-        (
-            "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
-            Scripts::HANGUL,
-        ),
-        (
-            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-            Scripts::ALL,
-        ),
-        ("/Library/Fonts/Arial Unicode.ttf", Scripts::ALL),
-    ] {
-        push(PathBuf::from(path), covers);
+        v.push(Candidate {
+            path: PathBuf::from(p),
+            covers: Scripts::ALL,
+        });
     }
     #[cfg(target_os = "windows")]
-    {
+    let (dir, table) = {
         let root = std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".into());
-        let fonts = std::path::Path::new(&root).join("Fonts");
-        for (file, covers) in [
-            ("msyh.ttc", Scripts::HAN),          // Microsoft YaHei (Simplified)
-            ("msyhl.ttc", Scripts::HAN),         // Microsoft YaHei Light
-            ("msjh.ttc", Scripts::HAN),          // Microsoft JhengHei (Traditional)
-            ("simsun.ttc", Scripts::HAN),        // SimSun
-            ("simhei.ttf", Scripts::HAN),        // SimHei
-            ("yugothm.ttc", Scripts::HAN_KANA),  // Yu Gothic
-            ("meiryo.ttc", Scripts::HAN_KANA),   // Meiryo
-            ("msgothic.ttc", Scripts::HAN_KANA), // MS Gothic
-            ("malgun.ttf", Scripts::HANGUL),     // Malgun Gothic
-            ("gulim.ttc", Scripts::HANGUL),      // Gulim
-            ("ARIALUNI.TTF", Scripts::ALL),      // Arial Unicode (Office)
-        ] {
-            push(fonts.join(file), covers);
-        }
-    }
+        (std::path::Path::new(&root).join("Fonts"), WINDOWS_FONTS)
+    };
+    #[cfg(target_os = "macos")]
+    let (dir, table) = (PathBuf::new(), MACOS_FONTS);
     #[cfg(all(unix, not(target_os = "macos")))]
-    for (path, covers) in [
-        (
-            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-            Scripts::ALL,
-        ),
-        (
-            "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-            Scripts::ALL,
-        ),
-        (
-            "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
-            Scripts::ALL,
-        ),
-        (
-            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-            Scripts::ALL,
-        ),
-        (
-            "/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf",
-            Scripts::ALL,
-        ),
-        (
-            "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
-            Scripts::ALL,
-        ),
-        (
-            "/usr/share/fonts/wenquanyi/wqy-microhei/wqy-microhei.ttc",
-            Scripts::ALL,
-        ),
-        (
-            "/usr/share/fonts/wqy-microhei/wqy-microhei.ttc",
-            Scripts::ALL,
-        ),
-        ("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", Scripts::ALL),
-        ("/usr/share/fonts/wqy-zenhei/wqy-zenhei.ttc", Scripts::ALL),
-        (
-            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
-            Scripts::ALL,
-        ),
-        (
-            "/usr/share/fonts/droid/DroidSansFallbackFull.ttf",
-            Scripts::ALL,
-        ),
-        (
-            "/usr/share/fonts/TTF/DroidSansFallbackFull.ttf",
-            Scripts::ALL,
-        ),
-    ] {
-        push(PathBuf::from(path), covers);
-    }
+    let (dir, table) = (PathBuf::new(), LINUX_FONTS);
+    #[cfg(any(unix, target_os = "windows"))]
+    v.extend(table.iter().map(|&(path, covers)| Candidate {
+        path: dir.join(path),
+        covers,
+    }));
     v
 }
 

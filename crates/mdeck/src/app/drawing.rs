@@ -346,7 +346,7 @@ impl PresentationApp {
                 if let Some(line) = &self.slide_context(self.current_slide).say {
                     render::ember::draw_say_line(ui.painter(), &self.theme, rect, line, scale);
                 }
-                let fps_text = format!("{:.0} fps", self.fps);
+                let fps_text = format!("{:.0} fps", self.fps.per_second);
                 let fps_color = Theme::with_opacity(self.theme.foreground, 0.3);
                 let fps_galley = ui.painter().layout_no_wrap(
                     fps_text,
@@ -364,7 +364,7 @@ impl PresentationApp {
         // A board prints its own labels under the board.
         if self.theme.engine.is_board() {
             if self.show_hud {
-                let fps_text = format!("{:.0} fps", self.fps);
+                let fps_text = format!("{:.0} fps", self.fps.per_second);
                 let fps_color = Theme::with_opacity(self.theme.foreground, 0.3);
                 let fps_galley = ui.painter().layout_no_wrap(
                     fps_text,
@@ -413,7 +413,7 @@ impl PresentationApp {
         if !self.show_hud {
             return;
         }
-        let fps_text = format!("{:.0} fps", self.fps);
+        let fps_text = format!("{:.0} fps", self.fps.per_second);
         let fps_color = Theme::with_opacity(self.theme.foreground, 0.3);
         let fps_galley =
             ui.painter()

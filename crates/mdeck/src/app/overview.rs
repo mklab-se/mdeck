@@ -23,7 +23,7 @@ impl PresentationApp {
         selected: usize,
         scale: f32,
     ) {
-        let grid = self.grid(rect, scale);
+        let grid = self.grid_layout(rect, scale);
         let overflow = (grid.content_height() - grid.available_height()).max(0.0);
         let scroll = self.animate_grid_scroll(ctx, overflow);
         let clip = grid.clip();
@@ -32,8 +32,8 @@ impl PresentationApp {
             return;
         }
         // Keep the selected cell visible when using the keyboard
-        if !self.use_hover && overflow > 0.0 {
-            self.grid_scroll_target = grid.scroll_to_show(selected, scroll);
+        if !self.grid.use_hover && overflow > 0.0 {
+            self.grid.scroll_target = grid.scroll_to_show(selected, scroll);
         }
 
         self.draw_grid_title(ui, rect, scale, 1.0);
@@ -67,18 +67,18 @@ impl PresentationApp {
     fn animate_grid_scroll(&mut self, ctx: &egui::Context, overflow: f32) -> f32 {
         let scroll_delta = ctx.input(|i| i.smooth_scroll_delta.y);
         if scroll_delta != 0.0 && overflow > 0.0 {
-            self.grid_scroll_target = (self.grid_scroll_target - scroll_delta).clamp(0.0, overflow);
+            self.grid.scroll_target = (self.grid.scroll_target - scroll_delta).clamp(0.0, overflow);
         }
-        self.grid_scroll_target = self.grid_scroll_target.clamp(0.0, overflow);
-        let diff = self.grid_scroll_target - self.grid_scroll_offset;
+        self.grid.scroll_target = self.grid.scroll_target.clamp(0.0, overflow);
+        let diff = self.grid.scroll_target - self.grid.scroll;
         if diff.abs() < 0.5 {
-            self.grid_scroll_offset = self.grid_scroll_target;
+            self.grid.scroll = self.grid.scroll_target;
         } else {
             let dt = ctx.input(|i| i.stable_dt);
-            self.grid_scroll_offset += diff * smooth_factor(dt, SCROLL_SMOOTH_RATE);
+            self.grid.scroll += diff * smooth_factor(dt, SCROLL_SMOOTH_RATE);
             ctx.request_repaint();
         }
-        self.grid_scroll_offset
+        self.grid.scroll
     }
 
     /// Hover follows the mouse once it moves; a click zooms into the hovered
@@ -86,12 +86,12 @@ impl PresentationApp {
     fn track_grid_pointer(&mut self, ctx: &egui::Context, grid: &GridLayout, scroll: f32) -> bool {
         let hover_pos = ctx.input(|i| i.pointer.hover_pos());
         // Only a mouse that actually moved takes over from the keyboard
-        let mouse_moved = match (hover_pos, self.last_hover_pos) {
+        let mouse_moved = match (hover_pos, self.grid.last_hover_pos) {
             (Some(cur), Some(prev)) => cur.distance(prev) > 1.0,
             (Some(_), None) => true,
             _ => false,
         };
-        self.last_hover_pos = hover_pos;
+        self.grid.last_hover_pos = hover_pos;
 
         let clip = grid.clip();
         let hovered = hover_pos.and_then(|hp| {
@@ -101,16 +101,16 @@ impl PresentationApp {
             })
         });
         if hovered.is_some() {
-            self.hover_slide = hovered;
+            self.grid.hover = hovered;
             if mouse_moved {
-                self.use_hover = true;
+                self.grid.use_hover = true;
             }
         } else if hover_pos.is_some() {
-            self.hover_slide = None;
+            self.grid.hover = None;
         }
 
         let clicked = ctx.input(|i| i.pointer.button_pressed(egui::PointerButton::Primary));
-        let Some(target) = self.hover_slide.filter(|_| clicked) else {
+        let Some(target) = self.grid.hover.filter(|_| clicked) else {
             return false;
         };
         self.mode = super::AppMode::OverviewTransition {
@@ -145,7 +145,7 @@ impl PresentationApp {
         self.draw_slide_badge(ui, cell_rect, index, scale, 1.0);
 
         // Hover highlight (subtle glow, distinct from selection)
-        if self.use_hover && self.hover_slide == Some(index) && index != selected {
+        if self.grid.use_hover && self.grid.hover == Some(index) && index != selected {
             let hover_color = Theme::with_opacity(self.theme.accent, 0.12);
             ui.painter()
                 .rect_filled(cell_rect, 4.0 * scale, hover_color);
@@ -249,10 +249,10 @@ impl PresentationApp {
         } else {
             selected
         };
-        let grid = self.grid(rect, scale);
+        let grid = self.grid_layout(rect, scale);
         // Use the live grid scroll so cells below the fold animate to/from
         // where they will actually be drawn in the grid.
-        let grid_scroll = self.grid_scroll_offset;
+        let grid_scroll = self.grid.scroll;
         let grid_clip = grid.clip();
 
         // Non-hero slides at their grid positions with fading opacity

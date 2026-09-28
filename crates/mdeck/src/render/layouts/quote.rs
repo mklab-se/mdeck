@@ -35,21 +35,11 @@ pub fn render(cx: &BlockCx, slide: &Slide, rect: egui::Rect) {
 
 fn render_quote_content(cx: &TextCx, slide: &Slide, content_rect: egui::Rect) {
     let (ui, theme, opacity, scale) = (cx.ui, cx.theme, cx.opacity, cx.scale);
-    // Find heading, quote, and attribution
-    let mut heading: Option<(u8, &Vec<Inline>)> = None;
-    let mut quote_inlines: Option<&Vec<Inline>> = None;
-    let mut attribution: Option<&Vec<Inline>> = None;
-
-    for block in &slide.blocks {
-        match block {
-            Block::Heading { level, inlines } => heading = Some((*level, inlines)),
-            Block::BlockQuote { inlines } => quote_inlines = Some(inlines),
-            Block::Paragraph { inlines } if quote_inlines.is_some() => {
-                attribution = Some(inlines);
-            }
-            _ => {}
-        }
-    }
+    let QuoteParts {
+        heading,
+        quote: quote_inlines,
+        attribution,
+    } = QuoteParts::of(slide);
 
     let quote_size = theme.body_size * 1.3 * scale;
     let quote_gap = 30.0 * scale;
@@ -112,21 +102,8 @@ fn render_quote_content(cx: &TextCx, slide: &Slide, content_rect: egui::Rect) {
     // Remember its right edge so the attribution can align to it.
     let mut quote_right = content_rect.right();
     if let Some(galley) = quote_galley {
-        let accent = Theme::with_opacity(theme.accent, opacity);
         let text_height = galley.rect.height();
-        let text_width = galley.rect.width();
-        let text_x = quote_x + (quote_width - text_width) / 2.0;
-        quote_right = text_x + text_width;
-
-        crate::render::math::galley(ui.painter(), Pos2::new(text_x, y), galley, quote_color);
-
-        // Left accent bar spanning the quote text
-        let bar_width = 4.0 * scale;
-        let bar_x = quote_x - 16.0 * scale;
-        let bar_rect =
-            egui::Rect::from_min_size(Pos2::new(bar_x, y), egui::vec2(bar_width, text_height));
-        ui.painter().rect_filled(bar_rect, 2.0, accent);
-
+        quote_right = draw_quote(cx, galley, quote_color, (quote_x, quote_width), y);
         y += text_height;
     }
 
@@ -136,6 +113,58 @@ fn render_quote_content(cx: &TextCx, slide: &Slide, content_rect: egui::Rect) {
         let x = quote_right - galley.rect.width();
         crate::render::math::galley(ui.painter(), Pos2::new(x, y), galley, attr_color);
     }
+}
+
+/// A quote slide's parts: its heading, the quote, and the paragraph after
+/// the quote as its attribution.
+#[derive(Debug, Default)]
+struct QuoteParts<'a> {
+    heading: Option<(u8, &'a Vec<Inline>)>,
+    quote: Option<&'a Vec<Inline>>,
+    attribution: Option<&'a Vec<Inline>>,
+}
+
+impl<'a> QuoteParts<'a> {
+    fn of(slide: &'a Slide) -> Self {
+        let mut parts = QuoteParts::default();
+        for block in &slide.blocks {
+            match block {
+                Block::Heading { level, inlines } => parts.heading = Some((*level, inlines)),
+                Block::BlockQuote { inlines } => parts.quote = Some(inlines),
+                Block::Paragraph { inlines } if parts.quote.is_some() => {
+                    parts.attribution = Some(inlines);
+                }
+                _ => {}
+            }
+        }
+        parts
+    }
+}
+
+/// Draw the quote centred in the column `(x, width)` at `y`, with its accent
+/// bar on the left. Returns the text's right edge (the attribution aligns
+/// to it).
+fn draw_quote(
+    cx: &TextCx,
+    galley: std::sync::Arc<egui::Galley>,
+    color: egui::Color32,
+    (quote_x, quote_width): (f32, f32),
+    y: f32,
+) -> f32 {
+    let (ui, theme, opacity, scale) = (cx.ui, cx.theme, cx.opacity, cx.scale);
+    let accent = Theme::with_opacity(theme.accent, opacity);
+    let text_height = galley.rect.height();
+    let text_width = galley.rect.width();
+    let text_x = quote_x + (quote_width - text_width) / 2.0;
+    crate::render::math::galley(ui.painter(), Pos2::new(text_x, y), galley, color);
+
+    // Left accent bar spanning the quote text
+    let bar_width = 4.0 * scale;
+    let bar_x = quote_x - 16.0 * scale;
+    let bar_rect =
+        egui::Rect::from_min_size(Pos2::new(bar_x, y), egui::vec2(bar_width, text_height));
+    ui.painter().rect_filled(bar_rect, 2.0, accent);
+    text_x + text_width
 }
 
 /// Wraps quote inlines with curly quotation marks if they don't already have them.
@@ -188,6 +217,17 @@ fn clean_attribution(inlines: &[Inline]) -> Vec<Inline> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_paragraph_after_the_quote_is_its_attribution() {
+        let slide =
+            &crate::parser::parse("## Wisdom\n\nIntro\n\n> Stay hungry\n\n-- Steve\n").slides[0];
+        let parts = QuoteParts::of(slide);
+        assert_eq!(parts.heading.map(|(l, _)| l), Some(2));
+        assert!(parts.quote.is_some());
+        let attr = crate::parser::inlines_to_text(parts.attribution.unwrap());
+        assert!(attr.contains("Steve"), "{attr}");
+    }
 
     #[test]
     fn wraps_with_curly_quotes_when_missing() {

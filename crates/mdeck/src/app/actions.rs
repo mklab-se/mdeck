@@ -7,9 +7,9 @@ use eframe::egui;
 use crate::config::Config;
 
 use super::grid::GridLayout;
-use super::keys::{self, Action, MonitorMoveOutcome, evaluate_monitor_move};
+use super::keys::{self, Action, DoubleTap, MonitorMoveOutcome, evaluate_monitor_move};
 use super::toast::Toast;
-use super::{AppMode, PresentationApp, RawOverlaySide};
+use super::{AppMode, DOUBLE_TAP_WINDOW, PresentationApp, RawOverlaySide};
 
 /// State machine for hopping a fullscreen window to the next monitor.
 pub(super) struct MonitorMove {
@@ -38,6 +38,23 @@ pub(super) struct ViewportSnapshot {
 
 /// How long to wait for the window to settle after a monitor move.
 const MONITOR_MOVE_SETTLE: Duration = Duration::from_millis(1000);
+
+/// The double-tap quit keys: a second press within the window quits.
+pub(super) struct QuitTaps {
+    pub(super) ctrl_c: DoubleTap,
+    pub(super) esc: DoubleTap,
+    pub(super) quit: DoubleTap,
+}
+
+impl Default for QuitTaps {
+    fn default() -> Self {
+        Self {
+            ctrl_c: DoubleTap::new(DOUBLE_TAP_WINDOW),
+            esc: DoubleTap::new(DOUBLE_TAP_WINDOW),
+            quit: DoubleTap::new(DOUBLE_TAP_WINDOW),
+        }
+    }
+}
 
 impl PresentationApp {
     /// Drive the monitor-hop state machine one frame. Returns viewport
@@ -142,14 +159,14 @@ impl PresentationApp {
     fn quit_tap_action(&mut self, action: Action, cmds: &mut Vec<egui::ViewportCommand>) {
         let now = Instant::now();
         let (tap, again) = match action {
-            Action::Quit => (&mut self.quit_tap, "Press Q again to quit"),
-            Action::CtrlC => (&mut self.ctrl_c_tap, "Press Ctrl+C again to quit"),
+            Action::Quit => (&mut self.taps.quit, "Press Q again to quit"),
+            Action::CtrlC => (&mut self.taps.ctrl_c, "Press Ctrl+C again to quit"),
             _ => {
                 if matches!(self.mode, AppMode::Presentation { .. }) && self.clear_annotations() {
-                    self.esc_tap.reset();
+                    self.taps.esc.reset();
                     return;
                 }
-                (&mut self.esc_tap, "Press Esc again to exit")
+                (&mut self.taps.esc, "Press Esc again to exit")
             }
         };
         if tap.tap(now) {
@@ -163,10 +180,10 @@ impl PresentationApp {
     /// there were any.
     fn clear_annotations(&mut self) -> bool {
         let idx = self.current_slide;
-        let had = self.pen_strokes.iter().any(|s| s.slide_index == idx)
-            || self.arrows.iter().any(|a| a.slide_index == idx);
-        self.pen_strokes.retain(|s| s.slide_index != idx);
-        self.arrows.retain(|a| a.slide_index != idx);
+        let had = self.ink.strokes.iter().any(|s| s.slide_index == idx)
+            || self.ink.arrows.iter().any(|a| a.slide_index == idx);
+        self.ink.strokes.retain(|s| s.slide_index != idx);
+        self.ink.arrows.retain(|a| a.slide_index != idx);
         had
     }
 
@@ -211,9 +228,9 @@ impl PresentationApp {
         self.overview_transition_start = Some(Instant::now());
         self.show_hud = false;
         // Grid scroll is seeded at draw time (needs the viewport rect)
-        self.grid_seed_scroll = true;
-        self.hover_slide = None;
-        self.use_hover = false;
+        self.grid.seed_scroll = true;
+        self.grid.hover = None;
+        self.grid.use_hover = false;
     }
 
     /// Arrow keys in the grid.
@@ -230,7 +247,7 @@ impl PresentationApp {
             _ => selected.saturating_sub(cols),
         };
         self.mode = AppMode::Grid { selected: next };
-        self.use_hover = false;
+        self.grid.use_hover = false;
     }
 
     /// Enter in the grid: zoom back in to the selected slide.
@@ -238,7 +255,7 @@ impl PresentationApp {
         let AppMode::Grid { selected } = self.mode else {
             return;
         };
-        self.use_hover = false;
+        self.grid.use_hover = false;
         self.mode = AppMode::OverviewTransition {
             selected,
             entering: false,
