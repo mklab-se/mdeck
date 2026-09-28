@@ -281,4 +281,3 @@ enter on a beat, would remove the either/or.
   `mdeck spec --short` from one shared table so they cannot drift again (the
   card and HUD now share `app::keys::SHORTCUTS`; README and the spec are still hand-written).
 - A short animated GIF/video in the README showing transitions and reveals.
-- A "from README to talk in 60 seconds" tutorial page.

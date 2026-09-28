@@ -1,0 +1,45 @@
+---
+title: "My First Talk"
+@theme: ember
+---
+
+# My First Talk
+
+Made with MDeck
+
+# What I will cover
+
+- Why plain markdown
++ How MDeck makes it look good
++ Where to go next
++ Questions and coffee
+
+# Where our users are
+
+```@barchart
+- Europe: 42
+- Americas: 35
+- Asia: 23
+```
+
+# How it fits together
+
+```@architecture
+- Browser  (icon: browser)
+- API      (icon: api)
+- Database (icon: database)
+
+- Browser -> API: requests
+- API -> Database: queries
+```
+
+# Ready for launch
+@illustration: rocket
+
+- Ship small, ship often
+- Measure everything
+- Celebrate the wins
+
+???
+
+Thank everyone for coming. Mention that the whole deck is one markdown file.

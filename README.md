@@ -115,13 +115,19 @@ mdeck talk.md
 ```
 
 Space moves forward, `G` shows every slide, `Shift+T` cycles themes and `Esc`
-twice quits. Edit the file while presenting and the slides update in place.
+twice quits. Keep MDeck open on a second screen while you write: every time you
+save, the slide you are looking at updates.
 
 **4. Share it**
 
 ```bash
 mdeck export talk.md --format pdf    # export/talk.pdf, one page per slide
 ```
+
+**New here?** The [tutorial](docs/tutorial.md) builds a first presentation step
+by step, with a picture of every step: themes, charts, diagrams,
+illustrations, engines, and how to keep MDeck open on a second screen so it
+updates every time you save.
 
 ---
 
@@ -153,6 +159,7 @@ mdeck export talk.md --format pdf    # export/talk.pdf, one page per slide
 
 | Page | What is in it |
 |---|---|
+| [Tutorial](docs/tutorial.md) | Your first presentation, step by step, with pictures |
 | [Install](docs/install.md) | Homebrew, cargo, binaries, Windows notes, SBOMs |
 | [Writing slides](docs/writing-slides.md) | Slides, layouts, reveal, math, images, speaker notes |
 | [Visualizations](docs/visualizations.md) | Every chart and diagram, with its syntax |
