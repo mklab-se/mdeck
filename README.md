@@ -26,6 +26,14 @@
 </p>
 
 <p align="center">
+  <img src="media/showcase/nord-title.jpg" width="49%" alt="A title slide: Ship It, with a subtitle">
+  <img src="media/showcase/nord-bullets.jpg" width="49%" alt="A slide with a heading and three bullets">
+</p>
+
+<p align="center"><em>Start simple: a heading and a line of text become a title slide, a
+heading and three bullets a bullet slide. Then pick a theme and an engine.</em></p>
+
+<p align="center">
   <img src="media/showcase/dep.gif" width="49%" alt="A departure board turning to the next slide">
   <img src="media/showcase/etch.gif" width="49%" alt="A laser etching an illustration onto a slide">
 </p>
