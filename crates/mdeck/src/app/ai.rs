@@ -4,23 +4,17 @@
 
 use std::sync::mpsc;
 
-use super::{PresentationApp, Toast, load_stories, slide_max_steps};
+use super::{PresentationApp, Toast};
 use crate::render;
 use crate::render::story::sidecar as story_sidecar;
 
 impl PresentationApp {
     /// Re-read the sidecar and rebuild per-slide stories and step counts.
     pub(super) fn reload_stories(&mut self) {
-        self.stories = load_stories(&self.file_path, &self.presentation, true);
-        self.max_steps = slide_max_steps(
-            &self.presentation,
-            &self.stories,
-            self.theme.engine.plays_stories(),
-        );
+        self.deck.reload_stories(&self.theme);
         for (i, r) in self.reveal_steps.iter_mut().enumerate() {
-            *r = (*r).min(self.max_steps[i]);
+            *r = (*r).min(self.deck.max_steps[i]);
         }
-        self.story_version += 1;
     }
 
     /// `S`: AI for the current slide, in the background: a picture on an
@@ -46,7 +40,7 @@ impl PresentationApp {
             return;
         }
         let idx = self.current_slide;
-        let Some(slide) = self.presentation.slides.get(idx) else {
+        let Some(slide) = self.deck.presentation.slides.get(idx) else {
             return;
         };
         if !render::art::wants_art(slide) {
@@ -57,7 +51,7 @@ impl PresentationApp {
         }
         let (tx, rx) = mpsc::channel();
         self.art_rx = Some(rx);
-        let deck = self.file_path.clone();
+        let deck = self.deck.file.clone();
         let theme = self.theme.clone();
         std::thread::spawn(move || {
             let result = crate::commands::art::generate_one_blocking(&deck, idx, &theme)
@@ -77,9 +71,9 @@ impl PresentationApp {
         match rx.try_recv() {
             Ok((idx, Ok(()))) => {
                 self.art_rx = None;
-                self.art.invalidate();
-                self.art.sync(&self.presentation, &self.theme);
-                self.art.preload();
+                self.deck.art.invalidate();
+                self.deck.art.sync(&self.deck.presentation, &self.theme);
+                self.deck.art.preload();
                 self.toast = Some(Toast::new(format!("Picture ready for slide {}", idx + 1)));
             }
             Ok((idx, Err(e))) => {
@@ -115,6 +109,7 @@ impl PresentationApp {
         }
         let idx = self.current_slide;
         if self
+            .deck
             .stories
             .get(idx)
             .and_then(|r| r.as_ref())
@@ -127,7 +122,7 @@ impl PresentationApp {
         }
         let (tx, rx) = mpsc::channel();
         self.story_rx = Some(rx);
-        let deck = self.file_path.clone();
+        let deck = self.deck.file.clone();
         std::thread::spawn(move || {
             let result = crate::commands::story::generate_one_blocking(&deck, idx)
                 .map(|_| ())

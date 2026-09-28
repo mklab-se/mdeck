@@ -1,6 +1,7 @@
 use eframe::egui;
 use std::time::Instant;
 
+use crate::deck::SlideFrame;
 use crate::render;
 use crate::theme::Theme;
 
@@ -21,26 +22,20 @@ impl PresentationApp {
         scale: f32,
         scroll: f32,
     ) {
-        if index >= self.presentation.slides.len() {
+        if index >= self.deck.presentation.slides.len() {
             return;
         }
-        let reveal = self.reveal_steps.get(index).copied().unwrap_or(0);
-        let timestamp = self.reveal_timestamps.get(index).copied().flatten();
-        let slide = &self.presentation.slides[index];
         let cx = self.slide_context(index);
+        let frame = |rect| SlideFrame {
+            rect,
+            opacity,
+            reveal: self.reveal_steps.get(index).copied().unwrap_or(0),
+            reveal_timestamp: self.reveal_timestamps.get(index).copied().flatten(),
+            scale,
+        };
         if scroll.abs() < 0.5 {
-            render::render_slide(
-                ui,
-                slide,
-                &self.theme,
-                rect,
-                opacity,
-                &self.image_cache,
-                reveal,
-                timestamp,
-                scale,
-                &cx,
-            );
+            self.deck
+                .draw_slide(ui, &self.theme, index, frame(rect), &cx);
             return;
         }
         // Scrolled: render into a child clipped to the slide rect so content
@@ -52,18 +47,9 @@ impl PresentationApp {
                 .id_salt(("scrolled_slide", index)),
         );
         child.shrink_clip_rect(rect);
-        render::render_slide(
-            &child,
-            slide,
-            &self.theme,
-            rect.translate(egui::vec2(0.0, -scroll)),
-            opacity,
-            &self.image_cache,
-            reveal,
-            timestamp,
-            scale,
-            &cx,
-        );
+        let scrolled = rect.translate(egui::vec2(0.0, -scroll));
+        self.deck
+            .draw_slide(&child, &self.theme, index, frame(scrolled), &cx);
     }
 
     /// Facts about the deck shown by the Ember eyebrow and chrome.
@@ -71,8 +57,8 @@ impl PresentationApp {
         render::SlideContext {
             index,
             count: self.slide_count(),
-            deck_title: self.presentation.meta.title.clone(),
-            author: self.presentation.meta.author.clone(),
+            deck_title: self.deck.presentation.meta.title.clone(),
+            author: self.deck.presentation.meta.author.clone(),
             hold_copy: self.countdown_running(),
             animate: true,
             beats: self.story(index).filter(|s| s.beats.len() > 1).map(|s| {
@@ -100,7 +86,7 @@ impl PresentationApp {
         rect: egui::Rect,
         scale: f32,
     ) -> Option<f32> {
-        let slide = &self.presentation.slides[idx];
+        let slide = &self.deck.presentation.slides[idx];
         let step = self.reveal_steps.get(idx).copied().unwrap_or(0);
         let padding = 80.0 * scale;
         let content_width = match slide.layout {
@@ -127,24 +113,20 @@ impl PresentationApp {
         opacity: f32,
         scale: f32,
     ) {
-        if index < self.presentation.slides.len() {
-            let reveal = self.max_steps.get(index).copied().unwrap_or(0);
+        if index < self.deck.presentation.slides.len() {
+            let reveal = self.deck.max_steps.get(index).copied().unwrap_or(0);
             let mut cx = self.slide_context(index);
             cx.hold_copy = false;
             cx.animate = false;
             cx.engine_drew = false;
-            render::render_slide(
-                ui,
-                &self.presentation.slides[index],
-                &self.theme,
+            let frame = SlideFrame {
                 rect,
                 opacity,
-                &self.image_cache,
                 reveal,
-                None,
+                reveal_timestamp: None,
                 scale,
-                &cx,
-            );
+            };
+            self.deck.draw_slide(ui, &self.theme, index, frame, &cx);
         }
     }
 
@@ -259,7 +241,7 @@ impl PresentationApp {
     /// `engines::Host`), so only a quiet caption is drawn, once the act is over.
     fn draw_end_caption(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
         let delay = self.theme.engine.end_caption_delay();
-        let alpha = ((self.engine.end_elapsed() - delay) / 0.9).clamp(0.0, 1.0);
+        let alpha = ((self.deck.engine.end_elapsed() - delay) / 0.9).clamp(0.0, 1.0);
         ui.ctx().request_repaint();
         if alpha <= 0.0 {
             return;
@@ -307,7 +289,7 @@ impl PresentationApp {
         }
 
         let idx = self.current_slide;
-        let slide = &self.presentation.slides[idx];
+        let slide = &self.deck.presentation.slides[idx];
         let (content_height, available_height) =
             render::measure_slide_content_height(ui, slide, &self.theme, rect, scale);
         let overflow = content_height - available_height;
@@ -473,10 +455,9 @@ impl PresentationApp {
 
     pub(super) fn draw_presentation_chrome(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
         // The logo stays put while slides move under it.
-        if let Some(logo) = self.logos.get(self.current_slide)
-            && !self.countdown_running()
-        {
-            render::logo::draw(ui.painter(), rect, logo, scale, 1.0);
+        if !self.countdown_running() {
+            self.deck
+                .draw_logo(ui.painter(), rect, self.current_slide, scale);
         }
         if self.theme.engine.capabilities().editorial {
             if !self.countdown_running() {
@@ -526,7 +507,7 @@ impl PresentationApp {
             return;
         }
         // Footer
-        if let Some(ref footer) = self.presentation.meta.footer {
+        if let Some(ref footer) = self.deck.presentation.meta.footer {
             let footer_color = Theme::with_opacity(self.theme.foreground, 0.4);
             let galley = ui.painter().layout_no_wrap(
                 footer.clone(),

@@ -122,76 +122,6 @@ pub fn measure(ui: &egui::Ui, blocks: &[Block], geo: &Geometry, theme: &Theme) -
         .collect()
 }
 
-/// Draw one notes page, shifted by `offset` (the tile being captured).
-#[allow(clippy::too_many_arguments)]
-pub fn draw(
-    ui: &egui::Ui,
-    offset: Vec2,
-    geo: &Geometry,
-    theme: &Theme,
-    blocks: &[Block],
-    range: Range<usize>,
-    first_page: bool,
-    footer_left: &str,
-    footer_right: &str,
-) {
-    let painter = ui.painter();
-    let page = Rect::from_min_size(Pos2::ZERO, vec2(geo.width as f32, geo.height as f32));
-    painter.rect_filled(page.translate(offset), 0.0, Color32::WHITE);
-    let hairline = Color32::from_gray(0xC8);
-    if first_page {
-        // The slide image is composited here after capture; the frame shows
-        // light slides against the white page.
-        painter.rect_stroke(
-            geo.slide.expand(1.0).translate(offset),
-            0.0,
-            Stroke::new(1.5, hairline),
-            egui::StrokeKind::Outside,
-        );
-    }
-    let top = if first_page {
-        geo.text_top_first
-    } else {
-        geo.text_top_rest
-    };
-    let images = ImageCache::new(std::path::PathBuf::new());
-    text::draw_blocks(
-        ui,
-        &blocks[range],
-        theme,
-        pos2(geo.text_x, top) + offset,
-        geo.text_width,
-        1.0,
-        &images,
-        usize::MAX,
-        geo.scale,
-    );
-
-    let size = theme.body_size * geo.scale * 0.62;
-    let font = egui::FontId::new(size, theme.body_family());
-    let grey = Color32::from_gray(0x8A);
-    let y = geo.footer_y();
-    painter.hline(
-        geo.text_x..=geo.text_x + geo.text_width,
-        y - size * 0.9 + offset.y,
-        Stroke::new(1.0, Color32::from_gray(0xE0)),
-    );
-    painter.text(
-        pos2(geo.text_x, y) + offset,
-        egui::Align2::LEFT_TOP,
-        footer_left,
-        font.clone(),
-        grey,
-    );
-    painter.text(
-        pos2(geo.text_x + geo.text_width, y) + offset,
-        egui::Align2::RIGHT_TOP,
-        footer_right,
-        font,
-        grey,
-    );
-}
-
 /// Scale the rendered slide into `rect` on the page canvas (RGBA, `page_w`
 /// pixels wide).
 pub fn composite(
@@ -232,19 +162,24 @@ pub struct NotesJob {
     pub slide: Vec<u8>,
 }
 
+/// What the footer of a notes page says.
+pub struct Footer<'a> {
+    pub deck_title: &'a str,
+    /// The slide's number (1-based) and the deck's slide count.
+    pub slide: usize,
+    pub count: usize,
+}
+
 impl NotesJob {
     /// Draw page `page` of these notes for the tile at `origin`, measuring
     /// and paginating on the first call.
-    #[allow(clippy::too_many_arguments)]
     pub fn draw(
         &mut self,
         ui: &egui::Ui,
         origin: (u32, u32),
         page: usize,
         theme: &Theme,
-        deck_title: &str,
-        slide: usize,
-        count: usize,
+        footer: &Footer,
     ) {
         if self.pages.is_empty() {
             let heights = measure(ui, &self.blocks, &self.geo, theme);
@@ -254,22 +189,75 @@ impl NotesJob {
                 self.geo.text_bottom - self.geo.text_top_rest,
             );
         }
+        let offset = egui::vec2(-(origin.0 as f32), -(origin.1 as f32));
+        self.paint(ui, offset, page, theme, footer);
+    }
+
+    /// Draw notes page `page`, shifted by `offset` (the tile being captured).
+    fn paint(&self, ui: &egui::Ui, offset: Vec2, page: usize, theme: &Theme, footer: &Footer) {
+        let geo = &self.geo;
         let range = self.pages.get(page).cloned().unwrap_or(0..0);
-        let right = if page == 0 {
+        let first_page = page == 0;
+        let (slide, count) = (footer.slide, footer.count);
+        let footer_right = if first_page {
             format!("Slide {slide} of {count}")
         } else {
             format!("Slide {slide} of {count}, notes continued")
         };
-        draw(
+        let painter = ui.painter();
+        let sheet = Rect::from_min_size(Pos2::ZERO, vec2(geo.width as f32, geo.height as f32));
+        painter.rect_filled(sheet.translate(offset), 0.0, Color32::WHITE);
+        let hairline = Color32::from_gray(0xC8);
+        if first_page {
+            // The slide image is composited here after capture; the frame shows
+            // light slides against the white page.
+            painter.rect_stroke(
+                geo.slide.expand(1.0).translate(offset),
+                0.0,
+                Stroke::new(1.5, hairline),
+                egui::StrokeKind::Outside,
+            );
+        }
+        let top = if first_page {
+            geo.text_top_first
+        } else {
+            geo.text_top_rest
+        };
+        let images = ImageCache::new(std::path::PathBuf::new());
+        text::draw_blocks(
             ui,
-            egui::vec2(-(origin.0 as f32), -(origin.1 as f32)),
-            &self.geo,
+            &self.blocks[range],
             theme,
-            &self.blocks,
-            range,
-            page == 0,
-            deck_title,
-            &right,
+            pos2(geo.text_x, top) + offset,
+            geo.text_width,
+            1.0,
+            &images,
+            usize::MAX,
+            geo.scale,
+        );
+
+        let size = theme.body_size * geo.scale * 0.62;
+        let font = egui::FontId::new(size, theme.body_family());
+        let grey = Color32::from_gray(0x8A);
+        let y = geo.footer_y();
+        painter.hline(
+            geo.text_x..=geo.text_x + geo.text_width,
+            y - size * 0.9 + offset.y,
+            Stroke::new(1.0, Color32::from_gray(0xE0)),
+        );
+        painter.text(
+            pos2(geo.text_x, y) + offset,
+            egui::Align2::LEFT_TOP,
+            footer.deck_title,
+            font.clone(),
+            grey,
+        );
+        painter.text(
+            pos2(geo.text_x + geo.text_width, y) + offset,
+            egui::Align2::RIGHT_TOP,
+            &footer_right,
+            font,
+            grey,
         );
     }
 }

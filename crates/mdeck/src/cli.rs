@@ -470,7 +470,7 @@ impl Cli {
                 notes,
                 theme,
                 engine,
-            }) => crate::commands::export::run(
+            }) => crate::commands::export::run(crate::commands::export::ExportArgs {
                 file,
                 output_dir,
                 width,
@@ -480,11 +480,11 @@ impl Cli {
                 range,
                 format,
                 notes,
-                theme.map_or(crate::commands::export::ThemeChoice::Deck, |name| {
+                theme: theme.map_or(crate::commands::export::ThemeChoice::Deck, |name| {
                     crate::commands::export::ThemeChoice::Named(name)
                 }),
                 engine,
-            ),
+            }),
             Some(Commands::Theme { command }) => {
                 crate::commands::util::block_on(crate::commands::theme::run(command, self.quiet))?
             }

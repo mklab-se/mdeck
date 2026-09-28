@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 use eframe::egui;
 
 use crate::commands::util::slide_number_width;
+use crate::deck::{self, Deck};
 use crate::parser;
 use crate::render;
 
@@ -15,7 +16,7 @@ mod canvas;
 mod notes;
 mod pdf;
 
-use app::{ExportApp, Output};
+use app::{ExportApp, Job, NotesPages, Output};
 
 /// What `mdeck export` writes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
@@ -90,20 +91,40 @@ pub enum ThemeChoice {
     Given(Box<crate::theme::Theme>),
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn run(
-    file: PathBuf,
-    output_dir: PathBuf,
-    width: u32,
-    height: u32,
-    debug: bool,
-    slide: Option<usize>,
-    range: Option<String>,
-    format: Format,
-    notes: bool,
-    theme: ThemeChoice,
-    engine: Option<String>,
-) -> anyhow::Result<()> {
+/// What `mdeck export` is asked to do.
+pub struct ExportArgs {
+    pub file: PathBuf,
+    pub output_dir: PathBuf,
+    pub width: u32,
+    pub height: u32,
+    /// Export every reveal step of every slide.
+    pub debug: bool,
+    /// Only this slide (1-based).
+    pub slide: Option<usize>,
+    /// Only these slides, e.g. `3-7` (1-based, inclusive).
+    pub range: Option<String>,
+    pub format: Format,
+    /// PDF only: a notes page after every slide.
+    pub notes: bool,
+    pub theme: ThemeChoice,
+    /// `--engine`: overrides `@engine` and the theme's.
+    pub engine: Option<String>,
+}
+
+pub fn run(args: ExportArgs) -> anyhow::Result<()> {
+    let ExportArgs {
+        file,
+        output_dir,
+        width,
+        height,
+        debug,
+        slide,
+        range,
+        format,
+        notes,
+        theme,
+        engine,
+    } = args;
     if width == 0 || height == 0 {
         anyhow::bail!("Export width and height must be greater than zero");
     }
@@ -130,53 +151,35 @@ pub fn run(
         ThemeChoice::Given(theme) => *theme,
         ThemeChoice::Named(name) => {
             let built = themes.load(&name).map_err(|e| anyhow::anyhow!("{e}"))?;
-            for w in &built.warnings {
-                eprintln!("warning: theme: {w}");
-            }
+            deck::report_theme_problems(&built.warnings);
             built.theme
         }
         ThemeChoice::Deck => {
             let defaults = crate::config::Config::load_or_default()
                 .defaults
                 .unwrap_or_default();
-            let name = crate::theme::lookup::select(
-                presentation.meta.theme.as_deref(),
-                defaults.theme.as_deref(),
-            );
-            let (theme, problems) = crate::theme::lookup::resolve_or_default(&themes, &name);
-            for p in &problems {
-                eprintln!("warning: theme: {p}");
-            }
-            theme
+            deck::deck_theme(&themes, &presentation, defaults.theme.as_deref()).0
         }
     };
 
     // --engine, then @engine, then the theme's own.
-    let (kind, problems) =
-        crate::engines::choose(engine.as_deref(), presentation.meta.engine.as_deref())
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-    for p in &problems {
-        eprintln!("warning: {p}");
-    }
-    let theme = crate::engines::with_engine(theme, kind);
-    let with_story: Vec<bool> = match render::story::sidecar::load(&file) {
-        Ok(sc) => render::story::sidecar::resolve(&presentation, sc.as_ref()).0,
-        Err(_) => render::story::sidecar::resolve(&presentation, None).0,
-    }
-    .iter()
-    .map(Option::is_some)
-    .collect();
+    let (cli_engine, _) =
+        crate::engines::choose(engine.as_deref(), None).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let theme =
+        crate::engines::with_engine(theme, deck::deck_engine(cli_engine, &presentation, false));
+    let deck = Deck::open(file.clone(), presentation, &theme, false, false);
     if let Some(line) =
-        crate::engines::unsupported_summary(theme.engine, &presentation, &with_story)
+        crate::engines::unsupported_summary(theme.engine, &deck.presentation, &deck.with_story())
     {
         eprintln!("warning: {line}");
     }
 
     std::fs::create_dir_all(&output_dir)?;
 
-    let targets = select_slides(slide, range.as_deref(), presentation.slides.len())?;
+    let slide_total = deck.slide_count();
+    let targets = select_slides(slide, range.as_deref(), slide_total)?;
     let slide_count = targets.len();
-    let which = if slide_count == presentation.slides.len() {
+    let which = if slide_count == slide_total {
         format!("{slide_count} slides")
     } else {
         let span = if slide_count > 1 {
@@ -185,8 +188,7 @@ pub fn run(
             String::new()
         };
         format!(
-            "{slide_count} of {} slides ({}{span})",
-            presentation.slides.len(),
+            "{slide_count} of {slide_total} slides ({}{span})",
             targets[0] + 1
         )
     };
@@ -199,11 +201,15 @@ pub fn run(
         if notes { ", with speaker notes" } else { "" },
     );
 
-    let title = presentation
-        .meta
+    let meta = &deck.presentation.meta;
+    let title = meta
         .title
         .clone()
         .unwrap_or_else(|| "mdeck export".to_string());
+    let pdf_meta = pdf::Meta {
+        title: meta.title.clone(),
+        author: meta.author.clone(),
+    };
 
     let viewport = egui::ViewportBuilder::default()
         .with_inner_size([width as f32, height as f32])
@@ -222,12 +228,14 @@ pub fn run(
         },
         Format::Pdf => Output::Pdf {
             doc: doc.clone(),
-            notes,
+            notes: notes.then(|| Box::new(NotesPages::new())),
         },
     };
-    let meta = pdf::Meta {
-        title: presentation.meta.title.clone(),
-        author: presentation.meta.author.clone(),
+    let job = Job {
+        width,
+        height,
+        debug,
+        targets,
     };
     let error: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let error_clone = error.clone();
@@ -237,15 +245,10 @@ pub fn run(
         Box::new(move |cc| {
             render::fonts::install(&cc.egui_ctx);
             Ok(Box::new(ExportApp::new(
-                presentation,
+                deck,
                 theme,
-                &file,
-                &base_path,
                 output,
-                width,
-                height,
-                debug,
-                targets,
+                job,
                 error_clone,
             )))
         }),
@@ -264,7 +267,7 @@ pub fn run(
             anyhow::bail!("Export failed: no pages were rendered");
         }
         let pages = doc.page_count();
-        std::fs::write(&path, doc.finish(&meta))
+        std::fs::write(&path, doc.finish(&pdf_meta))
             .map_err(|e| anyhow::anyhow!("Failed to write {}: {e}", path.display()))?;
         eprintln!(
             "Wrote {} ({pages} page{}).",
@@ -338,6 +341,15 @@ mod tests {
         let deck = std::path::Path::new("talks/intro.md");
         assert_eq!(pdf_filename(deck, false), "intro.pdf");
         assert_eq!(pdf_filename(deck, true), "intro-notes.pdf");
+    }
+
+    #[test]
+    fn tiles_advance_in_row_order_then_finish() {
+        use super::canvas::next_tile;
+        assert_eq!(next_tile((0, 0), (2, 2)), Some((1, 0)));
+        assert_eq!(next_tile((1, 0), (2, 2)), Some((0, 1)));
+        assert_eq!(next_tile((1, 1), (2, 2)), None);
+        assert_eq!(next_tile((0, 0), (1, 1)), None);
     }
 
     #[test]

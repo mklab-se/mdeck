@@ -21,11 +21,10 @@ use notify_debouncer_mini::{Debouncer, notify};
 
 use crate::check::CheckReport;
 use crate::config::{Config, DefaultsConfig};
+use crate::deck::{self, Deck, EngineFrame};
 use crate::incident_log::IncidentLog;
 use crate::parser::{self, Presentation};
 use crate::render;
-use crate::render::image_cache::ImageCache;
-use crate::render::story::sidecar::{self as story_sidecar, Resolved};
 use crate::render::transition::{ActiveTransition, TransitionDirection, TransitionKind};
 use crate::theme::{Countdown as ThemeCountdown, Theme, lookup};
 
@@ -136,8 +135,8 @@ enum AppMode {
 }
 
 struct PresentationApp {
-    presentation: Presentation,
-    file_path: PathBuf,
+    /// The deck and everything resolved for it, shared with export.
+    deck: Deck,
     current_slide: usize,
     watcher_rx: mpsc::Receiver<()>,
     _watcher: Option<Debouncer<notify::RecommendedWatcher>>,
@@ -156,11 +155,8 @@ struct PresentationApp {
     engine_override: Option<crate::engines::EngineKind>,
     /// Keeps the context's fonts in step with theme font files.
     font_sync: render::fonts::FontSync,
-    /// The logo on each slide (theme `logo:`, the deck's `@logo`, the slide's `@logo`).
-    logos: render::logo::Logos,
     default_transition: TransitionKind,
     transition: Option<ActiveTransition>,
-    image_cache: ImageCache,
     show_hud: bool,
     raw_overlay_side: RawOverlaySide,
     toast: Option<Toast>,
@@ -168,7 +164,6 @@ struct PresentationApp {
     esc_tap: DoubleTap,
     quit_tap: DoubleTap,
     reveal_steps: Vec<usize>,
-    max_steps: Vec<usize>,
     /// Timestamp of when each slide's reveal_step was last incremented (for animation)
     reveal_timestamps: Vec<Option<Instant>>,
     scroll_offsets: Vec<f32>,
@@ -222,18 +217,8 @@ struct PresentationApp {
     incident_log: Arc<IncidentLog>,
     /// Timestamp of the previous frame, used to detect power-state time jumps.
     last_frame: Instant,
-    /// The theme's engine: its layer under the slides, countdown and end act.
-    engine: crate::engines::Host,
-    /// Resolved story per slide (inline `@scene`, sidecar, or none).
-    stories: Vec<Option<Resolved>>,
-    /// Point cloud illustrations resolved for this deck.
-    illustrations: render::illustration::Library,
-    /// Generated art for the art engines, loaded in the background.
-    art: render::art::gallery::DeckArt,
     /// Background `S` art generation in flight: receives (slide, result).
     art_rx: Option<mpsc::Receiver<(usize, Result<(), String>)>>,
-    /// Bumped whenever `stories` changes so cached scenes rebuild.
-    story_version: u64,
     /// Background `S` generation in flight: receives (slide, result).
     story_rx: Option<mpsc::Receiver<(usize, Result<(), String>)>>,
     /// Opening countdown, while it runs.
@@ -333,14 +318,10 @@ impl PresentationApp {
         cli_engine: Option<crate::engines::EngineKind>,
     ) -> Self {
         // Precedence: frontmatter > config defaults > built-in
-        let theme_key = lookup::select(
-            presentation.meta.theme.as_deref(),
-            defaults.theme.as_deref(),
-        );
         let themes = lookup::Lookup::for_deck(file.parent());
-        let (resolved, problems) = lookup::resolve_or_default(&themes, &theme_key);
-        report_theme_problems(&problems);
-        let engine_override = deck_engine(cli_engine, &presentation, quiet);
+        let (resolved, theme_key) =
+            deck::deck_theme(&themes, &presentation, defaults.theme.as_deref());
+        let engine_override = deck::deck_engine(cli_engine, &presentation, quiet);
         let resolved = crate::engines::with_engine(resolved, engine_override);
         // `run` preloads every theme's fonts before installing them; should a
         // face still be new, start on the default theme for the frame it takes.
@@ -358,68 +339,20 @@ impl PresentationApp {
         );
         let default_transition = TransitionKind::from_name(&transition_name);
 
-        let base_path = file
-            .parent()
-            .unwrap_or(std::path::Path::new("."))
-            .to_path_buf();
-        let image_cache = ImageCache::new(base_path);
-
-        let stories = load_stories(&file, &presentation, quiet);
-        if !quiet {
-            let with_story: Vec<bool> = stories.iter().map(Option::is_some).collect();
-            if let Some(line) = crate::engines::unsupported_summary(
-                resolved_engine(&theme, &pending_theme),
-                &presentation,
-                &with_story,
-            ) {
-                eprintln!("warning: {line}");
-            }
+        let mut deck = Deck::open(file, presentation, &theme, true, quiet);
+        // Art follows the theme the window is about to switch to.
+        if let Some(pending) = &pending_theme {
+            deck.art.sync(&deck.presentation, pending);
         }
-        let max_steps: Vec<usize> =
-            slide_max_steps(&presentation, &stories, theme.engine.plays_stories());
-        let slide_count = presentation.slides.len();
-        let reveal_steps = vec![0; slide_count];
-        let reveal_timestamps = vec![None; slide_count];
-        let scroll_offsets = vec![0.0; slide_count];
-        let scroll_targets = vec![0.0; slide_count];
-
+        let engine_kind = resolved_engine(&theme, &pending_theme);
+        if !quiet {
+            report_deck_warnings(&deck, engine_kind);
+        }
+        deck.art.preload();
+        let slide_count = deck.slide_count();
         let now = Instant::now();
-        let illustrations = render::illustration::Library::for_deck(file.parent());
-        let mut art = render::art::gallery::DeckArt::new(Some(&file), true);
-        art.sync(&presentation, pending_theme.as_ref().unwrap_or(&theme));
-        if !quiet {
-            for p in art.problems() {
-                eprintln!("warning: art: {p}");
-            }
-            if let (Some(c), Some(medium)) = (
-                art.coverage(&presentation),
-                resolved_engine(&theme, &pending_theme).medium(),
-            ) && (c.missing > 0 || c.stale > 0)
-            {
-                let mut parts = Vec::new();
-                if c.missing > 0 {
-                    parts.push(format!(
-                        "{} of {} slides have no picture",
-                        c.missing, c.wanted
-                    ));
-                }
-                if c.stale > 0 {
-                    parts.push(format!("{} stale", c.stale));
-                }
-                eprintln!(
-                    "warning: art for the {} engine: {}; run `mdeck ai art {}` (or press S on a slide)",
-                    medium.name,
-                    parts.join(", "),
-                    file.file_name().unwrap_or_default().to_string_lossy()
-                );
-            }
-        }
-        art.preload();
-        let mut app = Self {
-            presentation,
-            file_path: file,
-            illustrations,
-            art,
+        Self {
+            deck,
             art_rx: None,
             current_slide: 0,
             watcher_rx,
@@ -430,21 +363,18 @@ impl PresentationApp {
             themes,
             pending_theme,
             font_sync,
-            logos: Default::default(),
             default_transition,
             transition: None,
-            image_cache,
             show_hud: false,
             raw_overlay_side: RawOverlaySide::Off,
             toast: None,
             ctrl_c_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
             esc_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
             quit_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
-            reveal_steps,
-            max_steps,
-            reveal_timestamps,
-            scroll_offsets,
-            scroll_targets,
+            reveal_steps: vec![0; slide_count],
+            reveal_timestamps: vec![None; slide_count],
+            scroll_offsets: vec![0.0; slide_count],
+            scroll_targets: vec![0.0; slide_count],
             frame_count: 0,
             fps: 0.0,
             fps_update: now,
@@ -475,20 +405,15 @@ impl PresentationApp {
             last_frame: now,
             cli_engine,
             engine_override,
-            engine: crate::engines::Host::new(crate::engines::EngineKind::Plain),
-            stories,
-            story_version: 0,
             story_rx: None,
             countdown: None,
-        };
-        app.refresh_logo();
-        app
+        }
     }
 
     /// Start the opening countdown if the theme has one and the deck did not
     /// turn it off (`@countdown: false`).
     fn start_countdown(&mut self) {
-        if self.presentation.meta.countdown == Some(false) {
+        if self.deck.presentation.meta.countdown == Some(false) {
             return;
         }
         let burst = match self.theme.countdown {
@@ -532,31 +457,39 @@ impl PresentationApp {
 
     /// The story playing on slide `index`, if any.
     fn story(&self, index: usize) -> Option<&crate::render::story::Script> {
-        self.stories
-            .get(index)
-            .and_then(|r| r.as_ref())
-            .map(|r| &r.script)
+        self.deck.story(index)
     }
 
     fn slide_count(&self) -> usize {
-        self.presentation.slides.len()
+        self.deck.slide_count()
     }
 
     fn display_title(&self) -> String {
-        self.presentation.meta.title.clone().unwrap_or_else(|| {
-            self.file_path
-                .file_stem()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string()
-        })
+        self.deck
+            .presentation
+            .meta
+            .title
+            .clone()
+            .unwrap_or_else(|| {
+                self.deck
+                    .file
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string()
+            })
     }
 
     /// Start decoding images on the upcoming slides so they're ready to draw
     /// by the time the presenter reaches them.
     fn preload_upcoming_images(&self, ctx: &egui::Context) {
         for offset in 1..=2 {
-            let Some(slide) = self.presentation.slides.get(self.current_slide + offset) else {
+            let Some(slide) = self
+                .deck
+                .presentation
+                .slides
+                .get(self.current_slide + offset)
+            else {
                 break;
             };
             for block in &slide.blocks {
@@ -564,7 +497,7 @@ impl PresentationApp {
                     && !path.is_empty()
                     && path != "image-generation"
                 {
-                    self.image_cache.preload(ctx, path);
+                    self.deck.image_cache.preload(ctx, path);
                 }
             }
         }
@@ -584,7 +517,7 @@ impl PresentationApp {
         let idx = self.current_slide;
 
         // If we have reveal steps remaining, reveal next item
-        if self.reveal_steps[idx] < self.max_steps[idx] {
+        if self.reveal_steps[idx] < self.deck.max_steps[idx] {
             self.reveal_steps[idx] += 1;
             self.reveal_timestamps[idx] = Some(Instant::now());
             self.pending_reveal_scroll = true;
@@ -638,7 +571,7 @@ impl PresentationApp {
 
         let prev = idx - 1;
         // Show previous slide fully revealed
-        self.reveal_steps[prev] = self.max_steps[prev];
+        self.reveal_steps[prev] = self.deck.max_steps[prev];
 
         self.transition = Some(ActiveTransition::new(
             idx,
@@ -655,7 +588,7 @@ impl PresentationApp {
             return;
         }
         self.on_end_slide = false;
-        self.reveal_steps[index] = self.max_steps[index];
+        self.reveal_steps[index] = self.deck.max_steps[index];
         let cur = self.current_slide;
         if index == cur {
             return;
@@ -722,7 +655,7 @@ impl PresentationApp {
         } else {
             self.current_slide = selected;
             // Leaving the grid behaves like navigating back: fully revealed, top.
-            self.reveal_steps[selected] = self.max_steps[selected];
+            self.reveal_steps[selected] = self.deck.max_steps[selected];
             self.scroll_offsets[selected] = 0.0;
             self.scroll_targets[selected] = 0.0;
             self.mode = AppMode::Presentation;
@@ -789,43 +722,26 @@ impl PresentationApp {
         let key = names[next].clone();
         match self.themes.load(&key) {
             Ok(built) => {
-                report_theme_problems(&built.warnings);
+                deck::report_theme_problems(&built.warnings);
                 self.theme_key = key;
                 self.pending_theme = Some(built.theme);
             }
             Err(e) => {
                 // Skip a broken theme rather than getting stuck on it.
-                report_theme_problems(std::slice::from_ref(&e));
+                deck::report_theme_problems(std::slice::from_ref(&e));
                 self.theme_key = key;
                 self.toast = Some(Toast::new(format!("Theme {}: {e}", names[next])));
             }
         }
     }
 
-    /// Resolve the logo from the theme and the deck's `@logo` keys.
-    fn refresh_logo(&mut self) {
-        let dir = self
-            .file_path
-            .parent()
-            .unwrap_or(std::path::Path::new("."))
-            .to_path_buf();
-        let (logos, problems) = render::logo::resolve_slides(&self.theme, &self.presentation, &dir);
-        report_theme_problems(&problems);
-        self.logos = logos;
-    }
-
     /// Switch to `theme` now: step counts follow its engine (story beats are
     /// an ember feature; other engines step through the content's own reveals).
     fn apply_theme(&mut self, theme: Theme) {
         self.theme = crate::engines::with_engine(theme, self.engine_override);
-        self.refresh_logo();
-        self.max_steps = slide_max_steps(
-            &self.presentation,
-            &self.stories,
-            self.theme.engine.plays_stories(),
-        );
+        self.deck.retheme(&self.theme);
         for (i, r) in self.reveal_steps.iter_mut().enumerate() {
-            *r = (*r).min(self.max_steps[i]);
+            *r = (*r).min(self.deck.max_steps[i]);
         }
         self.toast = Some(Toast::new(format!("Theme: {}", self.theme.name)));
     }
@@ -857,13 +773,13 @@ impl PresentationApp {
     }
 
     fn reload_presentation(&mut self) {
-        let content = match std::fs::read_to_string(&self.file_path) {
+        let content = match std::fs::read_to_string(&self.deck.file) {
             Ok(c) => c,
             Err(e) => {
                 self.incident_log.record(
                     "file_reload_error",
                     "failed to read presentation file for reload",
-                    &format!("{e}\npath: {}", self.file_path.display()),
+                    &format!("{e}\npath: {}", self.deck.file.display()),
                 );
                 self.toast = Some(Toast::new(format!("Reload error: {e}")));
                 return;
@@ -878,8 +794,7 @@ impl PresentationApp {
         }
         self.last_content_hash = new_hash;
 
-        let base_path = self.file_path.parent().unwrap_or(std::path::Path::new("."));
-        let new_presentation = parser::parse(&content, base_path);
+        let new_presentation = parser::parse(&content, self.deck.dir());
 
         if new_presentation.slides.is_empty() {
             self.toast = Some(Toast::new("Reload: no slides found".to_string()));
@@ -895,6 +810,7 @@ impl PresentationApp {
         // Preserve slide position
         let old_current = self.current_slide;
         let old_raw = self
+            .deck
             .presentation
             .slides
             .get(old_current)
@@ -907,30 +823,24 @@ impl PresentationApp {
 
         // Recompute per-slide vectors, keeping the current slide's reveal
         // progress (clamped to the new step count) and scroll position.
-        self.stories = load_stories(&self.file_path, &new_presentation, true);
-        self.illustrations.reset();
-        self.art.invalidate();
-        self.story_version += 1;
-        self.max_steps = slide_max_steps(
-            &new_presentation,
-            &self.stories,
-            self.theme.engine.plays_stories(),
-        );
+        let engine_override = deck::deck_engine(self.cli_engine, &new_presentation, false);
+        let new_theme = new_presentation.meta.theme.clone();
+        let new_transition = new_presentation.meta.transition.clone();
+        self.deck.replace(new_presentation, &self.theme);
         self.reveal_steps = vec![0; slide_count];
         self.reveal_timestamps = vec![None; slide_count];
         self.scroll_offsets = vec![0.0; slide_count];
         self.scroll_targets = vec![0.0; slide_count];
         let cur = self.current_slide;
-        self.reveal_steps[cur] = old_reveal.min(self.max_steps[cur]);
+        self.reveal_steps[cur] = old_reveal.min(self.deck.max_steps[cur]);
         self.scroll_targets[cur] = old_scroll;
         self.scroll_offsets[cur] = old_scroll;
 
         // Update theme/transition from new frontmatter (and pick up edits to
         // the theme file itself)
-        let engine_override = deck_engine(self.cli_engine, &new_presentation, false);
-        if let Some(name) = &new_presentation.meta.theme {
+        if let Some(name) = &new_theme {
             let (theme, problems) = lookup::resolve_or_default(&self.themes, name);
-            report_theme_problems(&problems);
+            deck::report_theme_problems(&problems);
             self.theme_key = name.trim().to_ascii_lowercase();
             self.pending_theme = Some(theme);
         } else if engine_override != self.engine_override {
@@ -938,13 +848,10 @@ impl PresentationApp {
             self.pending_theme = Some(theme);
         }
         self.engine_override = engine_override;
-        if let Some(name) = &new_presentation.meta.transition {
+        if let Some(name) = &new_transition {
             self.default_transition = TransitionKind::from_name(name);
         }
 
-        self.presentation = new_presentation;
-        self.refresh_logo();
-        self.image_cache.clear();
         self.precache_cancel.store(true, Ordering::Relaxed);
         render::diagram::clear_route_cache();
         render::visualizations::word_cloud::clear_cache();
@@ -976,6 +883,7 @@ impl PresentationApp {
     /// to pre-compute their routing caches at reference resolution (1920x1080).
     fn spawn_diagram_precache(&mut self) {
         let diagrams: Vec<(usize, String)> = self
+            .deck
             .presentation
             .slides
             .iter()
@@ -1510,17 +1418,6 @@ impl eframe::App for PresentationApp {
                         .as_ref()
                         .map(|t| t.to)
                         .unwrap_or(self.current_slide);
-                    let end = self.on_end_slide;
-                    let slide = (!end).then(|| {
-                        &self.presentation.slides[target.min(self.presentation.slides.len() - 1)]
-                    });
-                    let reveal = self.reveal_steps.get(target).copied().unwrap_or(0);
-                    let story = self.story(target).cloned();
-                    let theme = self.theme.clone();
-                    let deck_title = self.presentation.meta.title.clone();
-                    self.art.repaint_on(ctx);
-                    self.art.sync(&self.presentation, &theme);
-                    let art = if end { None } else { self.art.picture(target) };
                     let countdown =
                         self.countdown
                             .as_ref()
@@ -1533,26 +1430,20 @@ impl eframe::App for PresentationApp {
                                 }
                                 CountdownPhase::Done => None,
                             });
-                    self.engine.frame(
+                    self.deck.art.repaint_on(ctx);
+                    self.deck.engine_layer(
                         ui,
-                        crate::engines::Shot {
+                        &self.theme,
+                        EngineFrame {
                             rect,
-                            slide,
-                            story: story.as_ref(),
-                            story_version: self.story_version,
-                            art: art.as_ref(),
-                            index: target,
-                            reveal,
-                            end,
-                            countdown,
-                            theme: &theme,
                             scale,
-                            opacity: 1.0,
+                            index: target,
+                            reveal: self.reveal_steps.get(target).copied().unwrap_or(0),
+                            end: self.on_end_slide,
+                            countdown,
                             still: false,
-                            deck_title: deck_title.as_deref(),
-                            count: self.slide_count(),
                         },
-                        &mut self.illustrations,
+                        None,
                     );
                 }
 
@@ -1631,7 +1522,7 @@ impl eframe::App for PresentationApp {
                 if self.raw_overlay_side != RawOverlaySide::Off
                     && matches!(self.mode, AppMode::Presentation)
                 {
-                    let slide = &self.presentation.slides[self.current_slide];
+                    let slide = &self.deck.presentation.slides[self.current_slide];
                     let raw = &slide.raw_source;
                     let debug_info = slide.blocks.iter().find_map(|b| {
                         if let parser::Block::Diagram { content } = b {
@@ -1664,89 +1555,45 @@ impl eframe::App for PresentationApp {
     }
 }
 
-/// Load the story sidecar and resolve a story per slide, reporting problems
-/// on stderr unless quiet.
-fn load_stories(
-    file: &std::path::Path,
-    presentation: &Presentation,
-    quiet: bool,
-) -> Vec<Option<Resolved>> {
-    let sidecar = match story_sidecar::load(file) {
-        Ok(s) => s,
-        Err(e) => {
-            if !quiet {
-                eprintln!("Warning: story sidecar ignored: {e}");
-            }
-            None
-        }
-    };
-    let (stories, problems) = story_sidecar::resolve(presentation, sidecar.as_ref());
-    if !quiet {
-        for p in problems {
-            eprintln!("Warning: {p}");
-        }
-    }
-    stories
-}
-
-/// Reveal steps per slide: the content's own steps, extended by story beats
-/// when a theme on the particles engine is showing them.
-/// The engine override for a deck: `--engine`, then its `@engine` (whose
-/// problems are printed unless quiet).
-fn deck_engine(
-    cli: Option<crate::engines::EngineKind>,
-    presentation: &Presentation,
-    quiet: bool,
-) -> Option<crate::engines::EngineKind> {
-    if cli.is_some() {
-        return cli;
-    }
-    // Only a CLI name can fail; the deck's name only warns.
-    let (kind, warnings) = crate::engines::choose(None, presentation.meta.engine.as_deref())
-        .unwrap_or((None, Vec::new()));
-    if !quiet {
-        for w in warnings {
-            eprintln!("warning: {w}");
-        }
-    }
-    kind
-}
-
 /// The engine the window will run on: the pending theme's when one waits
 /// for its fonts, else the current theme's.
 fn resolved_engine(theme: &Theme, pending: &Option<Theme>) -> crate::engines::EngineKind {
     pending.as_ref().unwrap_or(theme).engine
 }
 
-/// Print theme problems (unknown name, invalid file, fallbacks) to stderr.
-fn report_theme_problems(problems: &[String]) {
-    for p in problems {
-        eprintln!("warning: theme: {p}");
+/// Startup warnings about what the deck asks of its engine: features it
+/// does not support, and generated art that is missing or stale.
+fn report_deck_warnings(deck: &Deck, engine: crate::engines::EngineKind) {
+    if let Some(line) =
+        crate::engines::unsupported_summary(engine, &deck.presentation, &deck.with_story())
+    {
+        eprintln!("warning: {line}");
     }
-}
-
-fn slide_max_steps(
-    presentation: &Presentation,
-    stories: &[Option<Resolved>],
-    ember: bool,
-) -> Vec<usize> {
-    presentation
-        .slides
-        .iter()
-        .enumerate()
-        .map(|(i, s)| {
-            let content = parser::compute_max_steps(&s.blocks);
-            if !ember {
-                return content;
-            }
-            let beats = stories
-                .get(i)
-                .and_then(|r| r.as_ref())
-                .map(|r| r.script.extra_steps())
-                .unwrap_or(0);
-            content.max(beats)
-        })
-        .collect()
+    for p in deck.art.problems() {
+        eprintln!("warning: art: {p}");
+    }
+    let (Some(c), Some(medium)) = (deck.art.coverage(&deck.presentation), engine.medium()) else {
+        return;
+    };
+    if c.missing == 0 && c.stale == 0 {
+        return;
+    }
+    let mut parts = Vec::new();
+    if c.missing > 0 {
+        parts.push(format!(
+            "{} of {} slides have no picture",
+            c.missing, c.wanted
+        ));
+    }
+    if c.stale > 0 {
+        parts.push(format!("{} stale", c.stale));
+    }
+    eprintln!(
+        "warning: art for the {} engine: {}; run `mdeck ai art {}` (or press S on a slide)",
+        medium.name,
+        parts.join(", "),
+        deck.file.file_name().unwrap_or_default().to_string_lossy()
+    );
 }
 
 /// Resolve the initial slide (0-indexed) and overview flag from CLI flags and
@@ -1978,22 +1825,6 @@ mod tests {
         assert_eq!(plain.phase(at(three + d * 2.0 + 0.1)), CountdownPhase::Done);
     }
 
-    #[test]
-    fn story_beats_extend_steps_only_in_ember() {
-        let md = "# A\n\n- one\n+ two\n";
-        let pres = crate::parser::parse(md, std::path::Path::new("."));
-        let script = crate::render::story::Script::parse(
-            "cast:\n  - { id: a, kind: person, cell: left }\nbeats: [{}, {}, {}, {}]\n",
-        )
-        .unwrap();
-        let stories = vec![Some(Resolved {
-            script,
-            source: story_sidecar::Source::Sidecar,
-        })];
-        // one `+` reveal on the slide; the story has four beats (three extra steps)
-        assert_eq!(slide_max_steps(&pres, &stories, false), vec![1]);
-        assert_eq!(slide_max_steps(&pres, &stories, true), vec![3]);
-    }
     use crate::parser::{Layout, Slide};
 
     fn slide(raw: &str) -> Slide {

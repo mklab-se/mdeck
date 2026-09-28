@@ -566,19 +566,19 @@ fn preview(name: &str, output_dir: PathBuf, width: u32, height: u32) -> Result<(
     std::fs::create_dir_all(&dir)?;
     let deck = dir.join("theme-preview.md");
     std::fs::write(&deck, SAMPLER)?;
-    let result = crate::commands::export::run(
-        deck,
+    let result = crate::commands::export::run(crate::commands::export::ExportArgs {
+        file: deck,
         output_dir,
         width,
         height,
-        false,
-        None,
-        None,
-        crate::commands::export::Format::Png,
-        false,
-        crate::commands::export::ThemeChoice::Given(Box::new(built.theme)),
-        None,
-    );
+        debug: false,
+        slide: None,
+        range: None,
+        format: crate::commands::export::Format::Png,
+        notes: false,
+        theme: crate::commands::export::ThemeChoice::Given(Box::new(built.theme)),
+        engine: None,
+    });
     let _ = std::fs::remove_dir_all(&dir);
     result
 }

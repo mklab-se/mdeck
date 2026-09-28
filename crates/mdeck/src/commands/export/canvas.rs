@@ -61,3 +61,16 @@ pub fn tile_count(total: u32, tile: u32) -> u32 {
     }
     total.div_ceil(tile).max(1)
 }
+
+/// The tile after `tile` in row order on a `tiles` (columns, rows) grid, or
+/// `None` once the last one is done.
+pub fn next_tile(tile: (u32, u32), tiles: (u32, u32)) -> Option<(u32, u32)> {
+    let (tx, ty) = tile;
+    if tx + 1 < tiles.0 {
+        Some((tx + 1, ty))
+    } else if ty + 1 < tiles.1 {
+        Some((0, ty + 1))
+    } else {
+        None
+    }
+}
