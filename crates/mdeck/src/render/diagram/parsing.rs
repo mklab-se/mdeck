@@ -1,129 +1,9 @@
 use std::collections::HashMap;
 
+use super::metadata::parse_node_metadata;
 use super::types::*;
 
 // ─── Diagram parser ──────────────────────────────────────────────────────────
-
-/// Parse parenthetical metadata like `(icon: database, pos: 1,2, prompt: "...")`.
-/// Returns the line content without the metadata and extracted fields.
-pub(super) fn parse_node_metadata(s: &str) -> NodeMetadata<'_> {
-    let trimmed = s.trim_end();
-    if !trimmed.ends_with(')') {
-        return NodeMetadata {
-            before: trimmed,
-            icon: String::new(),
-            grid_pos: None,
-            prompt: None,
-        };
-    }
-    let Some(paren_start) = trimmed.rfind('(') else {
-        return NodeMetadata {
-            before: trimmed,
-            icon: String::new(),
-            grid_pos: None,
-            prompt: None,
-        };
-    };
-    // Only parse if there's whitespace before the paren
-    if paren_start == 0 || trimmed.as_bytes()[paren_start - 1] != b' ' {
-        return NodeMetadata {
-            before: trimmed,
-            icon: String::new(),
-            grid_pos: None,
-            prompt: None,
-        };
-    }
-
-    let before = trimmed[..paren_start].trim_end();
-    let meta_str = &trimmed[paren_start + 1..trimmed.len() - 1]; // contents between parens
-
-    let mut icon = String::new();
-    let mut grid_pos = None;
-    let mut prompt = None;
-
-    // Extract quoted prompt first (it may contain commas)
-    let meta_str = extract_prompt(meta_str, &mut prompt);
-
-    for part in meta_str.split(',') {
-        let part = part.trim();
-        if let Some(val) = part
-            .strip_prefix("icon:")
-            .or_else(|| part.strip_prefix("icon :"))
-        {
-            icon = val.trim().to_string();
-        } else if let Some(val) = part
-            .strip_prefix("pos:")
-            .or_else(|| part.strip_prefix("pos :"))
-        {
-            let val = val.trim();
-            // pos can be "x,y" but we already split on comma, so handle both forms
-            if let Some((x_str, y_str)) = val.split_once(',') {
-                if let (Ok(x), Ok(y)) = (x_str.trim().parse(), y_str.trim().parse()) {
-                    grid_pos = Some((x, y));
-                }
-            } else if grid_pos.is_none() {
-                // Might be split across commas: "pos: 1" then next part is "2"
-                // Store x and look for y in next iteration
-                if let Ok(x) = val.parse::<u32>() {
-                    grid_pos = Some((x, 0)); // placeholder, y filled below
-                }
-            }
-        } else if let Some((x, 0)) = grid_pos {
-            // Continuation of pos value split by comma
-            if let Ok(y) = part.trim().parse::<u32>() {
-                grid_pos = Some((x, y));
-            }
-        }
-    }
-
-    NodeMetadata {
-        before,
-        icon,
-        grid_pos,
-        prompt,
-    }
-}
-
-/// Extract a `prompt: "..."` or `prompt: '...'` value from the metadata string,
-/// returning the remainder with the prompt portion removed.
-pub(super) fn extract_prompt(meta_str: &str, prompt: &mut Option<String>) -> String {
-    // Look for prompt: followed by a quoted string
-    let prefix = if let Some(idx) = meta_str.find("prompt:") {
-        idx
-    } else if let Some(idx) = meta_str.find("prompt :") {
-        idx
-    } else {
-        return meta_str.to_string();
-    };
-
-    let after_key = &meta_str[prefix..];
-    let after_colon = after_key
-        .strip_prefix("prompt:")
-        .or_else(|| after_key.strip_prefix("prompt :"))
-        .unwrap_or(after_key);
-    let after_colon = after_colon.trim_start();
-
-    let (quote_char, rest) = if let Some(stripped) = after_colon.strip_prefix('"') {
-        ('"', stripped)
-    } else if let Some(stripped) = after_colon.strip_prefix('\'') {
-        ('\'', stripped)
-    } else {
-        return meta_str.to_string();
-    };
-
-    if let Some(end) = rest.find(quote_char) {
-        *prompt = Some(rest[..end].to_string());
-        // Remove the prompt portion from the metadata string
-        let prompt_end = prefix + "prompt:".len() + (after_colon.len() - rest.len()) + end + 1;
-        let mut result = meta_str[..prefix].to_string();
-        if prompt_end < meta_str.len() {
-            result.push_str(&meta_str[prompt_end..]);
-        }
-        result
-    } else {
-        meta_str.to_string()
-    }
-}
 
 /// Detect arrow type and position in a line. Returns (arrow_pos, arrow_len, ArrowKind).
 pub(super) fn detect_arrow(s: &str) -> Option<(usize, usize, ArrowKind)> {
@@ -147,153 +27,373 @@ pub(super) fn detect_arrow(s: &str) -> Option<(usize, usize, ArrowKind)> {
 }
 
 pub(super) fn parse_diagram(content: &str) -> (Vec<DiagramNode>, Vec<DiagramEdge>, DiagramScale) {
-    let mut nodes = Vec::new();
-    let mut edges = Vec::new();
-    let mut seen_nodes: HashMap<String, usize> = HashMap::new();
-    let mut diagram_scale = DiagramScale::Fit;
-    let mut parse_order_counter = 0usize;
-
+    let mut parser = Parser::default();
     for line in content.lines() {
-        let trimmed = line.trim();
+        parser.line(line.trim());
+    }
+    (parser.nodes, parser.edges, parser.scale)
+}
 
+/// Parse a `# scale: fit | scroll | <factor>` directive line.
+fn scale_directive(line: &str) -> Option<DiagramScale> {
+    let val = line
+        .strip_prefix("# scale:")
+        .or_else(|| line.strip_prefix("#scale:"))?
+        .trim();
+    if val.eq_ignore_ascii_case("fit") {
+        Some(DiagramScale::Fit)
+    } else if val.eq_ignore_ascii_case("scroll") {
+        Some(DiagramScale::Scroll)
+    } else {
+        let f = val.parse::<f32>().ok()?;
+        Some(DiagramScale::Factor(f.clamp(0.1, 2.0)))
+    }
+}
+
+/// Strip a list-style prefix and return the reveal marker it stands for.
+fn split_reveal(line: &str) -> (&str, DiagramReveal) {
+    if let Some(rest) = line.strip_prefix("+ ") {
+        (rest, DiagramReveal::NextStep)
+    } else if let Some(rest) = line.strip_prefix("* ") {
+        (rest, DiagramReveal::WithPrev)
+    } else if let Some(rest) = line.strip_prefix("- ") {
+        (rest, DiagramReveal::Static)
+    } else {
+        (line, DiagramReveal::Static)
+    }
+}
+
+/// Diagram state built up line by line.
+struct Parser {
+    nodes: Vec<DiagramNode>,
+    edges: Vec<DiagramEdge>,
+    seen_nodes: HashMap<String, usize>,
+    scale: DiagramScale,
+    parse_order: usize,
+}
+
+impl Default for Parser {
+    fn default() -> Self {
+        Self {
+            nodes: Vec::new(),
+            edges: Vec::new(),
+            seen_nodes: HashMap::new(),
+            scale: DiagramScale::Fit,
+            parse_order: 0,
+        }
+    }
+}
+
+impl Parser {
+    fn line(&mut self, trimmed: &str) {
         // Parse directives from comment lines (e.g. `# scale: fit`)
         if trimmed.starts_with('#') {
-            if let Some(rest) = trimmed
-                .strip_prefix("# scale:")
-                .or_else(|| trimmed.strip_prefix("#scale:"))
-            {
-                let val = rest.trim();
-                if val.eq_ignore_ascii_case("fit") {
-                    diagram_scale = DiagramScale::Fit;
-                } else if val.eq_ignore_ascii_case("scroll") {
-                    diagram_scale = DiagramScale::Scroll;
-                } else if let Ok(f) = val.parse::<f32>() {
-                    diagram_scale = DiagramScale::Factor(f.clamp(0.1, 2.0));
-                }
+            if let Some(scale) = scale_directive(trimmed) {
+                self.scale = scale;
             }
-            continue;
+            return;
         }
 
-        // Strip list-style prefixes and record reveal marker
-        let (trimmed, reveal) = if let Some(rest) = trimmed.strip_prefix("+ ") {
-            (rest, DiagramReveal::NextStep)
-        } else if let Some(rest) = trimmed.strip_prefix("* ") {
-            (rest, DiagramReveal::WithPrev)
-        } else if let Some(rest) = trimmed.strip_prefix("- ") {
-            (rest, DiagramReveal::Static)
-        } else {
-            (trimmed, DiagramReveal::Static)
-        };
-
+        let (trimmed, reveal) = split_reveal(trimmed);
         if trimmed.is_empty() {
-            continue;
+            return;
         }
 
         // Parse and strip trailing metadata (icon, pos, prompt)
         let meta = parse_node_metadata(trimmed);
-        let trimmed = meta.before;
-        let meta_icon = meta.icon;
-        let meta_pos = meta.grid_pos;
-        let meta_prompt = meta.prompt;
+        let body = meta.before;
 
-        if let Some((arrow_pos, arrow_len, arrow_kind)) = detect_arrow(trimmed) {
-            let from = trimmed[..arrow_pos].trim().to_string();
-            let rest = &trimmed[arrow_pos + arrow_len..];
-            let (to, label) = if let Some(colon_pos) = rest.find(": ") {
-                (
-                    rest[..colon_pos].trim().to_string(),
-                    rest[colon_pos + 2..].trim().to_string(),
-                )
-            } else {
-                (rest.trim().to_string(), String::new())
-            };
-
-            // Auto-create nodes for edges if not already declared
-            for node_name in [&from, &to] {
-                if !seen_nodes.contains_key(node_name) {
-                    seen_nodes.insert(node_name.clone(), nodes.len());
-                    nodes.push(DiagramNode {
-                        name: node_name.clone(),
-                        label: node_name.clone(),
-                        icon: String::new(),
-                        grid_pos: None,
-                        prompt: None,
-                        reveal: DiagramReveal::Static,
-                        parse_order: 0,
-                    });
-                }
-            }
-
-            edges.push(DiagramEdge {
-                from,
-                to,
-                label,
-                arrow: arrow_kind,
-                reveal,
-                parse_order: parse_order_counter,
-            });
-            parse_order_counter += 1;
-        } else if let Some(colon_pos) = trimmed.find(": ") {
+        if let Some((arrow_pos, arrow_len, arrow_kind)) = detect_arrow(body) {
+            let from = body[..arrow_pos].trim().to_string();
+            let (to, label) = split_label(&body[arrow_pos + arrow_len..]);
+            self.edge(from, to, label, arrow_kind, reveal);
+        } else if let Some(colon_pos) = body.find(": ") {
             // Node declaration with label: "Name: Label"
-            let name = trimmed[..colon_pos].trim().to_string();
-            let label = trimmed[colon_pos + 2..].trim().to_string();
-
-            if let Some(&idx) = seen_nodes.get(&name) {
-                nodes[idx].label = label;
-                if !meta_icon.is_empty() {
-                    nodes[idx].icon = meta_icon.clone();
-                }
-                if meta_pos.is_some() {
-                    nodes[idx].grid_pos = meta_pos;
-                }
-                if meta_prompt.is_some() {
-                    nodes[idx].prompt = meta_prompt.clone();
-                }
-                nodes[idx].parse_order = parse_order_counter;
-            } else {
-                seen_nodes.insert(name.clone(), nodes.len());
-                nodes.push(DiagramNode {
-                    name,
-                    label,
-                    icon: meta_icon.clone(),
-                    grid_pos: meta_pos,
-                    prompt: meta_prompt.clone(),
-                    reveal,
-                    parse_order: parse_order_counter,
-                });
-            }
-            parse_order_counter += 1;
+            let name = body[..colon_pos].trim().to_string();
+            let label = body[colon_pos + 2..].trim().to_string();
+            self.node(name, Some(label), &meta, reveal);
         } else {
             // Plain node name (e.g. "Server" or "Server (icon: server, pos: 1,1)")
-            let name = trimmed.trim().to_string();
+            let name = body.trim().to_string();
             if !name.is_empty() {
-                if let Some(&idx) = seen_nodes.get(&name) {
-                    if !meta_icon.is_empty() {
-                        nodes[idx].icon = meta_icon.clone();
-                    }
-                    if meta_pos.is_some() {
-                        nodes[idx].grid_pos = meta_pos;
-                    }
-                    if meta_prompt.is_some() {
-                        nodes[idx].prompt = meta_prompt.clone();
-                    }
-                    nodes[idx].parse_order = parse_order_counter;
-                } else {
-                    seen_nodes.insert(name.clone(), nodes.len());
-                    nodes.push(DiagramNode {
-                        name: name.clone(),
-                        label: name,
-                        icon: meta_icon.clone(),
-                        grid_pos: meta_pos,
-                        prompt: meta_prompt.clone(),
-                        reveal,
-                        parse_order: parse_order_counter,
-                    });
-                }
-                parse_order_counter += 1;
+                self.node(name, None, &meta, reveal);
             }
         }
     }
 
-    (nodes, edges, diagram_scale)
+    fn edge(
+        &mut self,
+        from: String,
+        to: String,
+        label: String,
+        arrow: ArrowKind,
+        reveal: DiagramReveal,
+    ) {
+        // Auto-create nodes for edges if not already declared
+        for node_name in [&from, &to] {
+            if !self.seen_nodes.contains_key(node_name) {
+                self.seen_nodes.insert(node_name.clone(), self.nodes.len());
+                self.nodes.push(DiagramNode {
+                    name: node_name.clone(),
+                    label: node_name.clone(),
+                    icon: String::new(),
+                    grid_pos: None,
+                    prompt: None,
+                    reveal: DiagramReveal::Static,
+                    parse_order: 0,
+                });
+            }
+        }
+
+        self.edges.push(DiagramEdge {
+            from,
+            to,
+            label,
+            arrow,
+            reveal,
+            parse_order: self.parse_order,
+        });
+        self.parse_order += 1;
+    }
+
+    /// Declare a node, or update one already declared (or created by an
+    /// edge): a given label and any metadata replace what it had, and it
+    /// moves to this line in file order. Its reveal marker stays the first.
+    fn node(
+        &mut self,
+        name: String,
+        label: Option<String>,
+        meta: &NodeMetadata,
+        reveal: DiagramReveal,
+    ) {
+        if let Some(&idx) = self.seen_nodes.get(&name) {
+            let node = &mut self.nodes[idx];
+            if let Some(label) = label {
+                node.label = label;
+            }
+            if !meta.icon.is_empty() {
+                node.icon = meta.icon.clone();
+            }
+            if meta.grid_pos.is_some() {
+                node.grid_pos = meta.grid_pos;
+            }
+            if meta.prompt.is_some() {
+                node.prompt = meta.prompt.clone();
+            }
+            node.parse_order = self.parse_order;
+        } else {
+            self.seen_nodes.insert(name.clone(), self.nodes.len());
+            self.nodes.push(DiagramNode {
+                label: label.unwrap_or_else(|| name.clone()),
+                name,
+                icon: meta.icon.clone(),
+                grid_pos: meta.grid_pos,
+                prompt: meta.prompt.clone(),
+                reveal,
+                parse_order: self.parse_order,
+            });
+        }
+        self.parse_order += 1;
+    }
+}
+
+/// Split `To: label` after an arrow into the target and its (maybe empty) label.
+fn split_label(rest: &str) -> (String, String) {
+    if let Some(colon_pos) = rest.find(": ") {
+        (
+            rest[..colon_pos].trim().to_string(),
+            rest[colon_pos + 2..].trim().to_string(),
+        )
+    } else {
+        (rest.trim().to_string(), String::new())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── Parsing tests ────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_parse_simple_chain() {
+        let content = "- A -> B: sends\n- B -> C: forwards";
+        let (nodes, edges, _) = parse_diagram(content);
+        assert_eq!(nodes.len(), 3);
+        assert_eq!(edges.len(), 2);
+        assert_eq!(edges[0].from, "A");
+        assert_eq!(edges[0].to, "B");
+        assert_eq!(edges[0].label, "sends");
+        assert!(matches!(edges[0].arrow, ArrowKind::Forward));
+    }
+
+    #[test]
+    fn test_skip_comments() {
+        let content = "# Components\n- A -> B\n# Relationships\n- B -> C";
+        let (nodes, edges, _) = parse_diagram(content);
+        assert_eq!(nodes.len(), 3);
+        assert_eq!(edges.len(), 2);
+        assert!(!nodes.iter().any(|n| n.name.starts_with('#')));
+    }
+
+    #[test]
+    fn test_arrow_types() {
+        let content = "A -> B\nC <- D\nE <-> F\nG -- H\nI --> J";
+        let (_, edges, _) = parse_diagram(content);
+        assert!(matches!(edges[0].arrow, ArrowKind::Forward));
+        assert!(matches!(edges[1].arrow, ArrowKind::Reverse));
+        assert!(matches!(edges[2].arrow, ArrowKind::Bidirectional));
+        assert!(matches!(edges[3].arrow, ArrowKind::DashedLine));
+        assert!(matches!(edges[4].arrow, ArrowKind::DashedArrow));
+    }
+
+    #[test]
+    fn test_node_with_label_and_metadata() {
+        let content = "- DB: Database (icon: database, pos: 1, 2)";
+        let (nodes, _, _) = parse_diagram(content);
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].name, "DB");
+        assert_eq!(nodes[0].label, "Database");
+        assert_eq!(nodes[0].icon, "database");
+        assert_eq!(nodes[0].grid_pos, Some((1, 2)));
+    }
+
+    #[test]
+    fn test_detect_arrow_ordering() {
+        // <-> must be detected before -> and <-
+        assert!(matches!(
+            detect_arrow("A <-> B"),
+            Some((_, _, ArrowKind::Bidirectional))
+        ));
+        assert!(matches!(
+            detect_arrow("A --> B"),
+            Some((_, _, ArrowKind::DashedArrow))
+        ));
+        assert!(matches!(
+            detect_arrow("A -> B"),
+            Some((_, _, ArrowKind::Forward))
+        ));
+        assert!(matches!(
+            detect_arrow("A <- B"),
+            Some((_, _, ArrowKind::Reverse))
+        ));
+        assert!(matches!(
+            detect_arrow("A -- B"),
+            Some((_, _, ArrowKind::DashedLine))
+        ));
+        assert!(detect_arrow("A B").is_none());
+    }
+
+    #[test]
+    fn test_empty_diagram() {
+        let (nodes, edges, _) = parse_diagram("");
+        assert_eq!(nodes.len(), 0);
+        assert_eq!(edges.len(), 0);
+    }
+
+    #[test]
+    fn test_comments_only() {
+        let (nodes, edges, _) = parse_diagram("# comment\n# another");
+        assert_eq!(nodes.len(), 0);
+        assert_eq!(edges.len(), 0);
+    }
+
+    #[test]
+    fn test_reveal_markers_parsed() {
+        let content = "- A (pos: 1, 1)\n+ B (pos: 2, 1)\n* C (pos: 3, 1)";
+        let (nodes, _, _) = parse_diagram(content);
+        assert_eq!(nodes[0].reveal, DiagramReveal::Static);
+        assert_eq!(nodes[1].reveal, DiagramReveal::NextStep);
+        assert_eq!(nodes[2].reveal, DiagramReveal::WithPrev);
+    }
+
+    #[test]
+    fn test_reveal_markers_on_edges() {
+        let content = "- A -> B\n+ C -> D\n* E -> F";
+        let (_, edges, _) = parse_diagram(content);
+        assert_eq!(edges[0].reveal, DiagramReveal::Static);
+        assert_eq!(edges[1].reveal, DiagramReveal::NextStep);
+        assert_eq!(edges[2].reveal, DiagramReveal::WithPrev);
+    }
+
+    #[test]
+    fn test_parse_diagram_whitespace() {
+        let content = "  A -> B  ";
+        let (nodes, edges, _) = parse_diagram(content);
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(edges.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_diagram_mixed_definitions() {
+        let content = "- Server: Web Server\n- Server -> DB: queries\n- DB: Database";
+        let (nodes, edges, _) = parse_diagram(content);
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].label, "Web Server");
+        assert_eq!(nodes[1].label, "Database");
+        assert_eq!(edges.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_diagram_reverse_arrow() {
+        let content = "A <- B";
+        let (_, edges, _) = parse_diagram(content);
+        assert!(matches!(edges[0].arrow, ArrowKind::Reverse));
+        assert_eq!(edges[0].from, "A");
+        assert_eq!(edges[0].to, "B");
+    }
+
+    #[test]
+    fn test_parse_diagram_bidirectional() {
+        let content = "A <-> B";
+        let (_, edges, _) = parse_diagram(content);
+        assert!(matches!(edges[0].arrow, ArrowKind::Bidirectional));
+    }
+
+    #[test]
+    fn test_detect_arrow_none() {
+        assert!(detect_arrow("no arrow here").is_none());
+        assert!(detect_arrow("A B C").is_none());
+    }
+
+    #[test]
+    fn test_detect_arrow_with_labels() {
+        let result = detect_arrow("Client -> Server: HTTP");
+        assert!(result.is_some());
+        let (pos, len, kind) = result.unwrap();
+        assert!(matches!(kind, ArrowKind::Forward));
+        assert_eq!(&"Client -> Server: HTTP"[pos + 1..pos + len - 1], "->");
+    }
+
+    // ── Scale directive tests ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_scale_directive_default() {
+        let (_, _, scale) = parse_diagram("A -> B");
+        assert_eq!(scale, DiagramScale::Fit);
+    }
+
+    #[test]
+    fn test_scale_directive_fit() {
+        let (_, _, scale) = parse_diagram("# scale: fit\nA -> B");
+        assert_eq!(scale, DiagramScale::Fit);
+    }
+
+    #[test]
+    fn test_scale_directive_scroll() {
+        let (_, _, scale) = parse_diagram("# scale: scroll\nA -> B");
+        assert_eq!(scale, DiagramScale::Scroll);
+    }
+
+    #[test]
+    fn test_scale_directive_factor() {
+        let (_, _, scale) = parse_diagram("# scale: 0.7\nA -> B");
+        assert!(matches!(scale, DiagramScale::Factor(f) if (f - 0.7).abs() < 0.001));
+    }
+
+    #[test]
+    fn test_scale_directive_factor_clamped() {
+        let (_, _, scale) = parse_diagram("# scale: 5.0\nA -> B");
+        assert!(matches!(scale, DiagramScale::Factor(f) if (f - 2.0).abs() < 0.001));
+    }
 }
