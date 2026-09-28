@@ -19,6 +19,13 @@ have) to compile [`aws-lc-rs`](https://github.com/aws/aws-lc-rs), the TLS crypto
 transitively via `ailloy`. macOS and Linux need nothing extra, and `brew install` / `cargo binstall`
 skip this entirely by using a pre-built binary.
 
+Every engine is a cargo feature, all on by default. To build a smaller binary with only the
+engines you use, name them (the plain engine is always there):
+
+```bash
+cargo install mdeck --no-default-features --features particles,splitflap
+```
+
 <details>
 <summary>Software bill of materials (SBOM)</summary>
 
