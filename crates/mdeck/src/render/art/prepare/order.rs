@@ -200,29 +200,80 @@ fn spread(when: &mut [u16], ink: &[f32], w: usize, h: usize, rounds: usize) {
 }
 
 /// A graphite sketch: the strong edges are drawn first along the ink (the
-/// first 55%), then the tone is laid in from light to dark.
+/// first half), then the tone is laid in stroke by stroke in diagonal bands
+/// that sweep across the picture, the pencil zigzagging along the front.
 pub(super) fn hatch_order(
     img: &RgbaImage,
     ink: &[f32],
     w: usize,
     h: usize,
 ) -> (Vec<u16>, Vec<(f32, f32, f32)>) {
+    const START: f32 = 0.48;
+    const SPAN: f32 = 0.47;
+    const BANDS: usize = 64;
     let edges = edge_strength(img);
     let lines: Vec<f32> = edges
         .iter()
         .zip(ink)
-        .map(|(e, i)| if *e > 0.22 { *i } else { 0.0 })
+        .map(|(e, i)| if *e > 0.2 && *i > 0.35 { *i } else { 0.0 })
         .collect();
-    let (mut when, path) = draw_order(&lines, w, h, 0.55);
-    for i in 0..w * h {
-        if lines[i] >= 0.18 {
+    let (mut when, mut path) = draw_order(&lines, w, h, 0.5);
+
+    // The sweep runs along (0.8, 0.6); strokes lie across it.
+    let (ax, ay) = (0.8_f32, 0.6_f32);
+    let reach = ax * w as f32 + ay * h as f32;
+    let along = |x: usize, y: usize| (ax * x as f32 + ay * y as f32) / reach;
+    let across = |x: usize, y: usize| -ay * x as f32 + ax * y as f32;
+    // how far the tone reaches across each band, for the pencil's path
+    let mut extent = vec![(f32::MAX, f32::MIN); BANDS];
+    for y in 0..h {
+        for x in 0..w {
+            let i = y * w + x;
+            if ink[i] < 0.08 {
+                continue;
+            }
+            let b = ((along(x, y) * BANDS as f32) as usize).min(BANDS - 1);
+            let c = across(x, y);
+            extent[b].0 = extent[b].0.min(c);
+            extent[b].1 = extent[b].1.max(c);
+        }
+    }
+    for y in 0..h {
+        for x in 0..w {
+            let i = y * w + x;
+            if lines[i] >= 0.18 {
+                continue;
+            }
+            // stroke by stroke (a few pixels wide), each a little ragged,
+            // the darkest tone laid over the light
+            let stroke = (along(x, y) * reach / 4.0).floor() as u32;
+            let ragged = hash(stroke.wrapping_mul(31) ^ (across(x, y) / 9.0) as i32 as u32) * 0.02;
+            let t = START + SPAN * along(x, y) + ragged + 0.03 * ink[i];
+            when[i] = (t.clamp(0.0, 1.0) * STEPS) as u16;
+        }
+    }
+
+    // the pencil: back and forth along the front as it sweeps
+    let steps = 240;
+    for k in 0..=steps {
+        let f = k as f32 / steps as f32;
+        let b = ((f * BANDS as f32) as usize).min(BANDS - 1);
+        let (lo, hi) = extent[b];
+        if lo > hi {
             continue;
         }
-        // tone: lighter first, with a little grain so it builds in strokes
-        let jitter = hash(i as u32) * 0.08;
-        let t = 0.42 + 0.50 * ink[i] + jitter;
-        when[i] = (t.clamp(0.0, 1.0) * STEPS) as u16;
+        let zig = {
+            let p = (f * 70.0).fract();
+            if p < 0.5 { p * 2.0 } else { 2.0 - p * 2.0 }
+        };
+        let c = lo + (hi - lo) * zig;
+        let a = f * reach;
+        // back from (along, across) to pixels
+        let x = ax * a - ay * c;
+        let y = ay * a + ax * c;
+        path.push((START + SPAN * f, x / w as f32, y / h as f32));
     }
+    path.sort_by(|a, b| a.0.total_cmp(&b.0));
     (when, path)
 }
 
@@ -286,7 +337,9 @@ pub(super) fn develop_order(img: &RgbaImage) -> Vec<u16> {
 /// Sobel edge strength, 0..1.
 fn edge_strength(img: &RgbaImage) -> Vec<f32> {
     let (w, h) = (img.width() as usize, img.height() as usize);
-    let l: Vec<f32> = img.pixels().map(darkness).collect();
+    // blurred first, so the grain of the shading is not taken for an edge
+    let soft = image::imageops::blur(img, 1.6);
+    let l: Vec<f32> = soft.pixels().map(darkness).collect();
     let at = |x: i32, y: i32| {
         l[y.clamp(0, h as i32 - 1) as usize * w + x.clamp(0, w as i32 - 1) as usize]
     };

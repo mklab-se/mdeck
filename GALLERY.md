@@ -144,11 +144,27 @@ On a title slide the drawing stands dim behind the copy.
 
 <img src="media/gallery/blueprint-title.jpg" width="720">
 
+### Sketchbook
+
+The `sketch` engine and its `sketchbook` theme: each slide gets a graphite
+and ink drawing in the MKLab house style, drawn in by a pencil. The outlines
+come first, then the shading sweeps in stroke by stroke:
+
+<img src="media/gallery/sketch-drawing.jpg" width="720">
+
+and the finished page:
+
+<img src="media/gallery/sketch-page.jpg" width="720">
+
+The title page, its drawing faint behind the copy.
+
+<img src="media/gallery/sketch-title.jpg" width="720">
+
 ---
 
 ## Themes
 
-Thirteen built-in themes, all written as theme files, and your own in a few lines
+Fourteen built-in themes, all written as theme files, and your own in a few lines
 of YAML (spec section 9.4). These stills are from `samples/themes/`.
 
 ### The four seasons

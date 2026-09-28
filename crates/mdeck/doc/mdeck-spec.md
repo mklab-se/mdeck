@@ -55,8 +55,8 @@ date: 2026-02-28
 
 | Field         | Type   | Default   | Description                                        |
 |---------------|--------|-----------|----------------------------------------------------|
-| `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`, `"marquee"`, `"departures"`, `"etch"`, `"stack"`, `"blueprint"`), a custom theme name, or a path to a theme file (section 9.4) |
-| `@engine`     | string | (theme's) | Run the deck on this engine instead of the theme's: `"plain"`, `"particles"`, `"led"`, `"splitflap"`, `"laser"`, `"blocks"`, `"blueprint"` (section 9.6) |
+| `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`, `"marquee"`, `"departures"`, `"etch"`, `"stack"`, `"blueprint"`, `"sketchbook"`), a custom theme name, or a path to a theme file (section 9.4) |
+| `@engine`     | string | (theme's) | Run the deck on this engine instead of the theme's: `"plain"`, `"particles"`, `"led"`, `"splitflap"`, `"laser"`, `"blocks"`, `"blueprint"`, `"sketch"` (section 9.6) |
 | `@transition` | string | `"slide"` | Default transition: `"fade"`, `"slide"`, `"spatial"`, `"none"` |
 | `@image-style` | string | none      | Default AI image generation style (name or description) |
 | `@icon-style`  | string | none      | Default AI icon generation style (name or description)  |
@@ -894,6 +894,21 @@ blue-white, construction lines first.
 | Grid and construction lines | `#8FB4E3` |
 | Accent (a yellow pencil mark) | `#FFD166` |
 
+**`sketchbook`**
+
+A sheet of drawing paper on a grey desk for the sketch engine: generated
+graphite and ink drawings in the MKLab house style (old craft meeting modern
+technology), drawn in with a pencil; an editorial serif for headings.
+
+| Property        | Value           |
+|-----------------|-----------------|
+| Paper           | `#F5F0E6`       |
+| Desk            | `#44464B`       |
+| Headings (graphite) | `#1F1D1A`   |
+| Accent (a red pencil) | `#A8472A` |
+| Secondary (a blue pencil) | `#35657F` |
+| The pencil (`particles.cool`) | `#2F5D50` |
+
 Every theme can draw the symbols text faces usually lack: circled numbers and letters (①②③, ⓐ), check marks, arrows, geometric shapes and stars. Noto Sans Symbols and DejaVu Sans are bundled as the last fallback of every font family, so such characters never render as boxes.
 
 Chinese, Japanese and Korean text draws with a font borrowed from the system, since a CJK face is too large to bundle: PingFang, Hiragino or Arial Unicode on macOS, Microsoft YaHei, Yu Gothic or Malgun Gothic on Windows, Noto Sans CJK, WenQuanYi or Droid Sans Fallback on Linux (`fonts-noto-cjk` on Debian and Ubuntu). It is added after the symbol faces in every family, on the family's own baseline. To use a specific file, set `MDECK_CJK_FONT=/path/to/font.ttc`. When no font on the machine covers a script the deck uses, `mdeck --check` warns (`fonts` category) and presenting or exporting prints the same warning; the text then draws as boxes.
@@ -1080,7 +1095,8 @@ match wins:
    `~/Library/Application Support/mdeck/themes/` on macOS,
    `%APPDATA%\mdeck\themes\` on Windows
 3. the built-in themes (`dark`, `light`, `nord`, `ember`, `spring`, `summer`,
-   `autumn`, `winter`, `marquee`, `departures`, `etch`, `stack`, `blueprint`)
+   `autumn`, `winter`, `marquee`, `departures`, `etch`, `stack`, `blueprint`,
+   `sketchbook`)
 
 `@theme` may also be a path to a file (`@theme: brand/acme.yaml`), relative
 to the deck. A user or deck theme may reuse a built-in name to replace it.
@@ -1335,6 +1351,7 @@ from the theme, so every theme looks like itself on every engine.
 | `laser` | a beam from in front of the screen etches each picture onto the slide, editorial copy layouts (theme `etch`) | yes | no | digits etched in a flash, then burned away in a spray of sparks; the words, then they fade |
 | `blocks` | pictures built from falling blocks, editorial copy layouts (theme `stack`) | yes | no | digits in falling blocks that burst apart; the words, then a line clear |
 | `blueprint` | a draftsman's sheet: generated line art inked stroke by stroke, construction lines first (theme `blueprint`, section 9.7) | yes, as technical pen lines when a slide has no art | no | digits drawn with a technical pen; the words, then they fade |
+| `sketch` | a sketchbook page: generated graphite drawings drawn in with a pencil, outlines first, then the shading (theme `sketchbook`, section 9.7) | yes, in pencil when a slide has no art | no | digits drawn in pencil; the words, then they fade |
 
 **The LED engine.** The slide sits on a wall of LEDs, a few pixels apart,
 their unlit lenses just visible. Nothing ever moves: pictures appear by
@@ -1419,6 +1436,18 @@ countdown and the end words are drawn the same way. The `blueprint` theme
 lays the sheet on a drafting table (`page:` in section 9.4). Exports show the
 finished sheet.
 
+**The sketch engine.** A sketchbook: with the `sketchbook` theme every
+slide is a sheet of drawing paper on a desk (`page:` in section 9.4). A
+slide's generated drawing (section 9.7; graphite and ink by default) is
+drawn in with a pencil you can see: first the outlines, traced along the
+lines, then the shading, laid in stroke by stroke in bands that sweep across
+the picture while the pencil zigzags along them. The pencil's body is
+`particles.cool`; its lead and line art are the `heading` colour. Line art
+(`art: { kind: line }` in a theme) is drawn with a faint underdrawing first.
+On a title slide the drawing sits large and faint behind the title. Without
+art, the slide's `@illustration` is drawn in pencil, and so are the
+countdown and the end words. Exports show the finished drawing.
+
 **Choosing one.** A theme names its engine (`engine:` in section 9.4). A deck
 can run on another engine without touching the theme:
 
@@ -1447,7 +1476,8 @@ Engines are part of MDeck and each one is a cargo feature, on by default.
 Building MDeck with `--no-default-features` leaves them out (and with them
 the themes that run on them: `ember`, `autumn` and `winter` on particles,
 `marquee` on led, `departures` on splitflap, `etch` on laser, `stack` on
-blocks, `blueprint` on blueprint, and the built-in illustrations); themes and
+blocks, `blueprint` on blueprint, `sketchbook` on sketch, and the built-in
+illustrations); themes and
 decks that ask for one then use `plain`, with a warning.
 
 ### 9.7 Generated art
@@ -1461,6 +1491,7 @@ cost, and it works offline.
 | Engine | Picture | How it is drawn in |
 |---|---|---|
 | `blueprint` | line art (black ink on white, inked by the engine in the theme's colours) | construction lines, then ink along the strokes, then dimension lines |
+| `sketch` | graphite and ink drawings in the MKLab house style (tonal) | outlines along the lines, then shading in sweeping bands, with a pencil |
 
 **Which slides get a picture.** The slides with room for one: title,
 section, quote, bullet and copy slides (the editorial layouts; not slides

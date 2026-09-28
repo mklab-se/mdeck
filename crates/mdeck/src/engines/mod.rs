@@ -21,6 +21,7 @@ pub mod led;
 mod masks;
 pub mod particles;
 pub mod plain;
+pub mod sketch;
 pub mod splitflap;
 pub mod stage;
 
@@ -48,6 +49,8 @@ pub enum EngineKind {
     Blocks,
     /// A draftsman's blueprint: generated line art inked onto a blue sheet.
     Blueprint,
+    /// A sketchbook: generated graphite drawings drawn in with a pencil.
+    Sketch,
 }
 
 /// What an engine can show. The core uses it for fallbacks (an illustration
@@ -84,6 +87,7 @@ impl EngineKind {
         EngineKind::Laser,
         EngineKind::Blocks,
         EngineKind::Blueprint,
+        EngineKind::Sketch,
     ];
 
     pub fn from_name(name: &str) -> Option<Self> {
@@ -99,6 +103,7 @@ impl EngineKind {
             EngineKind::Laser => "laser",
             EngineKind::Blocks => "blocks",
             EngineKind::Blueprint => "blueprint",
+            EngineKind::Sketch => "sketch",
         }
     }
 
@@ -121,6 +126,7 @@ impl EngineKind {
             EngineKind::Laser => cfg!(feature = "laser"),
             EngineKind::Blocks => cfg!(feature = "blocks"),
             EngineKind::Blueprint => cfg!(feature = "blueprint"),
+            EngineKind::Sketch => cfg!(feature = "sketch"),
         }
     }
 
@@ -166,7 +172,7 @@ impl EngineKind {
                 end_act: true,
                 art: false,
             },
-            EngineKind::Blueprint => Capabilities {
+            EngineKind::Blueprint | EngineKind::Sketch => Capabilities {
                 paints: true,
                 editorial: true,
                 board: false,
@@ -199,6 +205,7 @@ impl EngineKind {
             EngineKind::Laser => Box::new(laser::Laser::new()),
             EngineKind::Blocks => Box::new(blocks::Blocks::new()),
             EngineKind::Blueprint => Box::new(blueprint::Blueprint::new()),
+            EngineKind::Sketch => Box::new(sketch::Sketch::new()),
         }
     }
 
@@ -206,6 +213,7 @@ impl EngineKind {
     pub fn medium(self) -> Option<&'static crate::render::art::Medium> {
         match self {
             EngineKind::Blueprint => Some(&blueprint::MEDIUM),
+            EngineKind::Sketch => Some(&sketch::MEDIUM),
             _ => None,
         }
     }
@@ -250,6 +258,7 @@ impl EngineKind {
             EngineKind::Laser => laser::END_CAPTION_DELAY,
             EngineKind::Blocks => blocks::END_CAPTION_DELAY,
             EngineKind::Blueprint => blueprint::END_CAPTION_DELAY,
+            EngineKind::Sketch => sketch::END_CAPTION_DELAY,
             EngineKind::Plain => 0.0,
         }
     }
@@ -476,7 +485,7 @@ mod tests {
         assert_eq!(EngineKind::from_name("fireworks"), None);
         assert_eq!(
             EngineKind::names(),
-            "plain, particles, led, splitflap, laser, blocks, blueprint"
+            "plain, particles, led, splitflap, laser, blocks, blueprint, sketch"
         );
     }
 

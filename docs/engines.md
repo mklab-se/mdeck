@@ -8,7 +8,7 @@ like itself on every engine, and any deck switches with one line:
 
 ```yaml
 ---
-@engine: led        # plain, particles, led, splitflap, laser, blocks or blueprint
+@engine: led        # plain, particles, led, splitflap, laser, blocks, blueprint or sketch
 ---
 ```
 
@@ -121,6 +121,17 @@ drawing sits large and dim behind the title.
   <img src="../media/gallery/blueprint-title.jpg" width="45%">
 </p>
 
+**Sketchbook** (`sketch`, theme `sketchbook`). Every slide is a sheet of
+drawing paper on a desk, and the slide's drawing, graphite and ink in the
+MKLab house style where old craft meets modern technology, is drawn in by a
+pencil you can see: the outlines first, then the shading laid in stroke by
+stroke as the pencil sweeps across the page.
+
+<p align="center">
+  <img src="../media/gallery/sketch-drawing.jpg" width="45%">&nbsp;&nbsp;
+  <img src="../media/gallery/sketch-page.jpg" width="45%">
+</p>
+
 **Making the art** is one command, and it only runs when you ask:
 
 ```bash
@@ -151,7 +162,7 @@ and it works offline. Edit a slide and its picture goes stale (still shown,
 and `mdeck talk.md --check` says so; `mdeck ai art talk.md --stale` redraws
 those). Press `S` while presenting to draw the current slide's picture in
 the background. A slide without a picture still works: its `@illustration`
-is drawn with a technical pen.
+is drawn with a technical pen, or in pencil on the sketchbook.
 
 `mdeck talk.md --engine led` tries an engine without touching the deck, and
 `mdeck talk.md --check` lists anything the chosen engine does not show. Try

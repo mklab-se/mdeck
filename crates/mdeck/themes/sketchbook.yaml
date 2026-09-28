@@ -1,0 +1,49 @@
+# Sketchbook: a sheet of drawing paper on a grey desk. Graphite and ink
+# drawings in the MKLab house style, old craft meeting modern technology,
+# drawn in with a pencil as each slide opens (sketch engine). Make the
+# drawings with `mdeck ai art`; without them, `@illustration` point clouds
+# are drawn in pencil.
+name: Sketchbook
+extends: light
+engine: sketch
+countdown: burst
+colors:
+  background: "#f5f0e6"      # the paper
+  text: "#45423c"
+  heading: "#1f1d1a"         # graphite
+  muted: "#8c867a"
+  rule: "#d9d1c1"
+  accent: "#a8472a"          # a red pencil
+  accent-soft: "#c98a5e"
+  secondary: "#35657f"       # a blue pencil
+  code-background: "#ece5d6"
+  code-text: "#2c2a26"
+  positive: "#4f7f55"
+  negative: "#a8472a"
+  series:
+    - "#35657f" # blue pencil
+    - "#a8472a" # red pencil
+    - "#4f7f55" # green
+    - "#c9962f" # ochre
+    - "#6e5a8a" # violet
+    - "#45423c" # graphite
+    - "#c98a5e" # sienna
+    - "#7f9aa8" # grey blue
+particles:
+  light: "#ffffff"
+  cool: "#2f5d50"            # the pencil's painted body
+fonts:
+  display: spectral-light
+  body: hanken-regular
+  lead: hanken-light
+  strong: hanken-medium
+  mono: jetbrains-mono
+sizes: { h1: 100, h2: 70, h3: 48, body: 36, code: 28 }
+text: { line-height: 1.45 }
+code: { syntax: InspiredGitHub }
+page:                        # the sketchbook page on a desk
+  surface: "#44464b"
+  margin: 38
+  shadow: 0.8
+  grain: 0.6
+  radius: 3

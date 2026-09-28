@@ -6,7 +6,7 @@
 
 <p align="center">
   Write your talk in any markdown editor. MDeck turns it into slides that look amazing:<br>
-  laid out, animated and themed, with charts, diagrams, illustrations and seven presentation engines.
+  laid out, animated and themed, with charts, diagrams, illustrations and eight presentation engines.
 </p>
 
 <p align="center">
@@ -143,11 +143,11 @@ updates every time you save.
 - **Charts and diagrams from text.** Seventeen visualizations, from bar charts
   to Gantt charts and routed architecture diagrams, all animated.
   [Visualizations](docs/visualizations.md)
-- **Thirteen themes, and yours.** Your brand in a few lines of YAML, or converted
+- **Fourteen themes, and yours.** Your brand in a few lines of YAML, or converted
   from your design system. [Themes](docs/themes.md)
-- **Seven engines.** A particle field, an LED wall, a departure board, a laser,
-  falling blocks, a blueprint that inks a drawing made for every slide, or a
-  clean flat page: one line switches. [Engines](docs/engines.md)
+- **Eight engines.** A particle field, an LED wall, a departure board, a laser,
+  falling blocks, a blueprint and a sketchbook that draw a picture made for
+  every slide, or a clean flat page: one line switches. [Engines](docs/engines.md)
 - **A real presenter tool.** Transitions, grid overview, pen and arrows,
   speaker notes, multiple monitors, clickers. [Presenting](docs/presenting.md)
 - **Pixel-perfect export.** PNG at any resolution, and PDF with or without

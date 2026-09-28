@@ -10,6 +10,7 @@ use eframe::egui::{self, Color32, Pos2, Rect};
 
 use super::stage::{FrameCx, Mask, Moment, Place, Stage};
 use crate::render::art::prepare::Prepared;
+use crate::render::illustration::Library;
 use crate::render::strokes::{Picture, plan, toured};
 
 /// A generated picture on the slide, drawn in over `duration` seconds.
@@ -106,6 +107,171 @@ impl Drawing {
             );
             ui.painter().add(egui::Shape::mesh(mesh));
         }
+    }
+}
+
+/// What a slide, the countdown or the end is showing.
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Look {
+    Slide,
+    Digit(u8),
+    Burst,
+    EndWords,
+    EndOut,
+}
+
+type Key = (usize, Look, usize, usize, bool);
+
+/// The state every art engine keeps: the picture being drawn in (or the
+/// pen strokes standing in for it), the one fading out, and the clock. An
+/// engine calls [`Canvas::update`] from its own `update` and paints what
+/// the canvas holds in its medium.
+pub struct Canvas {
+    pub now: f32,
+    pub drawing: Option<Drawing>,
+    /// The previous slide's picture, fading out since the given time.
+    pub fading: Option<(Drawing, f32)>,
+    pub strokes: Option<Picture>,
+    pub fading_strokes: Option<(Picture, f32)>,
+    /// The countdown's burst, 0..1, while it runs.
+    pub burst: Option<f32>,
+    key: Option<Key>,
+    /// Seconds to draw a picture in, and to finish around it after.
+    draw: f32,
+    after: f32,
+    /// How long the end words hold.
+    end_words: f32,
+    /// How long the old picture takes to fade.
+    fade: f32,
+}
+
+impl Canvas {
+    pub fn new(draw: f32, after: f32, end_words: f32, fade: f32) -> Self {
+        Self {
+            now: 0.0,
+            drawing: None,
+            fading: None,
+            strokes: None,
+            fading_strokes: None,
+            burst: None,
+            key: None,
+            draw,
+            after,
+            end_words,
+            fade,
+        }
+    }
+
+    fn retire(&mut self) {
+        if let Some(d) = self.drawing.take() {
+            self.fading = Some((d, self.now));
+        }
+        if let Some(p) = self.strokes.take() {
+            self.fading_strokes = Some((p, self.now));
+        }
+    }
+
+    /// Follow the stage: a new slide, digit or end act starts a new picture
+    /// (its generated art on a slide, else pen strokes), and the old one
+    /// fades. `still` settles everything at once.
+    pub fn update(&mut self, cx: &FrameCx, stage: &Stage, _lib: &mut Library) {
+        let look = match &stage.moment {
+            Moment::Slide => Look::Slide,
+            Moment::Countdown { digit, .. } => Look::Digit(*digit),
+            Moment::Burst { .. } => Look::Burst,
+            Moment::End { elapsed, .. } if *elapsed < self.end_words => Look::EndWords,
+            Moment::End { .. } => Look::EndOut,
+        };
+        let art = stage
+            .art
+            .as_ref()
+            .map(|a| Arc::as_ptr(&a.picture) as usize)
+            .unwrap_or(0);
+        let figure = stage
+            .figure
+            .as_ref()
+            .map(|f| Arc::as_ptr(&f.cloud) as usize)
+            .unwrap_or(0);
+        let key = (stage.index, look, art, figure, stage.title);
+        if self.key != Some(key) {
+            match look {
+                Look::Burst => self.burst = Some(0.0),
+                Look::EndOut => self.retire(),
+                _ => {
+                    self.burst = None;
+                    self.retire();
+                    if let (Look::Slide, Some(a)) = (look, &stage.art) {
+                        self.drawing = Some(Drawing::new(
+                            a.picture.clone(),
+                            a.place,
+                            a.backdrop,
+                            self.now,
+                            self.draw,
+                        ));
+                    } else {
+                        self.strokes = fallback_strokes(cx, stage, self.now);
+                    }
+                }
+            }
+            self.key = Some(key);
+        }
+        if let Moment::Burst { progress } = stage.moment {
+            self.burst = Some(progress);
+        }
+        if cx.still {
+            self.fading = None;
+            self.fading_strokes = None;
+            if let Some(d) = &mut self.drawing {
+                d.born = self.now - self.draw - self.after - 60.0;
+            }
+            if let Some(p) = &mut self.strokes {
+                p.born = self.now - p.duration - 60.0;
+            }
+            return;
+        }
+        self.now += cx.dt;
+        let fade = self.fade;
+        let now = self.now;
+        if self
+            .fading
+            .as_ref()
+            .is_some_and(|(_, since)| now - since > fade)
+        {
+            self.fading = None;
+        }
+        if self
+            .fading_strokes
+            .as_ref()
+            .is_some_and(|(_, since)| now - since > fade)
+        {
+            self.fading_strokes = None;
+        }
+    }
+
+    /// How far the old picture has faded (1: fully there, 0: gone).
+    pub fn fade_left(&self, since: f32) -> f32 {
+        (1.0 - (self.now - since) / (self.fade * 0.9)).clamp(0.0, 1.0)
+    }
+
+    /// The countdown's last digit fading as the first slide comes in.
+    pub fn burst_left(&self) -> f32 {
+        self.burst
+            .map(|b| (1.0 - b * 1.5).clamp(0.0, 1.0))
+            .unwrap_or(1.0)
+    }
+
+    /// Anything still moving: ask for another frame.
+    pub fn busy(&self) -> bool {
+        self.fading.is_some()
+            || self.fading_strokes.is_some()
+            || self
+                .drawing
+                .as_ref()
+                .is_some_and(|d| self.now - d.born < self.draw + self.after + 0.2)
+            || self
+                .strokes
+                .as_ref()
+                .is_some_and(|p| self.now - p.born < p.duration + 0.2)
     }
 }
 

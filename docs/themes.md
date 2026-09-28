@@ -8,11 +8,11 @@ line of frontmatter, or write your own in a few lines of YAML.
 
 ## Built-in themes and transitions
 
-Thirteen built-in themes: **light**, **dark**, **nord**, **ember**, four
+Fourteen built-in themes: **light**, **dark**, **nord**, **ember**, four
 seasons, **spring**, **summer**, **autumn** and **winter**, and a showcase
 theme for each engine, **marquee** (LED), **departures** (split-flap),
-**etch** (laser), **stack** (blocks) and **blueprint** (generated line art on
-a drafting sheet). Transitions are
+**etch** (laser), **stack** (blocks), **blueprint** (generated line art on a
+drafting sheet) and **sketchbook** (generated drawings, pencilled in). Transitions are
 **slide**, **fade**, **spatial**, and **none**. Set them in the frontmatter or
 cycle them live with `Shift+T` and `T`. Every theme draws symbols (①, ✓, →) from
 bundled fallback faces, and Chinese, Japanese and Korean from a font on your
@@ -61,7 +61,7 @@ run code. Custom themes work everywhere a built-in one does: presenting,
 
 **Engines.** The engine is what a theme does beyond colours and type: the
 particle field, the LED wall, the departure board, the laser, the falling
-blocks or a blueprint's generated drawings. See [Engines](engines.md).
+blocks, or a blueprint's and a sketchbook's generated drawings. See [Engines](engines.md).
 
 ## Pages and art
 

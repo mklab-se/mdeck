@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- The **sketch engine** and its `sketchbook` theme, the second art engine
+  ([#17](https://github.com/mklab-se/mdeck/issues/17)): every slide is a sheet of drawing
+  paper on a desk, and the slide's generated drawing, graphite and ink in the MKLab house style
+  (old craft meeting modern technology), is drawn in by a pencil you can see: the outlines
+  first, traced along the lines, then the shading laid in stroke by stroke in bands that sweep
+  across the picture. Without art, the slide's `@illustration`, the countdown and the end
+  words are drawn in pencil. Sample `samples/engines/sketch.md`.
+
+### Changed
+
+- The art engines share their slide, countdown and end bookkeeping (`engines::art::Canvas`),
+  so a new medium is only its drawing.
+
 ## [1.12.0] - 2026-09-28
 
 ### Added

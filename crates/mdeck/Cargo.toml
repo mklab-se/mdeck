@@ -53,6 +53,7 @@ default = [
     "laser",
     "blocks",
     "blueprint",
+    "sketch",
 ]
 # The particles engine: the particle field, editorial layouts, stories and the
 # built-in point cloud illustrations.
@@ -70,6 +71,9 @@ blocks = []
 # The blueprint engine: generated line art inked onto a blue sheet, and the
 # `blueprint` theme.
 blueprint = []
+# The sketch engine: generated graphite drawings drawn in with a pencil on a
+# sketchbook page, and the `sketchbook` theme.
+sketch = []
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/mdeck-v{ version }-{ target }.{ archive-format }"

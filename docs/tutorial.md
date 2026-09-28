@@ -290,6 +290,6 @@ single slides and more.
 - [Writing slides](writing-slides.md): layouts, two columns, images, math
 - [Visualizations](visualizations.md): every chart and diagram
 - [Themes](themes.md): your brand as a theme, logos, design systems
-- [Engines](engines.md): stories, illustrations and all seven engines
+- [Engines](engines.md): stories, illustrations and all eight engines
 - [AI features](ai.md): a whole deck from a PDF, a document or one sentence
 - [Gallery](../GALLERY.md): what everything looks like

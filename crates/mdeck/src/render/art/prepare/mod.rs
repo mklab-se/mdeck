@@ -125,9 +125,10 @@ pub fn prepare(bytes: &[u8], kind: ArtKind, strategy: Strategy) -> Result<Prepar
 }
 
 pub fn prepare_image(img: RgbaImage, kind: ArtKind, strategy: Strategy) -> Prepared {
+    let paper = paper_colour(&img);
     let img = fit(trim(&img), MAX_SIDE);
     let (w, h) = (img.width() as usize, img.height() as usize);
-    let rgba = key_paper(&img, kind, strategy);
+    let rgba = key_paper(&img, paper, kind, strategy);
     let ink: Vec<f32> = rgba.iter().map(|p| p[3] as f32 / 255.0).collect();
     let (when, path) = match strategy {
         Strategy::Draw => draw_order(&ink, w, h, 1.0),
@@ -193,24 +194,28 @@ fn fit(img: RgbaImage, side: u32) -> RgbaImage {
 /// Make the paper transparent. Line art becomes white with its darkness as
 /// alpha (the engine picks the ink); tonal art keeps its colours, unmixed
 /// from white so it lies on any paper. A photograph stays opaque.
-fn key_paper(img: &RgbaImage, kind: ArtKind, strategy: Strategy) -> Vec<[u8; 4]> {
+fn key_paper(img: &RgbaImage, paper: [f32; 3], kind: ArtKind, strategy: Strategy) -> Vec<[u8; 4]> {
     img.pixels()
         .map(|p| match (kind, strategy) {
             (_, Strategy::Develop) => [p[0], p[1], p[2], 255],
             (ArtKind::Line, _) => {
                 // clean paper to nothing, full ink to full
-                let d = ((darkness(p) - 0.06) / 0.80).clamp(0.0, 1.0);
+                let lum = |c: [f32; 3]| 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+                let c = [p[0] as f32, p[1] as f32, p[2] as f32];
+                let d = 1.0 - lum(c) / lum(paper).max(1.0);
+                let d = ((d - 0.05) / 0.80).clamp(0.0, 1.0);
                 [255, 255, 255, (d.powf(0.85) * 255.0) as u8]
             }
             (ArtKind::Tonal, _) => {
-                // colour to alpha against white
+                // colour to alpha against the paper, so the paper vanishes
+                // and what is on it lies on any sheet
                 let c = [p[0] as f32, p[1] as f32, p[2] as f32];
-                let a = c
-                    .iter()
-                    .map(|v| (255.0 - v) / 255.0)
+                let a = (0..3)
+                    .map(|k| (paper[k] - c[k]) / paper[k].max(1.0))
                     .fold(0.0_f32, f32::max);
-                let a = ((a - 0.03) / 0.97).clamp(0.0, 1.0);
-                if a <= 0.0 {
+                // what is barely off the paper is paper
+                let a = a.clamp(0.0, 1.0);
+                if a < 0.05 {
                     return [255, 255, 255, 0];
                 }
                 let un = |v: f32| ((v - (1.0 - a) * 255.0) / a).clamp(0.0, 255.0) as u8;
@@ -218,6 +223,36 @@ fn key_paper(img: &RgbaImage, kind: ArtKind, strategy: Strategy) -> Vec<[u8; 4]>
             }
         })
         .collect()
+}
+
+/// The paper's colour: the typical colour around the picture's edge,
+/// assuming it is paper (a light edge); white when the edge is dark.
+fn paper_colour(img: &RgbaImage) -> [f32; 3] {
+    let (w, h) = img.dimensions();
+    let mut ch: [Vec<u8>; 3] = Default::default();
+    let mut take = |x: u32, y: u32| {
+        let p = img.get_pixel(x, y);
+        for k in 0..3 {
+            ch[k].push(p[k]);
+        }
+    };
+    for x in 0..w {
+        take(x, 0);
+        take(x, h - 1);
+    }
+    for y in 0..h {
+        take(0, y);
+        take(w - 1, y);
+    }
+    let mut out = [255.0; 3];
+    for k in 0..3 {
+        ch[k].sort_unstable();
+        out[k] = ch[k][ch[k].len() * 6 / 10] as f32;
+    }
+    if out.iter().any(|v| *v < 190.0) {
+        return [255.0; 3];
+    }
+    out
 }
 
 #[cfg(test)]
@@ -317,7 +352,7 @@ mod tests {
     fn tonal_art_unmixes_from_white() {
         let mut img = RgbaImage::from_pixel(8, 8, image::Rgba([255, 255, 255, 255]));
         img.put_pixel(4, 4, image::Rgba([128, 128, 255, 255]));
-        let px = key_paper(&img, ArtKind::Tonal, Strategy::Bloom);
+        let px = key_paper(&img, [255.0; 3], ArtKind::Tonal, Strategy::Bloom);
         assert_eq!(px[0][3], 0);
         let p = px[4 * 8 + 4];
         // over white it gives back the colour

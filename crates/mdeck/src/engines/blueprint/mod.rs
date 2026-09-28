@@ -7,18 +7,16 @@
 //! `@illustration` is drawn as technical pen lines; the countdown and the
 //! end words are drawn the same way. Exports show the finished sheet.
 
-use std::sync::Arc;
-
 use eframe::egui;
 
 use super::Engine;
-use super::art::{Drawing, Reveal, fallback_strokes};
+use super::art::{Canvas, Reveal};
 use super::led::{premul, sprite_sheet};
 use super::stage::{FrameCx, Moment, Stage};
 use crate::render::art::prepare::Strategy;
 use crate::render::art::{ArtKind, Medium, style};
 use crate::render::illustration::Library;
-use crate::render::strokes::{Picture, to_screen};
+use crate::render::strokes::to_screen;
 use draw::{Ink, crosshair, dimensions, pen_lines, pen_tip, sheet, title_block};
 
 mod draw;
@@ -46,50 +44,16 @@ const REVEAL: Reveal = Reveal {
     ghost_speed: 2.4,
 };
 
-#[derive(Clone, Copy, PartialEq, Debug)]
-enum Look {
-    Slide,
-    Digit(u8),
-    Burst,
-    EndWords,
-    EndOut,
-}
-
-type Key = (usize, Look, usize, usize, bool);
-
 pub struct Blueprint {
-    key: Option<Key>,
-    now: f32,
-    drawing: Option<Drawing>,
-    /// The previous sheet's drawing, fading out since the given time.
-    fading: Option<(Drawing, f32)>,
-    strokes: Option<Picture>,
-    fading_strokes: Option<(Picture, f32)>,
-    /// The countdown's last digit fades as the first sheet comes in.
-    burst: Option<f32>,
+    canvas: Canvas,
     sprites: Option<egui::TextureHandle>,
 }
 
 impl Blueprint {
     pub fn new() -> Self {
         Self {
-            key: None,
-            now: 0.0,
-            drawing: None,
-            fading: None,
-            strokes: None,
-            fading_strokes: None,
-            burst: None,
+            canvas: Canvas::new(DRAW, DIMENSION, END_WORDS, 0.5),
             sprites: None,
-        }
-    }
-
-    fn retire(&mut self) {
-        if let Some(d) = self.drawing.take() {
-            self.fading = Some((d, self.now));
-        }
-        if let Some(p) = self.strokes.take() {
-            self.fading_strokes = Some((p, self.now));
         }
     }
 }
@@ -101,76 +65,8 @@ impl Default for Blueprint {
 }
 
 impl Engine for Blueprint {
-    fn update(&mut self, cx: &FrameCx, stage: &Stage, _lib: &mut Library) {
-        let look = match &stage.moment {
-            Moment::Slide => Look::Slide,
-            Moment::Countdown { digit, .. } => Look::Digit(*digit),
-            Moment::Burst { .. } => Look::Burst,
-            Moment::End { elapsed, .. } if *elapsed < END_WORDS => Look::EndWords,
-            Moment::End { .. } => Look::EndOut,
-        };
-        let art = stage
-            .art
-            .as_ref()
-            .map(|a| Arc::as_ptr(&a.picture) as usize)
-            .unwrap_or(0);
-        let figure = stage
-            .figure
-            .as_ref()
-            .map(|f| Arc::as_ptr(&f.cloud) as usize)
-            .unwrap_or(0);
-        let key = (stage.index, look, art, figure, stage.title);
-        if self.key != Some(key) {
-            match look {
-                Look::Burst => self.burst = Some(0.0),
-                Look::EndOut => self.retire(),
-                _ => {
-                    self.burst = None;
-                    self.retire();
-                    if let (Look::Slide, Some(a)) = (look, &stage.art) {
-                        self.drawing = Some(Drawing::new(
-                            a.picture.clone(),
-                            a.place,
-                            a.backdrop,
-                            self.now,
-                            DRAW,
-                        ));
-                    } else {
-                        self.strokes = fallback_strokes(cx, stage, self.now);
-                    }
-                }
-            }
-            self.key = Some(key);
-        }
-        if let Moment::Burst { progress } = stage.moment {
-            self.burst = Some(progress);
-        }
-        if cx.still {
-            self.fading = None;
-            self.fading_strokes = None;
-            if let Some(d) = &mut self.drawing {
-                d.born = self.now - DRAW - DIMENSION - 60.0;
-            }
-            if let Some(p) = &mut self.strokes {
-                p.born = self.now - p.duration - 60.0;
-            }
-            return;
-        }
-        self.now += cx.dt;
-        if self
-            .fading
-            .as_ref()
-            .is_some_and(|(_, since)| self.now - since > 0.5)
-        {
-            self.fading = None;
-        }
-        if self
-            .fading_strokes
-            .as_ref()
-            .is_some_and(|(_, since)| self.now - since > 0.5)
-        {
-            self.fading_strokes = None;
-        }
+    fn update(&mut self, cx: &FrameCx, stage: &Stage, lib: &mut Library) {
+        self.canvas.update(cx, stage, lib);
     }
 
     fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, stage: &Stage) {
@@ -195,21 +91,19 @@ impl Engine for Blueprint {
             title_block(painter, theme, rect, scale, &ink, stage, cx.opacity);
         }
 
-        let now = self.now;
-        if let Some((old, since)) = &mut self.fading {
-            let k = (1.0 - (now - *since) / 0.45).clamp(0.0, 1.0) * cx.opacity;
-            old.paint(ui, rect, now, premul(ink.line, k), REVEAL);
+        let c = &mut self.canvas;
+        let now = c.now;
+        let left = c.fading.as_ref().map(|(_, since)| c.fade_left(*since));
+        if let (Some((old, _)), Some(left)) = (&mut c.fading, left) {
+            old.paint(ui, rect, now, premul(ink.line, left * cx.opacity), REVEAL);
         }
-        if let Some((old, since)) = &self.fading_strokes {
-            let k = (1.0 - (now - since) / 0.45).clamp(0.0, 1.0) * cx.opacity;
+        if let Some((old, since)) = &c.fading_strokes {
+            let k = c.fade_left(*since) * cx.opacity;
             pen_lines(painter, old, now, rect, scale, &ink, k);
         }
 
-        let burst = self
-            .burst
-            .map(|b| (1.0 - b * 1.5).clamp(0.0, 1.0))
-            .unwrap_or(1.0);
-        if let Some(d) = &mut self.drawing {
+        let burst = c.burst_left();
+        if let Some(d) = &mut c.drawing {
             let k = if d.backdrop { 0.34 } else { 1.0 } * cx.opacity;
             let box_ = d.screen(rect);
             d.paint(ui, rect, now, premul(ink.line, k), REVEAL);
@@ -231,7 +125,7 @@ impl Engine for Blueprint {
                 );
             }
         }
-        if let Some(p) = &self.strokes {
+        if let Some(p) = &c.strokes {
             pen_lines(painter, p, now, rect, scale, &ink, burst * cx.opacity);
             if !cx.still
                 && let Some((tip, on)) = p.tip(now - p.born)
@@ -242,17 +136,7 @@ impl Engine for Blueprint {
             }
         }
 
-        let busy = self.fading.is_some()
-            || self.fading_strokes.is_some()
-            || self
-                .drawing
-                .as_ref()
-                .is_some_and(|d| now - d.born < DRAW + DIMENSION + 0.2)
-            || self
-                .strokes
-                .as_ref()
-                .is_some_and(|p| now - p.born < p.duration + 0.2);
-        if busy && !cx.still {
+        if c.busy() && !cx.still {
             ui.ctx().request_repaint();
         }
     }

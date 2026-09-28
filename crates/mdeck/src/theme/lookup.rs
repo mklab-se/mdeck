@@ -10,7 +10,7 @@ use super::{Built, Theme};
 /// The built-in themes, in `Shift+T` order. A theme that runs on an engine
 /// behind a cargo feature (`ember`, `autumn` and `winter` on particles,
 /// `marquee` on led, `departures` on splitflap, `etch` on laser, `stack` on
-/// blocks, `blueprint` on blueprint) is left out of a build without that feature.
+/// blocks, `blueprint` on blueprint, `sketchbook` on sketch) is left out of a build without that feature.
 pub const BUILTIN: &[(&str, &str)] = &[
     ("dark", include_str!("../../themes/dark.yaml")),
     ("light", include_str!("../../themes/light.yaml")),
@@ -33,6 +33,8 @@ pub const BUILTIN: &[(&str, &str)] = &[
     ("stack", include_str!("../../themes/stack.yaml")),
     #[cfg(feature = "blueprint")]
     ("blueprint", include_str!("../../themes/blueprint.yaml")),
+    #[cfg(feature = "sketch")]
+    ("sketchbook", include_str!("../../themes/sketchbook.yaml")),
 ];
 
 /// The theme used when nothing names one.
@@ -482,6 +484,7 @@ mod tests {
                 "etch",
                 "stack",
                 "blueprint",
+                "sketchbook",
                 "brand"
             ]
         );
