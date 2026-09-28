@@ -5,7 +5,7 @@ use crate::theme::Theme;
 use super::{
     VIZ_CORNER_TRACK, VIZ_FONT_MIN, VIZ_FONT_PRIMARY_LABEL, VIZ_FONT_TITLE, VIZ_OPACITY_GRID,
     VIZ_OPACITY_LABEL, VIZ_STROKE_BORDER, VizReveal, assign_steps, fit_font_size, fit_text,
-    parse_label_value, parse_reveal_prefix, reveal_anim_progress,
+    parse_label_value, parse_reveal_prefix,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -43,6 +43,46 @@ fn parse_progress_bars(content: &str) -> Vec<ProgressEntry> {
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
+/// Rows of label, bar and percentage, centred vertically.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct RowLayout {
+    label_width: f32,
+    bar_left: f32,
+    bar_width: f32,
+    bar_height: f32,
+    row_spacing: f32,
+    start_y: f32,
+}
+
+impl RowLayout {
+    /// Bars as tall as `n` rows allow within limits, so rows fill the space
+    /// but keep breathing room; generous columns for reading from a distance.
+    fn new(pos: Pos2, max_width: f32, height: f32, scale: f32, n: usize) -> Self {
+        let padding = 30.0 * scale;
+        let label_width = 200.0 * scale;
+        let pct_width = 90.0 * scale;
+        let available_height = height - padding * 2.0;
+        let max_bar_height = 44.0 * scale;
+        let min_bar_height = 28.0 * scale;
+        let row_spacing = 20.0 * scale;
+        let bar_height = ((available_height - (n as f32 - 1.0) * row_spacing) / n as f32)
+            .clamp(min_bar_height, max_bar_height);
+        let total_rows_height = n as f32 * (bar_height + row_spacing) - row_spacing;
+        Self {
+            label_width,
+            bar_left: pos.x + padding + label_width + 12.0 * scale,
+            bar_width: max_width - padding * 2.0 - label_width - 12.0 * scale - pct_width,
+            bar_height,
+            row_spacing,
+            start_y: pos.y + (height - total_rows_height) / 2.0,
+        }
+    }
+
+    fn row_y(&self, i: usize) -> f32 {
+        self.start_y + i as f32 * (self.bar_height + self.row_spacing)
+    }
+}
+
 pub fn draw_progress_bars(
     cx: &super::VizCtx,
     content: &str,
@@ -56,7 +96,7 @@ pub fn draw_progress_bars(
         opacity,
         scale,
         reveal_step,
-        reveal_timestamp,
+        ..
     } = *cx;
     let entries = parse_progress_bars(content);
     if entries.is_empty() {
@@ -84,21 +124,8 @@ pub fn draw_progress_bars(
         theme.body_family(),
     );
 
-    // Layout — use generous space for readability from distance
-    let padding = 30.0 * scale;
-    let label_width = 200.0 * scale;
-    let pct_width = 90.0 * scale;
-    // Scale bar height to fill available space while maintaining breathing room
-    let available_height = height - padding * 2.0;
-    let max_bar_height = 44.0 * scale;
-    let min_bar_height = 28.0 * scale;
-    let row_spacing = 20.0 * scale;
-    let bar_height = ((available_height - (n as f32 - 1.0) * row_spacing) / n as f32)
-        .clamp(min_bar_height, max_bar_height);
-    let total_rows_height = n as f32 * (bar_height + row_spacing) - row_spacing;
-    let start_y = pos.y + (height - total_rows_height) / 2.0;
-    let bar_left = pos.x + padding + label_width + 12.0 * scale;
-    let bar_width = max_width - padding * 2.0 - label_width - 12.0 * scale - pct_width;
+    let rows = RowLayout::new(pos, max_width, height, scale, n);
+    let label_width = rows.label_width;
 
     // All labels share one font size so rows read as a unit
     let label_texts: Vec<&str> = entries.iter().map(|e| e.label.as_str()).collect();
@@ -113,20 +140,21 @@ pub fn draw_progress_bars(
         theme.body_family(),
     );
 
-    let mut needs_repaint = false;
-
     for (i, entry) in entries.iter().enumerate() {
         let step = steps.get(i).copied().unwrap_or(0);
         if step > reveal_step {
             continue;
         }
 
-        let (anim, repaint) = reveal_anim_progress(step, reveal_step, reveal_timestamp);
-        if repaint {
-            needs_repaint = true;
-        }
+        let anim = cx.anim(step);
 
-        let row_y = start_y + i as f32 * (bar_height + row_spacing);
+        let row_y = rows.row_y(i);
+        let RowLayout {
+            bar_left,
+            bar_width,
+            bar_height,
+            ..
+        } = rows;
 
         // Label on the left, fitted to the label column
         let label_color = Theme::with_opacity(theme.foreground, opacity * 0.9);
@@ -180,10 +208,6 @@ pub fn draw_progress_bars(
         let pct_y = row_y + (bar_height - pct_galley.rect.height()) / 2.0;
         let pct_x = bar_left + bar_width + 12.0 * scale;
         painter.galley(Pos2::new(pct_x, pct_y), pct_galley, pct_color);
-    }
-
-    if needs_repaint {
-        ui.ctx().request_repaint();
     }
 
     height
@@ -244,5 +268,17 @@ mod tests {
         let entries = parse_progress_bars("- A: inf\n- B: nan\n- C: 1_0");
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].value, 10.0);
+    }
+
+    #[test]
+    fn test_row_layout_clamps_and_centres() {
+        let few = RowLayout::new(Pos2::new(0.0, 0.0), 1000.0, 500.0, 1.0, 2);
+        assert_eq!(few.bar_height, 44.0);
+        assert_eq!(few.start_y, (500.0 - 108.0) / 2.0);
+        assert_eq!(few.row_y(1), few.start_y + 64.0);
+        assert_eq!(few.bar_left, 242.0);
+        assert_eq!(few.bar_width, 1000.0 - 60.0 - 200.0 - 12.0 - 90.0);
+        let many = RowLayout::new(Pos2::new(0.0, 0.0), 1000.0, 500.0, 1.0, 30);
+        assert_eq!(many.bar_height, 28.0);
     }
 }

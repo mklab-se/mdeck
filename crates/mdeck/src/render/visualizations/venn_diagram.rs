@@ -4,7 +4,7 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_FONT_PRIMARY_LABEL, VIZ_FONT_SECONDARY_LABEL, VIZ_STROKE_SEPARATOR, VizReveal,
-    assign_steps, parse_reveal_prefix, parse_value, reveal_anim_progress,
+    assign_steps, parse_reveal_prefix, parse_value,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -148,6 +148,34 @@ fn intersection_label_pos(
     (mx + dx / len * push, my + dy / len * push)
 }
 
+/// Circle centres around `mid`: one in the middle, two side by side
+/// overlapping, or three and more in a ring close enough that every pair
+/// overlaps substantially (the classic Venn layout).
+fn circle_centers(mid: Pos2, radii: &[f32]) -> Vec<Pos2> {
+    let (cx, cy) = (mid.x, mid.y);
+    match radii.len() {
+        1 => vec![Pos2::new(cx, cy)],
+        2 => {
+            let overlap = radii[0].min(radii[1]) * 0.6;
+            let dist = radii[0] + radii[1] - overlap;
+            vec![
+                Pos2::new(cx - dist / 2.0, cy),
+                Pos2::new(cx + dist / 2.0, cy),
+            ]
+        }
+        n => {
+            let base_dist = radii.iter().cloned().fold(0.0f32, f32::max) * 0.62;
+            (0..n)
+                .map(|i| {
+                    let angle = -std::f32::consts::FRAC_PI_2
+                        + (i as f32 / n as f32) * 2.0 * std::f32::consts::PI;
+                    Pos2::new(cx + base_dist * angle.cos(), cy + base_dist * angle.sin())
+                })
+                .collect()
+        }
+    }
+}
+
 pub fn draw_venn_diagram(
     cx: &super::VizCtx,
     content: &str,
@@ -161,7 +189,7 @@ pub fn draw_venn_diagram(
         opacity,
         scale,
         reveal_step,
-        reveal_timestamp,
+        ..
     } = *cx;
     let (circles, intersections) = parse_venn_diagram(content);
     if circles.is_empty() {
@@ -184,44 +212,15 @@ pub fn draw_venn_diagram(
     let palette = theme.edge_palette();
     let painter = ui.painter();
 
-    let cx = pos.x + max_width / 2.0;
-    let cy = pos.y + height / 2.0;
+    let mid = Pos2::new(pos.x + max_width / 2.0, pos.y + height / 2.0);
 
     // Compute circle radii proportional to size values
     let max_radius = (max_width.min(height) / 2.0 - 60.0 * scale).max(40.0 * scale);
     let sizes: Vec<f32> = circles.iter().map(|c| c.size).collect();
     let radii = circle_radii(&sizes, max_radius);
 
-    // Compute circle centers based on count
-    let centers: Vec<Pos2> = match circles.len() {
-        1 => vec![Pos2::new(cx, cy)],
-        2 => {
-            let overlap = radii[0].min(radii[1]) * 0.6;
-            let dist = radii[0] + radii[1] - overlap;
-            vec![
-                Pos2::new(cx - dist / 2.0, cy),
-                Pos2::new(cx + dist / 2.0, cy),
-            ]
-        }
-        _ => {
-            // Triangular arrangement for 3+ circles. Centers sit close enough
-            // that every pair overlaps substantially (classic Venn layout).
-            let base_dist = radii.iter().cloned().fold(0.0f32, f32::max) * 0.62;
-            let mut positions = Vec::new();
-            let n = circles.len();
-            for i in 0..n {
-                let angle = -std::f32::consts::FRAC_PI_2
-                    + (i as f32 / n as f32) * 2.0 * std::f32::consts::PI;
-                positions.push(Pos2::new(
-                    cx + base_dist * angle.cos(),
-                    cy + base_dist * angle.sin(),
-                ));
-            }
-            positions
-        }
-    };
+    let centers = circle_centers(mid, &radii);
 
-    let mut needs_repaint = false;
     let label_font = FontId::new(
         theme.body_size * VIZ_FONT_PRIMARY_LABEL * scale,
         theme.body_family(),
@@ -238,10 +237,7 @@ pub fn draw_venn_diagram(
             continue;
         }
 
-        let (anim, repaint) = reveal_anim_progress(step, reveal_step, reveal_timestamp);
-        if repaint {
-            needs_repaint = true;
-        }
+        let anim = cx.anim(step);
 
         let color = palette[i % palette.len()];
         let fill_color = Theme::with_opacity(color, opacity * 0.25 * anim);
@@ -261,8 +257,8 @@ pub fn draw_venn_diagram(
         );
 
         // Label in the non-overlapping region (offset away from center)
-        let label_offset_x = (center.x - cx) * 0.4;
-        let label_offset_y = (center.y - cy) * 0.4;
+        let label_offset_x = (center.x - mid.x) * 0.4;
+        let label_offset_y = (center.y - mid.y) * 0.4;
         let label_color = Theme::with_opacity(theme.foreground, opacity * anim);
         let galley = painter.layout_no_wrap(circle.label.clone(), label_font.clone(), label_color);
         let lx = center.x + label_offset_x - galley.rect.width() / 2.0;
@@ -277,10 +273,7 @@ pub fn draw_venn_diagram(
             continue;
         }
 
-        let (anim, repaint) = reveal_anim_progress(step, reveal_step, reveal_timestamp);
-        if repaint {
-            needs_repaint = true;
-        }
+        let anim = cx.anim(step);
 
         let members: Vec<usize> = inter
             .sets
@@ -290,7 +283,7 @@ pub fn draw_venn_diagram(
         if members.is_empty() {
             continue;
         }
-        let (inter_x, inter_y) = intersection_label_pos(&centers, &radii, &members, cx, cy);
+        let (inter_x, inter_y) = intersection_label_pos(&centers, &radii, &members, mid.x, mid.y);
         let wrap_width = members.iter().map(|&i| radii[i]).fold(f32::MAX, f32::min) * 1.3;
 
         let label_color = Theme::with_opacity(theme.foreground, opacity * anim);
@@ -303,10 +296,6 @@ pub fn draw_venn_diagram(
         let lx = inter_x - galley.rect.width() / 2.0;
         let ly = inter_y - galley.rect.height() / 2.0;
         painter.galley(Pos2::new(lx, ly), galley, label_color);
-    }
-
-    if needs_repaint {
-        ui.ctx().request_repaint();
     }
 
     height
@@ -412,5 +401,18 @@ mod tests {
         let radii = circle_radii(&[40.0, 10.0], 100.0);
         assert!(radii.iter().all(|r| r.is_finite() && *r > 0.0));
         assert!(radii[0] > radii[1]);
+    }
+
+    #[test]
+    fn test_circle_centers_by_count() {
+        let mid = Pos2::new(100.0, 100.0);
+        assert_eq!(circle_centers(mid, &[50.0]), vec![mid]);
+        let two = circle_centers(mid, &[50.0, 50.0]);
+        assert_eq!(two, vec![Pos2::new(65.0, 100.0), Pos2::new(135.0, 100.0)]);
+        let three = circle_centers(mid, &[50.0, 50.0, 50.0]);
+        assert_eq!(three.len(), 3);
+        // The first sits straight above the middle
+        assert!((three[0].x - 100.0).abs() < 1e-4);
+        assert!((three[0].y - 69.0).abs() < 1e-4);
     }
 }

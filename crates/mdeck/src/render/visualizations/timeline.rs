@@ -52,6 +52,59 @@ fn parse_timeline(content: &str) -> Vec<TimelineEntry> {
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
+/// An event's date and description centred on `anchor.x`: stacked up
+/// from `anchor.y` (description on top) when `above`, else down from it
+/// (date on top).
+fn draw_event_text(
+    cx: &super::VizCtx,
+    entry: &TimelineEntry,
+    (date_font, desc_font): (&FontId, &FontId),
+    anchor: Pos2,
+    max_label_width: f32,
+    above: bool,
+) {
+    let super::VizCtx {
+        theme,
+        opacity,
+        scale,
+        ..
+    } = *cx;
+    let painter = cx.ui.painter();
+    let (x, text_anchor_y) = (anchor.x, anchor.y);
+
+    let date_color = Theme::with_opacity(theme.heading_color, opacity);
+    let date_galley = painter.layout(
+        entry.date.clone(),
+        date_font.clone(),
+        date_color,
+        max_label_width,
+    );
+    let date_w = date_galley.rect.width();
+    let date_h = date_galley.rect.height();
+
+    let desc_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_LABEL);
+    let desc_galley = painter.layout(
+        entry.description.clone(),
+        desc_font.clone(),
+        desc_color,
+        max_label_width,
+    );
+    let desc_w = desc_galley.rect.width();
+    let desc_h = desc_galley.rect.height();
+
+    if above {
+        let desc_y = text_anchor_y - desc_h - date_h - 4.0 * scale;
+        let date_y = text_anchor_y - date_h;
+        painter.galley(Pos2::new(x - desc_w / 2.0, desc_y), desc_galley, desc_color);
+        painter.galley(Pos2::new(x - date_w / 2.0, date_y), date_galley, date_color);
+    } else {
+        let date_y = text_anchor_y + 4.0 * scale;
+        let desc_y = date_y + date_h + 2.0 * scale;
+        painter.galley(Pos2::new(x - date_w / 2.0, date_y), date_galley, date_color);
+        painter.galley(Pos2::new(x - desc_w / 2.0, desc_y), desc_galley, desc_color);
+    }
+}
+
 pub fn draw_timeline(
     cx: &super::VizCtx,
     content: &str,
@@ -162,42 +215,10 @@ pub fn draw_timeline(
             ),
         );
 
-        // Date label
-        let date_color = Theme::with_opacity(theme.heading_color, opacity);
+        let fonts = (&date_font, &desc_font);
         let max_label_width = spacing.max(120.0 * scale);
-        let date_galley = painter.layout(
-            entry.date.clone(),
-            date_font.clone(),
-            date_color,
-            max_label_width,
-        );
-        let date_w = date_galley.rect.width();
-        let date_h = date_galley.rect.height();
-
-        // Description label
-        let desc_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_LABEL);
-        let desc_galley = painter.layout(
-            entry.description.clone(),
-            desc_font.clone(),
-            desc_color,
-            max_label_width,
-        );
-        let desc_w = desc_galley.rect.width();
-        let desc_h = desc_galley.rect.height();
-
-        if alternate_above {
-            // Text above: description first (higher), then date
-            let desc_y = text_anchor_y - desc_h - date_h - 4.0 * scale;
-            let date_y = text_anchor_y - date_h;
-            painter.galley(Pos2::new(x - desc_w / 2.0, desc_y), desc_galley, desc_color);
-            painter.galley(Pos2::new(x - date_w / 2.0, date_y), date_galley, date_color);
-        } else {
-            // Text below: date first, then description
-            let date_y = text_anchor_y + 4.0 * scale;
-            let desc_y = date_y + date_h + 2.0 * scale;
-            painter.galley(Pos2::new(x - date_w / 2.0, date_y), date_galley, date_color);
-            painter.galley(Pos2::new(x - desc_w / 2.0, desc_y), desc_galley, desc_color);
-        }
+        let anchor = Pos2::new(x, text_anchor_y);
+        draw_event_text(cx, entry, fonts, anchor, max_label_width, alternate_above);
     }
 
     height
