@@ -20,98 +20,78 @@ pub fn parse(text: &str) -> Vec<Inline> {
     let mut current_text = String::new();
 
     while i < chars.len() {
-        let c = chars[i];
-
-        // Backslash escape: `\*` → literal `*`
-        if c == '\\' {
-            if let Some(&next) = chars.get(i + 1)
-                && next.is_ascii_punctuation()
-            {
-                current_text.push(next);
-                i += 2;
-                continue;
-            }
-            current_text.push(c);
-            i += 1;
-            continue;
-        }
-
-        // Math: $$display$$ or $inline$
-        if c == '$'
-            && let Some((inline, end)) = super::math::try_math(&chars, i)
-        {
+        if let Some((inline, end)) = try_span(&chars, i) {
             flush_text(&mut current_text, &mut result);
             result.push(inline);
             i = end;
-            continue;
+        } else {
+            i = push_literal(&chars, i, &mut current_text);
         }
-
-        // Code span: a run of N backticks closed by a run of exactly N
-        if c == '`' {
-            let n = run_len(&chars, i, '`');
-            if let Some(end) = find_code_close(&chars, i + n, n) {
-                flush_text(&mut current_text, &mut result);
-                result.push(Inline::Code(code_span_content(&chars[i + n..end - n])));
-                i = end;
-            } else {
-                // Unmatched backticks are literal
-                current_text.extend(std::iter::repeat_n('`', n));
-                i += n;
-            }
-            continue;
-        }
-
-        // Emphasis: * / _ (bold, italic, bold+italic)
-        if (c == '*' || c == '_')
-            && let Some((inline, end)) = try_emphasis(&chars, i, c)
-        {
-            flush_text(&mut current_text, &mut result);
-            result.push(inline);
-            i = end;
-            continue;
-        }
-
-        // Strikethrough: ~~text~~
-        if c == '~'
-            && peek(&chars, i + 1) == Some('~')
-            && run_len(&chars, i, '~') == 2
-            && let Some(end) = find_closer(&chars, i + 2, '~', 2, true)
-        {
-            flush_text(&mut current_text, &mut result);
-            let inner: String = chars[i + 2..end].iter().collect();
-            result.push(Inline::Strikethrough(parse(&inner)));
-            i = end + 2;
-            continue;
-        }
-
-        // Link: [text](url)
-        if c == '['
-            && let Some((link, end)) = parse_link(&chars, i)
-        {
-            flush_text(&mut current_text, &mut result);
-            result.push(link);
-            i = end;
-            continue;
-        }
-
-        // Inline image: ![alt](url) — no inline image rendering exists, so
-        // show the alt text as a link rather than a stray `!` + link.
-        if c == '!'
-            && peek(&chars, i + 1) == Some('[')
-            && let Some((link, end)) = parse_link(&chars, i + 1)
-        {
-            flush_text(&mut current_text, &mut result);
-            result.push(link);
-            i = end;
-            continue;
-        }
-
-        current_text.push(c);
-        i += 1;
     }
 
     flush_text(&mut current_text, &mut result);
     result
+}
+
+/// The formatted span that starts at `chars[i]`, if one does, and the index
+/// just past it.
+fn try_span(chars: &[char], i: usize) -> Option<(Inline, usize)> {
+    match chars[i] {
+        // Math: $$display$$ or $inline$
+        '$' => super::math::try_math(chars, i),
+        // Code span: a run of N backticks closed by a run of exactly N
+        '`' => try_code_span(chars, i),
+        // Emphasis: * / _ (bold, italic, bold+italic)
+        c @ ('*' | '_') => try_emphasis(chars, i, c),
+        // Strikethrough: ~~text~~
+        '~' => try_strikethrough(chars, i),
+        // Link: [text](url)
+        '[' => parse_link(chars, i),
+        // Inline image: ![alt](url). No inline image rendering exists, so
+        // show the alt text as a link rather than a stray `!` + link.
+        '!' if peek(chars, i + 1) == Some('[') => parse_link(chars, i + 1),
+        _ => None,
+    }
+}
+
+/// Append the literal text at `chars[i]` to `out` and return the index after
+/// it: an escaped character without its backslash, a whole run of unmatched
+/// backticks, or a single character.
+fn push_literal(chars: &[char], i: usize, out: &mut String) -> usize {
+    match chars[i] {
+        // Backslash escape: `\*` → literal `*`
+        '\\' if chars.get(i + 1).is_some_and(|c| c.is_ascii_punctuation()) => {
+            out.push(chars[i + 1]);
+            i + 2
+        }
+        // Unmatched backticks are literal, the whole run at once so a shorter
+        // run inside it can't close as a code span
+        '`' => {
+            let n = run_len(chars, i, '`');
+            out.extend(std::iter::repeat_n('`', n));
+            i + n
+        }
+        c => {
+            out.push(c);
+            i + 1
+        }
+    }
+}
+
+fn try_code_span(chars: &[char], start: usize) -> Option<(Inline, usize)> {
+    let n = run_len(chars, start, '`');
+    let end = find_code_close(chars, start + n, n)?;
+    let content = code_span_content(&chars[start + n..end - n]);
+    Some((Inline::Code(content), end))
+}
+
+fn try_strikethrough(chars: &[char], start: usize) -> Option<(Inline, usize)> {
+    if run_len(chars, start, '~') != 2 {
+        return None;
+    }
+    let end = find_closer(chars, start + 2, '~', 2, true)?;
+    let inner: String = chars[start + 2..end].iter().collect();
+    Some((Inline::Strikethrough(parse(&inner)), end + 2))
 }
 
 fn flush_text(current: &mut String, result: &mut Vec<Inline>) {
@@ -316,6 +296,39 @@ mod tests {
 
     fn text_of(inline: &Inline) -> String {
         inlines_to_text(std::slice::from_ref(inline))
+    }
+
+    fn chars(s: &str) -> Vec<char> {
+        s.chars().collect()
+    }
+
+    #[test]
+    fn try_span_reports_where_each_span_ends() {
+        let cases = [
+            ("`a` x", 3),
+            ("**b** x", 5),
+            ("~~c~~ x", 5),
+            ("[d](e) x", 6),
+            ("![d](e) x", 7),
+            ("$x$ y", 3),
+        ];
+        for (text, end) in cases {
+            let (_, got) = try_span(&chars(text), 0).unwrap_or_else(|| panic!("{text:?}"));
+            assert_eq!(got, end, "{text:?}");
+        }
+        for text in ["plain", "~~~x~~~", "! [x](y)", "`open", "\\*"] {
+            assert!(try_span(&chars(text), 0).is_none(), "{text:?}");
+        }
+    }
+
+    #[test]
+    fn push_literal_consumes_escapes_and_backtick_runs() {
+        let mut out = String::new();
+        assert_eq!(push_literal(&chars("\\*x"), 0, &mut out), 2);
+        assert_eq!(push_literal(&chars("\\a"), 0, &mut out), 1);
+        assert_eq!(push_literal(&chars("```x"), 0, &mut out), 3);
+        assert_eq!(push_literal(&chars("é"), 0, &mut out), 1);
+        assert_eq!(out, "*\\```é");
     }
 
     #[test]

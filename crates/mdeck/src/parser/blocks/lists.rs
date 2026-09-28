@@ -29,19 +29,13 @@ pub(super) fn parse_list(lines: &[&str], start: usize, ordered: bool) -> (Block,
         let trimmed = line.trim();
 
         if trimmed.is_empty() {
-            // Check if next non-blank line continues the list
-            let mut j = i + 1;
-            while j < lines.len() && lines[j].trim().is_empty() {
-                j += 1;
-            }
-            if j < lines.len() {
-                let next = lines[j].trim();
-                if is_list_start(next) || is_ordered_list_start(next) {
-                    i = j;
+            match next_item_after_blank(lines, i) {
+                Some(next) => {
+                    i = next;
                     continue;
                 }
+                None => break,
             }
-            break;
         }
 
         let indent = line_indent(line);
@@ -56,39 +50,54 @@ pub(super) fn parse_list(lines: &[&str], start: usize, ordered: bool) -> (Block,
             let Some((text, marker)) = item else {
                 break;
             };
-            i += 1;
-            let text = collect_item_text(lines, &mut i, text);
-            // Collect nested items
-            let (children, new_i) = collect_children(lines, i, base_indent);
-            items.push(ListItem {
-                marker,
-                inlines: crate::parser::inline::parse(&text),
-                children,
-            });
-            i = new_i;
+            let (item, next) = parse_item(lines, i, text, marker, base_indent);
+            items.push(item);
+            i = next;
         } else {
             // A deeper-indented item after a blank line: nest it under the
             // last top-level item.
             let Some((text, marker)) = extract_any_list_item(trimmed) else {
                 break;
             };
-            i += 1;
-            let text = collect_item_text(lines, &mut i, text);
-            let (children, new_i) = collect_children(lines, i, indent);
-            let item = ListItem {
-                marker,
-                inlines: crate::parser::inline::parse(&text),
-                children,
-            };
+            let (item, next) = parse_item(lines, i, text, marker, indent);
             match items.last_mut() {
                 Some(last) => last.children.push(item),
                 None => items.push(item),
             }
-            i = new_i;
+            i = next;
         }
     }
 
     (Block::List { ordered, items }, i)
+}
+
+/// After the blank line at `lines[i]`, the index of the next non-blank line
+/// if it continues the list with another item.
+fn next_item_after_blank(lines: &[&str], i: usize) -> Option<usize> {
+    let j = (i + 1..lines.len()).find(|&j| !lines[j].trim().is_empty())?;
+    let next = lines[j].trim();
+    (is_list_start(next) || is_ordered_list_start(next)).then_some(j)
+}
+
+/// Parse the item whose marker line is `lines[i]` (with `text` after the
+/// marker): its continuation lines, then the items nested deeper than
+/// `indent`. Returns the item and the index of the line after it.
+fn parse_item(
+    lines: &[&str],
+    i: usize,
+    text: &str,
+    marker: ListMarker,
+    indent: usize,
+) -> (ListItem, usize) {
+    let mut i = i + 1;
+    let text = collect_item_text(lines, &mut i, text);
+    let (children, next) = collect_children(lines, i, indent);
+    let item = ListItem {
+        marker,
+        inlines: crate::parser::inline::parse(&text),
+        children,
+    };
+    (item, next)
 }
 
 /// Gather a list item's text: the marker line's text plus any following
@@ -129,21 +138,13 @@ fn collect_children(lines: &[&str], start: usize, parent_indent: usize) -> (Vec<
             break;
         }
 
-        if let Some((text, marker)) = extract_any_list_item(trimmed) {
-            i += 1;
-            let text = collect_item_text(lines, &mut i, text);
-
-            // Recursively collect deeper children
-            let (sub_children, new_i) = collect_children(lines, i, indent);
-            children.push(ListItem {
-                marker,
-                inlines: crate::parser::inline::parse(&text),
-                children: sub_children,
-            });
-            i = new_i;
-        } else {
+        let Some((text, marker)) = extract_any_list_item(trimmed) else {
             break;
-        }
+        };
+        // Recursively collect deeper children
+        let (item, next) = parse_item(lines, i, text, marker, indent);
+        children.push(item);
+        i = next;
     }
 
     (children, i)
@@ -189,6 +190,24 @@ mod tests {
     use crate::parser::blocks::parse;
     use crate::parser::blocks::tests::{list_items, paragraph_text};
     use crate::parser::inlines_to_text;
+
+    #[test]
+    fn a_blank_line_continues_only_into_another_item() {
+        let lines = ["- a", "", "", "- b", "", "text", "", "1. c"];
+        assert_eq!(next_item_after_blank(&lines, 1), Some(3));
+        assert_eq!(next_item_after_blank(&lines, 4), None);
+        assert_eq!(next_item_after_blank(&lines, 6), Some(7));
+        assert_eq!(next_item_after_blank(&["- a", ""], 1), None);
+    }
+
+    #[test]
+    fn parse_item_takes_continuations_and_deeper_items() {
+        let lines = ["- a", "  wraps", "  - b", "  - c", "- d"];
+        let (item, next) = parse_item(&lines, 0, "a", ListMarker::Static, 0);
+        assert_eq!(next, 4);
+        assert_eq!(inlines_to_text(&item.inlines), "a wraps");
+        assert_eq!(item.children.len(), 2);
+    }
 
     #[test]
     fn test_parse_unordered_list() {
