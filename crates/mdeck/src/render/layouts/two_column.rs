@@ -1,7 +1,7 @@
 use eframe::egui::{self, Pos2};
 
 use crate::parser::{Block, Slide};
-use crate::render::image_cache::ImageCache;
+use crate::render::BlockCx;
 use crate::render::layouts::{SLIDE_PADDING, centered_left, centered_top, content_width};
 use crate::render::text;
 use crate::theme::Theme;
@@ -112,63 +112,36 @@ pub fn measure_content_height(
     heading + left.max(right)
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn render(
-    ui: &egui::Ui,
-    slide: &Slide,
-    theme: &Theme,
-    rect: egui::Rect,
-    opacity: f32,
-    image_cache: &ImageCache,
-    reveal_step: usize,
-    scale: f32,
-) {
+pub fn render(cx: &BlockCx, slide: &Slide, rect: egui::Rect) {
+    let (theme, scale) = (cx.theme, cx.scale);
     let geo = geometry(rect, scale);
     let content_rect = geo.content_rect;
     let columns = split_columns(&slide.blocks);
 
-    let total_height = measure_content_height(ui, slide, theme, rect, scale);
+    let total_height = measure_content_height(cx.ui, slide, theme, rect, scale);
     let mut y = centered_top(content_rect.top(), content_rect.height(), total_height);
 
     // Draw heading spanning full width
     for block in &columns.heading {
         if let Block::Heading { level, inlines } = block {
-            let h = text::draw_heading(
-                ui,
-                inlines,
-                *level,
-                theme,
-                Pos2::new(content_rect.left(), y),
-                content_rect.width(),
-                opacity,
-                scale,
-            );
+            let pos = Pos2::new(content_rect.left(), y);
+            let h = text::draw_heading(&cx.text(), inlines, *level, pos, content_rect.width());
             y += h + text::block_spacing(block, theme, scale);
         }
     }
 
     // Draw both columns
     text::draw_blocks(
-        ui,
+        cx,
         columns.left.iter().copied(),
-        theme,
         Pos2::new(content_rect.left(), y),
         geo.col_width,
-        opacity,
-        image_cache,
-        reveal_step,
-        scale,
     );
     text::draw_blocks(
-        ui,
+        cx,
         columns.right.iter().copied(),
-        theme,
         Pos2::new(content_rect.left() + geo.col_width + geo.gap, y),
         geo.col_width,
-        opacity,
-        image_cache,
-        reveal_step,
-        scale,
     );
 }
 

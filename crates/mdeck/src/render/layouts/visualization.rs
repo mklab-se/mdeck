@@ -1,12 +1,9 @@
-use std::time::Instant;
-
 use eframe::egui::{self, Pos2};
 
 use crate::parser::{Block, Slide};
-use crate::render::image_cache::ImageCache;
+use crate::render::BlockCx;
 use crate::render::text;
 use crate::render::visualizations;
-use crate::theme::Theme;
 
 fn is_viz_block(block: &Block) -> bool {
     matches!(block, Block::Chart { .. })
@@ -14,18 +11,8 @@ fn is_viz_block(block: &Block) -> bool {
 
 /// Visualization slide layout: heading at top, optional text blocks, visualization
 /// filling remaining space.
-#[allow(clippy::too_many_arguments)]
-pub fn render(
-    ui: &egui::Ui,
-    slide: &Slide,
-    theme: &Theme,
-    rect: egui::Rect,
-    opacity: f32,
-    image_cache: &ImageCache,
-    reveal_step: usize,
-    reveal_timestamp: Option<Instant>,
-    scale: f32,
-) {
+pub fn render(cx: &BlockCx, slide: &Slide, rect: egui::Rect) {
+    let (ui, theme, scale) = (cx.ui, cx.theme, cx.scale);
     let padding = 60.0 * scale;
     let content_width = rect.width() - padding * 2.0;
     let content_left = rect.left() + padding;
@@ -59,32 +46,14 @@ pub fn render(
 
     // Draw heading if present
     if let Some(Block::Heading { level, inlines }) = heading {
-        let h = text::draw_heading(
-            ui,
-            inlines,
-            *level,
-            theme,
-            Pos2::new(content_left, y),
-            content_width,
-            opacity,
-            scale,
-        );
+        let pos = Pos2::new(content_left, y);
+        let h = text::draw_heading(&cx.text(), inlines, *level, pos, content_width);
         y += h + text::heading_spacing(theme, *level, scale);
     }
 
     // Draw any text blocks (paragraphs, lists, etc.) between heading and visualization
     for block in &text_blocks {
-        let h = text::draw_block(
-            ui,
-            block,
-            theme,
-            Pos2::new(content_left, y),
-            content_width,
-            opacity,
-            image_cache,
-            reveal_step,
-            scale,
-        );
+        let h = text::draw_block(cx, block, Pos2::new(content_left, y), content_width);
         y += h + text::block_spacing(block, theme, scale);
     }
 
@@ -94,18 +63,10 @@ pub fn render(
         if remaining_height > 50.0 * scale {
             let viz_pos = Pos2::new(content_left, y);
             if let Block::Chart { kind, content } = block {
-                let cx = visualizations::VizCtx {
-                    ui,
-                    theme,
-                    opacity,
-                    scale,
-                    reveal_step,
-                    reveal_timestamp,
-                };
                 visualizations::draw(
                     *kind,
                     content,
-                    &cx,
+                    &cx.viz(),
                     viz_pos,
                     content_width,
                     remaining_height,
