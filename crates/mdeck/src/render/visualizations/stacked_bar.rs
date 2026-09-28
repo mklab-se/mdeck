@@ -1,14 +1,13 @@
-use eframe::egui::{self, FontId, Pos2, Stroke};
+use eframe::egui::{self, Color32, Pos2};
 
 use crate::theme::Theme;
 
 use super::{
-    VIZ_CORNER_BAR, VIZ_CORNER_SWATCH, VIZ_FONT_AXIS_LABEL, VIZ_FONT_CATEGORY_LABEL,
-    VIZ_FONT_GRID_LABEL, VIZ_FONT_LEGEND, VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD,
-    VIZ_OPACITY_AXIS, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL, VIZ_STROKE_AXIS,
-    VIZ_STROKE_GRID, VIZ_SWATCH_SIZE, VizReveal, assign_steps, draw_x_axis_label,
-    draw_y_axis_label, format_axis_value, format_value, grid_values, header_directive, label_fade,
-    nice_axis_max, nice_grid_step, parse_label_values, parse_reveal_prefix, reveal_anim_progress,
+    AxisTitles, PlotFrame, VIZ_CORNER_BAR, VIZ_CORNER_SWATCH, VIZ_FONT_CATEGORY_LABEL,
+    VIZ_FONT_LEGEND, VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_LABEL,
+    VIZ_SWATCH_SIZE, ValueRange, VizCtx, VizReveal, assign_steps, format_value, grid_values,
+    header_directive, label_fade, nice_axis_max, nice_grid_step, parse_label_values,
+    parse_reveal_prefix,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -82,7 +81,7 @@ fn parse_stacked_bar(content: &str) -> StackedBarData {
     }
 }
 
-// ─── Renderer ───────────────────────────────────────────────────────────────
+// ─── Layout ─────────────────────────────────────────────────────────────────
 
 /// Corner rounding for one stacked segment: only the topmost segment of a stack
 /// gets rounded (top) corners, so there are no notches between segments.
@@ -99,21 +98,79 @@ fn segment_corner_radius(radius: f32, is_top: bool) -> egui::CornerRadius {
     }
 }
 
+/// The tallest stack: the largest sum over a category of its values
+/// (negatives count as 0).
+fn max_stack(series: &[StackedSeries], num_categories: usize) -> f32 {
+    (0..num_categories)
+        .map(|ci| {
+            series
+                .iter()
+                .map(|s| s.values.get(ci).copied().unwrap_or(0.0).max(0.0))
+                .sum::<f32>()
+        })
+        .fold(0.0f32, f32::max)
+}
+
+/// Where the stacked bar chart's parts go.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct StackedLayout {
+    frame: PlotFrame,
+    titles_x_top: f32,
+    titles_y_left: f32,
+    /// The legend row across the top.
+    legend_top: f32,
+    legend_height: f32,
+}
+
+/// The legend row on top, grid values and the y title on the left, category
+/// labels and the x title below.
+fn stacked_layout(
+    pos: Pos2,
+    max_width: f32,
+    height: f32,
+    scale: f32,
+    titles: (bool, bool),
+) -> StackedLayout {
+    let (has_x_title, has_y_title) = titles;
+    let padding = 60.0 * scale;
+    let legend_height = 40.0 * scale;
+    let label_area = 40.0 * scale; // space for category labels below bars
+    let y_axis_width = 50.0 * scale;
+    let y_label_space = if has_y_title { 25.0 * scale } else { 0.0 };
+    let x_label_space = if has_x_title { 30.0 * scale } else { 0.0 };
+    let frame = PlotFrame::from_size(
+        pos.x + padding + y_axis_width + y_label_space,
+        pos.y + legend_height + padding / 2.0,
+        max_width - padding * 2.0 - y_axis_width - y_label_space,
+        height - legend_height - padding - label_area - x_label_space,
+    );
+    StackedLayout {
+        frame,
+        titles_x_top: frame.bottom + label_area + 4.0 * scale,
+        titles_y_left: pos.x + padding * 0.3,
+        legend_top: pos.y + padding / 4.0,
+        legend_height,
+    }
+}
+
+/// Gap between and width of `n` stacks across `chart_width`.
+fn stack_slots(chart_width: f32, n: usize, scale: f32) -> (f32, f32) {
+    let bar_gap = 12.0 * scale;
+    let total_gaps = (n + 1) as f32 * bar_gap;
+    let bar_width = ((chart_width - total_gaps) / n as f32).max(8.0 * scale);
+    (bar_gap, bar_width)
+}
+
+// ─── Renderer ───────────────────────────────────────────────────────────────
+
 pub fn draw_stacked_bar(
-    cx: &super::VizCtx,
+    cx: &VizCtx,
     content: &str,
     pos: Pos2,
     max_width: f32,
     max_height: f32,
 ) -> f32 {
-    let super::VizCtx {
-        ui,
-        theme,
-        opacity,
-        scale,
-        reveal_step,
-        reveal_timestamp,
-    } = *cx;
+    let scale = cx.scale;
     let data = parse_stacked_bar(content);
     if data.series.is_empty() || data.categories.is_empty() {
         return 0.0;
@@ -127,106 +184,39 @@ pub fn draw_stacked_bar(
 
     let reveals: Vec<VizReveal> = data.series.iter().map(|s| s.reveal).collect();
     let steps = assign_steps(&reveals);
-    let palette = theme.edge_palette();
-    let painter = ui.painter();
+    let palette = cx.theme.edge_palette();
 
     let num_categories = data.categories.len();
-
-    // Compute max stacked total across all categories (negatives count as 0)
-    let max_stack: f32 = (0..num_categories)
-        .map(|ci| {
-            data.series
-                .iter()
-                .map(|s| s.values.get(ci).copied().unwrap_or(0.0).max(0.0))
-                .sum::<f32>()
-        })
-        .fold(0.0f32, f32::max);
+    let max_stack = max_stack(&data.series, num_categories);
     if max_stack <= 0.0 {
         return height;
     }
     // Scale the axis to a round number so the tallest stack never touches the top
-    let max_stack = nice_axis_max(max_stack, 5);
+    let range = ValueRange::to(nice_axis_max(max_stack, 5));
 
-    // Layout
-    let padding = 60.0 * scale;
-    let legend_height = 40.0 * scale;
-    let label_area = 40.0 * scale; // space for category labels below bars
-    let y_axis_width = 50.0 * scale;
-    let y_label_space = if data.y_label.is_some() {
-        25.0 * scale
-    } else {
-        0.0
-    };
-    let x_label_space = if data.x_label.is_some() {
-        30.0 * scale
-    } else {
-        0.0
-    };
-    let chart_left = pos.x + padding + y_axis_width + y_label_space;
-    let chart_width = max_width - padding * 2.0 - y_axis_width - y_label_space;
-    let chart_top = pos.y + legend_height + padding / 2.0;
-    let chart_height = height - legend_height - padding - label_area - x_label_space;
-    let chart_bottom = chart_top + chart_height;
+    let titles = (data.x_label.is_some(), data.y_label.is_some());
+    let layout = stacked_layout(pos, max_width, height, scale, titles);
+    let frame = layout.frame;
 
-    // X-axis line
-    let axis_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_AXIS);
-    painter.line_segment(
-        [
-            Pos2::new(chart_left, chart_bottom),
-            Pos2::new(chart_left + chart_width, chart_bottom),
-        ],
-        Stroke::new(VIZ_STROKE_AXIS * scale, axis_color),
+    frame.draw_x_axis(cx);
+    let grid_step = nice_grid_step(range.max, 5);
+    frame.draw_y_grid(
+        cx,
+        grid_values(range.max, grid_step),
+        range,
+        grid_step,
+        false,
     );
 
-    // Y-axis grid lines
-    let grid_step = nice_grid_step(max_stack, 5);
-    let grid_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
-    let grid_font = FontId::new(
-        theme.body_size * VIZ_FONT_GRID_LABEL * scale,
-        theme.body_family(),
-    );
-    let grid_label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
-    for grid_val in grid_values(max_stack, grid_step) {
-        let frac = grid_val / max_stack;
-        let gy = chart_bottom - frac * chart_height;
-        painter.line_segment(
-            [
-                Pos2::new(chart_left, gy),
-                Pos2::new(chart_left + chart_width, gy),
-            ],
-            Stroke::new(VIZ_STROKE_GRID * scale, grid_color),
-        );
-        let label = format_axis_value(grid_val, grid_step);
-        let galley = painter.layout_no_wrap(label, grid_font.clone(), grid_label_color);
-        painter.galley(
-            Pos2::new(
-                chart_left - galley.rect.width() - 8.0 * scale,
-                gy - galley.rect.height() / 2.0,
-            ),
-            galley,
-            grid_label_color,
-        );
-    }
+    let (bar_gap, bar_width) = stack_slots(frame.width, num_categories, scale);
+    let slot_x = |ci: usize| frame.left + bar_gap + ci as f32 * (bar_width + bar_gap);
 
-    // Bars
-    let bar_gap = 12.0 * scale;
-    let total_gaps = (num_categories + 1) as f32 * bar_gap;
-    let bar_width = ((chart_width - total_gaps) / num_categories as f32).max(8.0 * scale);
-    let label_font = FontId::new(
-        theme.body_size * VIZ_FONT_CATEGORY_LABEL * scale,
-        theme.body_family(),
-    );
-    let value_font = FontId::new(
-        theme.body_size * VIZ_FONT_VALUE_LABEL * scale,
-        theme.body_family(),
-    );
-
-    let mut needs_repaint = false;
-
-    // Draw category labels below bars
-    let label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_LABEL);
+    // Category labels below bars
+    let painter = cx.ui.painter();
+    let label_font = cx.font(VIZ_FONT_CATEGORY_LABEL);
+    let label_color = cx.fg(VIZ_OPACITY_LABEL);
     for (ci, cat_name) in data.categories.iter().enumerate() {
-        let bx = chart_left + bar_gap + ci as f32 * (bar_width + bar_gap);
+        let bx = slot_x(ci);
         let galley = painter.layout(
             cat_name.clone(),
             label_font.clone(),
@@ -235,64 +225,104 @@ pub fn draw_stacked_bar(
         );
         let lx = bx + (bar_width - galley.rect.width()) / 2.0;
         painter.galley(
-            Pos2::new(lx, chart_bottom + 6.0 * scale),
+            Pos2::new(lx, frame.bottom + 6.0 * scale),
             galley,
             label_color,
         );
     }
 
-    // Draw stacked segments for each category
+    let stacks = Stacks {
+        series: &data.series,
+        steps: &steps,
+        palette: &palette,
+        range,
+        frame,
+        bar_width,
+    };
     for ci in 0..num_categories {
-        let bx = chart_left + bar_gap + ci as f32 * (bar_width + bar_gap);
-        let mut cumulative_height = 0.0f32;
+        stacks.draw(cx, ci, slot_x(ci));
+    }
+
+    frame.draw_titles(
+        cx,
+        &AxisTitles {
+            x: data.x_label.as_deref(),
+            x_top: layout.titles_x_top,
+            y: data.y_label.as_deref(),
+            y_left: layout.titles_y_left,
+        },
+    );
+
+    draw_legend_row(
+        cx,
+        &data.series,
+        &steps,
+        &palette,
+        &layout,
+        pos.x,
+        max_width,
+    );
+
+    height
+}
+
+/// The segments of every category's stack.
+struct Stacks<'a> {
+    series: &'a [StackedSeries],
+    steps: &'a [usize],
+    palette: &'a [Color32],
+    range: ValueRange,
+    frame: PlotFrame,
+    bar_width: f32,
+}
+
+impl Stacks<'_> {
+    /// Category `ci`'s stack at `bx`, bottom segment first.
+    fn draw(&self, cx: &VizCtx, ci: usize, bx: f32) {
+        let painter = cx.ui.painter();
+        let scale = cx.scale;
+        let bar_width = self.bar_width;
+        let value_font = cx.font(VIZ_FONT_VALUE_LABEL);
+        let step_of = |si: usize| self.steps.get(si).copied().unwrap_or(0);
 
         // The last visible, non-empty segment is the top of this stack
-        let top_series = data
+        let top_series = self
             .series
             .iter()
             .enumerate()
             .filter(|(si, s)| {
-                steps.get(*si).copied().unwrap_or(0) <= reveal_step
-                    && s.values.get(ci).copied().unwrap_or(0.0) > 0.0
+                step_of(*si) <= cx.reveal_step && s.values.get(ci).copied().unwrap_or(0.0) > 0.0
             })
             .map(|(si, _)| si)
             .next_back();
 
-        for (si, series) in data.series.iter().enumerate() {
-            let step = steps.get(si).copied().unwrap_or(0);
-            if step > reveal_step {
+        let mut cumulative_height = 0.0f32;
+        for (si, series) in self.series.iter().enumerate() {
+            let step = step_of(si);
+            if step > cx.reveal_step {
                 continue;
             }
-
-            let (anim, repaint) = reveal_anim_progress(step, reveal_step, reveal_timestamp);
-            if repaint {
-                needs_repaint = true;
-            }
+            let anim = cx.anim(step);
 
             let val = series.values.get(ci).copied().unwrap_or(0.0).max(0.0);
-            let full_seg_height = (val / max_stack) * chart_height;
-            let seg_height = full_seg_height * anim;
-
+            let seg_height = self.range.frac(val) * self.frame.height * anim;
             if seg_height <= 0.0 {
                 continue;
             }
 
-            let color =
-                Theme::with_opacity(palette[si % palette.len()], opacity * theme.fill_opacity());
-            let by = chart_bottom - cumulative_height - seg_height;
-
+            let by = self.frame.bottom - cumulative_height - seg_height;
             let bar_rect =
                 egui::Rect::from_min_size(Pos2::new(bx, by), egui::vec2(bar_width, seg_height));
             let corners = segment_corner_radius(VIZ_CORNER_BAR * scale, top_series == Some(si));
-            painter.rect_filled(bar_rect, corners, color);
-            crate::render::hints::push(ui.ctx(), crate::render::hints::Hint::Bar(bar_rect));
+            painter.rect_filled(bar_rect, corners, cx.fill(self.palette, si));
+            crate::render::hints::push(cx.ui.ctx(), crate::render::hints::Hint::Bar(bar_rect));
 
             // Value label inside segment if tall enough
             if seg_height > 18.0 * scale && anim > VIZ_LABEL_REVEAL_THRESHOLD {
-                let val_text = format_value(val);
                 let val_color =
-                    Theme::with_opacity(theme.foreground, opacity * 0.7 * label_fade(anim));
-                let val_galley = painter.layout_no_wrap(val_text, value_font.clone(), val_color);
+                    Theme::with_opacity(cx.theme.foreground, cx.opacity * 0.7 * label_fade(anim));
+                let val_galley =
+                    painter.layout_no_wrap(format_value(val), value_font.clone(), val_color);
                 if val_galley.rect.width() < bar_width {
                     let vx = bx + (bar_width - val_galley.rect.width()) / 2.0;
                     let vy = by + (seg_height - val_galley.rect.height()) / 2.0;
@@ -303,95 +333,66 @@ pub fn draw_stacked_bar(
             cumulative_height += seg_height;
         }
     }
+}
 
-    // Axis labels
-    let axis_label_font = FontId::new(
-        theme.body_size * VIZ_FONT_AXIS_LABEL * scale,
-        theme.body_family(),
-    );
-    let axis_label_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
-    if let Some(ref text) = data.x_label {
-        draw_x_axis_label(
-            painter,
-            text,
-            axis_label_font.clone(),
-            axis_label_color,
-            chart_left,
-            chart_width,
-            chart_bottom + label_area + 4.0 * scale,
-        );
-    }
-    if let Some(ref text) = data.y_label {
-        draw_y_axis_label(
-            painter,
-            text,
-            axis_label_font,
-            axis_label_color,
-            pos.x + padding * 0.3,
-            chart_top,
-            chart_height,
-        );
-    }
-
-    // Legend at top
-    let legend_font = FontId::new(
-        theme.body_size * VIZ_FONT_LEGEND * scale,
-        theme.body_family(),
-    );
+/// The legend: one centred row across the top with a swatch and the name of
+/// each shown series.
+fn draw_legend_row(
+    cx: &VizCtx,
+    series: &[StackedSeries],
+    steps: &[usize],
+    palette: &[Color32],
+    layout: &StackedLayout,
+    left: f32,
+    max_width: f32,
+) {
+    let painter = cx.ui.painter();
+    let scale = cx.scale;
+    let legend_font = cx.font(VIZ_FONT_LEGEND);
     let swatch_size = VIZ_SWATCH_SIZE * scale;
     let item_spacing = 28.0 * scale;
 
-    let legend_items: Vec<(String, egui::Color32)> = data
-        .series
+    let legend_items: Vec<(String, Color32)> = series
         .iter()
         .enumerate()
-        .filter(|(si, _)| {
-            let step = steps.get(*si).copied().unwrap_or(0);
-            step <= reveal_step
-        })
+        .filter(|(si, _)| steps.get(*si).copied().unwrap_or(0) <= cx.reveal_step)
         .map(|(si, s)| {
-            let color = Theme::with_opacity(palette[si % palette.len()], opacity);
+            let color = Theme::with_opacity(palette[si % palette.len()], cx.opacity);
             (s.label.clone(), color)
         })
         .collect();
-
-    if !legend_items.is_empty() {
-        let mut total_w = 0.0f32;
-        let galleys: Vec<_> = legend_items
-            .iter()
-            .map(|(name, color)| {
-                let g = painter.layout_no_wrap(name.clone(), legend_font.clone(), *color);
-                let w = swatch_size + 6.0 * scale + g.rect.width() + item_spacing;
-                total_w += w;
-                (g, *color)
-            })
-            .collect();
-        total_w -= item_spacing;
-
-        let legend_y = pos.y + padding / 4.0;
-        let mut lx = pos.x + (max_width - total_w) / 2.0;
-
-        for (galley, color) in galleys {
-            let swatch_rect = egui::Rect::from_min_size(
-                Pos2::new(lx, legend_y + (legend_height - swatch_size) / 2.0),
-                egui::vec2(swatch_size, swatch_size),
-            );
-            painter.rect_filled(swatch_rect, VIZ_CORNER_SWATCH * scale, color);
-            lx += swatch_size + 6.0 * scale;
-
-            let text_y = legend_y + (legend_height - galley.rect.height()) / 2.0;
-            let w = galley.rect.width();
-            let text_color = Theme::with_opacity(theme.foreground, opacity);
-            painter.galley(Pos2::new(lx, text_y), galley, text_color);
-            lx += w + item_spacing;
-        }
+    if legend_items.is_empty() {
+        return;
     }
 
-    if needs_repaint {
-        ui.ctx().request_repaint();
-    }
+    let mut total_w = 0.0f32;
+    let galleys: Vec<_> = legend_items
+        .iter()
+        .map(|(name, color)| {
+            let g = painter.layout_no_wrap(name.clone(), legend_font.clone(), *color);
+            let w = swatch_size + 6.0 * scale + g.rect.width() + item_spacing;
+            total_w += w;
+            (g, *color)
+        })
+        .collect();
+    total_w -= item_spacing;
 
-    height
+    let legend_y = layout.legend_top;
+    let legend_height = layout.legend_height;
+    let mut lx = left + (max_width - total_w) / 2.0;
+    for (galley, color) in galleys {
+        let swatch_rect = egui::Rect::from_min_size(
+            Pos2::new(lx, legend_y + (legend_height - swatch_size) / 2.0),
+            egui::vec2(swatch_size, swatch_size),
+        );
+        painter.rect_filled(swatch_rect, VIZ_CORNER_SWATCH * scale, color);
+        lx += swatch_size + 6.0 * scale;
+
+        let text_y = legend_y + (legend_height - galley.rect.height()) / 2.0;
+        let w = galley.rect.width();
+        painter.galley(Pos2::new(lx, text_y), galley, cx.fg(1.0));
+        lx += w + item_spacing;
+    }
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
@@ -470,5 +471,22 @@ mod tests {
         assert_eq!(top.se, 0);
         let inner = segment_corner_radius(8.0, false);
         assert_eq!(inner, egui::CornerRadius::ZERO);
+    }
+
+    #[test]
+    fn test_max_stack_ignores_negatives_and_gaps() {
+        let data = parse_stacked_bar("# categories: A, B\n- X: 10, -5\n- Y: 20");
+        assert_eq!(max_stack(&data.series, 2), 30.0);
+        assert_eq!(max_stack(&data.series, 0), 0.0);
+    }
+
+    #[test]
+    fn test_stacked_layout_and_slots() {
+        let l = stacked_layout(Pos2::new(0.0, 0.0), 1000.0, 500.0, 1.0, (true, true));
+        assert_eq!(l.frame.left, 60.0 + 50.0 + 25.0);
+        assert_eq!(l.frame.top, 70.0);
+        assert_eq!(l.frame.height, 500.0 - 40.0 - 60.0 - 40.0 - 30.0);
+        assert_eq!(l.legend_top, 15.0);
+        assert_eq!(stack_slots(412.0, 4, 1.0), (12.0, 88.0));
     }
 }

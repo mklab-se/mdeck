@@ -1,14 +1,13 @@
-use eframe::egui::{FontId, Pos2, Stroke};
+use eframe::egui::{Pos2, Stroke};
 
 use crate::theme::Theme;
 
 use super::{
-    VIZ_FONT_AXIS_LABEL, VIZ_FONT_GRID_LABEL, VIZ_FONT_SECONDARY_LABEL, VIZ_LABEL_REVEAL_THRESHOLD,
-    VIZ_OPACITY_AXIS, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL,
-    VIZ_SCATTER_RADIUS, VIZ_STROKE_AXIS, VIZ_STROKE_GRID, VizReveal, assign_steps,
-    draw_x_axis_label, draw_y_axis_label, format_axis_value, grid_range_values, header_directive,
-    label_fade, nice_grid_step, parse_reveal_prefix, parse_value, reveal_anim_progress,
-    strip_thousands_separators,
+    AxisTitles, PlotFrame, VIZ_FONT_GRID_LABEL, VIZ_FONT_SECONDARY_LABEL,
+    VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL,
+    VIZ_SCATTER_RADIUS, VIZ_STROKE_GRID, ValueRange, VizReveal, assign_steps, format_axis_value,
+    grid_range_values, header_directive, label_fade, nice_grid_step, parse_reveal_prefix,
+    parse_value, strip_thousands_separators,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -95,6 +94,35 @@ fn parse_scatter_plot(content: &str) -> ScatterData {
     }
 }
 
+// ─── Layout ─────────────────────────────────────────────────────────────────
+
+/// Space around the plot (multiplied by scale).
+const PADDING: f32 = 60.0;
+
+/// The span of `values` widened by a tenth on each side (a unit at least), so
+/// no point sits on the plot's edge.
+fn padded_range(values: impl Iterator<Item = f32> + Clone) -> ValueRange {
+    let min = values.clone().fold(f32::INFINITY, f32::min);
+    let max = values.fold(f32::NEG_INFINITY, f32::max);
+    let span = (max - min).max(1.0);
+    ValueRange {
+        min: min - span * 0.1,
+        max: max + span * 0.1,
+    }
+}
+
+/// The plot, with room for grid values left of and below it.
+fn scatter_frame(pos: Pos2, max_width: f32, height: f32, scale: f32) -> PlotFrame {
+    let padding = PADDING * scale;
+    let axis_label_space = 40.0 * scale;
+    PlotFrame::from_edges(
+        pos.x + padding + axis_label_space,
+        pos.y + padding,
+        pos.x + max_width - padding,
+        pos.y + height - padding - axis_label_space,
+    )
+}
+
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
 pub fn draw_scatter_plot(
@@ -104,14 +132,7 @@ pub fn draw_scatter_plot(
     max_width: f32,
     max_height: f32,
 ) -> f32 {
-    let super::VizCtx {
-        ui,
-        theme,
-        opacity,
-        scale,
-        reveal_step,
-        reveal_timestamp,
-    } = *cx;
+    let scale = cx.scale;
     let data = parse_scatter_plot(content);
     let points = &data.points;
     if points.is_empty() {
@@ -126,180 +147,93 @@ pub fn draw_scatter_plot(
 
     let reveals: Vec<VizReveal> = points.iter().map(|p| p.reveal).collect();
     let steps = assign_steps(&reveals);
-    let palette = theme.edge_palette();
-    let painter = ui.painter();
+    let palette = cx.theme.edge_palette();
 
-    // Compute data bounds
-    let x_min = points.iter().map(|p| p.x).fold(f32::INFINITY, f32::min);
-    let x_max = points.iter().map(|p| p.x).fold(f32::NEG_INFINITY, f32::max);
-    let y_min = points.iter().map(|p| p.y).fold(f32::INFINITY, f32::min);
-    let y_max = points.iter().map(|p| p.y).fold(f32::NEG_INFINITY, f32::max);
+    let x_range = padded_range(points.iter().map(|p| p.x));
+    let y_range = padded_range(points.iter().map(|p| p.y));
+    let frame = scatter_frame(pos, max_width, height, scale);
 
-    // Add some padding to data range
-    let x_range = (x_max - x_min).max(1.0);
-    let y_range = (y_max - y_min).max(1.0);
-    let data_x_min = x_min - x_range * 0.1;
-    let data_x_max = x_max + x_range * 0.1;
-    let data_y_min = y_min - y_range * 0.1;
-    let data_y_max = y_max + y_range * 0.1;
-
-    // Chart area
-    let padding = 60.0 * scale;
-    let axis_label_space = 40.0 * scale;
-    let chart_left = pos.x + padding + axis_label_space;
-    let chart_right = pos.x + max_width - padding;
-    let chart_top = pos.y + padding;
-    let chart_bottom = pos.y + height - padding - axis_label_space;
-    let chart_width = chart_right - chart_left;
-    let chart_height = chart_bottom - chart_top;
-
-    let axis_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_AXIS);
-    let grid_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
-    let grid_font = FontId::new(
-        theme.body_size * VIZ_FONT_GRID_LABEL * scale,
-        theme.body_family(),
+    frame.draw_x_axis(cx);
+    frame.draw_y_axis(cx);
+    draw_x_grid(cx, &frame, x_range);
+    let y_step = nice_grid_step(y_range.max - y_range.min, 5);
+    frame.draw_y_grid(
+        cx,
+        grid_range_values(y_range.min, y_range.max, y_step),
+        y_range,
+        y_step,
+        false,
     );
-    let label_font = FontId::new(
-        theme.body_size * VIZ_FONT_SECONDARY_LABEL * scale,
-        theme.body_family(),
+    frame.draw_titles(
+        cx,
+        &AxisTitles {
+            x: data.x_label.as_deref(),
+            x_top: frame.bottom + 28.0 * scale,
+            y: data.y_label.as_deref(),
+            y_left: pos.x + PADDING * scale * 0.3,
+        },
     );
 
-    // Draw axes
-    painter.line_segment(
-        [
-            Pos2::new(chart_left, chart_bottom),
-            Pos2::new(chart_right, chart_bottom),
-        ],
-        Stroke::new(VIZ_STROKE_AXIS * scale, axis_color),
-    );
-    painter.line_segment(
-        [
-            Pos2::new(chart_left, chart_top),
-            Pos2::new(chart_left, chart_bottom),
-        ],
-        Stroke::new(VIZ_STROKE_AXIS * scale, axis_color),
-    );
-
-    // X-axis grid lines
-    let x_step = nice_grid_step(data_x_max - data_x_min, 5);
-    let grid_label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
-    for gx in grid_range_values(data_x_min, data_x_max, x_step) {
-        let frac = (gx - data_x_min) / (data_x_max - data_x_min);
-        let px = chart_left + frac * chart_width;
-        painter.line_segment(
-            [Pos2::new(px, chart_top), Pos2::new(px, chart_bottom)],
-            Stroke::new(VIZ_STROKE_GRID * scale, grid_color),
-        );
-        let label = format_axis_value(gx, x_step);
-        let galley = painter.layout_no_wrap(label, grid_font.clone(), grid_label_color);
-        painter.galley(
-            Pos2::new(px - galley.rect.width() / 2.0, chart_bottom + 6.0 * scale),
-            galley,
-            grid_label_color,
-        );
-    }
-
-    // Y-axis grid lines
-    let y_step = nice_grid_step(data_y_max - data_y_min, 5);
-    for gy in grid_range_values(data_y_min, data_y_max, y_step) {
-        let frac = (gy - data_y_min) / (data_y_max - data_y_min);
-        let py = chart_bottom - frac * chart_height;
-        painter.line_segment(
-            [Pos2::new(chart_left, py), Pos2::new(chart_right, py)],
-            Stroke::new(VIZ_STROKE_GRID * scale, grid_color),
-        );
-        let label = format_axis_value(gy, y_step);
-        let galley = painter.layout_no_wrap(label, grid_font.clone(), grid_label_color);
-        painter.galley(
-            Pos2::new(
-                chart_left - galley.rect.width() - 8.0 * scale,
-                py - galley.rect.height() / 2.0,
-            ),
-            galley,
-            grid_label_color,
-        );
-    }
-
-    // Draw axis labels
-    let axis_label_font = FontId::new(
-        theme.body_size * VIZ_FONT_AXIS_LABEL * scale,
-        theme.body_family(),
-    );
-    let axis_label_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
-
-    if let Some(ref text) = data.x_label {
-        draw_x_axis_label(
-            painter,
-            text,
-            axis_label_font.clone(),
-            axis_label_color,
-            chart_left,
-            chart_width,
-            chart_bottom + 28.0 * scale,
-        );
-    }
-    if let Some(ref text) = data.y_label {
-        draw_y_axis_label(
-            painter,
-            text,
-            axis_label_font,
-            axis_label_color,
-            pos.x + padding * 0.3,
-            chart_top,
-            chart_height,
-        );
-    }
-
-    // Draw data points
-    let mut needs_repaint = false;
+    // Data points
+    let painter = cx.ui.painter();
+    let label_font = cx.font(VIZ_FONT_SECONDARY_LABEL);
     let default_radius = VIZ_SCATTER_RADIUS * scale;
-
     for (i, point) in points.iter().enumerate() {
         let step = steps.get(i).copied().unwrap_or(0);
-        if step > reveal_step {
+        if step > cx.reveal_step {
             continue;
         }
-
-        let (anim, repaint) = reveal_anim_progress(step, reveal_step, reveal_timestamp);
-        if repaint {
-            needs_repaint = true;
-        }
-
-        let fx = (point.x - data_x_min) / (data_x_max - data_x_min);
-        let fy = (point.y - data_y_min) / (data_y_max - data_y_min);
-        let px = chart_left + fx * chart_width;
-        let py = chart_bottom - fy * chart_height;
-
+        let anim = cx.anim(step);
+        let center = Pos2::new(frame.x_at(point.x, x_range), frame.y_at(point.y, y_range));
         let radius = point.size.map_or(default_radius, |s| s * scale * 0.5) * anim;
-        let color = Theme::with_opacity(palette[i % palette.len()], opacity * theme.fill_opacity());
 
-        painter.circle_filled(Pos2::new(px, py), radius, color);
-        crate::render::hints::push(
-            ui.ctx(),
-            crate::render::hints::Hint::Point(Pos2::new(px, py)),
-        );
+        painter.circle_filled(center, radius, cx.fill(&palette, i));
+        crate::render::hints::push(cx.ui.ctx(), crate::render::hints::Hint::Point(center));
 
         // Label near the dot
         if anim > VIZ_LABEL_REVEAL_THRESHOLD {
             let label_color = Theme::with_opacity(
-                theme.foreground,
-                opacity * VIZ_OPACITY_LABEL * label_fade(anim),
+                cx.theme.foreground,
+                cx.opacity * VIZ_OPACITY_LABEL * label_fade(anim),
             );
             let galley =
                 painter.layout_no_wrap(point.label.clone(), label_font.clone(), label_color);
             painter.galley(
-                Pos2::new(px + radius + 4.0 * scale, py - galley.rect.height() / 2.0),
+                Pos2::new(
+                    center.x + radius + 4.0 * scale,
+                    center.y - galley.rect.height() / 2.0,
+                ),
                 galley,
                 label_color,
             );
         }
     }
 
-    if needs_repaint {
-        ui.ctx().request_repaint();
-    }
-
     height
+}
+
+/// Vertical grid lines across `range`, each labelled below the plot.
+fn draw_x_grid(cx: &super::VizCtx, frame: &PlotFrame, range: ValueRange) {
+    let painter = cx.ui.painter();
+    let scale = cx.scale;
+    let grid_color = cx.fg(VIZ_OPACITY_GRID);
+    let grid_font = cx.font(VIZ_FONT_GRID_LABEL);
+    let grid_label_color = cx.fg(VIZ_OPACITY_GRID_LABEL);
+    let x_step = nice_grid_step(range.max - range.min, 5);
+    for gx in grid_range_values(range.min, range.max, x_step) {
+        let px = frame.x_at(gx, range);
+        painter.line_segment(
+            [Pos2::new(px, frame.top), Pos2::new(px, frame.bottom)],
+            Stroke::new(VIZ_STROKE_GRID * scale, grid_color),
+        );
+        let label = format_axis_value(gx, x_step);
+        let galley = painter.layout_no_wrap(label, grid_font.clone(), grid_label_color);
+        painter.galley(
+            Pos2::new(px - galley.rect.width() / 2.0, frame.bottom + 6.0 * scale),
+            galley,
+            grid_label_color,
+        );
+    }
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
@@ -377,5 +311,23 @@ mod tests {
         let data = parse_scatter_plot("#x-label: Hours\n#y-label: Score\n- A: 1, 2");
         assert_eq!(data.x_label.as_deref(), Some("Hours"));
         assert_eq!(data.y_label.as_deref(), Some("Score"));
+    }
+
+    #[test]
+    fn test_padded_range_widens_by_a_tenth() {
+        let r = padded_range([10.0, 30.0].into_iter());
+        assert_eq!((r.min, r.max), (8.0, 32.0));
+        // A single value still gets a unit-wide span around it
+        let r = padded_range([5.0].into_iter());
+        assert_eq!((r.min, r.max), (4.9, 5.1));
+    }
+
+    #[test]
+    fn test_scatter_frame_leaves_room_for_grid_values() {
+        let f = scatter_frame(Pos2::new(0.0, 0.0), 1000.0, 600.0, 1.0);
+        assert_eq!(
+            (f.left, f.top, f.right, f.bottom),
+            (100.0, 60.0, 940.0, 500.0)
+        );
     }
 }

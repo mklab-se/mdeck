@@ -1,12 +1,13 @@
 use std::time::Instant;
 
-use eframe::egui::{self, Color32, Pos2};
+use eframe::egui::{self, Color32, FontId, Pos2};
 
 use crate::parser::Chart;
 use crate::theme::Theme;
 
 mod axis;
 mod fit;
+mod frame;
 mod legend;
 mod reveal;
 mod values;
@@ -30,6 +31,7 @@ pub mod word_cloud;
 
 pub use axis::*;
 pub use fit::*;
+pub use frame::*;
 pub use legend::*;
 pub use reveal::*;
 pub use values::*;
@@ -46,6 +48,39 @@ pub struct VizCtx<'a> {
     /// When the latest step was revealed (animates it in); `None` draws it
     /// settled.
     pub reveal_timestamp: Option<Instant>,
+}
+
+impl VizCtx<'_> {
+    /// The body font at `size` times the body size, scaled.
+    pub fn font(&self, size: f32) -> FontId {
+        FontId::new(
+            self.theme.body_size * size * self.scale,
+            self.theme.body_family(),
+        )
+    }
+
+    /// The foreground colour at `alpha` of the chart's opacity.
+    pub fn fg(&self, alpha: f32) -> Color32 {
+        Theme::with_opacity(self.theme.foreground, self.opacity * alpha)
+    }
+
+    /// Palette colour `i` at the theme's fill opacity.
+    pub fn fill(&self, palette: &[Color32], i: usize) -> Color32 {
+        Theme::with_opacity(
+            palette[i % palette.len()],
+            self.opacity * self.theme.fill_opacity(),
+        )
+    }
+
+    /// Reveal progress (0 to 1) of an item shown at `step`, asking for another
+    /// frame while it is still animating.
+    pub fn anim(&self, step: usize) -> f32 {
+        let (anim, repaint) = reveal_anim_progress(step, self.reveal_step, self.reveal_timestamp);
+        if repaint {
+            self.ui.ctx().request_repaint();
+        }
+        anim
+    }
 }
 
 /// Draw `kind` at `pos` within `max_width` by `max_height` (`0.0`: as tall as

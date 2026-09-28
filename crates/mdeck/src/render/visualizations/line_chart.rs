@@ -1,13 +1,10 @@
-use eframe::egui::{FontId, Pos2, Stroke};
-
-use crate::theme::Theme;
+use eframe::egui::{Color32, Pos2, Stroke};
 
 use super::{
-    VIZ_DOT_RADIUS, VIZ_FONT_AXIS_LABEL, VIZ_FONT_GRID_LABEL, VIZ_FONT_LEGEND, VIZ_OPACITY_AXIS,
-    VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_STROKE_AXIS, VIZ_STROKE_DATA_LINE,
-    VIZ_STROKE_GRID, VIZ_SWATCH_SIZE, VizReveal, assign_steps, draw_x_axis_label,
-    draw_y_axis_label, format_axis_value, grid_values, header_directive, label_stride,
-    nice_axis_max, nice_grid_step, parse_label_values, parse_reveal_prefix, reveal_anim_progress,
+    AxisTitles, PlotFrame, VIZ_DOT_RADIUS, VIZ_FONT_GRID_LABEL, VIZ_FONT_LEGEND,
+    VIZ_STROKE_DATA_LINE, VIZ_SWATCH_SIZE, ValueRange, VizReveal, assign_steps, grid_values,
+    header_directive, label_stride, nice_axis_max, nice_grid_step, parse_label_values,
+    parse_reveal_prefix,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -74,6 +71,87 @@ fn parse_line_chart(content: &str) -> LineChartData {
     }
 }
 
+// ─── Layout ─────────────────────────────────────────────────────────────────
+
+/// Where the line chart's parts go.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct LineLayout {
+    frame: PlotFrame,
+    legend_left: f32,
+    titles_x_top: f32,
+    titles_y_left: f32,
+}
+
+/// Place the plot, leaving room for grid values and the y title on the left,
+/// category labels and the x title below and the legend on the right.
+fn line_layout(
+    pos: Pos2,
+    max_width: f32,
+    height: f32,
+    scale: f32,
+    titles: (bool, bool),
+) -> LineLayout {
+    let (has_x_title, has_y_title) = titles;
+    let padding = 60.0 * scale;
+    let label_area = 50.0 * scale; // space for x-axis labels below
+    let legend_width = 200.0 * scale;
+    let y_axis_label_width = 60.0 * scale;
+    let y_label_space = if has_y_title { 25.0 * scale } else { 0.0 };
+    let x_label_space = if has_x_title { 30.0 * scale } else { 0.0 };
+    let chart_left = pos.x + padding + y_axis_label_width + y_label_space;
+    let chart_top = pos.y + padding;
+    let chart_width = max_width - padding * 2.0 - y_axis_label_width - y_label_space - legend_width;
+    let chart_height = height - padding * 2.0 - label_area - x_label_space;
+    let frame = PlotFrame::from_size(chart_left, chart_top, chart_width, chart_height);
+    LineLayout {
+        frame,
+        legend_left: pos.x + max_width - legend_width,
+        titles_x_top: frame.bottom + label_area + 4.0 * scale,
+        titles_y_left: pos.x + padding * 0.3,
+    }
+}
+
+/// X of data point `i` when `max_points` points span the plot's width.
+fn point_x(frame: &PlotFrame, i: usize, max_points: usize) -> f32 {
+    frame.left + (i as f32 / (max_points - 1).max(1) as f32) * frame.width
+}
+
+/// Screen positions of a series' values. Negative values sit on the axis
+/// rather than below the chart.
+fn series_points(
+    values: &[f32],
+    frame: &PlotFrame,
+    max_points: usize,
+    range: ValueRange,
+) -> Vec<Pos2> {
+    values
+        .iter()
+        .enumerate()
+        .map(|(i, &v)| Pos2::new(point_x(frame, i, max_points), frame.y_at(v.max(0.0), range)))
+        .collect()
+}
+
+/// The segments of the polyline through `points` left of `clip_x`, the last
+/// one cut at `clip_x`, so a line draws in from left to right.
+fn clipped_segments(points: &[Pos2], clip_x: f32) -> Vec<[Pos2; 2]> {
+    let mut segments = Vec::new();
+    for pair in points.windows(2) {
+        let (p1, p2) = (pair[0], pair[1]);
+        if p1.x > clip_x {
+            break;
+        }
+        let end = if p2.x > clip_x {
+            // Interpolate to clip boundary
+            let t = (clip_x - p1.x) / (p2.x - p1.x);
+            Pos2::new(clip_x, p1.y + t * (p2.y - p1.y))
+        } else {
+            p2
+        };
+        segments.push([p1, end]);
+    }
+    segments
+}
+
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
 pub fn draw_line_chart(
@@ -83,16 +161,8 @@ pub fn draw_line_chart(
     max_width: f32,
     max_height: f32,
 ) -> f32 {
-    let super::VizCtx {
-        ui,
-        theme,
-        opacity,
-        scale,
-        reveal_step,
-        reveal_timestamp,
-    } = *cx;
+    let scale = cx.scale;
     let data = parse_line_chart(content);
-    let x_labels = &data.x_labels;
     let series = &data.series;
     if series.is_empty() {
         return 0.0;
@@ -106,8 +176,7 @@ pub fn draw_line_chart(
 
     let reveals: Vec<VizReveal> = series.iter().map(|s| s.reveal).collect();
     let steps = assign_steps(&reveals);
-    let palette = theme.edge_palette();
-    let painter = ui.painter();
+    let palette = cx.theme.edge_palette();
 
     // Find global max value across all series
     let max_value = series
@@ -119,7 +188,7 @@ pub fn draw_line_chart(
         return height;
     }
     // Scale the axis to a round number so the top grid line sits above the data
-    let max_value = nice_axis_max(max_value, 5);
+    let range = ValueRange::to(nice_axis_max(max_value, 5));
 
     // Find max number of data points
     let max_points = series.iter().map(|s| s.values.len()).max().unwrap_or(0);
@@ -127,83 +196,60 @@ pub fn draw_line_chart(
         return height;
     }
 
-    // Layout
-    let padding = 60.0 * scale;
-    let label_area = 50.0 * scale; // space for x-axis labels below
-    let legend_width = 200.0 * scale;
-    let y_axis_label_width = 60.0 * scale;
-    let y_label_space = if data.y_label.is_some() {
-        25.0 * scale
-    } else {
-        0.0
-    };
-    let x_label_space = if data.x_label.is_some() {
-        30.0 * scale
-    } else {
-        0.0
-    };
-    let chart_left = pos.x + padding + y_axis_label_width + y_label_space;
-    let chart_top = pos.y + padding;
-    let chart_width = max_width - padding * 2.0 - y_axis_label_width - y_label_space - legend_width;
-    let chart_height = height - padding * 2.0 - label_area - x_label_space;
-    let chart_bottom = chart_top + chart_height;
+    let titles = (data.x_label.is_some(), data.y_label.is_some());
+    let layout = line_layout(pos, max_width, height, scale, titles);
+    let frame = layout.frame;
 
-    // Draw grid lines with nice numbers
-    let grid_step = nice_grid_step(max_value, 5);
-    let grid_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
-    let grid_font = FontId::new(
-        theme.body_size * VIZ_FONT_GRID_LABEL * scale,
-        theme.body_family(),
+    // Grid lines with nice numbers, then the axes
+    let grid_step = nice_grid_step(range.max, 5);
+    frame.draw_y_grid(
+        cx,
+        grid_values(range.max, grid_step),
+        range,
+        grid_step,
+        true,
     );
-    let grid_label_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID_LABEL);
+    frame.draw_x_axis(cx);
+    frame.draw_y_axis(cx);
 
-    for grid_val in std::iter::once(0.0).chain(grid_values(max_value, grid_step)) {
-        let frac = grid_val / max_value;
-        let gy = chart_bottom - frac * chart_height;
-        if grid_val > 0.0 {
-            painter.line_segment(
-                [
-                    Pos2::new(chart_left, gy),
-                    Pos2::new(chart_left + chart_width, gy),
-                ],
-                Stroke::new(VIZ_STROKE_GRID * scale, grid_color),
-            );
+    draw_x_labels(cx, &data.x_labels, &frame, max_points);
+
+    for (si, s) in series.iter().enumerate() {
+        let step = steps.get(si).copied().unwrap_or(0);
+        if step > cx.reveal_step || s.values.is_empty() {
+            continue;
         }
-        let label = format_axis_value(grid_val, grid_step);
-        let galley = painter.layout_no_wrap(label, grid_font.clone(), grid_label_color);
-        painter.galley(
-            Pos2::new(
-                chart_left - galley.rect.width() - 8.0 * scale,
-                gy - galley.rect.height() / 2.0,
-            ),
-            galley,
-            grid_label_color,
+        let anim = cx.anim(step);
+        let points = series_points(&s.values, &frame, max_points, range);
+        draw_series(
+            cx,
+            &points,
+            cx.fill(&palette, si),
+            frame.left + anim * frame.width,
         );
     }
 
-    // Draw axes
-    let axis_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_AXIS);
-    painter.line_segment(
-        [
-            Pos2::new(chart_left, chart_bottom),
-            Pos2::new(chart_left + chart_width, chart_bottom),
-        ],
-        Stroke::new(VIZ_STROKE_AXIS * scale, axis_color),
-    );
-    painter.line_segment(
-        [
-            Pos2::new(chart_left, chart_top),
-            Pos2::new(chart_left, chart_bottom),
-        ],
-        Stroke::new(VIZ_STROKE_AXIS * scale, axis_color),
+    frame.draw_titles(
+        cx,
+        &AxisTitles {
+            x: data.x_label.as_deref(),
+            x_top: layout.titles_x_top,
+            y: data.y_label.as_deref(),
+            y_left: layout.titles_y_left,
+        },
     );
 
-    // Draw x-axis labels, thinning them out when they would overlap
-    let x_label_font = FontId::new(
-        theme.body_size * VIZ_FONT_GRID_LABEL * scale,
-        theme.body_family(),
-    );
-    let x_label_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
+    draw_legend(cx, series, &steps, &palette, layout.legend_left, frame.top);
+
+    height
+}
+
+/// Category labels under the x axis, thinned out when they would overlap.
+fn draw_x_labels(cx: &super::VizCtx, x_labels: &[String], frame: &PlotFrame, max_points: usize) {
+    let painter = cx.ui.painter();
+    let scale = cx.scale;
+    let x_label_font = cx.font(VIZ_FONT_GRID_LABEL);
+    let x_label_color = cx.fg(0.7);
     let x_galleys: Vec<_> = x_labels
         .iter()
         .take(max_points)
@@ -213,153 +259,75 @@ pub fn draw_line_chart(
         .iter()
         .map(|g| g.rect.width())
         .fold(0.0f32, f32::max);
-    let slot_width = chart_width / (max_points - 1).max(1) as f32;
+    let slot_width = frame.width / (max_points - 1).max(1) as f32;
     let stride = label_stride(widest + 12.0 * scale, slot_width);
     for (i, galley) in x_galleys.into_iter().enumerate() {
         if i % stride != 0 {
             continue;
         }
-        let x = chart_left + (i as f32 / (max_points - 1).max(1) as f32) * chart_width;
+        let x = point_x(frame, i, max_points);
         painter.galley(
-            Pos2::new(x - galley.rect.width() / 2.0, chart_bottom + 8.0 * scale),
+            Pos2::new(x - galley.rect.width() / 2.0, frame.bottom + 8.0 * scale),
             galley,
             x_label_color,
         );
     }
+}
 
-    // Draw series lines
-    let mut needs_repaint = false;
+/// One series' line and dots, drawn up to `clip_x`.
+fn draw_series(cx: &super::VizCtx, points: &[Pos2], color: Color32, clip_x: f32) {
+    let painter = cx.ui.painter();
+    let scale = cx.scale;
+    for segment in clipped_segments(points, clip_x) {
+        painter.line_segment(segment, Stroke::new(VIZ_STROKE_DATA_LINE * scale, color));
+    }
+
+    // Dots at data points (only those within clip range)
+    let dot_radius = VIZ_DOT_RADIUS * scale;
+    for &pt in points {
+        if pt.x > clip_x + 0.5 {
+            break;
+        }
+        painter.circle_filled(pt, dot_radius, color);
+    }
+    crate::render::hints::push(
+        cx.ui.ctx(),
+        crate::render::hints::Hint::Path(
+            points
+                .iter()
+                .copied()
+                .filter(|p| p.x <= clip_x + 0.5)
+                .collect(),
+        ),
+    );
+}
+
+/// The legend at the top right: a line swatch and the name of each shown
+/// series.
+fn draw_legend(
+    cx: &super::VizCtx,
+    series: &[LineSeries],
+    steps: &[usize],
+    palette: &[Color32],
+    legend_x: f32,
+    legend_start_y: f32,
+) {
+    let painter = cx.ui.painter();
+    let scale = cx.scale;
+    let legend_font = cx.font(VIZ_FONT_LEGEND);
+    let legend_item_height = 32.0 * scale;
+    let swatch_width = VIZ_SWATCH_SIZE * scale;
     let dot_radius = VIZ_DOT_RADIUS * scale;
 
     for (si, s) in series.iter().enumerate() {
         let step = steps.get(si).copied().unwrap_or(0);
-        if step > reveal_step {
-            continue;
-        }
-
-        let (anim, repaint) = reveal_anim_progress(step, reveal_step, reveal_timestamp);
-        if repaint {
-            needs_repaint = true;
-        }
-
-        let color =
-            Theme::with_opacity(palette[si % palette.len()], opacity * theme.fill_opacity());
-        let n_points = s.values.len();
-        if n_points == 0 {
-            continue;
-        }
-
-        // Compute data point positions
-        let points: Vec<Pos2> = s
-            .values
-            .iter()
-            .enumerate()
-            .map(|(i, &v)| {
-                let x = chart_left + (i as f32 / (max_points - 1).max(1) as f32) * chart_width;
-                // Negative values sit on the axis rather than below the chart
-                let y = chart_bottom - (v.max(0.0) / max_value) * chart_height;
-                Pos2::new(x, y)
-            })
-            .collect();
-
-        // Clip line drawing by anim_progress * total_width
-        let clip_x = chart_left + anim * chart_width;
-
-        // Draw line segments
-        for i in 0..points.len() - 1 {
-            let p1 = points[i];
-            let p2 = points[i + 1];
-
-            if p1.x > clip_x {
-                break;
-            }
-
-            let draw_p2 = if p2.x > clip_x {
-                // Interpolate to clip boundary
-                let t = (clip_x - p1.x) / (p2.x - p1.x);
-                Pos2::new(clip_x, p1.y + t * (p2.y - p1.y))
-            } else {
-                p2
-            };
-
-            painter.line_segment(
-                [p1, draw_p2],
-                Stroke::new(VIZ_STROKE_DATA_LINE * scale, color),
-            );
-        }
-
-        // Draw dots at data points (only those within clip range)
-        for &pt in &points {
-            if pt.x > clip_x + 0.5 {
-                break;
-            }
-            painter.circle_filled(pt, dot_radius, color);
-        }
-        crate::render::hints::push(
-            ui.ctx(),
-            crate::render::hints::Hint::Path(
-                points
-                    .iter()
-                    .copied()
-                    .filter(|p| p.x <= clip_x + 0.5)
-                    .collect(),
-            ),
-        );
-    }
-
-    // Axis labels
-    let axis_label_font = FontId::new(
-        theme.body_size * VIZ_FONT_AXIS_LABEL * scale,
-        theme.body_family(),
-    );
-    let axis_label_color = Theme::with_opacity(theme.foreground, opacity * 0.7);
-    if let Some(ref text) = data.x_label {
-        draw_x_axis_label(
-            painter,
-            text,
-            axis_label_font.clone(),
-            axis_label_color,
-            chart_left,
-            chart_width,
-            chart_bottom + label_area + 4.0 * scale,
-        );
-    }
-    if let Some(ref text) = data.y_label {
-        draw_y_axis_label(
-            painter,
-            text,
-            axis_label_font,
-            axis_label_color,
-            pos.x + padding * 0.3,
-            chart_top,
-            chart_height,
-        );
-    }
-
-    if needs_repaint {
-        ui.ctx().request_repaint();
-    }
-
-    // Draw legend at top-right
-    let legend_x = pos.x + max_width - legend_width;
-    let legend_font = FontId::new(
-        theme.body_size * VIZ_FONT_LEGEND * scale,
-        theme.body_family(),
-    );
-    let legend_item_height = 32.0 * scale;
-    let legend_start_y = chart_top;
-    let swatch_width = VIZ_SWATCH_SIZE * scale;
-
-    for (si, s) in series.iter().enumerate() {
-        let step = steps.get(si).copied().unwrap_or(0);
-        if step > reveal_step {
+        if step > cx.reveal_step {
             continue;
         }
 
         let ly = legend_start_y + si as f32 * legend_item_height;
-        let color =
-            Theme::with_opacity(palette[si % palette.len()], opacity * theme.fill_opacity());
-        let text_color = Theme::with_opacity(theme.foreground, opacity);
+        let color = cx.fill(palette, si);
+        let text_color = cx.fg(1.0);
 
         // Color swatch (line style)
         let swatch_y = ly + legend_item_height / 2.0;
@@ -387,8 +355,6 @@ pub fn draw_line_chart(
             text_color,
         );
     }
-
-    height
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
@@ -459,5 +425,45 @@ mod tests {
         assert_eq!(data.series[0].values, vec![1000.0, 2000.0, 3500.0]);
         let data = parse_line_chart("- Costs: $80, $90, $120");
         assert_eq!(data.series[0].values, vec![80.0, 90.0, 120.0]);
+    }
+
+    #[test]
+    fn test_line_layout_reserves_title_space() {
+        let pos = Pos2::new(0.0, 0.0);
+        let plain = line_layout(pos, 1600.0, 800.0, 1.0, (false, false));
+        assert_eq!(plain.frame.left, 120.0);
+        assert_eq!(plain.frame.width, 1600.0 - 120.0 - 60.0 - 200.0);
+        assert_eq!(plain.frame.height, 800.0 - 120.0 - 50.0);
+        assert_eq!(plain.legend_left, 1400.0);
+        let titled = line_layout(pos, 1600.0, 800.0, 1.0, (true, true));
+        assert_eq!(titled.frame.left, plain.frame.left + 25.0);
+        assert_eq!(titled.frame.height, plain.frame.height - 30.0);
+    }
+
+    #[test]
+    fn test_series_points_span_the_frame() {
+        let frame = PlotFrame::from_size(0.0, 0.0, 100.0, 50.0);
+        let points = series_points(&[0.0, 10.0, -5.0], &frame, 3, ValueRange::to(10.0));
+        assert_eq!(
+            points,
+            vec![
+                Pos2::new(0.0, 50.0),
+                Pos2::new(50.0, 0.0),
+                Pos2::new(100.0, 50.0)
+            ]
+        );
+    }
+
+    #[test]
+    fn test_clipped_segments_cut_at_clip() {
+        let points = [
+            Pos2::new(0.0, 0.0),
+            Pos2::new(10.0, 10.0),
+            Pos2::new(20.0, 0.0),
+        ];
+        assert_eq!(clipped_segments(&points, 30.0).len(), 2);
+        let cut = clipped_segments(&points, 5.0);
+        assert_eq!(cut, vec![[Pos2::new(0.0, 0.0), Pos2::new(5.0, 5.0)]]);
+        assert!(clipped_segments(&points, -1.0).is_empty());
     }
 }
