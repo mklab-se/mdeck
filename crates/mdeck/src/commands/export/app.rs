@@ -81,7 +81,7 @@ pub(super) struct ExportApp {
     /// Theme notes pages are printed in.
     notes_theme: Theme,
     /// The logo on every slide page.
-    logo: Option<render::logo::Logo>,
+    logos: render::logo::Logos,
 }
 
 impl ExportApp {
@@ -132,12 +132,12 @@ impl ExportApp {
             eprintln!("  {total} reveal steps in total (story beats included)");
         }
         let illustrations = render::illustration::Library::for_deck(deck.parent());
-        let (logo, problems) = render::logo::resolve(&theme, &presentation.meta, base_path);
+        let (logos, problems) = render::logo::resolve_slides(&theme, &presentation, base_path);
         for p in &problems {
             eprintln!("warning: theme: {p}");
         }
         Self {
-            logo,
+            logos,
             presentation,
             theme,
             image_cache,
@@ -391,7 +391,7 @@ impl ExportApp {
             scale,
             &cx,
         );
-        if let Some(logo) = &self.logo {
+        if let Some(logo) = self.logos.get(idx) {
             render::logo::draw(ui.painter(), rect, logo, scale, 1.0);
         }
     }

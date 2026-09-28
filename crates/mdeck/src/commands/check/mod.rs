@@ -5,7 +5,9 @@ use crate::parser;
 use crate::render;
 
 mod content;
+mod directives;
 pub use content::{cjk_font_warning, math_warnings, warn_missing_cjk_font};
+pub use directives::directive_warnings;
 
 pub fn run(file: PathBuf, verbose: u8, quiet: bool) -> anyhow::Result<()> {
     let content = std::fs::read_to_string(&file)?;
@@ -102,6 +104,9 @@ pub fn run(file: PathBuf, verbose: u8, quiet: bool) -> anyhow::Result<()> {
     if let Some(w) = cjk_font_warning(&presentation, render::fonts::cjk_coverage()) {
         report.add(w);
     }
+    for w in directive_warnings(&presentation) {
+        report.add(w);
+    }
     for w in math_warnings(&presentation) {
         report.add(w);
     }
@@ -161,12 +166,12 @@ pub fn theme_warnings(
         }
     };
     // The deck's own logo keys, and whether the logo file can be drawn.
-    let (logo, problems) = crate::render::logo::resolve(&theme, &presentation.meta, base);
+    let (logos, problems) = crate::render::logo::resolve_slides(&theme, presentation, base);
     out.extend(problems.into_iter().map(warn));
-    if let Some(logo) = logo
-        && let Err(e) = crate::render::logo::load_image(&logo.path)
-    {
-        out.push(warn(format!("logo: {e}")));
+    for logo in logos.distinct() {
+        if let Err(e) = crate::render::logo::load_image(&logo.path) {
+            out.push(warn(format!("logo: {e}")));
+        }
     }
     out
 }
@@ -389,6 +394,7 @@ mod tests {
             story_hint: None,
             scene_script: None,
             illustration: None,
+            logo: None,
         }
     }
 

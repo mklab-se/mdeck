@@ -60,7 +60,7 @@ date: 2026-02-28
 | `@image-style` | string | none      | Default AI image generation style (name or description) |
 | `@icon-style`  | string | none      | Default AI icon generation style (name or description)  |
 | `@slide-level` | integer | (inferred) | Heading level that triggers slide breaks (1–6). E.g., `2` means H1 and H2 both split. When omitted, inferred from content. |
-| `@logo`        | string | (theme's)  | A PNG or SVG shown in a corner of every slide, relative to the deck; `none` hides the theme's logo (section 9.5) |
+| `@logo`        | string | (theme's)  | A PNG or SVG shown in a corner of every slide, relative to the deck; `none` hides the theme's logo. A slide's own `@logo` overrides it there (section 9.5) |
 | `@logo-position` | string | `top-right` | `top-left`, `top-right`, `bottom-left`, `bottom-right` |
 | `@logo-opacity` | number | `0.6` | 0 to 1, or a percentage (`40%`) |
 | `@logo-height` | number | `56` | Height in px on a 1920x1080 slide (8 to 400) |
@@ -123,7 +123,7 @@ Headings start new slides when the current slide already has content. Which head
 
 1. **Explicit:** Set `@slide-level: N` in frontmatter. Headings at level 1 through N all trigger splits.
 2. **Inferred:** If `@slide-level` is not set:
-   - **Single H1 (or no H1):** Infer slide level 2 — both `#` and `##` trigger splits. This handles "proper" markdown files where H1 is the title and H2s are sections. An H2 that directly follows an H1 (nothing but blank lines between them) stays on the same slide and becomes its subtitle, giving a title slide.
+   - **Single H1 (or no H1):** Infer slide level 2: both `#` and `##` trigger splits. This handles "proper" markdown files where H1 is the title and H2s are sections. An H2 that directly follows an H1 (nothing but blank lines between them) and has no content of its own (the next thing after it is another heading, a `---`, or the end of the file) stays on the same slide and becomes its subtitle, giving a title slide. An H2 followed by its own paragraphs, lists or other blocks is a section and starts its own slide, so a README shaped `# Title` + `## Section` + content gets a title slide and one slide per section.
    - **Multiple H1s:** Infer slide level 1 — only `#` triggers splits.
 
 Separators (`---`, blank-line gaps, headings) inside fenced code blocks never split a slide.
@@ -305,9 +305,8 @@ pub struct Pool {
 When inference produces the wrong result, force a layout with the `@layout` directive:
 
 ```markdown
-@layout: two-column
-
 # Comparison
+@layout: two-column
 
 Left column content...
 
@@ -573,17 +572,39 @@ Directives use the `@` prefix. They come in two forms:
 
 ### 7.1 Block directives
 
-A standalone line at the beginning of a slide (before any content):
+A line holding only `@name: value`. Write slide directives directly under the
+slide's heading:
 
 ```markdown
-@theme: dark
-@transition: fade
+# Compare
 @layout: two-column
+@illustration: server
+
+Left side
+
++++
+
+Right side
 ```
 
 **Syntax:** `@name: value`
 
-Block directives at the start of a slide apply to that slide. In the frontmatter, they apply globally.
+In the frontmatter, directives apply to the whole deck. Inside a slide, a
+**slide directive** (`@layout`, `@illustration`, `@logo`) applies to the slide
+it is written in, wherever it stands at the top level of that slide: under the
+heading, at the start of the slide, or further down. It is removed from the
+slide's content. It is not recognised inside a list item, a blockquote, an
+indented block or a code block. Directive lines directly above a heading that
+starts a slide (only blank lines in between) belong to that heading's slide,
+so `@layout: two-column` written on the line before `# Compare` also works.
+`---` is never needed for a directive. If a slide directive is written twice
+on one slide, the last one wins.
+
+Only known names are directives past the start of a slide, so prose such as
+`@team: see you at five` stays text. `mdeck --check` warns about unknown names
+(with a "did you mean"), directives that were not applied because of where
+they stand, deck directives such as `@theme` inside a slide (ignored there),
+and duplicates.
 
 ### 7.2 Fenced directives
 
@@ -608,7 +629,7 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 | `@slide-level` | global         | `1`–`6`                                   | inferred       |
 | `@image-style` | global         | style name or description                 | none           |
 | `@icon-style`  | global         | style name or description                 | none           |
-| `@logo`        | global         | PNG or SVG path, or `none` (section 9.5)  | the theme's    |
+| `@logo`        | global, slide  | PNG or SVG path, or `none` (section 9.5)  | the theme's    |
 | `@logo-position` / `@logo-opacity` / `@logo-height` | global | see section 9.5 | the theme's |
 
 **Reserved directives** are parsed and accepted but not applied yet:
@@ -616,7 +637,8 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 `@theme` / `@transition`. Using them is harmless; they are listed in
 `BACKLOG.md` as candidates for a future release.
 
-**Unknown directives** are ignored. They are not rendered as content.
+**Unknown directives** at the start of a slide are ignored and not rendered.
+Further down a slide they stay text (see 7.1); `--check` reports likely typos.
 
 ---
 
@@ -845,9 +867,8 @@ points the particles settle into. Ask for one on a slide with a block
 directive:
 
 ```markdown
-@illustration: server
-
 ## Our new server
+@illustration: server
 
 - 5 TB of RAM
 - 100 cores
@@ -1205,9 +1226,22 @@ theme, or replace or hide the theme's:
 ```
 
 The deck's keys override the theme's one by one, so `@logo-opacity` alone
-tones down a theme's logo. `@logo: none` hides it. Use a light logo on dark
-themes and a dark one on light themes. A missing or unreadable file is
-reported by `--check` and the slides show no logo.
+tones down a theme's logo. `@logo: none` hides it for the whole deck. Use a
+light logo on dark themes and a dark one on light themes. A missing or
+unreadable file is reported by `--check` and the slides show no logo.
+
+A **slide** can override the deck with its own `@logo` under its heading:
+`none` hides the logo on that slide, and a file shows that logo there instead
+(or adds one to a deck that has none), in the deck's position, size and
+opacity:
+
+```markdown
+# Our partners
+@logo: brand/partner.svg
+
+# A full-bleed photo
+@logo: none
+```
 
 ---
 
@@ -1216,9 +1250,8 @@ reported by `--check` and the slides show no logo.
 The two-column layout requires the `@layout: two-column` directive and uses `+++` as the column separator:
 
 ```markdown
-@layout: two-column
-
 # Comparison
+@layout: two-column
 
 **Before:**
 
@@ -1349,9 +1382,8 @@ pub async fn handle_request(req: Request) -> Response {
 
 ---
 
-@layout: two-column
-
 # Before and After
+@layout: two-column
 
 **Before:**
 
@@ -1407,9 +1439,12 @@ HeadingSep   = /^# /
 ### 13.2 Phase 2: Parse each slide into blocks
 
 ```
-Slide        = Directive* Block*
+Slide        = Directive* (Block | SlideDirective)*
 
 Directive    = /^@\w[\w-]*:\s*.+$/
+
+SlideDirective = Directive whose name is known (section 7.3), at column 0,
+               outside code fences (applies to the slide, removed from content)
 
 Block        = Heading | Paragraph | List | Image | CodeBlock
              | BlockQuote | DiagramBlock | Table | HRule

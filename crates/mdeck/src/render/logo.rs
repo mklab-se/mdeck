@@ -1,5 +1,6 @@
 //! A logo in a corner of every slide: from the theme (`logo:`), from the
-//! deck (`@logo:`), or both (the deck wins). PNG and SVG; drawn the same way
+//! deck (`@logo:`), or both (the deck wins). A slide's own `@logo` hides it
+//! there (`none`) or shows another file. PNG and SVG; drawn the same way
 //! when presenting and when exporting.
 
 use std::path::{Path, PathBuf};
@@ -7,7 +8,7 @@ use std::sync::Arc;
 
 use eframe::egui::{self, Color32, Pos2, Rect, Vec2};
 
-use crate::parser::PresentationMeta;
+use crate::parser::{Presentation, PresentationMeta};
 use crate::theme::Theme;
 
 /// Which corner the logo sits in.
@@ -85,32 +86,112 @@ pub fn resolve(
     deck_dir: &Path,
 ) -> (Option<Logo>, Vec<String>) {
     let mut problems = Vec::new();
-    let base = match meta.logo.as_deref().map(str::trim) {
-        Some("none") | Some("") => return (None, problems),
-        Some(file) => {
-            let path = deck_dir.join(file);
-            if !is_logo_file(&path) {
-                problems.push(format!("@logo: '{file}' must be a .png or .svg file"));
-                theme.logo.clone()
-            } else if !path.is_file() {
-                problems.push(format!("@logo: {} was not found", path.display()));
-                theme.logo.clone()
-            } else {
-                Some(Logo {
-                    path,
-                    ..theme.logo.clone().unwrap_or(Logo {
-                        path: PathBuf::new(),
-                        corner: DEFAULT_CORNER,
-                        height: DEFAULT_HEIGHT,
-                        opacity: DEFAULT_OPACITY,
-                    })
+    let mut style_problems = Vec::new();
+    let style = style(theme, meta, &mut style_problems);
+    let logo = match meta.logo.as_deref().map(str::trim) {
+        Some("none") | Some("") => None,
+        Some(file) => match logo_file(deck_dir, file) {
+            Ok(path) => Some(Logo { path, ..style }),
+            Err(p) => {
+                problems.push(p);
+                theme.logo.clone().map(|t| Logo {
+                    path: t.path,
+                    ..style
                 })
             }
-        }
-        None => theme.logo.clone(),
+        },
+        None => theme.logo.clone().map(|t| Logo {
+            path: t.path,
+            ..style
+        }),
     };
-    let Some(mut logo) = base else {
-        return (None, problems);
+    problems.extend(style_problems);
+    (logo, problems)
+}
+
+/// The logo on every slide: the deck's, unless a slide's own `@logo` hides it
+/// (`none`) or shows another file, placed like the deck's logo.
+#[derive(Debug, Clone, Default)]
+pub struct Logos {
+    slides: Vec<Option<Logo>>,
+}
+
+impl Logos {
+    /// The logo on slide `idx` (0-based); none past the last slide.
+    pub fn get(&self, idx: usize) -> Option<&Logo> {
+        self.slides.get(idx).and_then(Option::as_ref)
+    }
+
+    /// Every distinct logo in the deck, for checking that the files load.
+    pub fn distinct(&self) -> Vec<&Logo> {
+        let mut out: Vec<&Logo> = Vec::new();
+        for logo in self.slides.iter().flatten() {
+            if !out.iter().any(|l| l.path == logo.path) {
+                out.push(logo);
+            }
+        }
+        out
+    }
+}
+
+/// Resolve the deck's logo ([`resolve`]) and each slide's `@logo` over it.
+/// Problems name the slide they come from.
+pub fn resolve_slides(
+    theme: &Theme,
+    presentation: &Presentation,
+    deck_dir: &Path,
+) -> (Logos, Vec<String>) {
+    let (deck, mut problems) = resolve(theme, &presentation.meta, deck_dir);
+    let style = style(theme, &presentation.meta, &mut Vec::new());
+    let slides = presentation
+        .slides
+        .iter()
+        .enumerate()
+        .map(|(i, slide)| match slide.logo.as_deref() {
+            None => deck.clone(),
+            Some("none") => None,
+            Some(file) => match logo_file(deck_dir, file) {
+                Ok(path) => Some(Logo {
+                    path,
+                    ..deck.clone().unwrap_or_else(|| style.clone())
+                }),
+                Err(p) => {
+                    problems.push(format!("slide {}: {p}", i + 1));
+                    deck.clone()
+                }
+            },
+        })
+        .collect();
+    (Logos { slides }, problems)
+}
+
+/// A logo file relative to the deck, or why it cannot be used.
+fn logo_file(deck_dir: &Path, file: &str) -> Result<PathBuf, String> {
+    let path = deck_dir.join(file);
+    if !is_logo_file(&path) {
+        Err(format!("@logo: '{file}' must be a .png or .svg file"))
+    } else if !path.is_file() {
+        Err(format!("@logo: {} was not found", path.display()))
+    } else {
+        Ok(path)
+    }
+}
+
+/// Where and how a logo is drawn: the theme's settings (or the defaults) with
+/// the deck's `@logo-position`, `@logo-opacity` and `@logo-height` over them.
+/// The path is left empty.
+fn style(theme: &Theme, meta: &PresentationMeta, problems: &mut Vec<String>) -> Logo {
+    let mut logo = match &theme.logo {
+        Some(t) => Logo {
+            path: PathBuf::new(),
+            ..t.clone()
+        },
+        None => Logo {
+            path: PathBuf::new(),
+            corner: DEFAULT_CORNER,
+            height: DEFAULT_HEIGHT,
+            opacity: DEFAULT_OPACITY,
+        },
     };
     if let Some(p) = &meta.logo_position {
         match Corner::from_name(p) {
@@ -136,7 +217,7 @@ pub fn resolve(
             )),
         }
     }
-    (Some(logo), problems)
+    logo
 }
 
 /// Decode a PNG or rasterise an SVG.
@@ -346,6 +427,43 @@ mod tests {
         let (l, p) = resolve(&plain, &meta, &d);
         assert!(l.is_none());
         assert!(p[0].contains("missing.svg"));
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn a_slide_logo_hides_or_replaces_the_deck_logo() {
+        let d = tmp("slides");
+        std::fs::write(d.join("deck.svg"), SVG).unwrap();
+        std::fs::write(d.join("partner.svg"), SVG).unwrap();
+        let md = "---\n@logo: deck.svg\n@logo-position: bottom-left\n---\n\n\
+                  # One\n\n- a\n\n# Two\n@logo: none\n\n- b\n\n\
+                  # Three\n@logo: partner.svg\n\n- c\n\n# Four\n@logo: gone.svg\n\n- d\n";
+        let pres = crate::parser::parse(md, &d);
+        let (logos, problems) = resolve_slides(&Theme::light(), &pres, &d);
+        assert_eq!(logos.get(0).unwrap().path, d.join("deck.svg"));
+        assert!(logos.get(1).is_none(), "@logo: none hides it on that slide");
+        let partner = logos.get(2).unwrap();
+        assert_eq!(partner.path, d.join("partner.svg"));
+        assert_eq!(
+            partner.corner,
+            Corner::BottomLeft,
+            "placed like the deck's logo"
+        );
+        assert_eq!(
+            logos.get(3).unwrap().path,
+            d.join("deck.svg"),
+            "bad file falls back"
+        );
+        assert!(problems[0].starts_with("slide 4: @logo:"), "{problems:?}");
+        assert!(logos.get(4).is_none(), "no logo past the last slide");
+        assert_eq!(logos.distinct().len(), 2);
+
+        // A deck that hides the theme's logo can still show one on a slide.
+        let md = "---\n@logo: none\n---\n\n# One\n\n- a\n\n# Two\n@logo: partner.svg\n\n- b\n";
+        let pres = crate::parser::parse(md, &d);
+        let (logos, _) = resolve_slides(&Theme::light(), &pres, &d);
+        assert!(logos.get(0).is_none());
+        assert_eq!(logos.get(1).unwrap().corner, DEFAULT_CORNER);
         std::fs::remove_dir_all(&d).ok();
     }
 }

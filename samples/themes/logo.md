@@ -18,3 +18,18 @@ title: "A logo without a custom theme"
 - `@logo-position`: any corner (top-right by default)
 - `@logo-opacity`: `0.6` by default, `70%` here
 - `@logo-height`: `56` px on a 1920x1080 slide
+
+---
+
+## A photo without the logo
+@logo: none
+
+`@logo: none` under a heading hides the logo on that slide only
+
+---
+
+## A partner's logo on one slide
+@logo: ../../media/MDeck-logo.png
+
+A file under the heading shows that logo on this slide,
+in the deck's corner, size and opacity

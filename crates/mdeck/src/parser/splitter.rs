@@ -176,20 +176,25 @@ impl FenceTracker {
 /// Lines inside fenced code blocks are never treated as headings.
 ///
 /// With `merge_subtitle`, an H2 that directly follows an H1 (with nothing but
-/// blank lines or directives between them) never splits: `# Title` +
-/// `## Subtitle` is the canonical title slide.
+/// blank lines or directives between them) and has no content of its own
+/// never splits: `# Title` + `## Subtitle` is the canonical title slide. An H2
+/// followed by its own paragraphs or lists is a section and gets its own slide.
 fn split_by_heading_level(chunk: &str, level: u8, merge_subtitle: bool, slides: &mut Vec<String>) {
+    let lines: Vec<&str> = chunk.lines().collect();
     let mut current = String::new();
     let mut has_content = false;
     // True while the only content line in `current` is a single H1.
     let mut only_h1 = false;
     let mut fences = FenceTracker::new();
 
-    for line in chunk.lines() {
+    for (i, &line) in lines.iter().enumerate() {
         let trimmed = line.trim();
         let in_fence = fences.observe(line);
 
-        let is_subtitle_of_h1 = merge_subtitle && only_h1 && heading_level(line) == Some(2);
+        let is_subtitle_of_h1 = merge_subtitle
+            && only_h1
+            && heading_level(line) == Some(2)
+            && !has_body(&lines[i + 1..], level);
 
         if !in_fence && is_heading_at_level(line, level) && has_content && !is_subtitle_of_h1 {
             // This heading starts a new slide.
@@ -225,6 +230,23 @@ fn split_by_heading_level(chunk: &str, level: u8, merge_subtitle: bool, slides: 
     if !slide_text.is_empty() {
         slides.push(slide_text);
     }
+}
+
+/// Whether `lines` hold content before the next slide-splitting heading.
+/// Blank lines and directives do not count.
+fn has_body(lines: &[&str], level: u8) -> bool {
+    let mut fences = FenceTracker::new();
+    for line in lines {
+        let in_fence = fences.observe(line);
+        if !in_fence && is_heading_at_level(line, level) {
+            return false;
+        }
+        let trimmed = line.trim();
+        if in_fence || (!trimmed.is_empty() && !is_directive(trimmed)) {
+            return true;
+        }
+    }
+    false
 }
 
 /// Return the ATX heading level of a line (`# ` → 1, `## ` → 2, ...), if any.
@@ -316,6 +338,42 @@ mod tests {
         assert_eq!(slides.len(), 2);
         assert!(slides[0].starts_with("# First"));
         assert!(slides[1].starts_with("# Second"));
+    }
+
+    #[test]
+    fn test_h2_section_under_h1_is_its_own_slide() {
+        // #13: `# Title` then `## Section` with content is a README, not a subtitle.
+        let body = "# Coffee Club\n\n## Why we meet\n\n- Better beans\n\n## When\n\n- Tuesdays";
+        let slides = split(body, None);
+        assert_eq!(
+            slides,
+            [
+                "# Coffee Club",
+                "## Why we meet\n\n- Better beans",
+                "## When\n\n- Tuesdays"
+            ]
+        );
+        // Code, and content before a `---` break, count as the section's body too.
+        let body = "# T\n## Setup\n\n```sh\nmake\n```";
+        assert_eq!(split(body, None).len(), 2);
+        let body = "# T\n## Setup\n\nText\n\n---\n\n## Next";
+        assert_eq!(split(body, None).len(), 3);
+    }
+
+    #[test]
+    fn test_h2_subtitle_without_content_stays_on_title_slide() {
+        for body in [
+            "# Coffee Club\n\n## Better beans, better breaks",
+            "# Coffee Club\n\n## Better beans\n\n## Why\n\n- one",
+            "# Coffee Club\n## Better beans\n\n---\n\n## Why\n\n- one",
+            "# Coffee Club\n\n## Better beans\n\n@illustration: cup\n\n## Why\n\n- one",
+        ] {
+            let slides = split(body, None);
+            assert!(
+                slides[0].contains("## Better beans"),
+                "{body:?} gave {slides:?}"
+            );
+        }
     }
 
     #[test]

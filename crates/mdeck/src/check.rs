@@ -15,6 +15,9 @@ pub enum CheckCategory {
     Math,
     /// The deck's theme: unknown name, invalid file, fallbacks, weak contrast.
     Theme,
+    /// `@name: value` lines: unknown names, lines not applied, global
+    /// directives inside a slide, duplicates.
+    Directive,
 }
 
 impl fmt::Display for CheckCategory {
@@ -26,6 +29,7 @@ impl fmt::Display for CheckCategory {
             CheckCategory::Fonts => write!(f, "fonts"),
             CheckCategory::Math => write!(f, "math"),
             CheckCategory::Theme => write!(f, "theme"),
+            CheckCategory::Directive => write!(f, "directive"),
         }
     }
 }

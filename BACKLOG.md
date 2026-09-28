@@ -33,11 +33,10 @@ dropped (`Slide.directives` is unused). The spec now marks them as reserved.
 Decision: implement per-slide theme + transition + footer (M), or remove them
 from the spec for good. `@aspect` (letterboxing 4:3) is a separate decision.
 
-### 1.4 Warn on unknown / unsupported directives in `--check` — S
-The spec says unknown directives warn; nothing does. `--check` only validates
-diagram routing. Extend it to unknown directives, unresolved image paths,
-and values that failed to parse in visualizations. (Theme-name typos and
-invalid theme files are reported since custom themes, #14.)
+### 1.4 Warn on unsupported values in `--check` (S)
+Unknown and misplaced directives are reported since #12, theme problems since
+#14. Still open: unresolved image paths and values that failed to parse in
+visualizations.
 
 ### 1.5 Laser pointer — S
 The annotation system (pen, arrow) already exists; a laser dot mode
@@ -118,16 +117,6 @@ test-suite as the safety net.
 ### 3.3 Small CommonMark features — S each
 Task lists (`- [ ] item`) as checkboxes, hard line breaks (trailing two spaces
 or `\`), ordered list start numbers (`5.`), nested blockquotes, footnotes.
-
-### 3.4 Slide directives under the heading (S to M, decided, #12)
-`@layout` and `@illustration` only work as the first thing in a slide, which on
-a heading-split slide means above the heading; written under the heading they
-render as text. Decision (2026-09-25): document directives directly under the
-slide's heading, and let the parser honour a known slide directive on its own
-line anywhere at the top level of the slide (existing placements keep working).
-`--check` warns on unknown names (with "did you mean"), directive-looking lines
-that were not applied, global directives inside a slide, and duplicates. The
-HTML comment form (`<!-- @illustration: x -->`) is left out for now.
 
 ---
 

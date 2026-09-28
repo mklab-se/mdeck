@@ -5,17 +5,15 @@ author: "MKLab"
 @transition: fade
 ---
 
-@illustration: robot
-
 # Industrial Robots
+@illustration: robot
 
 What the particles can draw
 
 ---
 
-@illustration: server
-
 ## Our New Server
+@illustration: server
 
 - 5 TB of RAM
 - 100 cores
@@ -23,9 +21,8 @@ What the particles can draw
 
 ---
 
-@illustration: laptop
-
 ## Where the work happens
+@illustration: laptop
 
 Every illustration is a point cloud: a few hundred points the particles settle
 into, warm and breathing, beside the copy.
@@ -36,9 +33,8 @@ into, warm and breathing, beside the copy.
 
 ---
 
-@illustration: rocket
-
 ## Launch
+@illustration: rocket
 
 ---
 

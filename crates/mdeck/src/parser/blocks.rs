@@ -1,15 +1,22 @@
 use super::{Block, Directive, ImageDirectives, Inline, ListItem, ListMarker};
 
-/// Extract @ directives from the beginning of a slide's raw text.
-/// Returns (directives, remaining content).
+/// Extract a slide's `@name: value` directives. Returns (directives, remaining content).
+///
+/// Any directive lines at the start of the slide are taken, known or not. After
+/// that, a line holding only a known directive ([`super::is_known_directive`])
+/// is taken wherever it stands at the top level of the slide (column 0, outside
+/// code fences), so `@illustration: x` written under the heading works. Its line
+/// becomes blank, keeping the blocks around it apart. Unknown names past the
+/// start stay text, so prose such as `@team: see you at five` is never swallowed.
 pub fn extract_directives(raw: &str) -> (Vec<Directive>, String) {
     let mut directives = Vec::new();
     let mut remaining_lines = Vec::new();
     let mut past_directives = false;
+    let mut fences = super::splitter::FenceTracker::new();
 
     for line in raw.lines() {
+        let trimmed = line.trim();
         if !past_directives {
-            let trimmed = line.trim();
             if trimmed.is_empty() {
                 continue;
             }
@@ -23,13 +30,23 @@ pub fn extract_directives(raw: &str) -> (Vec<Directive>, String) {
             }
             past_directives = true;
         }
+        let in_fence = fences.observe(line);
+        if !in_fence
+            && line.starts_with('@')
+            && let Some(directive) = parse_directive_line(trimmed)
+            && super::is_known_directive(&directive.name)
+        {
+            directives.push(directive);
+            remaining_lines.push("");
+            continue;
+        }
         remaining_lines.push(line);
     }
 
     (directives, remaining_lines.join("\n"))
 }
 
-fn parse_directive_line(line: &str) -> Option<Directive> {
+pub(crate) fn parse_directive_line(line: &str) -> Option<Directive> {
     if !line.starts_with('@') {
         return None;
     }

@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Per-slide logos ([#15](https://github.com/mklab-se/mdeck/issues/15)): `@logo: none` under a
+  slide's heading hides the logo on that slide, and `@logo: file.svg` shows another logo there
+  (or adds one to a deck without), in the deck's position, size and opacity. `@logo: none` in
+  the frontmatter still hides a theme's logo for the whole deck. Spec section 9.5; sample
+  `samples/themes/logo.md`.
+- `mdeck --check` reports directive problems under a new `directive` category: unknown names
+  with a "did you mean" (`@ilustration`), known directives that were not applied because they
+  sit in a list, quote or indented block, deck directives such as `@theme` inside a slide, and
+  a slide directive written twice.
+
+### Fixed
+
+- Slide directives written under the slide's heading are applied instead of being shown as
+  text ([#12](https://github.com/mklab-se/mdeck/issues/12)). A known slide directive
+  (`@layout`, `@illustration`, `@logo`) on its own line now works anywhere at the top level
+  of its slide, so heading-split decks no longer need `---` or the line above the heading.
+  Existing placements keep working; unknown names further down a slide stay text. The spec,
+  README and samples now show directives under the heading. Sample
+  `samples/features/directives.md`.
+- A `##` section directly under the `#` title is no longer merged into the title slide
+  ([#13](https://github.com/mklab-se/mdeck/issues/13)). An H2 right after the H1 is a
+  subtitle only when it has no content of its own; with paragraphs, lists or other blocks it
+  is a section and gets its own slide, so a README-shaped file gets a title slide and one slide
+  per section. Decks that relied on the merge now show the section on its own slide. Sample
+  `samples/layouts/sections.md`.
+
 ## [1.6.0] - 2026-09-27
 
 ### Added

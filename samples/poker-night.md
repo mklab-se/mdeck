@@ -124,9 +124,8 @@ Sometimes you just get lucky. The AI knows exactly how often.
 
 
 
-@layout: two-column
-
 # Human vs Machine
+@layout: two-column
 
 **Strengths of Humans:**
 

@@ -151,8 +151,8 @@ struct PresentationApp {
     pending_theme: Option<Theme>,
     /// Keeps the context's fonts in step with theme font files.
     font_sync: render::fonts::FontSync,
-    /// The logo on every slide (theme `logo:` or the deck's `@logo`).
-    logo: Option<render::logo::Logo>,
+    /// The logo on each slide (theme `logo:`, the deck's `@logo`, the slide's `@logo`).
+    logos: render::logo::Logos,
     default_transition: TransitionKind,
     transition: Option<ActiveTransition>,
     image_cache: ImageCache,
@@ -376,7 +376,7 @@ impl PresentationApp {
             themes,
             pending_theme,
             font_sync,
-            logo: None,
+            logos: Default::default(),
             default_transition,
             transition: None,
             image_cache,
@@ -833,9 +833,9 @@ impl PresentationApp {
             .parent()
             .unwrap_or(std::path::Path::new("."))
             .to_path_buf();
-        let (logo, problems) = render::logo::resolve(&self.theme, &self.presentation.meta, &dir);
+        let (logos, problems) = render::logo::resolve_slides(&self.theme, &self.presentation, &dir);
         report_theme_problems(&problems);
-        self.logo = logo;
+        self.logos = logos;
     }
 
     /// Switch to `theme` now: step counts follow its engine (story beats are
@@ -1974,6 +1974,7 @@ mod tests {
             story_hint: None,
             scene_script: None,
             illustration: None,
+            logo: None,
         }
     }
 

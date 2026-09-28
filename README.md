@@ -228,7 +228,7 @@ each with a line you can say out loud (`H` shows it). Scripts land in
 `pinned: true` to keep it. Stories play on bullet, content, quote and section
 slides, where there is room beside the copy.
 
-**It can draw a thing.** Put `@illustration: server` at the top of a slide
+**It can draw a thing.** Put `@illustration: server` under a slide's heading
 and the particles settle into a server beside the copy (behind it, faded, on
 a title slide). Thirty-eight illustrations are built in, from `person` and `laptop`
 to `robot`, `rocket`, `lightbulb` and `account`; `mdeck illustration generate --name server
@@ -273,8 +273,10 @@ Each slide gets a layout from its content:
 | `@barchart`, `@piechart`, ... | Visualization |
 | Anything else | Content |
 
-Override with `@layout: name` on the first line of a slide when you want a
-specific one.
+Override with `@layout: name` on its own line under the slide's heading when
+you want a specific one. Slide directives (`@layout`, `@illustration`, `@logo`)
+work wherever they stand at the top level of the slide, and `mdeck --check`
+flags typos and directives that were not applied.
 
 ### Progressive reveal
 
@@ -404,6 +406,10 @@ one without a custom theme:
 @logo-opacity: 40%             # default 60%
 ---
 ```
+
+`@logo: none` in the frontmatter hides a theme's logo for the whole deck. Under a
+slide's heading, `@logo: none` hides it on that slide and `@logo: partner.svg`
+shows another logo there.
 
 **From a design system.** If your brand already lives in a design system (a
 Claude Design export, CSS tokens, a Tailwind config, W3C design tokens),

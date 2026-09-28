@@ -217,6 +217,7 @@ mod tests {
             story_hint: None,
             scene_script: None,
             illustration: None,
+            logo: None,
         }
     }
 

@@ -34,6 +34,11 @@ FRONTMATTER (YAML at top of file)
   @aspect: 16:9|4:3|16:10
   @footer: "text"         Footer on every slide
 
+SLIDE DIRECTIVES (on their own line, under the slide's heading)
+  @layout: name         Override the inferred layout
+  @illustration: name   Point cloud illustration (particles engine)
+  @logo: file|none      This slide's logo, or none to hide it
+
 LAYOUTS (auto-inferred, override with @layout: name)
   title        H1 + optional subtitle
   section      Lone heading, centered

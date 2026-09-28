@@ -464,7 +464,7 @@ impl PresentationApp {
 
     pub(super) fn draw_presentation_chrome(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
         // The logo stays put while slides move under it.
-        if let Some(logo) = &self.logo
+        if let Some(logo) = self.logos.get(self.current_slide)
             && !self.countdown_running()
         {
             render::logo::draw(ui.painter(), rect, logo, scale, 1.0);

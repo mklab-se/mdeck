@@ -355,9 +355,8 @@ fn main() {
 
 ---
 
-@layout: two-column
-
 ## Two-Column Layout
+@layout: two-column
 
 ### Markdown Source
 

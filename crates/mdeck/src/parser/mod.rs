@@ -57,6 +57,8 @@ pub struct Slide {
     pub scene_script: Option<String>,
     /// Name of the point cloud illustration for this slide (`@illustration`).
     pub illustration: Option<String>,
+    /// This slide's `@logo`: a PNG or SVG path, or `none` to hide the logo here.
+    pub logo: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -220,6 +222,42 @@ pub enum Layout {
     Content,
 }
 
+/// Directives that apply to the slide they are written in. These are honoured
+/// anywhere at the top level of a slide, not only at its start.
+pub const SLIDE_DIRECTIVES: &[&str] = &["layout", "illustration", "logo", "background", "class"];
+
+/// Directives that only mean something in the frontmatter. Written inside a
+/// slide they are removed from its content and ignored (`--check` says so).
+pub const GLOBAL_DIRECTIVES: &[&str] = &[
+    "theme",
+    "transition",
+    "aspect",
+    "code-theme",
+    "footer",
+    "image-style",
+    "icon-style",
+    "slide-level",
+    "story",
+    "countdown",
+    "logo-position",
+    "logo-opacity",
+    "logo-height",
+];
+
+/// A directive name mdeck knows, at slide or deck scope.
+pub fn is_known_directive(name: &str) -> bool {
+    SLIDE_DIRECTIVES.contains(&name) || GLOBAL_DIRECTIVES.contains(&name)
+}
+
+/// The value of the slide directive `name`; when it is written twice, the last wins.
+pub fn directive<'a>(directives: &'a [Directive], name: &str) -> Option<&'a str> {
+    directives
+        .iter()
+        .rev()
+        .find(|d| d.name == name)
+        .map(|d| d.value.as_str())
+}
+
 pub fn parse(content: &str, _base_path: &Path) -> Presentation {
     let (meta, body) = frontmatter::extract(content);
     let raw_slides = splitter::split(&body, meta.slide_level);
@@ -232,10 +270,11 @@ pub fn parse(content: &str, _base_path: &Path) -> Presentation {
             let (directives, content) = blocks::extract_directives(&content_part);
             let (blocks, story_hint, scene_script) = take_story_blocks(blocks::parse(&content));
             let layout = classify_layout(&directives, &blocks);
-            let illustration = directives
-                .iter()
-                .find(|d| d.name == "illustration")
-                .map(|d| d.value.trim().to_lowercase())
+            let illustration = directive(&directives, "illustration")
+                .map(|v| v.trim().to_lowercase())
+                .filter(|v| !v.is_empty());
+            let logo = directive(&directives, "logo")
+                .map(|v| v.trim().to_string())
                 .filter(|v| !v.is_empty());
             Slide {
                 directives,
@@ -246,6 +285,7 @@ pub fn parse(content: &str, _base_path: &Path) -> Presentation {
                 story_hint,
                 scene_script,
                 illustration,
+                logo,
             }
         })
         .collect();
@@ -312,23 +352,21 @@ fn extract_notes(raw: &str) -> (String, Option<String>) {
 }
 
 fn classify_layout(directives: &[Directive], blocks: &[Block]) -> Layout {
-    // Check for explicit @layout directive
-    for d in directives {
-        if d.name == "layout" {
-            return match d.value.as_str() {
-                "title" => Layout::Title,
-                "section" => Layout::Section,
-                "image" => Layout::Image,
-                "gallery" => Layout::Gallery,
-                "quote" => Layout::Quote,
-                "code" => Layout::Code,
-                "bullets" | "bullet" => Layout::Bullet,
-                "diagram" | "architecture" => Layout::Diagram,
-                "visualization" => Layout::Visualization,
-                "two-column" => Layout::TwoColumn,
-                _ => Layout::Content,
-            };
-        }
+    // Check for explicit @layout directive (the last one wins)
+    if let Some(value) = directive(directives, "layout") {
+        return match value {
+            "title" => Layout::Title,
+            "section" => Layout::Section,
+            "image" => Layout::Image,
+            "gallery" => Layout::Gallery,
+            "quote" => Layout::Quote,
+            "code" => Layout::Code,
+            "bullets" | "bullet" => Layout::Bullet,
+            "diagram" | "architecture" => Layout::Diagram,
+            "visualization" => Layout::Visualization,
+            "two-column" => Layout::TwoColumn,
+            _ => Layout::Content,
+        };
     }
 
     // Count element types
@@ -558,6 +596,59 @@ mod tests {
         assert!(empty.slides[0].illustration.is_none());
     }
     use std::path::Path;
+
+    #[test]
+    fn slide_directives_work_under_the_heading() {
+        // #12: a heading-split slide with the directive where people write it.
+        let md = "# First\n\n- one\n\n# Second\n@illustration: account\n\n- two\n";
+        let pres = parse(md, Path::new("."));
+        assert_eq!(pres.slides.len(), 2);
+        let s = &pres.slides[1];
+        assert_eq!(s.illustration.as_deref(), Some("account"));
+        assert!(matches!(s.layout, Layout::Bullet), "{:?}", s.layout);
+        assert_eq!(
+            s.blocks.len(),
+            2,
+            "the directive is not a paragraph: {:?}",
+            s.blocks
+        );
+
+        // Anywhere at the top level, with a blank line or not; the last one wins.
+        let md = "# A\n\nIntro\n\n@layout: two-column\n\nLeft\n\n+++\n\nRight\n@logo: none\n@layout: content\n";
+        let s = &parse(md, Path::new(".")).slides[0];
+        assert!(matches!(s.layout, Layout::Content), "{:?}", s.layout);
+        assert_eq!(s.logo.as_deref(), Some("none"));
+        assert!(
+            !s.blocks
+                .iter()
+                .any(|b| matches!(b, Block::Paragraph { inlines }
+            if inlines_to_text(inlines).contains('@')))
+        );
+
+        // The placements that already worked keep working.
+        for md in [
+            "# First\n\n- one\n\n@illustration: account\n# Second\n\n- two\n",
+            "# First\n\n- one\n\n---\n\n@illustration: account\n\n# Second\n\n- two\n",
+        ] {
+            let pres = parse(md, Path::new("."));
+            assert_eq!(
+                pres.slides[1].illustration.as_deref(),
+                Some("account"),
+                "{md:?}"
+            );
+            assert_eq!(pres.slides[0].illustration, None, "{md:?}");
+        }
+    }
+
+    #[test]
+    fn unknown_and_nested_directives_stay_text() {
+        let md =
+            "# A\n\n@team: see you at five\n\n- @layout: code\n\n```text\n@layout: code\n```\n";
+        let s = &parse(md, Path::new(".")).slides[0];
+        assert!(s.directives.is_empty(), "{:?}", s.directives);
+        assert!(matches!(&s.blocks[1], Block::Paragraph { inlines }
+            if inlines_to_text(inlines) == "@team: see you at five"));
+    }
 
     #[test]
     fn test_poker_night_parses() {
