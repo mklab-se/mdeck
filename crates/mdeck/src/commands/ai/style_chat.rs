@@ -16,7 +16,7 @@ that will be used as a prefix for all AI-generated images in their presentations
 
 A style description should be 1-3 sentences that define the visual aesthetic: \
 color palette, mood, artistic technique, level of detail, and composition preferences. \
-It must NOT describe specific subjects — only the visual style.
+It must NOT describe specific subjects \u{2014} only the visual style.
 
 Here are examples of good style descriptions:
 - \"Modern, clean, and visually striking. Professional color palette with subtle gradients. \

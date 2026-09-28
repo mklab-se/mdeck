@@ -50,14 +50,6 @@ pub fn extract_opportunities(outline: &str) -> Vec<VisualizationOpportunity> {
         .collect()
 }
 
-/// Parse a single opportunity JSON object (tests in the parent module).
-#[cfg(test)]
-pub fn parse_opportunity_for_test(json: &str) -> Option<VisualizationOpportunity> {
-    serde_json::from_str::<VisualizationOpportunity>(json)
-        .ok()
-        .and_then(VisualizationOpportunity::reportable)
-}
-
 /// Write visualization opportunities to a file in GitHub-issue-ready format.
 /// If the file already exists, appends only new opportunities (by name) to avoid duplicates.
 pub fn write_opportunities(path: &Path, opportunities: &[VisualizationOpportunity]) -> Result<()> {
@@ -137,4 +129,93 @@ pub fn write_opportunities(path: &Path, opportunities: &[VisualizationOpportunit
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_opportunities_empty() {
+        let outline = r#"{"slides": [], "opportunities": []}"#;
+        assert!(extract_opportunities(outline).is_empty());
+    }
+
+    #[test]
+    fn test_extract_opportunities_found() {
+        let outline = r#"{
+            "opportunities": [
+                {
+                    "visualization_name": "Swimlane Diagram",
+                    "description": "Shows cross-team workflow with parallel lanes",
+                    "data_description": "Teams as horizontal lanes with tasks flowing between them",
+                    "rendering_description": "Horizontal lanes with arrows between them",
+                    "suggested_syntax": "- Marketing -> Engineering: handoff",
+                    "ascii_mockup": "| Marketing | --> | Engineering | --> | QA |"
+                }
+            ]
+        }"#;
+        let opps = extract_opportunities(outline);
+        assert_eq!(opps.len(), 1);
+        assert_eq!(opps[0].visualization_name, "Swimlane Diagram");
+        assert!(opps[0].description.contains("cross-team"));
+        assert!(!opps[0].ascii_mockup.is_empty());
+    }
+
+    #[test]
+    fn test_extract_opportunities_multiple() {
+        let outline = r#"{
+            "opportunities": [
+                {
+                    "visualization_name": "Swimlane",
+                    "description": "Cross-team flow"
+                },
+                {
+                    "visualization_name": "Sankey",
+                    "description": "Data flow volumes"
+                }
+            ]
+        }"#;
+        let opps = extract_opportunities(outline);
+        assert_eq!(opps.len(), 2);
+        assert_eq!(opps[0].visualization_name, "Swimlane");
+        assert_eq!(opps[1].visualization_name, "Sankey");
+    }
+
+    #[test]
+    fn test_extract_opportunities_json_escapes() {
+        // The old hand-written scanner turned `\u00e5` into `u00e5` and cut a
+        // value at an escaped quote followed by more text.
+        let outline = r#"{"opportunities": [{"visualization_name": "R\u00e5 data",
+            "description": "Say \"hi\" then go", "extra": 3}], "slides": []}"#;
+        let opps = extract_opportunities(outline);
+        assert_eq!(opps.len(), 1);
+        assert_eq!(opps[0].visualization_name, "Rå data");
+        assert_eq!(opps[0].description, "Say \"hi\" then go");
+    }
+
+    #[test]
+    fn test_extract_opportunities_no_opportunities_key() {
+        let outline = r#"{"slides": [{"title": "Intro"}]}"#;
+        assert!(extract_opportunities(outline).is_empty());
+    }
+
+    #[test]
+    fn test_parse_opportunity_full() {
+        let json = r#"{
+            "visualization_name": "Swimlane Diagram",
+            "description": "Shows parallel workflows",
+            "data_description": "Teams and tasks",
+            "rendering_description": "Horizontal lanes with arrows",
+            "suggested_syntax": "- Marketing -> Engineering: handoff",
+            "ascii_mockup": "| Marketing | --> | Engineering |"
+        }"#;
+        let opp = serde_json::from_str::<VisualizationOpportunity>(json)
+            .ok()
+            .and_then(VisualizationOpportunity::reportable)
+            .unwrap();
+        assert_eq!(opp.visualization_name, "Swimlane Diagram");
+        assert!(!opp.rendering_description.is_empty());
+        assert!(!opp.ascii_mockup.is_empty());
+    }
 }
