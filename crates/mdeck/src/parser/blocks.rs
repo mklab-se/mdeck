@@ -630,11 +630,11 @@ fn is_list_start(line: &str) -> bool {
     )
 }
 
+/// Whether `line` opens an ordered item. The same test `extract_ordered_item`
+/// makes, so `parse_list` always takes the line it was handed (`1 . x` used to
+/// pass here, fail there and stall the parser).
 fn is_ordered_list_start(line: &str) -> bool {
-    let Some(dot_pos) = line.find(". ") else {
-        return false;
-    };
-    line[..dot_pos].trim().chars().all(|c| c.is_ascii_digit()) && dot_pos > 0
+    extract_ordered_item(line).is_some()
 }
 
 fn parse_list(lines: &[&str], start: usize, ordered: bool) -> (Block, usize) {
@@ -1156,6 +1156,19 @@ mod tests {
         assert!(matches!(blocks[1], Block::Heading { .. }));
         let blocks = parse("- Item\n\nParagraph");
         assert_eq!(blocks.len(), 2, "{blocks:?}");
+    }
+
+    #[test]
+    fn test_spaced_ordered_marker_is_text() {
+        // `1 . x` looked like an ordered item to the dispatcher but not to
+        // parse_list, which then consumed nothing and the loop never ended.
+        let blocks = parse("# A\n\n1 . x");
+        assert_eq!(blocks.len(), 2, "{blocks:?}");
+        assert_eq!(paragraph_text(&blocks[1]), "1 . x");
+        let blocks = parse("text\n12  . more");
+        assert_eq!(blocks.len(), 1, "{blocks:?}");
+        assert!(!is_ordered_list_start("1 . x"));
+        assert!(is_ordered_list_start("10. x"));
     }
 
     #[test]
