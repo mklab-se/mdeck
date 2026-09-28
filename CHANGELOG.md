@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- `@engine` in the frontmatter runs a deck on another engine than its theme's, with the
+  theme's colours, fonts and logo ([#16](https://github.com/mklab-se/mdeck/issues/16)).
+  `--engine <name>` does the same when presenting, exporting and checking, without editing
+  the deck. Precedence: `--engine`, then `@engine`, then the theme's `engine:`. Spec section
+  9.6.
+- `mdeck --check` has an `engine` category: content the deck's engine does not show (an
+  `@illustration` or a story on the plain engine) and an unknown `@engine`. Presenting and
+  exporting print one summary line when a deck has any.
+
+### Changed
+
+- Engines have a documented interface inside MDeck (`src/engines/`): the core hands each
+  engine a `Stage` (the moment, the slide's figure and where it goes, the geometry the
+  renderers drew) and the engine paints it; each engine declares its `Capabilities`. Plain
+  and particles moved behind it without a visible change: exports of every Ember, theme and
+  visualization sample are byte-identical before and after.
+
 ## [1.7.0] - 2026-09-28
 
 ### Added

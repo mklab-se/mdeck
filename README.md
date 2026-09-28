@@ -393,6 +393,12 @@ theme, the countdown, the engine and a **logo**. Themes are data only, so a deck
 run code. Custom themes work everywhere a built-in one does: presenting,
 `Shift+T`, PNG and PDF export, and `--check`.
 
+**Engines.** The engine is what a theme does beyond colours and type. A deck
+can run on another engine than its theme's with one line, `@engine: particles`
+in the frontmatter, and `mdeck talk.md --engine particles` (or `mdeck export
+--engine`) tries one without editing anything. `--check` lists anything the
+chosen engine does not show.
+
 **Logos.** A PNG (with transparency) or SVG in a corner of every slide, in
 presenting and in export. A theme carries its brand's logo (`logo:` with
 `file`, `position`, `height` and `opacity`), and any deck can add or replace

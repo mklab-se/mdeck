@@ -306,41 +306,17 @@ pub fn constellation(seed: u64) -> Scene {
 /// A point cloud illustration on the story stage (the right half of a copy
 /// slide): fitted into the stage box with breathing room, warm, and lit from
 /// the first step. `cloud_aspect` is the cloud's height over width.
-pub fn illustration_stage(
-    points: Arc<Vec<[f32; 2]>>,
-    cloud_aspect: f32,
-    layout: Layout,
-    rect_aspect: f32,
-) -> Scene {
-    let stage = crate::render::story::stage_box(layout);
-    let avail_w = stage.width() * 0.82;
-    let avail_h = stage.height() * 0.82;
-    // heights are slide-height fractions: h = w * aspect * (W / H)
-    let mut w = avail_w;
-    let mut h = w * cloud_aspect * rect_aspect;
-    if h > avail_h {
-        h = avail_h;
-        w = h / (cloud_aspect * rect_aspect);
-    }
-    let (cu, cv) = (stage.center().x, stage.center().y);
+pub fn illustration_stage(points: Arc<Vec<[f32; 2]>>, place: crate::engines::Place) -> Scene {
+    let crate::engines::Place { u, v, w, h } = place;
     let mut scene = Scene::new(vec![
-        Group::new(
-            0.70,
-            Home::Mask {
-                points,
-                u: cu - w / 2.0,
-                v: cv - h / 2.0,
-                w,
-                h,
-            },
-        )
-        .palette(Palette::Warm)
-        .alpha(0.45, 0.95)
-        .size(0.42, 0.8)
-        .drift(Drift::Breathe {
-            amp: 0.0018,
-            speed: 0.7,
-        }),
+        Group::new(0.70, Home::Mask { points, u, v, w, h })
+            .palette(Palette::Warm)
+            .alpha(0.45, 0.95)
+            .size(0.42, 0.8)
+            .drift(Drift::Breathe {
+                amp: 0.0018,
+                speed: 0.7,
+            }),
         dust(0.30).alpha(0.04, 0.16),
     ]);
     scene.link_alpha = 0.0;
@@ -349,35 +325,17 @@ pub fn illustration_stage(
 
 /// A point cloud illustration behind a title: large, dim and soft, breathing
 /// slowly under the centred copy, the way a backdrop is out of focus.
-pub fn illustration_backdrop(
-    points: Arc<Vec<[f32; 2]>>,
-    cloud_aspect: f32,
-    rect_aspect: f32,
-) -> Scene {
-    let mut h = 0.80;
-    let mut w = h / (cloud_aspect * rect_aspect);
-    if w > 0.72 {
-        w = 0.72;
-        h = w * cloud_aspect * rect_aspect;
-    }
+pub fn illustration_backdrop(points: Arc<Vec<[f32; 2]>>, place: crate::engines::Place) -> Scene {
+    let crate::engines::Place { u, v, w, h } = place;
     let mut scene = Scene::new(vec![
-        Group::new(
-            0.72,
-            Home::Mask {
-                points,
-                u: 0.5 - w / 2.0,
-                v: 0.5 - h / 2.0,
-                w,
-                h,
-            },
-        )
-        .palette(Palette::Warm)
-        .alpha(0.12, 0.34)
-        .size(0.5, 1.0)
-        .drift(Drift::Breathe {
-            amp: 0.004,
-            speed: 0.5,
-        }),
+        Group::new(0.72, Home::Mask { points, u, v, w, h })
+            .palette(Palette::Warm)
+            .alpha(0.12, 0.34)
+            .size(0.5, 1.0)
+            .drift(Drift::Breathe {
+                amp: 0.004,
+                speed: 0.5,
+            }),
         dust(0.28).alpha(0.03, 0.12),
     ]);
     scene.link_alpha = 0.0;
@@ -758,7 +716,10 @@ mod tests {
             (1.0, Layout::Quote),
             (2.5, Layout::Section),
         ] {
-            let scene = illustration_stage(ring_points(), aspect, layout, 16.0 / 9.0);
+            let scene = illustration_stage(
+                ring_points(),
+                crate::engines::stage::figure_box(aspect, layout, 16.0 / 9.0, false),
+            );
             let stage = crate::render::story::stage_box(layout);
             let Home::Mask { u, v, w, h, .. } = &scene.groups[0].home else {
                 panic!("first group is the mask");
@@ -782,7 +743,10 @@ mod tests {
 
     #[test]
     fn backdrop_illustration_is_centred_and_dim() {
-        let scene = illustration_backdrop(ring_points(), 1.2, 16.0 / 9.0);
+        let scene = illustration_backdrop(
+            ring_points(),
+            crate::engines::stage::figure_box(1.2, Layout::Title, 16.0 / 9.0, true),
+        );
         let Home::Mask { u, v, w, h, .. } = &scene.groups[0].home else {
             panic!("first group is the mask");
         };
@@ -793,7 +757,10 @@ mod tests {
             scene.groups[0].alpha
         );
         // a very wide cloud is capped by width
-        let wide = illustration_backdrop(ring_points(), 0.2, 16.0 / 9.0);
+        let wide = illustration_backdrop(
+            ring_points(),
+            crate::engines::stage::figure_box(0.2, Layout::Title, 16.0 / 9.0, true),
+        );
         let Home::Mask { w, .. } = &wide.groups[0].home else {
             panic!()
         };

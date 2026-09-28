@@ -30,6 +30,8 @@ pub struct PresentationMeta {
     pub story: Option<String>,
     /// `@countdown: false` turns off the opening countdown (Ember and Nord).
     pub countdown: Option<bool>,
+    /// `@engine`: run the deck on this engine instead of the theme's.
+    pub engine: Option<String>,
     /// `@logo`: a PNG or SVG shown on every slide (`none` hides a theme's logo).
     pub logo: Option<String>,
     /// `@logo-position`: top-left, top-right, bottom-left or bottom-right.
@@ -230,6 +232,7 @@ pub const SLIDE_DIRECTIVES: &[&str] = &["layout", "illustration", "logo", "backg
 /// slide they are removed from its content and ignored (`--check` says so).
 pub const GLOBAL_DIRECTIVES: &[&str] = &[
     "theme",
+    "engine",
     "transition",
     "aspect",
     "code-theme",

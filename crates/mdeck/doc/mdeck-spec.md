@@ -56,6 +56,7 @@ date: 2026-02-28
 | Field         | Type   | Default   | Description                                        |
 |---------------|--------|-----------|----------------------------------------------------|
 | `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`), a custom theme name, or a path to a theme file (section 9.4) |
+| `@engine`     | string | (theme's) | Run the deck on this engine instead of the theme's: `"plain"`, `"particles"` (section 9.6) |
 | `@transition` | string | `"slide"` | Default transition: `"fade"`, `"slide"`, `"spatial"`, `"none"` |
 | `@image-style` | string | none      | Default AI image generation style (name or description) |
 | `@icon-style`  | string | none      | Default AI icon generation style (name or description)  |
@@ -621,6 +622,7 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 | Directive      | Scope          | Values                                    | Default        |
 |----------------|----------------|-------------------------------------------|----------------|
 | `@theme`       | global         | a built-in or custom theme (section 9)    | `light`        |
+| `@engine`      | global         | an engine (section 9.6)                   | the theme's    |
 | `@story`       | global         | English direction for AI stories (Ember) | none           |
 | `@countdown`   | global         | `true`, `false`: the 3-2-1 opener (themes with a `countdown`) | `true`   |
 | `@transition`  | global         | `fade`, `slide`, `spatial`, `none`        | `slide`        |
@@ -1105,16 +1107,9 @@ logo:                      # a logo in a corner of every slide (section 9.5)
 
 Unknown keys are errors, so a typo never goes unnoticed.
 
-**Engines.** The engine decides what a theme does beyond colours and type.
-`plain` draws slides on a flat background. `particles` adds the living
-particle field, the editorial copy column for text slides, story beats and
-point cloud illustrations (the Ember theme in section 9.1 shows it all); it
-takes its colours from the theme, so a brand theme on the particles engine gets
-Ember's motion in its own palette, as `autumn` and `winter` do. The engines
-are part of MDeck; a theme picks one by name. Building MDeck with
-`--no-default-features` leaves the particles engine out (and with it the
-`ember`, `autumn` and `winter` themes and the built-in illustrations); themes
-that ask for it then use `plain`, with a warning.
+**Engines.** The engine decides what a theme does beyond colours and type
+(section 9.6). A theme picks one by name with `engine:`; a deck can run on
+another with `@engine`.
 
 **Fonts.** Fonts are named by *role*, not weight, because a slide draws each
 role with one face. A value is either a bundled face or a TTF/OTF file inside
@@ -1242,6 +1237,47 @@ opacity:
 # A full-bleed photo
 @logo: none
 ```
+
+### 9.6 Engines
+
+The **engine** decides what a theme does beyond colours and type: the layer
+it paints under the slides, how text slides are laid out, and what it plays
+for the countdown and the end. Colours, fonts, sizes and the logo always come
+from the theme, so every theme looks like itself on every engine.
+
+| Engine | What it shows | Illustrations | Stories | Countdown and end act |
+|---|---|---|---|---|
+| `plain` | slides on a flat background | no | no | plain numerals |
+| `particles` | a living field of glowing particles that morphs from slide to slide and follows the content, editorial copy layouts (section 9.1, Ember) | yes | yes | particle digits that burst; the words, a swirl and a bang |
+
+**Choosing one.** A theme names its engine (`engine:` in section 9.4). A deck
+can run on another engine without touching the theme:
+
+```markdown
+---
+@theme: winter
+@engine: plain
+---
+```
+
+`mdeck deck.md --engine <name>`, `mdeck export deck.md --engine <name>` and
+`mdeck deck.md --check --engine <name>` try an engine without editing the deck.
+Precedence: `--engine`, then `@engine`, then the theme's `engine:`. An unknown
+`@engine` is reported and the theme's engine is used; an unknown `--engine`
+stops with the list of engines. A theme's `countdown: burst` becomes the plain
+countdown on an engine that has no countdown of its own.
+
+**Content an engine does not show.** Engines differ in what they can show:
+the plain engine draws no illustrations and plays no stories. `mdeck --check`
+lists every such slide under the `engine` category (for example
+`slide 4: [engine] @illustration: server is not shown by the plain engine`),
+and presenting or exporting prints one summary line when a deck has any.
+
+Engines are part of MDeck and each one is a cargo feature, on by default.
+Building MDeck with `--no-default-features` leaves the particles engine out
+(and with it the `ember`, `autumn` and `winter` themes and the built-in
+illustrations); themes and decks that ask for it then use `plain`, with a
+warning.
 
 ---
 

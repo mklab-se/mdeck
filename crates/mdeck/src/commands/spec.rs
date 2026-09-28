@@ -30,6 +30,8 @@ FRONTMATTER (YAML at top of file)
   title, author, date     Standard metadata
   @theme: name            Theme: dark, light, nord, ember, spring, summer,
                           autumn, winter, or a custom one (see THEMES)
+  @engine: name           Run on this engine instead of the theme's
+                          (plain, particles); try one with --engine name
   @transition: slide|fade|spatial|none
   @aspect: 16:9|4:3|16:10
   @footer: "text"         Footer on every slide

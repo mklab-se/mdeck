@@ -11,7 +11,6 @@ use eframe::egui;
 use super::canvas::{TileCanvas, tile_count};
 use super::notes::{self, NotesJob};
 use super::pdf::PdfDoc;
-use crate::app::ember::EmberState;
 use crate::parser::{self, Presentation};
 use crate::render;
 use crate::render::image_cache::ImageCache;
@@ -67,8 +66,8 @@ pub(super) struct ExportApp {
     done: bool,
     /// First error, shared with `run()` so the exit code reflects it.
     error: Arc<Mutex<Option<String>>>,
-    /// Ember's particle field, settled per slide so exports are still frames.
-    ember: EmberState,
+    /// The theme's engine, settled per slide so exports are still frames.
+    engine: crate::engines::Host,
     /// Frames rendered for the current page; content hints arrive one frame
     /// late, so the screenshot waits for the second frame.
     frames_on_slide: u32,
@@ -158,7 +157,7 @@ impl ExportApp {
             debug,
             done: false,
             error,
-            ember: EmberState::new(),
+            engine: crate::engines::Host::new(crate::engines::EngineKind::Plain),
             frames_on_slide: 0,
             stories,
             pass: Pass::Slide,
@@ -344,7 +343,7 @@ impl ExportApp {
         } else {
             self.max_steps.get(idx).copied().unwrap_or(0)
         };
-        if self.theme.engine.draws_field() {
+        if self.theme.engine.paints() {
             let slide = &self.presentation.slides[idx];
             let story = self
                 .stories
@@ -352,20 +351,22 @@ impl ExportApp {
                 .and_then(|r| r.as_ref())
                 .map(|r| r.script.clone());
             let theme = self.theme.clone();
-            self.ember.frame(
+            self.engine.frame(
                 ui,
-                rect,
-                Some(slide),
-                story.as_ref(),
-                0,
-                idx,
-                reveal,
-                false,
-                None,
-                &theme,
-                scale,
-                1.0,
-                true,
+                crate::engines::Shot {
+                    rect,
+                    slide: Some(slide),
+                    story: story.as_ref(),
+                    story_version: 0,
+                    index: idx,
+                    reveal,
+                    end: false,
+                    countdown: None,
+                    theme: &theme,
+                    scale,
+                    opacity: 1.0,
+                    still: true,
+                },
                 &mut self.illustrations,
             );
         }

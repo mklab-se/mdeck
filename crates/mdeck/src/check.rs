@@ -18,6 +18,8 @@ pub enum CheckCategory {
     /// `@name: value` lines: unknown names, lines not applied, global
     /// directives inside a slide, duplicates.
     Directive,
+    /// Content the deck's engine does not show, and `@engine` problems.
+    Engine,
 }
 
 impl fmt::Display for CheckCategory {
@@ -30,6 +32,7 @@ impl fmt::Display for CheckCategory {
             CheckCategory::Math => write!(f, "math"),
             CheckCategory::Theme => write!(f, "theme"),
             CheckCategory::Directive => write!(f, "directive"),
+            CheckCategory::Engine => write!(f, "engine"),
         }
     }
 }

@@ -146,8 +146,8 @@ impl PresentationApp {
     }
 
     pub(super) fn draw_end_slide(&mut self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
-        if self.theme.engine.draws_field() {
-            self.draw_end_slide_ember(ui, rect, scale);
+        if self.theme.engine.capabilities().end_act {
+            self.draw_end_caption(ui, rect, scale);
             return;
         }
         // Draw ESC hint at top like regular slides
@@ -252,11 +252,11 @@ impl PresentationApp {
         );
     }
 
-    /// Ember's end slide: the particles have already gathered into the logo
-    /// (see `EmberState`), so only a quiet caption is drawn.
-    fn draw_end_slide_ember(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
-        // The caption arrives only after the bang has faded to black.
-        let alpha = ((self.ember.end_elapsed() - 7.4) / 0.9).clamp(0.0, 1.0);
+    /// An engine's end slide: the engine plays its own end act (see
+    /// `engines::Host`), so only a quiet caption is drawn, once the act is over.
+    fn draw_end_caption(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
+        let delay = self.theme.engine.end_caption_delay();
+        let alpha = ((self.engine.end_elapsed() - delay) / 0.9).clamp(0.0, 1.0);
         ui.ctx().request_repaint();
         if alpha <= 0.0 {
             return;
@@ -469,7 +469,7 @@ impl PresentationApp {
         {
             render::logo::draw(ui.painter(), rect, logo, scale, 1.0);
         }
-        if self.theme.engine.draws_field() {
+        if self.theme.engine.capabilities().editorial {
             if !self.countdown_running() {
                 render::ember::draw_chrome(
                     ui.painter(),

@@ -69,6 +69,7 @@ fn parse_frontmatter(yaml_str: &str) -> PresentationMeta {
         slide_level: get_u8(&map, "@slide-level"),
         story: get_string(&map, "@story"),
         countdown: get_string(&map, "@countdown").map(|v| parse_switch(&v)),
+        engine: get_string(&map, "@engine"),
         logo: get_string(&map, "@logo"),
         logo_position: get_string(&map, "@logo-position"),
         logo_opacity: get_string(&map, "@logo-opacity"),
@@ -118,6 +119,7 @@ fn parse_frontmatter_manual(yaml_str: &str) -> PresentationMeta {
                 "@slide-level" => meta.slide_level = value.parse().ok(),
                 "@story" => meta.story = Some(value.to_string()),
                 "@countdown" => meta.countdown = Some(parse_switch(value)),
+                "@engine" => meta.engine = Some(value.to_string()),
                 "@logo" => meta.logo = Some(value.to_string()),
                 "@logo-position" => meta.logo_position = Some(value.to_string()),
                 "@logo-opacity" => meta.logo_opacity = Some(value.to_string()),
@@ -142,6 +144,14 @@ mod tests {
         assert_eq!(meta.logo_position.as_deref(), Some("bottom-left"));
         assert_eq!(meta.logo_opacity.as_deref(), Some("40%"));
         assert_eq!(meta.logo_height.as_deref(), Some("72"));
+    }
+
+    #[test]
+    fn engine_key_is_read() {
+        let (meta, _) = extract("---\n@theme: dark\n@engine: particles\n---\n# A\n");
+        assert_eq!(meta.engine.as_deref(), Some("particles"));
+        let (meta, _) = extract("---\n@engine: particles\n: broken yaml [\n---\n# A\n");
+        assert_eq!(meta.engine.as_deref(), Some("particles"), "manual fallback");
     }
 
     #[test]

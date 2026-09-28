@@ -102,6 +102,7 @@ pub fn run(
     format: Format,
     notes: bool,
     theme: ThemeChoice,
+    engine: Option<String>,
 ) -> anyhow::Result<()> {
     if width == 0 || height == 0 {
         anyhow::bail!("Export width and height must be greater than zero");
@@ -149,6 +150,27 @@ pub fn run(
             theme
         }
     };
+
+    // --engine, then @engine, then the theme's own.
+    let (kind, problems) =
+        crate::engines::choose(engine.as_deref(), presentation.meta.engine.as_deref())
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+    for p in &problems {
+        eprintln!("warning: {p}");
+    }
+    let theme = crate::engines::with_engine(theme, kind);
+    let with_story: Vec<bool> = match render::story::sidecar::load(&file) {
+        Ok(sc) => render::story::sidecar::resolve(&presentation, sc.as_ref()).0,
+        Err(_) => render::story::sidecar::resolve(&presentation, None).0,
+    }
+    .iter()
+    .map(Option::is_some)
+    .collect();
+    if let Some(line) =
+        crate::engines::unsupported_summary(theme.engine, &presentation, &with_story)
+    {
+        eprintln!("warning: {line}");
+    }
 
     std::fs::create_dir_all(&output_dir)?;
 

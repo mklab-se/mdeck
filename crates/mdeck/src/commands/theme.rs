@@ -581,6 +581,7 @@ fn preview(name: &str, output_dir: PathBuf, width: u32, height: u32) -> Result<(
         crate::commands::export::Format::Png,
         false,
         crate::commands::export::ThemeChoice::Given(Box::new(built.theme)),
+        None,
     );
     let _ = std::fs::remove_dir_all(&dir);
     result

@@ -34,6 +34,10 @@ pub struct Cli {
     #[arg(long, global = false)]
     pub overview: bool,
 
+    /// Present on this engine instead of the theme's (plain, particles, ...)
+    #[arg(long, global = false)]
+    pub engine: Option<String>,
+
     /// Validate presentation and report problems without launching GUI
     #[arg(long, global = false)]
     pub check: bool,
@@ -112,6 +116,10 @@ pub enum Commands {
         /// Theme to export with, overriding @theme and the config default
         #[arg(long)]
         theme: Option<String>,
+
+        /// Engine to export with, overriding @engine and the theme's (plain, particles, ...)
+        #[arg(long)]
+        engine: Option<String>,
     },
 
     /// Point cloud illustrations for the particle field (generate, import, list, show)
@@ -444,6 +452,7 @@ impl Cli {
                 format,
                 notes,
                 theme,
+                engine,
             }) => crate::commands::export::run(
                 file,
                 output_dir,
@@ -457,6 +466,7 @@ impl Cli {
                 theme.map_or(crate::commands::export::ThemeChoice::Deck, |name| {
                     crate::commands::export::ThemeChoice::Named(name)
                 }),
+                engine,
             ),
             Some(Commands::Theme { command }) => {
                 let rt = tokio::runtime::Builder::new_current_thread()
@@ -478,9 +488,21 @@ impl Cli {
                         anyhow::bail!("File not found: {}", file.display());
                     }
                     if self.check {
-                        return crate::commands::check::run(file, self.verbose, self.quiet);
+                        return crate::commands::check::run(
+                            file,
+                            self.verbose,
+                            self.quiet,
+                            self.engine,
+                        );
                     }
-                    crate::app::run(file, self.windowed, self.slide, self.overview, self.quiet)
+                    crate::app::run(
+                        file,
+                        self.windowed,
+                        self.slide,
+                        self.overview,
+                        self.quiet,
+                        self.engine,
+                    )
                 } else {
                     use clap::CommandFactory;
                     let mut cmd = Self::command();

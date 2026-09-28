@@ -1,7 +1,8 @@
 //! Themes are data. Each one is a `theme.yaml` (see [`file`]); the four
 //! built-in themes are embedded files in the same format. What a theme
 //! *does* beyond colours and type (a particle field, editorial layouts,
-//! story beats) comes from its [`Engine`], which MDeck provides.
+//! story beats) comes from its engine ([`EngineKind`], see `crate::engines`),
+//! which MDeck provides.
 
 use std::path::{Path, PathBuf};
 
@@ -13,65 +14,7 @@ pub mod validate;
 
 use file::{ThemeFile, parse_color};
 
-/// How a theme behaves beyond its colours and type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Engine {
-    /// Slides on a flat background.
-    Plain,
-    /// A living particle field under every slide, editorial copy layouts,
-    /// story beats and point cloud illustrations.
-    Particles,
-}
-
-impl Engine {
-    pub fn from_name(name: &str) -> Option<Self> {
-        match name {
-            "plain" => Some(Engine::Plain),
-            "particles" => Some(Engine::Particles),
-            _ => None,
-        }
-    }
-
-    pub fn name(self) -> &'static str {
-        match self {
-            Engine::Plain => "plain",
-            Engine::Particles => "particles",
-        }
-    }
-
-    /// Whether this build includes the engine (`particles` is a cargo feature).
-    pub fn available(self) -> bool {
-        match self {
-            Engine::Plain => true,
-            Engine::Particles => cfg!(feature = "particles"),
-        }
-    }
-
-    /// Draws the particle field under the slide, in presenting and export.
-    pub fn draws_field(self) -> bool {
-        self == Engine::Particles
-    }
-
-    /// Lays `slide` out itself (the editorial copy column, title, quote and
-    /// section slides) instead of the generic layouts.
-    pub fn lays_out(self, slide: &crate::parser::Slide) -> bool {
-        self == Engine::Particles && crate::render::ember::handles(slide)
-    }
-
-    /// Story beats add reveal steps to a slide.
-    pub fn plays_stories(self) -> bool {
-        self == Engine::Particles
-    }
-
-    /// Frames an export waits on a slide before capturing it, so the field
-    /// has seen the slide's geometry.
-    pub fn settle_frames(self) -> u32 {
-        match self {
-            Engine::Plain => 0,
-            Engine::Particles => 2,
-        }
-    }
-}
+pub use crate::engines::EngineKind;
 
 /// The opening countdown before the first slide.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,7 +22,8 @@ pub enum Countdown {
     None,
     /// Numerals on the bare background.
     Plain,
-    /// Particle numerals that burst into the first slide (particles engine).
+    /// The engine's own countdown (particle numerals that burst into the
+    /// first slide on the particles engine).
     Burst,
 }
 
@@ -121,7 +65,7 @@ pub struct ThemeFonts {
 #[derive(Debug, Clone)]
 pub struct Theme {
     pub name: String,
-    pub engine: Engine,
+    pub engine: EngineKind,
     pub countdown: Countdown,
     pub background: Color32,
     pub foreground: Color32,
@@ -333,9 +277,10 @@ impl Theme {
             color("cool", &f.particles.cool)?.unwrap_or(Color32::from_rgb(0xAF, 0xC3, 0xF0));
 
         let engine = match &f.engine {
-            None => Engine::Plain,
-            Some(e) => Engine::from_name(e)
-                .ok_or_else(|| format!("engine: '{e}' is not an engine (plain or particles)"))?,
+            None => EngineKind::Plain,
+            Some(e) => EngineKind::from_name(e).ok_or_else(|| {
+                format!("engine: '{e}' is not an engine ({})", EngineKind::names())
+            })?,
         };
         let engine = if engine.available() {
             engine
@@ -344,15 +289,18 @@ impl Theme {
                 "engine '{}' is not in this build of MDeck; using plain",
                 engine.name()
             ));
-            Engine::Plain
+            EngineKind::Plain
         };
         let mut countdown = match &f.countdown {
             None => Countdown::None,
             Some(c) => Countdown::from_name(c)
                 .ok_or_else(|| format!("countdown: '{c}' is not none, plain or burst"))?,
         };
-        if countdown == Countdown::Burst && engine != Engine::Particles {
-            warnings.push("countdown: burst needs the particles engine; using plain".into());
+        if countdown == Countdown::Burst && !engine.capabilities().countdown {
+            warnings.push(format!(
+                "countdown: burst needs an engine with its own countdown, not {}; using plain",
+                engine.name()
+            ));
             countdown = Countdown::Plain;
         }
 
@@ -687,7 +635,7 @@ mod tests {
         assert_eq!(d.positive, Color32::from_rgb(0x5C, 0xDB, 0x95));
         assert_eq!(d.syntax, "base16-ocean.dark");
         assert_eq!(d.fill_opacity, 0.85);
-        assert_eq!(d.engine, Engine::Plain);
+        assert_eq!(d.engine, EngineKind::Plain);
         assert_eq!(d.countdown, Countdown::None);
         assert_eq!(d.fonts.display, egui::FontFamily::Proportional);
         assert_eq!(d.strong, d.heading_color);
@@ -725,7 +673,7 @@ mod tests {
         assert_eq!(e.fonts.mono, egui::FontFamily::Name(FONT_MONO.into()));
         assert_eq!(e.strong, e.heading_color);
         if cfg!(feature = "particles") {
-            assert_eq!(e.engine, Engine::Particles);
+            assert_eq!(e.engine, EngineKind::Particles);
             assert_eq!(e.countdown, Countdown::Burst);
         }
     }

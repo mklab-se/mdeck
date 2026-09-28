@@ -9,7 +9,7 @@ mod directives;
 pub use content::{cjk_font_warning, math_warnings, warn_missing_cjk_font};
 pub use directives::directive_warnings;
 
-pub fn run(file: PathBuf, verbose: u8, quiet: bool) -> anyhow::Result<()> {
+pub fn run(file: PathBuf, verbose: u8, quiet: bool, engine: Option<String>) -> anyhow::Result<()> {
     let content = std::fs::read_to_string(&file)?;
     let base_path = file.parent().unwrap_or(std::path::Path::new("."));
     let presentation = parser::parse(&content, base_path);
@@ -116,6 +116,23 @@ pub fn run(file: PathBuf, verbose: u8, quiet: bool) -> anyhow::Result<()> {
     for w in theme_warnings(&presentation, defaults.theme.as_deref(), base_path) {
         report.add(w);
     }
+    let (kind, problems) = deck_engine(
+        &presentation,
+        defaults.theme.as_deref(),
+        base_path,
+        engine.as_deref(),
+    )?;
+    for message in problems {
+        report.add(CheckWarning {
+            slide: 0,
+            category: CheckCategory::Engine,
+            message,
+        });
+    }
+    let with_story: Vec<bool> = stories.iter().map(Option::is_some).collect();
+    for w in engine_warnings(&presentation, &with_story, kind) {
+        report.add(w);
+    }
 
     if report.has_warnings() {
         if !quiet {
@@ -128,6 +145,46 @@ pub fn run(file: PathBuf, verbose: u8, quiet: bool) -> anyhow::Result<()> {
         }
         Ok(())
     }
+}
+
+/// The engine the deck runs on (`--engine`, `@engine`, then the theme's) and
+/// any problem with the deck's `@engine`. An unknown `--engine` is an error.
+pub fn deck_engine(
+    presentation: &parser::Presentation,
+    config_default: Option<&str>,
+    base: &std::path::Path,
+    cli: Option<&str>,
+) -> anyhow::Result<(crate::engines::EngineKind, Vec<String>)> {
+    use crate::theme::lookup;
+    let (kind, problems) = crate::engines::choose(cli, presentation.meta.engine.as_deref())
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    if let Some(kind) = kind {
+        return Ok((kind, problems));
+    }
+    let name = lookup::select(presentation.meta.theme.as_deref(), config_default);
+    let themes = lookup::Lookup::for_deck(Some(base));
+    let (theme, _) = lookup::resolve_or_default(&themes, &name);
+    Ok((theme.engine, problems))
+}
+
+/// Content the deck's engine will not show, one warning per slide and thing.
+pub fn engine_warnings(
+    presentation: &parser::Presentation,
+    with_story: &[bool],
+    kind: crate::engines::EngineKind,
+) -> Vec<CheckWarning> {
+    let mut out = Vec::new();
+    for (i, slide) in presentation.slides.iter().enumerate() {
+        let story = with_story.get(i).copied().unwrap_or(false);
+        for message in crate::engines::unsupported(kind, slide, story) {
+            out.push(CheckWarning {
+                slide: i + 1,
+                category: CheckCategory::Engine,
+                message,
+            });
+        }
+    }
+    out
 }
 
 /// Theme warnings (on slide 0, since a theme belongs to the deck): the name

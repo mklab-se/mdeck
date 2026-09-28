@@ -1,5 +1,4 @@
 mod drawing;
-pub(crate) mod ember;
 mod helpers;
 mod input;
 pub mod keys;
@@ -149,6 +148,11 @@ struct PresentationApp {
     themes: lookup::Lookup,
     /// A theme waiting for its font faces to become drawable (one frame).
     pending_theme: Option<Theme>,
+    /// `--engine` from the command line (wins over everything).
+    cli_engine: Option<crate::engines::EngineKind>,
+    /// The engine every theme runs on for this deck (`--engine`, then
+    /// `@engine`); `None` keeps each theme's own.
+    engine_override: Option<crate::engines::EngineKind>,
     /// Keeps the context's fonts in step with theme font files.
     font_sync: render::fonts::FontSync,
     /// The logo on each slide (theme `logo:`, the deck's `@logo`, the slide's `@logo`).
@@ -217,8 +221,8 @@ struct PresentationApp {
     incident_log: Arc<IncidentLog>,
     /// Timestamp of the previous frame, used to detect power-state time jumps.
     last_frame: Instant,
-    /// Particles engine: particle field and logo intro.
-    ember: ember::EmberState,
+    /// The theme's engine: its layer under the slides, countdown and end act.
+    engine: crate::engines::Host,
     /// Resolved story per slide (inline `@scene`, sidecar, or none).
     stories: Vec<Option<Resolved>>,
     /// Point cloud illustrations resolved for this deck.
@@ -321,6 +325,7 @@ impl PresentationApp {
         quiet: bool,
         incident_log: Arc<IncidentLog>,
         defaults: &DefaultsConfig,
+        cli_engine: Option<crate::engines::EngineKind>,
     ) -> Self {
         // Precedence: frontmatter > config defaults > built-in
         let theme_key = lookup::select(
@@ -330,6 +335,8 @@ impl PresentationApp {
         let themes = lookup::Lookup::for_deck(file.parent());
         let (resolved, problems) = lookup::resolve_or_default(&themes, &theme_key);
         report_theme_problems(&problems);
+        let engine_override = deck_engine(cli_engine, &presentation, quiet);
+        let resolved = crate::engines::with_engine(resolved, engine_override);
         // `run` preloads every theme's fonts before installing them; should a
         // face still be new, start on the default theme for the frame it takes.
         let font_sync = render::fonts::FontSync::installed();
@@ -353,6 +360,16 @@ impl PresentationApp {
         let image_cache = ImageCache::new(base_path);
 
         let stories = load_stories(&file, &presentation, quiet);
+        if !quiet {
+            let with_story: Vec<bool> = stories.iter().map(Option::is_some).collect();
+            if let Some(line) = crate::engines::unsupported_summary(
+                resolved_engine(&theme, &pending_theme),
+                &presentation,
+                &with_story,
+            ) {
+                eprintln!("warning: {line}");
+            }
+        }
         let max_steps: Vec<usize> =
             slide_max_steps(&presentation, &stories, theme.engine.plays_stories());
         let slide_count = presentation.slides.len();
@@ -419,7 +436,9 @@ impl PresentationApp {
             shared_slide: None,
             incident_log,
             last_frame: now,
-            ember: ember::EmberState::new(),
+            cli_engine,
+            engine_override,
+            engine: crate::engines::Host::new(crate::engines::EngineKind::Plain),
             stories,
             story_version: 0,
             story_rx: None,
@@ -841,7 +860,7 @@ impl PresentationApp {
     /// Switch to `theme` now: step counts follow its engine (story beats are
     /// an ember feature; other engines step through the content's own reveals).
     fn apply_theme(&mut self, theme: Theme) {
-        self.theme = theme;
+        self.theme = crate::engines::with_engine(theme, self.engine_override);
         self.refresh_logo();
         self.max_steps = slide_max_steps(
             &self.presentation,
@@ -950,12 +969,17 @@ impl PresentationApp {
 
         // Update theme/transition from new frontmatter (and pick up edits to
         // the theme file itself)
+        let engine_override = deck_engine(self.cli_engine, &new_presentation, false);
         if let Some(name) = &new_presentation.meta.theme {
             let (theme, problems) = lookup::resolve_or_default(&self.themes, name);
             report_theme_problems(&problems);
             self.theme_key = name.trim().to_ascii_lowercase();
             self.pending_theme = Some(theme);
+        } else if engine_override != self.engine_override {
+            let (theme, _) = lookup::resolve_or_default(&self.themes, &self.theme_key);
+            self.pending_theme = Some(theme);
         }
+        self.engine_override = engine_override;
         if let Some(name) = &new_presentation.meta.transition {
             self.default_transition = TransitionKind::from_name(name);
         }
@@ -1513,8 +1537,8 @@ impl eframe::App for PresentationApp {
 
                 let scale = Self::compute_scale(rect);
 
-                // Ember: the living particle field goes under everything.
-                if self.theme.engine.draws_field() && matches!(self.mode, AppMode::Presentation) {
+                // The engine's layer goes under everything.
+                if self.theme.engine.paints() && matches!(self.mode, AppMode::Presentation) {
                     let target = self
                         .transition
                         .as_ref()
@@ -1527,36 +1551,40 @@ impl eframe::App for PresentationApp {
                     let reveal = self.reveal_steps.get(target).copied().unwrap_or(0);
                     let story = self.story(target).cloned();
                     let theme = self.theme.clone();
-                    let phase =
+                    let countdown =
                         self.countdown
                             .as_ref()
                             .and_then(|cd| match cd.phase(Instant::now()) {
                                 CountdownPhase::Digit(d, p) => {
-                                    Some((ember::CountPhase::Digit(d), p))
+                                    Some((crate::engines::CountPhase::Digit(d), p))
                                 }
-                                CountdownPhase::Burst(p) => Some((ember::CountPhase::Burst, p)),
+                                CountdownPhase::Burst(p) => {
+                                    Some((crate::engines::CountPhase::Burst, p))
+                                }
                                 CountdownPhase::Done => None,
                             });
-                    self.ember.frame(
+                    self.engine.frame(
                         ui,
-                        rect,
-                        slide,
-                        story.as_ref(),
-                        self.story_version,
-                        target,
-                        reveal,
-                        end,
-                        phase,
-                        &theme,
-                        scale,
-                        1.0,
-                        false,
+                        crate::engines::Shot {
+                            rect,
+                            slide,
+                            story: story.as_ref(),
+                            story_version: self.story_version,
+                            index: target,
+                            reveal,
+                            end,
+                            countdown,
+                            theme: &theme,
+                            scale,
+                            opacity: 1.0,
+                            still: false,
+                        },
                         &mut self.illustrations,
                     );
                 }
 
-                // Nord's countdown: numerals on the bare background, no slide yet.
-                if self.countdown_running() && !self.theme.engine.draws_field() {
+                // A plain countdown: numerals on the bare background, no slide yet.
+                if self.countdown_running() && !self.theme.engine.capabilities().countdown {
                     self.draw_countdown_numeral(ui, rect, scale);
                     return;
                 }
@@ -1690,6 +1718,33 @@ fn load_stories(
 
 /// Reveal steps per slide: the content's own steps, extended by story beats
 /// when a theme on the particles engine is showing them.
+/// The engine override for a deck: `--engine`, then its `@engine` (whose
+/// problems are printed unless quiet).
+fn deck_engine(
+    cli: Option<crate::engines::EngineKind>,
+    presentation: &Presentation,
+    quiet: bool,
+) -> Option<crate::engines::EngineKind> {
+    if cli.is_some() {
+        return cli;
+    }
+    // Only a CLI name can fail; the deck's name only warns.
+    let (kind, warnings) = crate::engines::choose(None, presentation.meta.engine.as_deref())
+        .unwrap_or((None, Vec::new()));
+    if !quiet {
+        for w in warnings {
+            eprintln!("warning: {w}");
+        }
+    }
+    kind
+}
+
+/// The engine the window will run on: the pending theme's when one waits
+/// for its fonts, else the current theme's.
+fn resolved_engine(theme: &Theme, pending: &Option<Theme>) -> crate::engines::EngineKind {
+    pending.as_ref().unwrap_or(theme).engine
+}
+
 /// Print theme problems (unknown name, invalid file, fallbacks) to stderr.
 fn report_theme_problems(problems: &[String]) {
     for p in problems {
@@ -1750,6 +1805,7 @@ pub fn run(
     start_slide: Option<usize>,
     start_overview: bool,
     quiet: bool,
+    engine: Option<String>,
 ) -> anyhow::Result<()> {
     let file = file.canonicalize().unwrap_or(file);
 
@@ -1769,6 +1825,8 @@ pub fn run(
     if presentation.slides.is_empty() {
         anyhow::bail!("No slides found in {}", file.display());
     }
+    let (cli_engine, _) =
+        crate::engines::choose(engine.as_deref(), None).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     if !quiet {
         crate::commands::check::warn_missing_cjk_font(&presentation);
@@ -1866,6 +1924,7 @@ pub fn run(
                 quiet,
                 log_clone,
                 &defaults,
+                cli_engine,
             );
             app.current_slide = initial_slide;
             app.shared_slide = Some(shared);
