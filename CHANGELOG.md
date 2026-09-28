@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.15.1] - 2026-09-28
 
 ### Fixed
 
@@ -15,7 +15,8 @@ All notable changes to this project will be documented in this file.
 - Stepping back through bullets only removes the last one. The bullet that became the last
   one used to rise in again when Back came within a second of Next, so going back and forth
   looked like every bullet being rewritten; and nine seconds after entering a slide, bullets
-  stopped animating at all. Now only Next animates, and always the same way.
+  stopped animating at all. Now only Next animates, and always the same way. Revealed chart
+  and diagram steps no longer animate again on Back either.
 
 ## [1.15.0] - 2026-09-28
 
