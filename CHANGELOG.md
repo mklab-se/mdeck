@@ -12,6 +12,10 @@ All notable changes to this project will be documented in this file.
   quarter second, so an idle window (the art engines stop repainting once their picture is
   done) replayed the entrance on its next frame. It now counts as re-entered only when it was
   not drawn in the previous frame.
+- Stepping back through bullets only removes the last one. The bullet that became the last
+  one used to rise in again when Back came within a second of Next, so going back and forth
+  looked like every bullet being rewritten; and nine seconds after entering a slide, bullets
+  stopped animating at all. Now only Next animates, and always the same way.
 
 ## [1.15.0] - 2026-09-28
 

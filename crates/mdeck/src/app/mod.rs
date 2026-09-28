@@ -623,9 +623,11 @@ impl PresentationApp {
 
         let idx = self.current_slide;
 
-        // If we've revealed items, un-reveal
+        // If we've revealed items, un-reveal. Only Next animates: clearing
+        // the timestamp keeps what stays on screen from rising in again.
         if self.reveal_steps[idx] > 0 {
             self.reveal_steps[idx] -= 1;
+            self.reveal_timestamps[idx] = None;
             return;
         }
 

@@ -583,20 +583,12 @@ fn draw_pieces(
     let painter = ui.painter();
     let mut y = top;
     let mut nth = start_nth;
-    let reveal_age = reveal_timestamp
-        .filter(|_| age < 9.0)
-        .map(|t| t.elapsed().as_secs_f32())
-        .unwrap_or(10.0);
+    let reveal_age = reveal_timestamp.map(|t| t.elapsed().as_secs_f32());
     for piece in pieces {
         if piece.step > reveal_step {
             continue;
         }
-        // Items in the step that just revealed rise like an entering element.
-        let progress = if piece.step > 0 && piece.step == reveal_step && reveal_age < 1.0 {
-            ease_out(reveal_age / 0.55)
-        } else {
-            stagger(age, nth)
-        };
+        let progress = piece_progress(piece.step, reveal_step, age, reveal_age, nth);
         if progress < 1.0 {
             ui.ctx().request_repaint();
         }
@@ -631,6 +623,24 @@ fn draw_pieces(
         }
         y += piece.galley.rect.height() + piece.gap;
         nth += 1;
+    }
+}
+
+/// How far a copy element has risen into place (0..1). Elements rise in a
+/// stagger when the slide is entered; the element of a step just revealed
+/// with Next rises on its own, whenever that happens. `reveal_age` is the
+/// time since that Next press: the app clears it on Back, so stepping back
+/// only removes the last element and nothing that stays animates again.
+fn piece_progress(
+    step: usize,
+    reveal_step: usize,
+    age: f32,
+    reveal_age: Option<f32>,
+    nth: usize,
+) -> f32 {
+    match reveal_age {
+        Some(r) if step > 0 && step == reveal_step && r < 1.0 => ease_out(r / 0.55),
+        _ => stagger(age, nth),
     }
 }
 
@@ -1259,6 +1269,19 @@ mod tests {
         // Leaving the slide for a frame and coming back does replay it.
         frame(&ctx, 6.0, false);
         assert_eq!(frame(&ctx, 7.0, true), Some(0.0));
+    }
+
+    #[test]
+    fn only_a_bullet_revealed_with_next_rises() {
+        // Long after the entrance: the bullet just revealed rises...
+        assert!(piece_progress(3, 3, 20.0, Some(0.1), 4) < 0.5);
+        // ...even after nine seconds on the slide (it used to pop in then)
+        assert!(piece_progress(3, 3, 9.5, Some(0.1), 4) < 0.5);
+        // the bullets above it stay put
+        assert_eq!(piece_progress(2, 3, 20.0, Some(0.1), 3), 1.0);
+        // Regression: after Back the timestamp is cleared, so the bullet
+        // that is now the last one stays where it is instead of rising again
+        assert_eq!(piece_progress(2, 2, 20.0, None, 3), 1.0);
     }
 
     #[test]
