@@ -134,52 +134,73 @@ fn layout_auto(
         return (Vec::new(), grid_info);
     }
 
-    // For small node counts, use a single row
+    // For small node counts, use a single row; for larger ones, a grid.
     if n <= 5 {
-        // Responsive: size nodes to fill available space
-        let max_node_w = (area_width / n as f32 * 0.6).clamp(100.0 * scale, 240.0 * scale);
-        let node_h = (area_height * 0.4).clamp(80.0 * scale, 220.0 * scale);
-        let node_w = max_node_w.min(node_h * 1.4); // keep reasonable aspect ratio
-
-        let gap = if n > 1 {
-            ((area_width - n as f32 * node_w) / (n - 1) as f32).max(20.0 * scale)
-        } else {
-            0.0
-        };
-        let total_w = n as f32 * node_w + n.saturating_sub(1) as f32 * gap;
-        let start_x = (area_width - total_w) / 2.0 + node_w / 2.0;
-
-        let cell_w = if n > 1 {
-            area_width / n as f32
-        } else {
-            area_width
-        };
-
-        let layouts = nodes
-            .iter()
-            .enumerate()
-            .map(|(i, _)| NodeLayout {
-                center_x: start_x + i as f32 * (node_w + gap),
-                center_y: area_height / 2.0,
-                width: node_w,
-                height: node_h,
-            })
-            .collect();
-
-        let grid_info = GridInfo {
-            cols: n,
-            rows: 1,
-            cell_w,
-            cell_h: area_height,
-            origin_x,
-            origin_y,
-            occupied: (0..n).map(|i| (i, 0)).collect(),
-        };
-
-        return (layouts, grid_info);
+        layout_row(n, area_width, area_height, origin_x, origin_y, scale)
+    } else {
+        layout_auto_grid(n, area_width, area_height, origin_x, origin_y, scale)
     }
+}
 
-    // For larger counts, arrange in a grid pattern
+/// `n` (1 to 5) nodes in one row, spread across the area and sized to fill it.
+fn layout_row(
+    n: usize,
+    area_width: f32,
+    area_height: f32,
+    origin_x: f32,
+    origin_y: f32,
+    scale: f32,
+) -> (Vec<NodeLayout>, GridInfo) {
+    // Responsive: size nodes to fill available space
+    let max_node_w = (area_width / n as f32 * 0.6).clamp(100.0 * scale, 240.0 * scale);
+    let node_h = (area_height * 0.4).clamp(80.0 * scale, 220.0 * scale);
+    let node_w = max_node_w.min(node_h * 1.4); // keep reasonable aspect ratio
+
+    let gap = if n > 1 {
+        ((area_width - n as f32 * node_w) / (n - 1) as f32).max(20.0 * scale)
+    } else {
+        0.0
+    };
+    let total_w = n as f32 * node_w + n.saturating_sub(1) as f32 * gap;
+    let start_x = (area_width - total_w) / 2.0 + node_w / 2.0;
+
+    let cell_w = if n > 1 {
+        area_width / n as f32
+    } else {
+        area_width
+    };
+
+    let layouts = (0..n)
+        .map(|i| NodeLayout {
+            center_x: start_x + i as f32 * (node_w + gap),
+            center_y: area_height / 2.0,
+            width: node_w,
+            height: node_h,
+        })
+        .collect();
+
+    let grid_info = GridInfo {
+        cols: n,
+        rows: 1,
+        cell_w,
+        cell_h: area_height,
+        origin_x,
+        origin_y,
+        occupied: (0..n).map(|i| (i, 0)).collect(),
+    };
+
+    (layouts, grid_info)
+}
+
+/// `n` nodes (more than five) in a near-square grid, row by row.
+fn layout_auto_grid(
+    n: usize,
+    area_width: f32,
+    area_height: f32,
+    origin_x: f32,
+    origin_y: f32,
+    scale: f32,
+) -> (Vec<NodeLayout>, GridInfo) {
     let cols = auto_columns(n);
     let rows = n.div_ceil(cols);
 
@@ -190,10 +211,8 @@ fn layout_auto(
     let node_w = (cell_w * 0.65).clamp(100.0 * scale, 220.0 * scale);
     let node_h = (cell_h * 0.6).clamp(80.0 * scale, 160.0 * scale);
 
-    let layouts = nodes
-        .iter()
-        .enumerate()
-        .map(|(i, _)| {
+    let layouts = (0..n)
+        .map(|i| {
             let col = i % cols;
             let row = i / cols;
 
@@ -305,6 +324,37 @@ mod tests {
         assert_eq!(auto_columns(5), 5);
         assert_eq!(auto_columns(6), 3);
         assert_eq!(auto_columns(10), 4);
+    }
+
+    #[test]
+    fn a_row_is_centred_and_evenly_spaced() {
+        let (layouts, info) = layout_row(3, 1200.0, 600.0, 10.0, 20.0, 1.0);
+        assert_eq!(layouts.len(), 3);
+        assert_eq!((info.cols, info.rows), (3, 1));
+        assert_eq!(info.cell_w, 400.0);
+        assert_eq!((info.origin_x, info.origin_y), (10.0, 20.0));
+        assert_eq!(info.occupied.len(), 3);
+        let step = layouts[1].center_x - layouts[0].center_x;
+        assert!((layouts[2].center_x - layouts[1].center_x - step).abs() < 1e-3);
+        assert!((layouts[0].center_x + layouts[2].center_x - 1200.0).abs() < 1e-3);
+        assert!(layouts.iter().all(|l| l.center_y == 300.0));
+    }
+
+    #[test]
+    fn a_single_node_row_sits_in_the_middle() {
+        let (layouts, info) = layout_row(1, 800.0, 400.0, 0.0, 0.0, 1.0);
+        assert_eq!(layouts[0].center_x, 400.0);
+        assert_eq!(info.cell_w, 800.0);
+    }
+
+    #[test]
+    fn a_larger_auto_layout_fills_a_grid_row_by_row() {
+        let (layouts, info) = layout_auto_grid(7, 900.0, 600.0, 0.0, 0.0, 1.0);
+        assert_eq!((info.cols, info.rows), (3, 3));
+        assert_eq!((info.cell_w, info.cell_h), (300.0, 200.0));
+        assert_eq!(layouts.len(), 7);
+        assert_eq!((layouts[4].center_x, layouts[4].center_y), (450.0, 300.0));
+        assert!(info.occupied.contains(&(0, 2)) && !info.occupied.contains(&(1, 2)));
     }
 
     #[test]

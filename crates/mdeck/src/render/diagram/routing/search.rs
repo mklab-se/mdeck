@@ -103,6 +103,141 @@ fn heuristic(from: GridCoord, to: GridCoord) -> f64 {
     from.manhattan_to(to) as f64 / 2.0
 }
 
+/// Length of one step in doubled coords, in grid units.
+const STEP_LENGTH: f64 = 0.5;
+
+/// What one A* run searches: the graph, the lanes already taken, the
+/// endpoints and the cost weights.
+struct SearchCx<'a> {
+    graph: &'a RoutingGraph,
+    occupancy: &'a LaneOccupancy,
+    source: GridCoord,
+    target: GridCoord,
+    weights: &'a CostWeights,
+}
+
+/// The A* bookkeeping: the open set, the best cost found per state, and
+/// each state's parent (with the lane it was reached on).
+#[derive(Default)]
+struct Frontier {
+    open: BinaryHeap<PqEntry>,
+    best_g: HashMap<StateKey, f64>,
+    came_from: HashMap<StateKey, (StateKey, Lane)>,
+}
+
+impl Frontier {
+    /// Put a start state in the open set, unconditionally.
+    fn seed(&mut self, state: SearchState) {
+        self.best_g.insert(state.key(), state.g_cost);
+        self.push(state);
+    }
+
+    /// Record `state`, reached from `parent`, unless its state is already
+    /// known at a cost no higher.
+    fn relax(&mut self, state: SearchState, parent: (StateKey, Lane)) {
+        let key = state.key();
+        if let Some(&best) = self.best_g.get(&key)
+            && state.g_cost >= best
+        {
+            return;
+        }
+        self.best_g.insert(key, state.g_cost);
+        self.came_from.insert(key, parent);
+        self.push(state);
+    }
+
+    /// Whether a cheaper path to `state` has been found since it was queued.
+    fn is_stale(&self, state: &SearchState) -> bool {
+        matches!(self.best_g.get(&state.key()), Some(&best) if state.g_cost > best)
+    }
+
+    fn push(&mut self, state: SearchState) {
+        self.open.push(PqEntry {
+            f_cost: state.f_cost(),
+            g_cost: state.g_cost,
+            coord: state.coord,
+            lane: state.lane,
+            direction: state.last_direction,
+            state,
+        });
+    }
+}
+
+/// Whether `coord` is the centre of an occupied cell that is neither
+/// endpoint, so a route may not pass through it.
+fn blocks_route(
+    graph: &RoutingGraph,
+    coord: GridCoord,
+    source: GridCoord,
+    target: GridCoord,
+) -> bool {
+    coord.is_cell_center() && graph.is_occupied(&coord) && coord != source && coord != target
+}
+
+/// The cost so far `g` plus one step: its length, a turn, a lane change
+/// (only when not turning) and each crossing, weighted.
+fn step_g(g: f64, weights: &CostWeights, is_turn: bool, lane_changed: bool, crossings: u32) -> f64 {
+    let turn_raw = if is_turn { 1.0 } else { 0.0 };
+    let lane_change_raw = if lane_changed && !is_turn { 1.0 } else { 0.0 };
+    g + weights.length * STEP_LENGTH
+        + weights.turn * turn_raw
+        + weights.lane_change * lane_change_raw
+        + weights.crossing * crossings as f64
+}
+
+/// The state one step from `current` to `coord` in `dir` on `lane`, having
+/// crossed `crossings` other routes.
+fn advance(
+    current: &SearchState,
+    coord: GridCoord,
+    lane: Lane,
+    dir: Direction,
+    crossings: u32,
+    cx: &SearchCx,
+) -> SearchState {
+    let is_turn = current.last_direction.is_turn(dir);
+    let lane_changed = lane != current.lane;
+    SearchState {
+        coord,
+        lane,
+        last_direction: dir,
+        g_cost: step_g(current.g_cost, cx.weights, is_turn, lane_changed, crossings),
+        h_cost: heuristic(coord, cx.target),
+        length_so_far: current.length_so_far + STEP_LENGTH,
+        turns_so_far: current.turns_so_far + if is_turn { 1 } else { 0 },
+        lane_changes_so_far: current.lane_changes_so_far
+            + if lane_changed && !is_turn { 1 } else { 0 },
+        crossings_so_far: current.crossings_so_far + crossings,
+    }
+}
+
+/// Queue every state one step from `current`: forward or sideways, never
+/// back, never into an occupied cell, on each free lane of the segment.
+fn expand(cx: &SearchCx, frontier: &mut Frontier, current: &SearchState) {
+    // Leaving an occupied cell's centre is only OK from the source or target.
+    if blocks_route(cx.graph, current.coord, cx.source, cx.target) {
+        return;
+    }
+    let parent = (current.key(), current.lane);
+    for &(neighbor, seg, dir) in cx.graph.neighbors(&current.coord) {
+        if dir == current.last_direction.opposite()
+            || blocks_route(cx.graph, neighbor, cx.source, cx.target)
+        {
+            continue;
+        }
+        let available = cx.occupancy.available_lanes(&seg, cx.graph.capacity(&seg));
+        for &next_lane in &available {
+            // Per-lane crossing detection: includes pass-through crossings
+            // and turn conflicts (lane-dependent).
+            let crossings = cx
+                .occupancy
+                .count_crossings(&seg, next_lane, &[cx.source, cx.target]);
+            let next = advance(current, neighbor, next_lane, dir, crossings, cx);
+            frontier.relax(next, parent);
+        }
+    }
+}
+
 /// Run A* search from `source` to `target` starting in direction `initial_dir`.
 ///
 /// The search starts at the source cell center, steps one unit in `initial_dir` to the
@@ -123,168 +258,50 @@ fn astar_single_direction(
     if !graph.contains(&first_junction) {
         return None;
     }
-
     let first_seg = SegmentId::new(source, first_junction);
-    let first_capacity = graph.capacity(&first_seg);
-
-    // Get available lanes for the first segment.
-    let first_lanes = occupancy.available_lanes(&first_seg, first_capacity);
+    let first_lanes = occupancy.available_lanes(&first_seg, graph.capacity(&first_seg));
     if first_lanes.is_empty() {
         return None;
     }
 
-    let mut open = BinaryHeap::new();
-    let mut best_g: HashMap<StateKey, f64> = HashMap::new();
-    let mut came_from: HashMap<StateKey, (StateKey, Lane)> = HashMap::new();
-
-    // Seed the open set with states at the first junction.
+    let cx = SearchCx {
+        graph,
+        occupancy,
+        source,
+        target,
+        weights,
+    };
+    let mut frontier = Frontier::default();
     for &lane in &first_lanes {
-        let h = heuristic(first_junction, target);
-        let g = weights.length * 0.5; // Weighted length of one step.
-        let state = SearchState {
+        frontier.seed(SearchState {
             coord: first_junction,
             lane,
             last_direction: initial_dir,
-            g_cost: g,
-            h_cost: h,
-            length_so_far: 0.5,
+            g_cost: weights.length * STEP_LENGTH,
+            h_cost: heuristic(first_junction, target),
+            length_so_far: STEP_LENGTH,
             turns_so_far: 0,
             lane_changes_so_far: 0,
             crossings_so_far: 0,
-        };
-        let key = state.key();
-        best_g.insert(key, g);
-        open.push(PqEntry {
-            f_cost: state.f_cost(),
-            g_cost: g,
-            coord: first_junction,
-            lane,
-            direction: initial_dir,
-            state,
         });
     }
 
-    while let Some(entry) = open.pop() {
+    while let Some(entry) = frontier.open.pop() {
         let current = entry.state;
-        let current_key = current.key();
-
-        // Skip if we've found a better path to this state.
-        if let Some(&best) = best_g.get(&current_key)
-            && current.g_cost > best
-        {
+        if frontier.is_stale(&current) {
             continue;
         }
-
-        // Check if we reached the target cell center.
         if current.coord == target {
-            // Reconstruct the path.
             return Some(reconstruct_route(
-                &came_from,
-                current_key,
+                &frontier.came_from,
+                current.key(),
                 source,
                 initial_dir,
                 &first_lanes,
                 &current,
             ));
         }
-
-        // Expand neighbors.
-        for &(neighbor, seg, dir) in graph.neighbors(&current.coord) {
-            // Don't go backwards.
-            if dir == current.last_direction.opposite() {
-                continue;
-            }
-
-            // Check if the neighbor goes through an occupied cell.
-            // A cell center is occupied if it's not source or target.
-            if neighbor.is_cell_center()
-                && graph.is_occupied(&neighbor)
-                && neighbor != source
-                && neighbor != target
-            {
-                continue;
-            }
-
-            // Also check if we'd be routing through an occupied cell's internal road.
-            // If current is a junction adjacent to an occupied cell, and neighbor is
-            // the cell center of that occupied cell, that's only OK if it's source/target.
-            // If current is a cell center of an occupied cell, and the neighbor is a junction,
-            // that's only OK if current is source or target.
-            if current.coord.is_cell_center()
-                && graph.is_occupied(&current.coord)
-                && current.coord != source
-                && current.coord != target
-            {
-                continue;
-            }
-
-            let is_turn = current.last_direction.is_turn(dir);
-            let seg_capacity = graph.capacity(&seg);
-
-            // Get available lanes on this segment.
-            let available = occupancy.available_lanes(&seg, seg_capacity);
-            if available.is_empty() {
-                continue;
-            }
-
-            // If target is the neighbor (arriving at target center), we need any available lane.
-            let step_length = 0.5_f64; // Each step in doubled coords is 0.5 grid units.
-
-            for &next_lane in &available {
-                let lane_changed = next_lane != current.lane;
-                let turn_raw = if is_turn { 1.0 } else { 0.0 };
-                let lane_change_raw = if lane_changed && !is_turn { 1.0 } else { 0.0 };
-
-                // Per-lane crossing detection: includes pass-through crossings
-                // and turn conflicts (lane-dependent).
-                let crossing_count = occupancy.count_crossings(&seg, next_lane, &[source, target]);
-
-                let new_g = current.g_cost
-                    + weights.length * step_length
-                    + weights.turn * turn_raw
-                    + weights.lane_change * lane_change_raw
-                    + weights.crossing * crossing_count as f64;
-                let new_h = heuristic(neighbor, target);
-
-                let new_key = StateKey {
-                    coord: neighbor,
-                    lane: next_lane,
-                    last_direction: dir,
-                };
-
-                // Only expand if this is a better path.
-                if let Some(&best) = best_g.get(&new_key)
-                    && new_g >= best
-                {
-                    continue;
-                }
-
-                best_g.insert(new_key, new_g);
-                came_from.insert(new_key, (current_key, current.lane));
-
-                let new_state = SearchState {
-                    coord: neighbor,
-                    lane: next_lane,
-                    last_direction: dir,
-                    g_cost: new_g,
-                    h_cost: new_h,
-                    length_so_far: current.length_so_far + step_length,
-                    turns_so_far: current.turns_so_far + if is_turn { 1 } else { 0 },
-                    lane_changes_so_far: current.lane_changes_so_far
-                        + if lane_changed && !is_turn { 1 } else { 0 },
-                    crossings_so_far: current.crossings_so_far + crossing_count,
-                };
-
-                open.push(PqEntry {
-                    f_cost: new_state.f_cost(),
-                    g_cost: new_g,
-                    coord: neighbor,
-                    lane: next_lane,
-                    direction: dir,
-                    state: new_state,
-                });
-            }
-        }
+        expand(&cx, &mut frontier, &current);
     }
 
     None
@@ -421,4 +438,105 @@ fn route_tiebreak(route: &Route) -> Vec<(i32, i32, Lane)> {
         .iter()
         .map(|w| (w.coord.col2, w.coord.row2, w.lane))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn weights() -> CostWeights {
+        CostWeights {
+            length: 1.0,
+            turn: 3.0,
+            lane_change: 5.0,
+            crossing: 7.0,
+        }
+    }
+
+    fn state(coord: GridCoord, lane: Lane, dir: Direction, g: f64) -> SearchState {
+        SearchState {
+            coord,
+            lane,
+            last_direction: dir,
+            g_cost: g,
+            h_cost: 0.0,
+            length_so_far: 1.0,
+            turns_so_far: 1,
+            lane_changes_so_far: 1,
+            crossings_so_far: 1,
+        }
+    }
+
+    #[test]
+    fn a_step_costs_its_length_turns_lane_changes_and_crossings() {
+        let w = weights();
+        assert_eq!(step_g(2.0, &w, false, false, 0), 2.5);
+        assert_eq!(step_g(2.0, &w, true, false, 0), 5.5);
+        assert_eq!(step_g(2.0, &w, false, true, 0), 7.5);
+        // a lane change while turning is part of the turn
+        assert_eq!(step_g(2.0, &w, true, true, 0), 5.5);
+        assert_eq!(step_g(2.0, &w, false, false, 2), 16.5);
+    }
+
+    #[test]
+    fn advancing_counts_what_the_step_did() {
+        let graph = RoutingGraph::build(&[(0, 0), (2, 0)], 3, 3);
+        let occupancy = LaneOccupancy::new();
+        let w = weights();
+        let cx = SearchCx {
+            graph: &graph,
+            occupancy: &occupancy,
+            source: GridCoord::from_int(0, 0),
+            target: GridCoord::from_int(2, 0),
+            weights: &w,
+        };
+        let from = state(GridCoord::from_grid(0.5, 0.0), 0, Direction::East, 1.0);
+        let to = GridCoord::from_grid(0.5, 0.5);
+        let next = advance(&from, to, 1, Direction::South, 2, &cx);
+        assert_eq!(next.coord, to);
+        assert_eq!(next.last_direction, Direction::South);
+        assert_eq!(next.g_cost, step_g(1.0, &w, true, true, 2));
+        assert_eq!(next.h_cost, heuristic(to, cx.target));
+        assert_eq!(next.length_so_far, 1.5);
+        assert_eq!(next.turns_so_far, 2);
+        assert_eq!(next.lane_changes_so_far, 1);
+        assert_eq!(next.crossings_so_far, 3);
+
+        let straight = advance(&from, GridCoord::from_int(1, 0), 1, Direction::East, 0, &cx);
+        assert_eq!(straight.turns_so_far, 1);
+        assert_eq!(straight.lane_changes_so_far, 2);
+    }
+
+    #[test]
+    fn only_occupied_cells_other_than_the_endpoints_block() {
+        let graph = RoutingGraph::build(&[(0, 0), (1, 0), (2, 0)], 3, 3);
+        let (a, b) = (GridCoord::from_int(0, 0), GridCoord::from_int(2, 0));
+        assert!(!blocks_route(&graph, a, a, b));
+        assert!(!blocks_route(&graph, b, a, b));
+        assert!(blocks_route(&graph, GridCoord::from_int(1, 0), a, b));
+        // junctions and empty cells never block
+        assert!(!blocks_route(&graph, GridCoord::from_grid(0.5, 0.5), a, b));
+        assert!(!blocks_route(&graph, GridCoord::from_int(1, 1), a, b));
+    }
+
+    #[test]
+    fn the_frontier_keeps_only_cheaper_paths() {
+        let mut f = Frontier::default();
+        let at = GridCoord::from_grid(0.5, 0.0);
+        let parent = (state(at, 0, Direction::North, 0.0).key(), 0);
+        f.seed(state(at, 0, Direction::East, 2.0));
+        // an equal or dearer path to the same state is dropped
+        f.relax(state(at, 0, Direction::East, 2.0), parent);
+        f.relax(state(at, 0, Direction::East, 3.0), parent);
+        assert_eq!(f.open.len(), 1);
+        assert!(f.came_from.is_empty());
+        // a cheaper one replaces it and makes the queued one stale
+        f.relax(state(at, 0, Direction::East, 1.0), parent);
+        assert_eq!(f.open.len(), 2);
+        assert_eq!(f.came_from.len(), 1);
+        assert!(f.is_stale(&state(at, 0, Direction::East, 2.0)));
+        assert!(!f.is_stale(&state(at, 0, Direction::East, 1.0)));
+        // the cheapest pops first
+        assert_eq!(f.open.pop().unwrap().g_cost, 1.0);
+    }
 }
