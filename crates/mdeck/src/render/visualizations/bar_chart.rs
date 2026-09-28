@@ -94,19 +94,21 @@ fn parse_bar_chart(content: &str) -> BarChartData {
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
-#[allow(clippy::too_many_arguments)]
 pub fn draw_bar_chart(
-    ui: &egui::Ui,
+    cx: &super::VizCtx,
     content: &str,
-    theme: &Theme,
     pos: Pos2,
     max_width: f32,
     max_height: f32,
-    opacity: f32,
-    reveal_step: usize,
-    reveal_timestamp: Option<Instant>,
-    scale: f32,
 ) -> f32 {
+    let super::VizCtx {
+        ui,
+        theme,
+        opacity,
+        scale,
+        reveal_step,
+        reveal_timestamp,
+    } = *cx;
     let data = parse_bar_chart(content);
     if data.entries.is_empty() {
         return 0.0;

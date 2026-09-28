@@ -6,7 +6,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::parser::{Block, Inline, Layout, ListItem, ListMarker, Slide};
+use crate::parser::{Block, Chart, Inline, Layout, ListItem, ListMarker, Slide};
 
 /// The board: columns and rows of flaps, the same on every slide.
 pub const COLS: usize = 32;
@@ -529,11 +529,17 @@ impl Writer {
                     self.blank(0);
                     self.table(headers, rows, width);
                 }
-                Block::KpiCards { content } => {
+                Block::Chart {
+                    kind: Chart::KpiCards,
+                    content,
+                } => {
                     self.blank(0);
                     self.figures(content, width);
                 }
-                Block::ProgressBars { content } => {
+                Block::Chart {
+                    kind: Chart::ProgressBars,
+                    content,
+                } => {
                     self.blank(0);
                     self.progress(content, width);
                 }
@@ -567,21 +573,24 @@ fn label_values(content: &str) -> Vec<(String, String)> {
 }
 
 fn viz_name(block: &Block) -> &'static str {
-    match block {
-        Block::WordCloud { .. } => "word clouds",
-        Block::Timeline { .. } => "timelines",
-        Block::PieChart { .. } => "pie charts",
-        Block::BarChart { .. } => "bar charts",
-        Block::LineChart { .. } => "line charts",
-        Block::DonutChart { .. } => "donut charts",
-        Block::FunnelChart { .. } => "funnel charts",
-        Block::RadarChart { .. } => "radar charts",
-        Block::StackedBar { .. } => "stacked bar charts",
-        Block::VennDiagram { .. } => "Venn diagrams",
-        Block::ScatterPlot { .. } => "scatter plots",
-        Block::OrgChart { .. } => "org charts",
-        Block::GanttChart { .. } => "Gantt charts",
-        Block::GitGraph { .. } => "git graphs",
+    let Block::Chart { kind, .. } = block else {
+        return "visualizations";
+    };
+    match kind {
+        Chart::WordCloud => "word clouds",
+        Chart::Timeline => "timelines",
+        Chart::Pie => "pie charts",
+        Chart::Bar => "bar charts",
+        Chart::Line => "line charts",
+        Chart::Donut => "donut charts",
+        Chart::Funnel => "funnel charts",
+        Chart::Radar => "radar charts",
+        Chart::StackedBar => "stacked bar charts",
+        Chart::VennDiagram => "Venn diagrams",
+        Chart::ScatterPlot => "scatter plots",
+        Chart::Org => "org charts",
+        Chart::Gantt => "Gantt charts",
+        Chart::GitGraph => "git graphs",
         _ => "visualizations",
     }
 }

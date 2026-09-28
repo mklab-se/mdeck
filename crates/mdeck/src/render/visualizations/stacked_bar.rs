@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use eframe::egui::{self, FontId, Pos2, Stroke};
 
 use crate::theme::Theme;
@@ -106,19 +104,21 @@ fn segment_corner_radius(radius: f32, is_top: bool) -> egui::CornerRadius {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn draw_stacked_bar(
-    ui: &egui::Ui,
+    cx: &super::VizCtx,
     content: &str,
-    theme: &Theme,
     pos: Pos2,
     max_width: f32,
     max_height: f32,
-    opacity: f32,
-    reveal_step: usize,
-    reveal_timestamp: Option<Instant>,
-    scale: f32,
 ) -> f32 {
+    let super::VizCtx {
+        ui,
+        theme,
+        opacity,
+        scale,
+        reveal_step,
+        reveal_timestamp,
+    } = *cx;
     let data = parse_stacked_bar(content);
     if data.series.is_empty() || data.categories.is_empty() {
         return 0.0;

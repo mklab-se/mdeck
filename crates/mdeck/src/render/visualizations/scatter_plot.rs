@@ -1,6 +1,4 @@
-use std::time::Instant;
-
-use eframe::egui::{self, FontId, Pos2, Stroke};
+use eframe::egui::{FontId, Pos2, Stroke};
 
 use crate::theme::Theme;
 
@@ -101,19 +99,21 @@ fn parse_scatter_plot(content: &str) -> ScatterData {
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
-#[allow(clippy::too_many_arguments)]
 pub fn draw_scatter_plot(
-    ui: &egui::Ui,
+    cx: &super::VizCtx,
     content: &str,
-    theme: &Theme,
     pos: Pos2,
     max_width: f32,
     max_height: f32,
-    opacity: f32,
-    reveal_step: usize,
-    reveal_timestamp: Option<Instant>,
-    scale: f32,
 ) -> f32 {
+    let super::VizCtx {
+        ui,
+        theme,
+        opacity,
+        scale,
+        reveal_step,
+        reveal_timestamp,
+    } = *cx;
     let data = parse_scatter_plot(content);
     let points = &data.points;
     if points.is_empty() {

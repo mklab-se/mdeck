@@ -155,18 +155,21 @@ fn find_next_event_on_branch(
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
-#[allow(clippy::too_many_arguments)]
 pub fn draw_gitgraph(
-    ui: &egui::Ui,
+    cx: &super::VizCtx,
     content: &str,
-    theme: &Theme,
     pos: Pos2,
     max_width: f32,
     max_height: f32,
-    opacity: f32,
-    reveal_step: usize,
-    scale: f32,
 ) -> f32 {
+    let super::VizCtx {
+        ui,
+        theme,
+        opacity,
+        scale,
+        reveal_step,
+        reveal_timestamp: _,
+    } = *cx;
     let items = parse_gitgraph(content);
     if items.is_empty() {
         return 0.0;

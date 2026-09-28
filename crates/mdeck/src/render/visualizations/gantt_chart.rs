@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use eframe::egui::{self, FontId, Pos2, Stroke};
 
 use crate::theme::Theme;
@@ -447,19 +445,21 @@ fn compute_time_grid(min_date: &Date, max_date: &Date, total_days: i64) -> TimeG
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
-#[allow(clippy::too_many_arguments)]
 pub fn draw_gantt_chart(
-    ui: &egui::Ui,
+    cx: &super::VizCtx,
     content: &str,
-    theme: &Theme,
     pos: Pos2,
     max_width: f32,
     max_height: f32,
-    opacity: f32,
-    reveal_step: usize,
-    reveal_timestamp: Option<Instant>,
-    scale: f32,
 ) -> f32 {
+    let super::VizCtx {
+        ui,
+        theme,
+        opacity,
+        scale,
+        reveal_step,
+        reveal_timestamp,
+    } = *cx;
     let data = parse_gantt(content);
     let resolved = resolve_tasks(&data);
     if resolved.is_empty() {

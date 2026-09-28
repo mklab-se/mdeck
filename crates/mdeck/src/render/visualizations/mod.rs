@@ -3,6 +3,9 @@ use std::time::Instant;
 use eframe::egui::{self, Color32, FontId, Pos2};
 use eframe::epaint::TextShape;
 
+use crate::parser::Chart;
+use crate::theme::Theme;
+
 pub mod bar_chart;
 pub mod donut_chart;
 pub mod funnel_chart;
@@ -21,6 +24,56 @@ pub mod venn_diagram;
 pub mod word_cloud;
 
 const REVEAL_ANIMATION_DURATION: f32 = 0.4; // seconds
+
+/// What every chart draws with: where, in which theme, how far revealed.
+#[derive(Clone, Copy)]
+pub struct VizCtx<'a> {
+    pub ui: &'a egui::Ui,
+    pub theme: &'a Theme,
+    pub opacity: f32,
+    pub scale: f32,
+    /// Reveal steps shown so far.
+    pub reveal_step: usize,
+    /// When the latest step was revealed (animates it in); `None` draws it
+    /// settled.
+    pub reveal_timestamp: Option<Instant>,
+}
+
+/// Draw `kind` at `pos` within `max_width` by `max_height` (`0.0`: as tall as
+/// it needs). Returns the height used.
+pub fn draw(
+    kind: Chart,
+    content: &str,
+    cx: &VizCtx,
+    pos: Pos2,
+    max_width: f32,
+    max_height: f32,
+) -> f32 {
+    match kind {
+        Chart::WordCloud => word_cloud::draw_word_cloud(cx, content, pos, max_width, max_height),
+        Chart::Timeline => timeline::draw_timeline(cx, content, pos, max_width, max_height),
+        Chart::Pie => pie_chart::draw_pie_chart(cx, content, pos, max_width, max_height),
+        Chart::Bar => bar_chart::draw_bar_chart(cx, content, pos, max_width, max_height),
+        Chart::Line => line_chart::draw_line_chart(cx, content, pos, max_width, max_height),
+        Chart::Donut => donut_chart::draw_donut_chart(cx, content, pos, max_width, max_height),
+        Chart::KpiCards => kpi_cards::draw_kpi_cards(cx, content, pos, max_width, max_height),
+        Chart::Funnel => funnel_chart::draw_funnel_chart(cx, content, pos, max_width, max_height),
+        Chart::Radar => radar_chart::draw_radar_chart(cx, content, pos, max_width, max_height),
+        Chart::StackedBar => stacked_bar::draw_stacked_bar(cx, content, pos, max_width, max_height),
+        Chart::VennDiagram => {
+            venn_diagram::draw_venn_diagram(cx, content, pos, max_width, max_height)
+        }
+        Chart::ProgressBars => {
+            progress_bars::draw_progress_bars(cx, content, pos, max_width, max_height)
+        }
+        Chart::ScatterPlot => {
+            scatter_plot::draw_scatter_plot(cx, content, pos, max_width, max_height)
+        }
+        Chart::Org => org_chart::draw_org_chart(cx, content, pos, max_width, max_height),
+        Chart::Gantt => gantt_chart::draw_gantt_chart(cx, content, pos, max_width, max_height),
+        Chart::GitGraph => git_graph::draw_gitgraph(cx, content, pos, max_width, max_height),
+    }
+}
 
 // ─── Standardized visualization design tokens ──────────────────────────────
 // All visualizations use these constants for visual consistency within a theme.

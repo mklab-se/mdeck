@@ -5,33 +5,11 @@ use eframe::egui::{self, Pos2};
 use crate::parser::{Block, Slide};
 use crate::render::image_cache::ImageCache;
 use crate::render::text;
-use crate::render::visualizations::{
-    bar_chart, donut_chart, funnel_chart, gantt_chart, git_graph, kpi_cards, line_chart, org_chart,
-    pie_chart, progress_bars, radar_chart, scatter_plot, stacked_bar, timeline, venn_diagram,
-    word_cloud,
-};
+use crate::render::visualizations;
 use crate::theme::Theme;
 
 fn is_viz_block(block: &Block) -> bool {
-    matches!(
-        block,
-        Block::WordCloud { .. }
-            | Block::Timeline { .. }
-            | Block::PieChart { .. }
-            | Block::BarChart { .. }
-            | Block::LineChart { .. }
-            | Block::DonutChart { .. }
-            | Block::KpiCards { .. }
-            | Block::FunnelChart { .. }
-            | Block::RadarChart { .. }
-            | Block::StackedBar { .. }
-            | Block::VennDiagram { .. }
-            | Block::ProgressBars { .. }
-            | Block::ScatterPlot { .. }
-            | Block::OrgChart { .. }
-            | Block::GanttChart { .. }
-            | Block::GitGraph { .. }
-    )
+    matches!(block, Block::Chart { .. })
 }
 
 /// Visualization slide layout: heading at top, optional text blocks, visualization
@@ -115,230 +93,23 @@ pub fn render(
         let remaining_height = rect.bottom() - y - padding;
         if remaining_height > 50.0 * scale {
             let viz_pos = Pos2::new(content_left, y);
-            let ts = reveal_timestamp;
-            match block {
-                Block::WordCloud { content } => {
-                    word_cloud::draw_word_cloud(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        scale,
-                    );
-                }
-                Block::Timeline { content } => {
-                    timeline::draw_timeline(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        scale,
-                    );
-                }
-                Block::PieChart { content } => {
-                    pie_chart::draw_pie_chart(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        ts,
-                        scale,
-                    );
-                }
-                Block::BarChart { content } => {
-                    bar_chart::draw_bar_chart(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        ts,
-                        scale,
-                    );
-                }
-                Block::LineChart { content } => {
-                    line_chart::draw_line_chart(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        ts,
-                        scale,
-                    );
-                }
-                Block::DonutChart { content } => {
-                    donut_chart::draw_donut_chart(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        ts,
-                        scale,
-                    );
-                }
-                Block::KpiCards { content } => {
-                    kpi_cards::draw_kpi_cards(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        ts,
-                        scale,
-                    );
-                }
-                Block::FunnelChart { content } => {
-                    funnel_chart::draw_funnel_chart(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        ts,
-                        scale,
-                    );
-                }
-                Block::RadarChart { content } => {
-                    radar_chart::draw_radar_chart(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        ts,
-                        scale,
-                    );
-                }
-                Block::StackedBar { content } => {
-                    stacked_bar::draw_stacked_bar(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        ts,
-                        scale,
-                    );
-                }
-                Block::VennDiagram { content } => {
-                    venn_diagram::draw_venn_diagram(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        ts,
-                        scale,
-                    );
-                }
-                Block::ProgressBars { content } => {
-                    progress_bars::draw_progress_bars(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        ts,
-                        scale,
-                    );
-                }
-                Block::ScatterPlot { content } => {
-                    scatter_plot::draw_scatter_plot(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        ts,
-                        scale,
-                    );
-                }
-                Block::OrgChart { content } => {
-                    org_chart::draw_org_chart(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        ts,
-                        scale,
-                    );
-                }
-                Block::GanttChart { content } => {
-                    gantt_chart::draw_gantt_chart(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        ts,
-                        scale,
-                    );
-                }
-                Block::GitGraph { content } => {
-                    git_graph::draw_gitgraph(
-                        ui,
-                        content,
-                        theme,
-                        viz_pos,
-                        content_width,
-                        remaining_height,
-                        opacity,
-                        reveal_step,
-                        scale,
-                    );
-                }
-                _ => {}
+            if let Block::Chart { kind, content } = block {
+                let cx = visualizations::VizCtx {
+                    ui,
+                    theme,
+                    opacity,
+                    scale,
+                    reveal_step,
+                    reveal_timestamp,
+                };
+                visualizations::draw(
+                    *kind,
+                    content,
+                    &cx,
+                    viz_pos,
+                    content_width,
+                    remaining_height,
+                );
             }
         }
     }

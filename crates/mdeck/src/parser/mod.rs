@@ -125,52 +125,9 @@ pub enum Block {
     Diagram {
         content: String,
     },
-    WordCloud {
-        content: String,
-    },
-    Timeline {
-        content: String,
-    },
-    PieChart {
-        content: String,
-    },
-    BarChart {
-        content: String,
-    },
-    LineChart {
-        content: String,
-    },
-    DonutChart {
-        content: String,
-    },
-    KpiCards {
-        content: String,
-    },
-    FunnelChart {
-        content: String,
-    },
-    RadarChart {
-        content: String,
-    },
-    StackedBar {
-        content: String,
-    },
-    VennDiagram {
-        content: String,
-    },
-    ProgressBars {
-        content: String,
-    },
-    ScatterPlot {
-        content: String,
-    },
-    OrgChart {
-        content: String,
-    },
-    GanttChart {
-        content: String,
-    },
-    GitGraph {
+    /// A ```@chart fence: one of the [`Chart`] visualizations.
+    Chart {
+        kind: Chart,
         content: String,
     },
     /// ```@story fence: an English hint for the AI story generator. Removed
@@ -219,6 +176,58 @@ pub enum Inline {
         )]
         url: String,
     },
+}
+
+/// The visualizations a fenced block can hold, named by the fence's tag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Chart {
+    WordCloud,
+    Timeline,
+    Pie,
+    Bar,
+    Line,
+    Donut,
+    KpiCards,
+    Funnel,
+    Radar,
+    StackedBar,
+    VennDiagram,
+    ProgressBars,
+    ScatterPlot,
+    Org,
+    Gantt,
+    GitGraph,
+}
+
+impl Chart {
+    /// Fence tags and their charts. A fence matches the first tag its info
+    /// string starts with (`@donut` also covers `@donutchart`).
+    pub const TAGS: &[(&str, Chart)] = &[
+        ("@wordcloud", Chart::WordCloud),
+        ("@timeline", Chart::Timeline),
+        ("@piechart", Chart::Pie),
+        ("@barchart", Chart::Bar),
+        ("@linechart", Chart::Line),
+        ("@donut", Chart::Donut),
+        ("@kpi", Chart::KpiCards),
+        ("@funnel", Chart::Funnel),
+        ("@radar", Chart::Radar),
+        ("@stackedbar", Chart::StackedBar),
+        ("@venn", Chart::VennDiagram),
+        ("@progress", Chart::ProgressBars),
+        ("@scatter", Chart::ScatterPlot),
+        ("@orgchart", Chart::Org),
+        ("@gantt", Chart::Gantt),
+        ("@gitgraph", Chart::GitGraph),
+    ];
+
+    /// The chart a fence info string (```` ```@barchart ````) names.
+    pub fn from_info(info: &str) -> Option<Chart> {
+        Self::TAGS
+            .iter()
+            .find(|(tag, _)| info.starts_with(tag))
+            .map(|&(_, chart)| chart)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -433,22 +442,7 @@ fn classify_layout(directives: &[Directive], blocks: &[Block]) -> Layout {
             Block::Diagram { .. } => diagrams += 1,
             // authoring fences are stripped before classification
             Block::StoryHint { .. } | Block::SceneScript { .. } => {}
-            Block::WordCloud { .. }
-            | Block::Timeline { .. }
-            | Block::PieChart { .. }
-            | Block::BarChart { .. }
-            | Block::LineChart { .. }
-            | Block::DonutChart { .. }
-            | Block::KpiCards { .. }
-            | Block::FunnelChart { .. }
-            | Block::RadarChart { .. }
-            | Block::StackedBar { .. }
-            | Block::VennDiagram { .. }
-            | Block::ProgressBars { .. }
-            | Block::ScatterPlot { .. }
-            | Block::OrgChart { .. }
-            | Block::GanttChart { .. }
-            | Block::GitGraph { .. } => visualizations += 1,
+            Block::Chart { .. } => visualizations += 1,
             Block::Table { .. } => tables += 1,
             Block::ColumnSeparator => column_separators += 1,
             Block::HorizontalRule => {}
@@ -553,24 +547,7 @@ pub fn compute_max_steps(blocks: &[Block]) -> usize {
         .map(|b| match b {
             Block::List { items, .. } => count_next_steps(items),
             Block::Diagram { content } => crate::render::diagram::count_diagram_steps(content),
-            Block::WordCloud { content }
-            | Block::Timeline { content }
-            | Block::PieChart { content }
-            | Block::BarChart { content }
-            | Block::LineChart { content }
-            | Block::DonutChart { content }
-            | Block::KpiCards { content }
-            | Block::FunnelChart { content }
-            | Block::RadarChart { content }
-            | Block::StackedBar { content }
-            | Block::VennDiagram { content }
-            | Block::ProgressBars { content }
-            | Block::ScatterPlot { content }
-            | Block::OrgChart { content }
-            | Block::GanttChart { content }
-            | Block::GitGraph { content } => {
-                crate::render::visualizations::count_viz_steps(content)
-            }
+            Block::Chart { content, .. } => crate::render::visualizations::count_viz_steps(content),
             _ => 0,
         })
         .max()

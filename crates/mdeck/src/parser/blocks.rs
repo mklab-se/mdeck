@@ -1,4 +1,4 @@
-use super::{Block, Directive, ImageDirectives, Inline, ListItem, ListMarker};
+use super::{Block, Chart, Directive, ImageDirectives, Inline, ListItem, ListMarker};
 
 /// Extract a slide's `@name: value` directives. Returns (directives, remaining content).
 ///
@@ -319,22 +319,10 @@ fn parse_code_block(lines: &[&str], start: usize, fence_char: char) -> (Block, u
 
     let block = match viz_kind {
         VizKind::Diagram => Block::Diagram { content: code },
-        VizKind::WordCloud => Block::WordCloud { content: code },
-        VizKind::Timeline => Block::Timeline { content: code },
-        VizKind::PieChart => Block::PieChart { content: code },
-        VizKind::BarChart => Block::BarChart { content: code },
-        VizKind::LineChart => Block::LineChart { content: code },
-        VizKind::DonutChart => Block::DonutChart { content: code },
-        VizKind::KpiCards => Block::KpiCards { content: code },
-        VizKind::FunnelChart => Block::FunnelChart { content: code },
-        VizKind::RadarChart => Block::RadarChart { content: code },
-        VizKind::StackedBar => Block::StackedBar { content: code },
-        VizKind::VennDiagram => Block::VennDiagram { content: code },
-        VizKind::ProgressBars => Block::ProgressBars { content: code },
-        VizKind::ScatterPlot => Block::ScatterPlot { content: code },
-        VizKind::OrgChart => Block::OrgChart { content: code },
-        VizKind::GanttChart => Block::GanttChart { content: code },
-        VizKind::GitGraph => Block::GitGraph { content: code },
+        VizKind::Chart(kind) => Block::Chart {
+            kind,
+            content: code,
+        },
         VizKind::StoryHint => Block::StoryHint { content: code },
         VizKind::SceneScript => Block::SceneScript { content: code },
         VizKind::None => Block::CodeBlock {
@@ -351,22 +339,7 @@ fn parse_code_block(lines: &[&str], start: usize, fence_char: char) -> (Block, u
 enum VizKind {
     None,
     Diagram,
-    WordCloud,
-    Timeline,
-    PieChart,
-    BarChart,
-    LineChart,
-    DonutChart,
-    KpiCards,
-    FunnelChart,
-    RadarChart,
-    StackedBar,
-    VennDiagram,
-    ProgressBars,
-    ScatterPlot,
-    OrgChart,
-    GanttChart,
-    GitGraph,
+    Chart(Chart),
     /// ```@story — an English hint for AI story generation (never rendered).
     StoryHint,
     /// ```@scene — a hand-written scene script in YAML (never rendered).
@@ -390,53 +363,8 @@ fn parse_code_info(info: &str) -> (Option<String>, Vec<usize>, VizKind) {
     if info.starts_with("@architecture") {
         return (None, vec![], VizKind::Diagram);
     }
-    if info.starts_with("@wordcloud") {
-        return (None, vec![], VizKind::WordCloud);
-    }
-    if info.starts_with("@timeline") {
-        return (None, vec![], VizKind::Timeline);
-    }
-    if info.starts_with("@piechart") {
-        return (None, vec![], VizKind::PieChart);
-    }
-    if info.starts_with("@barchart") {
-        return (None, vec![], VizKind::BarChart);
-    }
-    if info.starts_with("@linechart") {
-        return (None, vec![], VizKind::LineChart);
-    }
-    if info.starts_with("@donut") {
-        return (None, vec![], VizKind::DonutChart);
-    }
-    if info.starts_with("@kpi") {
-        return (None, vec![], VizKind::KpiCards);
-    }
-    if info.starts_with("@funnel") {
-        return (None, vec![], VizKind::FunnelChart);
-    }
-    if info.starts_with("@radar") {
-        return (None, vec![], VizKind::RadarChart);
-    }
-    if info.starts_with("@stackedbar") {
-        return (None, vec![], VizKind::StackedBar);
-    }
-    if info.starts_with("@venn") {
-        return (None, vec![], VizKind::VennDiagram);
-    }
-    if info.starts_with("@progress") {
-        return (None, vec![], VizKind::ProgressBars);
-    }
-    if info.starts_with("@scatter") {
-        return (None, vec![], VizKind::ScatterPlot);
-    }
-    if info.starts_with("@orgchart") {
-        return (None, vec![], VizKind::OrgChart);
-    }
-    if info.starts_with("@gantt") {
-        return (None, vec![], VizKind::GanttChart);
-    }
-    if info.starts_with("@gitgraph") {
-        return (None, vec![], VizKind::GitGraph);
+    if let Some(chart) = Chart::from_info(info) {
+        return (None, vec![], VizKind::Chart(chart));
     }
 
     // Parse language and optional highlight spec.

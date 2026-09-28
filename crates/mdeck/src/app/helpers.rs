@@ -286,7 +286,8 @@ mod tests {
         // A bar chart with two reveal steps below a paragraph
         let blocks = vec![
             Block::Paragraph { inlines: vec![] },
-            Block::BarChart {
+            Block::Chart {
+                kind: crate::parser::Chart::Bar,
                 content: "- A: 1\n+ B: 2\n+ C: 3".to_string(),
             },
         ];
