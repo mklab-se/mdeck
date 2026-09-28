@@ -18,6 +18,7 @@ pub(super) fn story_warnings(
         Err(e) => {
             out.push(CheckWarning {
                 slide: 1,
+                line: 0,
                 category: CheckCategory::Story,
                 message: format!("story sidecar could not be read: {e}"),
             });
@@ -26,8 +27,10 @@ pub(super) fn story_warnings(
     };
     let (stories, problems) = sidecar::resolve(presentation, loaded.as_ref());
     for p in problems {
+        let slide = problem_slide(&p);
         out.push(CheckWarning {
-            slide: problem_slide(&p),
+            slide,
+            line: slide_line(presentation, slide),
             category: CheckCategory::Story,
             message: p,
         });
@@ -38,12 +41,21 @@ pub(super) fn story_warnings(
         {
             out.push(CheckWarning {
                 slide: i + 1,
+                line: slide_line(presentation, i + 1),
                 category: CheckCategory::Story,
                 message: "story is stale (slide changed since it was written); run `mdeck ai story --stale`".into(),
             });
         }
     }
     (out, stories)
+}
+
+/// The first line of slide `number` (1-based), or 0 when there is none.
+fn slide_line(presentation: &parser::Presentation, number: usize) -> usize {
+    number
+        .checked_sub(1)
+        .and_then(|i| presentation.slides.get(i))
+        .map_or(0, |s| s.line)
 }
 
 /// "slide N: ..." messages carry their own slide number; others go on slide 1.
@@ -66,16 +78,19 @@ pub fn illustration_warnings(
     let mut out = Vec::new();
     let mut lib = render::illustration::Library::for_deck(Some(base));
     for (i, slide) in presentation.slides.iter().enumerate() {
+        let at = slide.directive_line("illustration");
         if let Some(name) = &slide.illustration {
             if let Err(e) = render::illustration::validate_name(name) {
                 out.push(CheckWarning {
                     slide: i + 1,
+                    line: at,
                     category: CheckCategory::Illustration,
                     message: format!("@illustration: {e}"),
                 });
             } else if !lib.has(name) {
                 out.push(CheckWarning {
                     slide: i + 1,
+                    line: at,
                     category: CheckCategory::Illustration,
                     message: format!(
                         "no illustration named `{name}` (run `mdeck illustration list`, or \
@@ -85,6 +100,7 @@ pub fn illustration_warnings(
             } else if !render::ember::handles(slide) {
                 out.push(CheckWarning {
                     slide: i + 1,
+                    line: at,
                     category: CheckCategory::Illustration,
                     message: format!(
                         "`{name}` is ignored: {} slides do not show an illustration",
@@ -94,6 +110,7 @@ pub fn illustration_warnings(
             } else if stories.get(i).is_some_and(|r| r.is_some()) {
                 out.push(CheckWarning {
                     slide: i + 1,
+                    line: at,
                     category: CheckCategory::Illustration,
                     message: format!(
                         "`{name}` is ignored because the slide plays a story (cast it as a story kind instead)"
@@ -106,6 +123,7 @@ pub fn illustration_warnings(
             if !unknown.is_empty() {
                 out.push(CheckWarning {
                     slide: i + 1,
+                    line: slide.line,
                     category: CheckCategory::Story,
                     message: format!(
                         "story casts unknown kind(s): {} (see `mdeck illustration list`)",
@@ -118,6 +136,7 @@ pub fn illustration_warnings(
     for p in lib.take_problems() {
         out.push(CheckWarning {
             slide: 0,
+            line: 0,
             category: CheckCategory::Illustration,
             message: p,
         });

@@ -101,6 +101,7 @@ fn collect(
         .into_iter()
         .map(|message| CheckWarning {
             slide: 0,
+            line: 0,
             category: CheckCategory::Engine,
             message,
         })
@@ -115,15 +116,35 @@ fn collect(
 fn diagram_warnings(presentation: &parser::Presentation) -> Vec<CheckWarning> {
     let mut out = Vec::new();
     for (i, slide) in presentation.slides.iter().enumerate() {
+        let mut fences = fence_lines(slide, "@architecture").into_iter();
         for block in &slide.blocks {
             if let parser::Block::Diagram { content } = block {
+                let line = fences.next().unwrap_or(slide.line);
                 for message in render::diagram::check_diagram_routes(content) {
                     out.push(CheckWarning {
                         slide: i + 1,
+                        line,
                         category: CheckCategory::DiagramRouting,
                         message,
                     });
                 }
+            }
+        }
+    }
+    out
+}
+
+/// The deck file line of each code fence in a slide whose info string starts
+/// with `tag`, in order (so the nth is the nth such block).
+fn fence_lines(slide: &parser::Slide, tag: &str) -> Vec<usize> {
+    let mut fences = parser::splitter::FenceTracker::new();
+    let mut out = Vec::new();
+    for (offset, line) in slide.raw_source.lines().enumerate() {
+        let opening = !fences.is_open();
+        if fences.observe(line) && opening {
+            let info = line.trim().trim_start_matches(['`', '~']).trim_start();
+            if info.starts_with(tag) {
+                out.push(slide.line_at(offset));
             }
         }
     }
@@ -172,6 +193,8 @@ mod tests {
             blocks,
             layout,
             raw_source: String::new(),
+            line: 0,
+            source_lines: Vec::new(),
             notes: notes.map(String::from),
             story_hint: None,
             scene_script: None,
@@ -179,6 +202,14 @@ mod tests {
             logo: None,
             art: None,
         }
+    }
+
+    #[test]
+    fn fence_lines_find_each_tagged_fence() {
+        let md = "---\ntitle: T\n---\n# A\n\n```@architecture\na -> b\n```\n\n```text\n```@architecture\n```\n\n~~~ @architecture\nc\n~~~\n";
+        let p = parser::parse(md);
+        assert_eq!(fence_lines(&p.slides[0], "@architecture"), [6, 14]);
+        assert_eq!(fence_lines(&p.slides[0], "@barchart"), Vec::<usize>::new());
     }
 
     #[test]

@@ -45,17 +45,20 @@ impl fmt::Display for CheckCategory {
 pub struct CheckWarning {
     /// 1-indexed slide number.
     pub slide: usize,
+    /// 1-based line in the deck file: the directive or block the warning is
+    /// about when known, else the slide's first line. 0 for no line.
+    pub line: usize,
     pub category: CheckCategory,
     pub message: String,
 }
 
 impl fmt::Display for CheckWarning {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "  slide {}: [{}] {}",
-            self.slide, self.category, self.message
-        )
+        write!(f, "  slide {}", self.slide)?;
+        if self.line > 0 {
+            write!(f, " (line {})", self.line)?;
+        }
+        write!(f, ": [{}] {}", self.category, self.message)
     }
 }
 
@@ -113,6 +116,7 @@ mod tests {
     fn warning(slide: usize, msg: &str) -> CheckWarning {
         CheckWarning {
             slide,
+            line: 0,
             category: CheckCategory::DiagramRouting,
             message: msg.to_string(),
         }
@@ -150,6 +154,33 @@ mod tests {
         report.add(warning(2, "msg2")); // duplicate
         report.add(warning(3, "msg3"));
         assert_eq!(report.warning_count(), 3);
+    }
+
+    #[test]
+    fn display_names_the_line_when_known() {
+        let mut w = warning(3, "Could not route A -> B");
+        assert_eq!(
+            w.to_string(),
+            "  slide 3: [architecture] Could not route A -> B"
+        );
+        w.line = 42;
+        assert_eq!(
+            w.to_string(),
+            "  slide 3 (line 42): [architecture] Could not route A -> B"
+        );
+    }
+
+    #[test]
+    fn sorted_by_slide_then_line() {
+        let mut report = CheckReport::new();
+        for (slide, line, msg) in [(2, 9, "A"), (2, 7, "Z"), (1, 3, "M")] {
+            report.add(CheckWarning {
+                line,
+                ..warning(slide, msg)
+            });
+        }
+        let order: Vec<usize> = report.warnings().map(|w| w.line).collect();
+        assert_eq!(order, [3, 7, 9]);
     }
 
     #[test]

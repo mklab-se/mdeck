@@ -20,12 +20,12 @@ pub fn cjk_font_warning(
         .as_deref()
         .map(missing)
         .unwrap_or_default();
-    let slides: Vec<(usize, Scripts)> = presentation
+    let slides: Vec<(usize, usize, Scripts)> = presentation
         .slides
         .iter()
         .enumerate()
-        .map(|(i, s)| (i + 1, missing(&s.raw_source)))
-        .filter(|(_, m)| !m.is_empty())
+        .map(|(i, s)| (i + 1, s.line, missing(&s.raw_source)))
+        .filter(|(_, _, m)| !m.is_empty())
         .collect();
     let what = match (title.is_empty(), slides.len()) {
         (true, 0) => return None,
@@ -35,7 +35,7 @@ pub fn cjk_font_warning(
     };
     let scripts = slides
         .iter()
-        .fold(title, |acc, (_, m)| acc.union(*m))
+        .fold(title, |acc, (_, _, m)| acc.union(*m))
         .names()
         .join(" and ");
     let hint = if cfg!(all(unix, not(target_os = "macos"))) {
@@ -45,6 +45,7 @@ pub fn cjk_font_warning(
     };
     Some(CheckWarning {
         slide: if title.is_empty() { slides[0].0 } else { 1 },
+        line: if title.is_empty() { slides[0].1 } else { 0 },
         category: CheckCategory::Fonts,
         message: format!(
             "{what} {scripts} text but no system font covers it, so it will draw as boxes; \
@@ -97,6 +98,7 @@ pub fn math_warnings(presentation: &parser::Presentation) -> Vec<CheckWarning> {
                 let delim = if display { "$$" } else { "$" };
                 warnings.push(CheckWarning {
                     slide: i + 1,
+                    line: slide.line,
                     category: CheckCategory::Math,
                     message: format!(
                         "formula `{delim}{tex}{delim}` does not parse ({e}); it shows as text"

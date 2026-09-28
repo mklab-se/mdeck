@@ -207,6 +207,7 @@ mod tests {
         vec![Directive {
             name: "layout".into(),
             value: value.into(),
+            line: 0,
         }]
     }
 

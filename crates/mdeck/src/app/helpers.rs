@@ -312,6 +312,8 @@ mod tests {
             blocks: vec![],
             layout: Layout::Content,
             raw_source: raw.to_string(),
+            line: 0,
+            source_lines: Vec::new(),
             notes: None,
             story_hint: None,
             scene_script: None,

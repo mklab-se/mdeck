@@ -606,7 +606,11 @@ Only known names are directives past the start of a slide, so prose such as
 `@team: see you at five` stays text. `mdeck --check` warns about unknown names
 (with a "did you mean"), directives that were not applied because of where
 they stand, deck directives such as `@theme` inside a slide (ignored there),
-and duplicates.
+and duplicates. Each warning names the slide and the line in the file, for
+example `slide 5 (line 37): [directive] @ilustration is not a directive and
+shows as text; did you mean @illustration?`. A warning about a directive or
+an `@architecture` diagram gives that line, any other the slide's first line;
+warnings about the whole deck (theme, missing art) give no line.
 
 ### 7.2 Fenced directives
 
@@ -1520,7 +1524,7 @@ countdown on an engine that has no countdown of its own.
 the plain engine draws no illustrations and plays no stories, and the
 split-flap board shows text only. `mdeck --check`
 lists every such slide under the `engine` category (for example
-`slide 4: [engine] @illustration: server is not shown by the plain engine`),
+`slide 4 (line 31): [engine] @illustration: server is not shown by the plain engine`),
 and presenting or exporting prints one summary line when a deck has any.
 
 Engines are part of MDeck and each one is a cargo feature, on by default.

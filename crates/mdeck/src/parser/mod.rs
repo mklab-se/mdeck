@@ -21,19 +21,30 @@ use layout::classify_layout;
 use notes::extract_notes;
 
 pub fn parse(content: &str) -> Presentation {
-    let (meta, body) = frontmatter::extract(content);
-    let slides: Vec<Slide> = splitter::split(&body, meta.slide_level)
+    let (meta, body, first_line) = frontmatter::extract(content);
+    let raws = splitter::split(&body, meta.slide_level);
+    let located = splitter::locate(&body, &raws);
+    let slides: Vec<Slide> = raws
         .into_iter()
-        .filter(|raw| !raw.trim().is_empty())
-        .map(parse_slide)
+        .zip(located)
+        .filter(|(raw, _)| !raw.trim().is_empty())
+        .map(|(raw, lines)| {
+            let lines = lines.into_iter().map(|l| l + first_line).collect();
+            parse_slide(raw, lines)
+        })
         .collect();
     Presentation { meta, slides }
 }
 
 /// Parse one raw slide from the splitter: notes, directives, blocks, layout.
-fn parse_slide(raw: String) -> Slide {
+/// `source_lines` holds the deck file line of each line of `raw`.
+fn parse_slide(raw: String, source_lines: Vec<usize>) -> Slide {
+    let line = source_lines.first().copied().unwrap_or(0);
     let (content_part, notes) = extract_notes(&raw);
-    let (directives, content) = blocks::extract_directives(&content_part);
+    let (mut directives, content) = blocks::extract_directives(&content_part);
+    for d in &mut directives {
+        d.line = source_lines.get(d.line).copied().unwrap_or(line + d.line);
+    }
     let (blocks, story_hint, scene_script) = take_story_blocks(blocks::parse(&content));
     let layout = classify_layout(&directives, &blocks);
     let illustration = trimmed_directive(&directives, "illustration").map(|v| v.to_lowercase());
@@ -44,6 +55,8 @@ fn parse_slide(raw: String) -> Slide {
         blocks,
         layout,
         raw_source: raw,
+        line,
+        source_lines,
         notes,
         story_hint,
         scene_script,
@@ -248,6 +261,23 @@ mod tests {
         assert_eq!(trimmed_directive(&dirs, "logo"), Some("brand.svg"));
         assert_eq!(trimmed_directive(&dirs, "art"), None);
         assert_eq!(trimmed_directive(&dirs, "illustration"), None);
+    }
+
+    #[test]
+    fn slides_and_directives_know_their_file_lines() {
+        let md = "---\ntitle: T\n---\n\n# One\n\n- a\n\n@illustration: cup\n\n# Two\n@logo: none\n\nx\n\n---\n\n@layout: code\n\n# Three\n";
+        let p = parse(md);
+        let lines: Vec<usize> = p.slides.iter().map(|s| s.line).collect();
+        assert_eq!(lines, [5, 9, 18]);
+        // The trailing `@illustration` moved to Two's slide keeps its own line.
+        let two = &p.slides[1];
+        assert_eq!(two.directive_line("illustration"), 9);
+        assert_eq!(two.directive_line("logo"), 12);
+        assert_eq!(two.directive_line("layout"), 9, "none: the slide's line");
+        assert_eq!(two.line_at(2), 11, "`# Two`");
+        assert_eq!(p.slides[2].directive_line("layout"), 18);
+        // Without frontmatter the first line is line 1.
+        assert_eq!(parse("# A\n\n# B\n").slides[1].line, 3);
     }
 
     #[test]
