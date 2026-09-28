@@ -35,6 +35,40 @@ pub fn split(body: &str, slide_level: Option<u8>) -> Vec<String> {
     slides
 }
 
+/// Where each line of each slide from [`split`] stands in `body`, as a
+/// 0-based line index. The splitter keeps a slide's lines in order and only
+/// drops blank lines and separators (and trims the slide's ends), so each
+/// non-blank line is the next body line with the same text, and a blank line
+/// follows the line before it.
+pub fn locate(body: &str, slides: &[String]) -> Vec<Vec<usize>> {
+    let body = body.replace("\r\n", "\n");
+    let lines: Vec<&str> = body.split('\n').collect();
+    let mut next = 0;
+    slides
+        .iter()
+        .map(|slide| {
+            let mut prev: Option<usize> = None;
+            slide
+                .lines()
+                .map(|line| {
+                    let text = line.trim();
+                    let at = if text.is_empty() {
+                        prev.map_or(next, |p| p + 1)
+                    } else {
+                        let at = (next..lines.len())
+                            .find(|&i| lines[i].trim() == text)
+                            .unwrap_or(next);
+                        next = at + 1;
+                        at
+                    };
+                    prev = Some(at);
+                    at
+                })
+                .collect()
+        })
+        .collect()
+}
+
 /// Stands in for a slide break between the splitting phases.
 const SLIDE_BREAK: &str = "\x00SLIDE_BREAK\x00";
 
@@ -135,6 +169,11 @@ pub struct FenceTracker {
 impl FenceTracker {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Whether a fence is open after the lines fed so far.
+    pub fn is_open(&self) -> bool {
+        self.open.is_some()
     }
 
     /// Feed the next line. Returns `true` if the line belongs to a fenced code
@@ -339,6 +378,39 @@ mod tests {
         assert_eq!(marked, ["a", "", SLIDE_BREAK, SLIDE_BREAK, "b"]);
     }
 
+    fn located(body: &str, level: Option<u8>) -> Vec<Vec<usize>> {
+        locate(body, &split(body, level))
+    }
+
+    #[test]
+    fn locate_follows_separators_and_gaps() {
+        let body = "# One\n\n- a\n\n---\n\n# Two\n\n\n\n\nThree";
+        assert_eq!(located(body, None), [vec![0, 1, 2], vec![6], vec![11]]);
+        // Leading blank lines and CRLF do not shift anything.
+        let body = "\r\n\r\n# One\r\n\r\n---\r\n\r\n# Two\r\n";
+        assert_eq!(located(body, None), [vec![2], vec![6]]);
+    }
+
+    #[test]
+    fn locate_follows_heading_splits_and_moved_directives() {
+        // `@layout` and `@logo` before `# Two` move to Two's slide; the blank
+        // line between them is dropped from the slide but not from the file.
+        let body = "# One\n\n- a\n\n@layout: code\n\n@logo: none\n\n# Two\n\nx\n\n# Three";
+        let slides = split(body, Some(1));
+        assert_eq!(slides[1], "@layout: code\n@logo: none\n\n# Two\n\nx");
+        assert_eq!(
+            locate(body, &slides),
+            [vec![0, 1, 2], vec![4, 6, 7, 8, 9, 10], vec![12]]
+        );
+    }
+
+    #[test]
+    fn locate_does_not_match_a_line_twice() {
+        // The same text on two slides maps to two different lines.
+        let body = "# A\n\nsame\n\n---\n\nsame";
+        assert_eq!(located(body, None), [vec![0, 1, 2], vec![6]]);
+    }
+
     #[test]
     fn test_blank_line_split() {
         let body = "Slide one\n\n\n\nSlide two";
@@ -489,7 +561,7 @@ mod tests {
     fn test_poker_night_slide_count() {
         let content = include_str!("../../../../samples/poker-night.md");
         // Strip frontmatter
-        let (meta, body) = super::super::frontmatter::extract(content);
+        let (meta, body, _) = super::super::frontmatter::extract(content);
         let slides = split(&body, meta.slide_level);
         assert!(
             slides.len() >= 14,

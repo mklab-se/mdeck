@@ -16,6 +16,7 @@ pub fn theme_warnings(
     let themes = lookup::Lookup::for_deck(Some(base));
     let warn = |message: String| CheckWarning {
         slide: 0,
+        line: 0,
         category: CheckCategory::Theme,
         message,
     };

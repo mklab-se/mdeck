@@ -178,6 +178,8 @@ mod tests {
                 ],
                 layout: Layout::TwoColumn,
                 raw_source: String::new(),
+                line: 0,
+                source_lines: Vec::new(),
                 notes: None,
                 story_hint: None,
                 scene_script: None,

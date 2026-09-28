@@ -47,6 +47,7 @@ pub fn directive<'a>(directives: &'a [Directive], name: &str) -> Option<&'a str>
 }
 
 /// Extract a slide's `@name: value` directives. Returns (directives, remaining content).
+/// Each directive's `line` is its 0-based line in `raw`.
 ///
 /// Any directive lines at the start of the slide are taken, known or not. After
 /// that, a line holding only a known directive ([`is_known_directive`])
@@ -60,7 +61,7 @@ pub fn extract_directives(raw: &str) -> (Vec<Directive>, String) {
     let mut past_directives = false;
     let mut fences = super::splitter::FenceTracker::new();
 
-    for line in raw.lines() {
+    for (index, line) in raw.lines().enumerate() {
         let trimmed = line.trim();
         if !past_directives {
             if trimmed.is_empty() {
@@ -71,7 +72,10 @@ pub fn extract_directives(raw: &str) -> (Vec<Directive>, String) {
                 continue;
             }
             if let Some(directive) = parse_directive_line(trimmed) {
-                directives.push(directive);
+                directives.push(Directive {
+                    line: index,
+                    ..directive
+                });
                 continue;
             }
             past_directives = true;
@@ -82,7 +86,10 @@ pub fn extract_directives(raw: &str) -> (Vec<Directive>, String) {
             && let Some(directive) = parse_directive_line(trimmed)
             && is_known_directive(&directive.name)
         {
-            directives.push(directive);
+            directives.push(Directive {
+                line: index,
+                ..directive
+            });
             remaining_lines.push("");
             continue;
         }
@@ -110,7 +117,11 @@ pub(crate) fn parse_directive_line(line: &str) -> Option<Directive> {
         return None;
     }
 
-    Some(Directive { name, value })
+    Some(Directive {
+        name,
+        value,
+        line: 0,
+    })
 }
 
 #[cfg(test)]

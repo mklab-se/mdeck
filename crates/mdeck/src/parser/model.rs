@@ -48,6 +48,13 @@ pub struct Slide {
     pub layout: Layout,
     /// The original raw markdown source text for this slide.
     pub raw_source: String,
+    /// 1-based line in the deck file where the slide starts (its first
+    /// `raw_source` line), frontmatter included; 0 when not parsed from a file.
+    pub line: usize,
+    /// 1-based line in the deck file of each `raw_source` line. Not always
+    /// `line` plus the offset: blank lines between directives moved to the
+    /// next heading's slide are dropped from `raw_source`.
+    pub source_lines: Vec<usize>,
     /// Speaker notes for this slide (content after `???` separator).
     pub notes: Option<String>,
     /// English hint for AI story generation (a ```@story fence).
@@ -63,6 +70,24 @@ pub struct Slide {
 }
 
 impl Slide {
+    /// The deck file line of the slide directive `name` (the last one when
+    /// it is written twice, as in [`super::directive`]), else the slide's.
+    pub fn directive_line(&self, name: &str) -> usize {
+        self.directives
+            .iter()
+            .rev()
+            .find(|d| d.name == name)
+            .map_or(self.line, |d| d.line)
+    }
+
+    /// The deck file line of `raw_source` line `offset` (0-based).
+    pub fn line_at(&self, offset: usize) -> usize {
+        self.source_lines
+            .get(offset)
+            .copied()
+            .unwrap_or(self.line + offset)
+    }
+
     /// The plain text of the slide's first heading.
     pub fn title(&self) -> Option<String> {
         self.blocks.iter().find_map(|b| match b {
@@ -84,6 +109,9 @@ impl Slide {
 pub struct Directive {
     pub name: String,
     pub value: String,
+    /// 1-based line in the deck file ([`super::parse`] maps it; from
+    /// `extract_directives` alone it is the 0-based line within the slide).
+    pub line: usize,
 }
 
 #[derive(Debug, Clone)]

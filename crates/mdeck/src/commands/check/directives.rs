@@ -10,9 +10,10 @@ use crate::parser::{self, GLOBAL_DIRECTIVES, SLIDE_DIRECTIVES, blocks, splitter:
 pub fn directive_warnings(presentation: &parser::Presentation) -> Vec<CheckWarning> {
     let mut out = Vec::new();
     for (i, slide) in presentation.slides.iter().enumerate() {
-        let mut warn = |message: String| {
+        let mut warn = |line: usize, message: String| {
             out.push(CheckWarning {
                 slide: i + 1,
+                line,
                 category: CheckCategory::Directive,
                 message,
             })
@@ -21,28 +22,36 @@ pub fn directive_warnings(presentation: &parser::Presentation) -> Vec<CheckWarni
         for d in &slide.directives {
             let name = d.name.as_str();
             if GLOBAL_DIRECTIVES.contains(&name) {
-                warn(format!(
-                    "@{name} is ignored inside a slide; it belongs in the frontmatter"
-                ));
+                warn(
+                    d.line,
+                    format!("@{name} is ignored inside a slide; it belongs in the frontmatter"),
+                );
             } else if !SLIDE_DIRECTIVES.contains(&name) {
-                warn(unknown(name, "is ignored"));
+                warn(d.line, unknown(name, "is ignored"));
             } else if seen.contains(&name) {
-                warn(format!("@{name} is written twice; the last one wins"));
+                warn(
+                    d.line,
+                    format!("@{name} is written twice; the last one wins"),
+                );
             }
             seen.push(name);
         }
-        for line in body_lines(&slide.raw_source) {
+        for (offset, line) in body_lines(&slide.raw_source) {
+            let at = slide.line_at(offset);
             let (nested, text) = strip_container(line);
             let Some(d) = blocks::parse_directive_line(text.trim()) else {
                 continue;
             };
             let known = parser::is_known_directive(&d.name);
             if nested && known {
-                warn(format!(
-                    "`@{}: {}` is not applied inside a list, quote or indented block; \
+                warn(
+                    at,
+                    format!(
+                        "`@{}: {}` is not applied inside a list, quote or indented block; \
                      put it on its own line under the heading",
-                    d.name, d.value
-                ));
+                        d.name, d.value
+                    ),
+                );
             } else if !nested && !known && suggestion(&d.name).is_some() {
                 // A typo in the body stays text on the slide. Leading unknown
                 // names were removed and are reported above.
@@ -51,7 +60,7 @@ pub fn directive_warnings(presentation: &parser::Presentation) -> Vec<CheckWarni
                     .iter()
                     .any(|s| s.name == d.name && s.value == d.value);
                 if !removed {
-                    warn(unknown(&d.name, "shows as text"));
+                    warn(at, unknown(&d.name, "shows as text"));
                 }
             }
         }
@@ -93,12 +102,14 @@ fn edit_distance(a: &str, b: &str) -> usize {
     prev[b.len()]
 }
 
-/// The slide's lines outside code fences, up to its speaker notes.
-fn body_lines(raw: &str) -> Vec<&str> {
+/// The slide's lines outside code fences, up to its speaker notes, with
+/// their 0-based line in `raw`.
+fn body_lines(raw: &str) -> Vec<(usize, &str)> {
     let mut fences = FenceTracker::new();
     raw.lines()
-        .take_while(|l| l.trim() != "???")
-        .filter(|l| !fences.observe(l))
+        .enumerate()
+        .take_while(|(_, l)| l.trim() != "???")
+        .filter(|(_, l)| !fences.observe(l))
         .collect()
 }
 
@@ -137,6 +148,23 @@ mod tests {
             .into_iter()
             .map(|w| format!("{}: {}", w.slide, w.message))
             .collect()
+    }
+
+    fn lines(md: &str) -> Vec<(usize, usize)> {
+        directive_warnings(&parser::parse(md))
+            .into_iter()
+            .map(|w| (w.slide, w.line))
+            .collect()
+    }
+
+    #[test]
+    fn warnings_name_the_directive_line() {
+        // Frontmatter, a leading typo, a nested directive and a duplicate.
+        let md = "---\ntitle: T\n---\n\n@ilustration: a\n# A\n\n- @layout: code\n\n---\n\n# B\n@layout: code\n\n@layout: quote\n";
+        assert_eq!(lines(md), [(1, 5), (1, 8), (2, 15)]);
+        // A directive moved to the next heading's slide keeps its line.
+        let md = "# A\n\n- one\n\n@theme: dark\n\n# B\n\n- two\n";
+        assert_eq!(lines(md), [(2, 5)]);
     }
 
     #[test]

@@ -237,7 +237,7 @@ directive:
 ```text
 $ mdeck talk.md --check
 Checking talk.md (5 slides)...
-  slide 5: [directive] @ilustration is not a directive and shows as text; did you mean @illustration?
+  slide 5 (line 37): [directive] @ilustration is not a directive and shows as text; did you mean @illustration?
 
 1 warning(s) found.
 ```

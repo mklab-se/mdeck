@@ -313,6 +313,7 @@ pub fn precache_all_diagrams_with_report(
             for warning_msg in check_diagram_routes(content) {
                 report.add(CheckWarning {
                     slide: *slide_num,
+                    line: 0,
                     category: CheckCategory::DiagramRouting,
                     message: warning_msg,
                 });
