@@ -136,17 +136,8 @@ impl Capabilities {
 /// A board engine's static renderer: the slide the way the board shows it
 /// when no engine runs live (thumbnails, the overview), with the arguments
 /// of the core's `render_slide`.
-pub type RenderSlide = fn(
-    &eframe::egui::Ui,
-    &Slide,
-    &crate::theme::Theme,
-    eframe::egui::Rect,
-    f32,
-    &crate::render::image_cache::ImageCache,
-    usize,
-    f32,
-    &crate::render::SlideContext,
-);
+pub type RenderSlide =
+    fn(&crate::render::BlockCx, &Slide, eframe::egui::Rect, &crate::render::SlideContext);
 
 /// One engine as the core sees it: everything but its name. Each engine
 /// module has one as `DEF`, and [`EngineKind::def`] lists them.
@@ -354,6 +345,7 @@ mod tests {
             "crate::render::fonts",
             "crate::render::ember",
             "crate::render::SlideContext",
+            "crate::render::BlockCx",
             "crate::render::test_support",
         ];
         fn files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {

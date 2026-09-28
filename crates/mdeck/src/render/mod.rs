@@ -18,15 +18,12 @@ pub mod text;
 pub mod transition;
 pub mod visualizations;
 
-use std::time::Instant;
-
 use eframe::egui;
 
 use crate::parser::{Layout, Slide};
 use crate::theme::Theme;
 
 pub use context::{BlockCx, SlideContext, TextCx};
-use image_cache::ImageCache;
 
 /// Measure the content height of a slide (for scroll/overflow detection),
 /// laying blocks out at the same column width the slide's layout draws them.
@@ -68,44 +65,14 @@ pub fn measure_slide_content_height(
 }
 
 /// Render a single slide using its inferred layout.
-#[allow(clippy::too_many_arguments)]
-pub fn render_slide(
-    ui: &egui::Ui,
-    slide: &Slide,
-    theme: &Theme,
-    rect: egui::Rect,
-    opacity: f32,
-    image_cache: &ImageCache,
-    reveal_step: usize,
-    reveal_timestamp: Option<Instant>,
-    scale: f32,
-    cx: &SlideContext,
-) {
+pub fn render_slide(cx: &BlockCx, slide: &Slide, rect: egui::Rect, slide_cx: &SlideContext) {
+    let theme = cx.theme;
     if let Some(board) = theme.engine.board() {
-        board(
-            ui,
-            slide,
-            theme,
-            rect,
-            opacity,
-            image_cache,
-            reveal_step,
-            scale,
-            cx,
-        );
+        board(cx, slide, rect, slide_cx);
         return;
     }
-    let block_cx = BlockCx {
-        ui,
-        theme,
-        opacity,
-        scale,
-        image_cache,
-        reveal_step,
-        reveal_timestamp,
-    };
     if theme.engine.lays_out(slide) {
-        ember::render(&block_cx, slide, rect, cx);
+        ember::render(cx, slide, rect, slide_cx);
         return;
     }
     let render = match slide.layout {
@@ -121,7 +88,7 @@ pub fn render_slide(
         Layout::Diagram => layouts::diagram::render,
         Layout::Visualization => layouts::visualization::render,
     };
-    render(&block_cx, slide, rect);
+    render(cx, slide, rect);
 }
 
 /// Helpers for tests that need a live `egui::Ui` to lay out text.

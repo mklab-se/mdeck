@@ -237,18 +237,21 @@ fn panel_rect(geo: &Geometry) -> egui::Rect {
 /// Draw a slide the way the board shows it when no engine runs live
 /// (thumbnails in the grid, the overview zoom), and the slide's image in
 /// its panel always. `engine_drew`: the engine already drew the board.
-#[allow(clippy::too_many_arguments)]
 pub fn render_slide(
-    ui: &egui::Ui,
+    block: &crate::render::BlockCx,
     slide: &Slide,
-    theme: &Theme,
     rect: egui::Rect,
-    opacity: f32,
-    image_cache: &ImageCache,
-    reveal: usize,
-    scale: f32,
     cx: &crate::render::SlideContext,
 ) {
+    let crate::render::BlockCx {
+        ui,
+        theme,
+        opacity,
+        scale,
+        image_cache,
+        reveal_step: reveal,
+        ..
+    } = *block;
     let title = crate::render::ember::is_title(slide, cx.index);
     let board = layout::lay_out(slide, title, reveal);
     let geo = Geometry::new(rect, scale);

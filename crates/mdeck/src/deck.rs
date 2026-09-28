@@ -217,18 +217,16 @@ impl Deck {
         let Some(slide) = self.presentation.slides.get(index) else {
             return;
         };
-        render::render_slide(
+        let block = render::BlockCx {
             ui,
-            slide,
             theme,
-            frame.rect,
-            frame.opacity,
-            &self.image_cache,
-            frame.reveal,
-            frame.reveal_timestamp,
-            frame.scale,
-            cx,
-        );
+            opacity: frame.opacity,
+            scale: frame.scale,
+            image_cache: &self.image_cache,
+            reveal_step: frame.reveal,
+            reveal_timestamp: frame.reveal_timestamp,
+        };
+        render::render_slide(&block, slide, frame.rect, cx);
     }
 
     /// Draw slide `index`'s logo, if it has one.
