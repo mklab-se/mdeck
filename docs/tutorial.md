@@ -104,8 +104,8 @@ Same content, a new look: Ember's editorial typography and a living field of
 particles that follows your content.
 
 **Try them all without editing anything.** While presenting, press
-`Shift+T`: the deck switches to the next theme, and a short note in the
-corner names it. Keep pressing to cycle through every built-in theme (and your
+`Shift+T`: the deck switches to the next theme, and a short note at the
+bottom of the screen names it. Keep pressing to cycle through every built-in theme (and your
 own, if you have any). The switch is temporary: your file does not change, and
 the next time you start MDeck it opens in the theme your frontmatter names.
 When you find one you like, write its name after `@theme:`. `T` does the same
