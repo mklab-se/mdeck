@@ -134,30 +134,32 @@ pub async fn generate_script(
         ailloy::Message::user(user_prompt(pres, index, cast_so_far)),
     ];
     let validate = |reply: &str| {
-        Script::parse(ai_reply::json_object(reply)).and_then(|script| {
-            let layout = pres.slides[index].layout;
-            let unknown = script.unknown_kinds(lib);
-            if !unknown.is_empty() {
-                return Err(format!(
-                    "unknown kinds: {}. Use only the listed kinds",
-                    unknown.join(", ")
-                ));
-            }
-            let staged = story::stage(&script, layout, 16.0 / 9.0, lib);
-            let clashes = story::label_collisions(&staged, 16.0 / 9.0);
-            if clashes.is_empty() {
-                Ok(script)
-            } else {
-                let list: Vec<String> = clashes
-                    .iter()
-                    .map(|(a, b)| format!("`{a}` overlaps `{b}`"))
-                    .collect();
-                Err(format!(
-                    "labels collide: {}. Use shorter labels or cells further apart",
-                    list.join(", ")
-                ))
-            }
-        })
+        Script::parse(ai_reply::json_object(reply))
+            .map_err(|e| e.to_string())
+            .and_then(|script| {
+                let layout = pres.slides[index].layout;
+                let unknown = script.unknown_kinds(lib);
+                if !unknown.is_empty() {
+                    return Err(format!(
+                        "unknown kinds: {}. Use only the listed kinds",
+                        unknown.join(", ")
+                    ));
+                }
+                let staged = story::stage(&script, layout, 16.0 / 9.0, lib);
+                let clashes = story::label_collisions(&staged, 16.0 / 9.0);
+                if clashes.is_empty() {
+                    Ok(script)
+                } else {
+                    let list: Vec<String> = clashes
+                        .iter()
+                        .map(|(a, b)| format!("`{a}` overlaps `{b}`"))
+                        .collect();
+                    Err(format!(
+                        "labels collide: {}. Use shorter labels or cells further apart",
+                        list.join(", ")
+                    ))
+                }
+            })
     };
     ai_reply::chat_client_validated(
         client,

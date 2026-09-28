@@ -160,8 +160,8 @@ impl Prepared {
 }
 
 /// Decode, trim, key out the paper and lay out the time map.
-pub fn prepare(bytes: &[u8], kind: ArtKind, strategy: Strategy) -> Result<Prepared, String> {
-    let img = image::load_from_memory(bytes).map_err(|e| e.to_string())?;
+pub fn prepare(bytes: &[u8], kind: ArtKind, strategy: Strategy) -> anyhow::Result<Prepared> {
+    let img = image::load_from_memory(bytes).map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(prepare_image(img.to_rgba8(), kind, strategy))
 }
 

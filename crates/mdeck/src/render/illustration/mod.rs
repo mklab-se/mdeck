@@ -15,6 +15,7 @@ pub mod convert;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
+use anyhow::{Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 
 pub const VERSION: u32 = 1;
@@ -60,8 +61,8 @@ mod arc_points {
 
 impl Cloud {
     /// Parse a `.mdpc` document and check it.
-    pub fn parse(text: &str) -> Result<Cloud, String> {
-        let cloud: Cloud = serde_json::from_str(text).map_err(|e| e.to_string())?;
+    pub fn parse(text: &str) -> Result<Cloud> {
+        let cloud: Cloud = serde_json::from_str(text).map_err(|e| anyhow!("{e}"))?;
         cloud.validate()?;
         Ok(cloud)
     }
@@ -104,32 +105,26 @@ impl Cloud {
         out
     }
 
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self) -> Result<()> {
         if self.version != VERSION {
-            return Err(format!(
+            bail!(
                 "unsupported version {} (this build reads {VERSION})",
                 self.version
-            ));
+            );
         }
         validate_name(&self.name)?;
         if self.points.is_empty() {
-            return Err("no points".into());
+            bail!("no points");
         }
         if self.points.len() > MAX_POINTS {
-            return Err(format!(
-                "{} points, at most {MAX_POINTS} allowed",
-                self.points.len()
-            ));
+            bail!("{} points, at most {MAX_POINTS} allowed", self.points.len());
         }
         if !(self.aspect.is_finite() && self.aspect > 0.0) {
-            return Err(format!("aspect must be positive, got {}", self.aspect));
+            bail!("aspect must be positive, got {}", self.aspect);
         }
         for p in self.points.iter() {
             if !(-0.001..=1.001).contains(&p[0]) || !(-0.001..=1.001).contains(&p[1]) {
-                return Err(format!(
-                    "point ({}, {}) outside the unit square",
-                    p[0], p[1]
-                ));
+                bail!("point ({}, {}) outside the unit square", p[0], p[1]);
             }
         }
         Ok(())
@@ -141,22 +136,18 @@ fn round3(x: f32) -> f32 {
 }
 
 /// A cloud name: lowercase letters, digits and hyphens.
-pub fn validate_name(name: &str) -> Result<(), String> {
+pub fn validate_name(name: &str) -> Result<()> {
     if name.is_empty() {
-        return Err("name is empty".into());
+        bail!("name is empty");
     }
     if name.len() > MAX_NAME_LEN {
-        return Err(format!(
-            "name `{name}` is longer than {MAX_NAME_LEN} characters"
-        ));
+        bail!("name `{name}` is longer than {MAX_NAME_LEN} characters");
     }
     if !name
         .chars()
         .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
     {
-        return Err(format!(
-            "name `{name}` may only contain lowercase letters, digits and hyphens"
-        ));
+        bail!("name `{name}` may only contain lowercase letters, digits and hyphens");
     }
     Ok(())
 }
@@ -224,9 +215,9 @@ pub fn builtin_names() -> Vec<&'static str> {
 }
 
 /// Load a cloud from a file.
-pub fn load_file(path: &Path) -> Result<Cloud, String> {
-    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    Cloud::parse(&text).map_err(|e| format!("{}: {e}", path.display()))
+pub fn load_file(path: &Path) -> Result<Cloud> {
+    let text = std::fs::read_to_string(path).map_err(|e| anyhow!("{}: {e}", path.display()))?;
+    Cloud::parse(&text).map_err(|e| anyhow!("{}: {e}", path.display()))
 }
 
 /// Resolve `name` through explicit library folders (deck first, then user),
@@ -236,7 +227,7 @@ pub fn resolve_in(
     name: &str,
     deck: Option<&Path>,
     user: Option<&Path>,
-) -> Result<Option<(Source, Arc<Cloud>)>, String> {
+) -> Result<Option<(Source, Arc<Cloud>)>> {
     validate_name(name)?;
     let file = format!("{name}.{EXTENSION}");
     if let Some(dir) = deck {
@@ -262,10 +253,7 @@ pub fn resolve_in(
 
 /// Resolve `name` for a deck at `deck_base` (its directory), using the real
 /// user library.
-pub fn resolve(
-    name: &str,
-    deck_base: Option<&Path>,
-) -> Result<Option<(Source, Arc<Cloud>)>, String> {
+pub fn resolve(name: &str, deck_base: Option<&Path>) -> Result<Option<(Source, Arc<Cloud>)>> {
     let deck = deck_base.map(deck_dir);
     let user = user_dir();
     resolve_in(name, deck.as_deref(), user.as_deref())
@@ -378,6 +366,7 @@ impl Library {
         let found = match resolve_in(name, self.deck.as_deref(), self.user.as_deref()) {
             Ok(found) => found.map(|(_, c)| c),
             Err(e) => {
+                let e = e.to_string();
                 if !self.problems.contains(&e) {
                     self.problems.push(e);
                 }
@@ -457,18 +446,18 @@ mod tests {
     #[test]
     fn validation_rejects_bad_documents() {
         let mut c = sample("Server");
-        assert!(c.validate().unwrap_err().contains("lowercase"));
+        assert!(c.validate().unwrap_err().to_string().contains("lowercase"));
         c.name = "ok".into();
         c.points = Arc::new(vec![]);
-        assert!(c.validate().unwrap_err().contains("no points"));
+        assert!(c.validate().unwrap_err().to_string().contains("no points"));
         c.points = Arc::new(vec![[1.5, 0.0]]);
-        assert!(c.validate().unwrap_err().contains("outside"));
+        assert!(c.validate().unwrap_err().to_string().contains("outside"));
         c.points = Arc::new(vec![[0.5, 0.5]]);
         c.aspect = 0.0;
-        assert!(c.validate().unwrap_err().contains("aspect"));
+        assert!(c.validate().unwrap_err().to_string().contains("aspect"));
         c.aspect = 1.0;
         c.version = 9;
-        assert!(c.validate().unwrap_err().contains("version"));
+        assert!(c.validate().unwrap_err().to_string().contains("version"));
         assert!(Cloud::parse("not json").is_err());
     }
 
@@ -563,7 +552,9 @@ mod tests {
         let tmp = std::env::temp_dir().join(format!("mdpc-broken-{}", std::process::id()));
         std::fs::create_dir_all(&tmp).unwrap();
         std::fs::write(tmp.join("server.mdpc"), "{ broken").unwrap();
-        let err = resolve_in("server", Some(&tmp), None).unwrap_err();
+        let err = resolve_in("server", Some(&tmp), None)
+            .unwrap_err()
+            .to_string();
         assert!(err.contains("server.mdpc"), "{err}");
         std::fs::remove_dir_all(&tmp).ok();
     }

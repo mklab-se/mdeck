@@ -182,7 +182,7 @@ impl ExportApp {
         match &mut self.output {
             Output::Png { dir } => {
                 if let Err(e) = self.canvas.save(&dir.join(&filename)) {
-                    self.fail(ctx, e);
+                    self.fail(ctx, e.to_string());
                     return false;
                 }
                 eprintln!("  Saved {filename}");

@@ -32,8 +32,9 @@ pub fn bundled_theme_names() -> Vec<String> {
 }
 
 /// Load a `.tmTheme` file and return the key to highlight with.
-pub fn register_tm_theme(path: &std::path::Path) -> Result<String, String> {
-    let theme = ThemeSet::get_theme(path).map_err(|e| format!("{}: {e}", path.display()))?;
+pub fn register_tm_theme(path: &std::path::Path) -> anyhow::Result<String> {
+    let theme =
+        ThemeSet::get_theme(path).map_err(|e| anyhow::anyhow!("{}: {e}", path.display()))?;
     let key = format!("file:{}", path.display());
     FILE_THEMES
         .lock()

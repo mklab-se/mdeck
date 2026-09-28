@@ -81,7 +81,7 @@ async fn generate(
     force: bool,
     quiet: bool,
 ) -> Result<()> {
-    illustration::validate_name(name).map_err(|e| anyhow::anyhow!(e))?;
+    illustration::validate_name(name)?;
     if !ai::has_capability("image") {
         bail!(
             "Image generation not configured. Run `mdeck ai config` to set up an image provider."
@@ -105,7 +105,7 @@ async fn generate(
     let response = client.generate_image(&prompt).await?;
     let img = image::load_from_memory(&response.data).context("decoding the generated image")?;
 
-    let mut cloud = convert::convert(&img, name, description).map_err(|e| anyhow::anyhow!(e))?;
+    let mut cloud = convert::convert(&img, name, description)?;
     cloud.prompt = Some(prompt);
     cloud.generated = Some(crate::commands::story::timestamp());
     let path = write_cloud(&cloud, user, force)?;
@@ -130,14 +130,14 @@ async fn generate(
 }
 
 fn import(image_path: &Path, name: &str, user: bool, force: bool, quiet: bool) -> Result<()> {
-    illustration::validate_name(name).map_err(|e| anyhow::anyhow!(e))?;
+    illustration::validate_name(name)?;
     let img =
         image::open(image_path).with_context(|| format!("opening {}", image_path.display()))?;
     let description = image_path
         .file_stem()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_default();
-    let cloud = convert::convert(&img, name, &description).map_err(|e| anyhow::anyhow!(e))?;
+    let cloud = convert::convert(&img, name, &description)?;
     let path = write_cloud(&cloud, user, force)?;
     if !quiet {
         println!(
@@ -176,9 +176,7 @@ fn list() {
 }
 
 fn show(name: &str, output: Option<PathBuf>, quiet: bool) -> Result<()> {
-    let Some((src, cloud)) =
-        illustration::resolve(name, Some(Path::new("."))).map_err(|e| anyhow::anyhow!(e))?
-    else {
+    let Some((src, cloud)) = illustration::resolve(name, Some(Path::new(".")))? else {
         bail!("no illustration named `{name}` (run `mdeck illustration list`)");
     };
     if !quiet {

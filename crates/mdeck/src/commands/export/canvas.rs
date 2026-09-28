@@ -42,7 +42,7 @@ impl TileCanvas {
         }
     }
 
-    pub fn save(&self, path: &Path) -> Result<(), String> {
+    pub fn save(&self, path: &Path) -> anyhow::Result<()> {
         image::save_buffer(
             path,
             &self.pixels,
@@ -50,7 +50,7 @@ impl TileCanvas {
             self.height,
             image::ColorType::Rgba8,
         )
-        .map_err(|e| format!("Failed to save {}: {e}", path.display()))
+        .map_err(|e| anyhow::anyhow!("Failed to save {}: {e}", path.display()))
     }
 }
 

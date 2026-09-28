@@ -96,7 +96,7 @@ impl DeckArt {
         self.problems.clear();
         let sc = match &self.deck {
             Some(deck) => sidecar::load(deck).unwrap_or_else(|e| {
-                self.problems.push(e);
+                self.problems.push(e.to_string());
                 None
             }),
             None => None,
@@ -190,7 +190,7 @@ impl DeckArt {
 /// Read and prepare one picture.
 fn load(key: &Key) -> Slot {
     match std::fs::read(&key.0)
-        .map_err(|e| e.to_string())
+        .map_err(anyhow::Error::from)
         .and_then(|bytes| prepare(&bytes, key.1, key.2))
     {
         Ok(p) => Slot::Ready(Arc::new(p)),

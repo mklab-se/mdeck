@@ -2,14 +2,14 @@
 //! one generated script per slide, keyed by a hash of the slide's source so a
 //! script goes stale the moment its slide changes.
 
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 
 use super::Script;
 use crate::parser::{Presentation, Slide};
+use crate::render::sidecar::{self as shared, Keyed, Match};
 
 pub const VERSION: u32 = 1;
 
@@ -30,6 +30,18 @@ pub struct Entry {
     pub scene: Script,
 }
 
+impl Keyed for Entry {
+    fn slide(&self) -> usize {
+        self.slide
+    }
+    fn hash(&self) -> &str {
+        &self.hash
+    }
+    fn pinned(&self) -> bool {
+        self.pinned
+    }
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Sidecar {
     pub version: u32,
@@ -39,14 +51,9 @@ pub struct Sidecar {
 
 /// Candidate sidecar paths for a deck, `.yaml` first.
 pub fn candidates(deck: &Path) -> [PathBuf; 2] {
-    let stem = deck
-        .file_stem()
-        .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_else(|| "deck".to_string());
-    let dir = deck.parent().unwrap_or(Path::new("."));
     [
-        dir.join(format!("{stem}.scenes.yaml")),
-        dir.join(format!("{stem}.scenes.yml")),
+        shared::beside(deck, "scenes.yaml"),
+        shared::beside(deck, "scenes.yml"),
     ]
 }
 
@@ -66,39 +73,31 @@ pub fn resolve_path(deck: &Path) -> (PathBuf, bool) {
 
 /// Load the sidecar for a deck, if present. Errors are returned so callers
 /// can warn without failing the presentation.
-pub fn load(deck: &Path) -> Result<Option<Sidecar>, String> {
+pub fn load(deck: &Path) -> Result<Option<Sidecar>> {
     let (path, _) = resolve_path(deck);
-    if !path.exists() {
+    let Some(sidecar) = shared::read::<Sidecar>(&path)? else {
         return Ok(None);
-    }
-    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let sidecar: Sidecar =
-        serde_norway::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+    };
     for entry in &sidecar.slides {
         entry
             .scene
             .validate()
-            .map_err(|e| format!("{}: slide {}: {e}", path.display(), entry.slide))?;
+            .map_err(|e| anyhow!("{}: slide {}: {e}", path.display(), entry.slide))?;
     }
     Ok(Some(sidecar))
 }
 
-pub fn save(deck: &Path, sidecar: &Sidecar) -> Result<PathBuf, String> {
+pub fn save(deck: &Path, sidecar: &Sidecar) -> Result<PathBuf> {
     let (path, _) = resolve_path(deck);
-    let text = serde_norway::to_string(sidecar).map_err(|e| e.to_string())?;
     let header = "# Story scenes for the particles engine (the Ember theme and others), written by `mdeck ai story`.\n# Hand edits are fine; a slide's entry goes stale when the slide changes.\n";
-    std::fs::write(&path, format!("{header}{text}"))
-        .map_err(|e| format!("{}: {e}", path.display()))?;
+    shared::write(&path, header, sidecar)?;
     Ok(path)
 }
 
 /// Stable hash of everything a story depends on: the slide source (copy,
 /// hint and notes) and the deck-level hint.
 pub fn slide_hash(slide: &Slide, deck_hint: Option<&str>) -> String {
-    let mut h = DefaultHasher::new();
-    slide.raw_source.trim().hash(&mut h);
-    deck_hint.unwrap_or("").trim().hash(&mut h);
-    format!("{:016x}", h.finish())
+    shared::slide_hash(slide, deck_hint)
 }
 
 /// Where a slide's story came from.
@@ -145,27 +144,16 @@ pub fn resolve(
                 return None;
             }
             let sidecar = sidecar?;
-            if let Some(entry) = sidecar.slides.iter().find(|e| e.pinned && e.slide == i + 1) {
-                return Some(Resolved {
-                    script: entry.scene.clone(),
-                    source: Source::Pinned,
-                });
-            }
             let hash = slide_hash(slide, deck_hint);
-            if let Some(entry) = sidecar.slides.iter().find(|e| e.hash == hash) {
-                return Some(Resolved {
-                    script: entry.scene.clone(),
-                    source: Source::Sidecar,
-                });
-            }
-            sidecar
-                .slides
-                .iter()
-                .find(|e| e.slide == i + 1)
-                .map(|entry| Resolved {
-                    script: entry.scene.clone(),
-                    source: Source::Stale,
-                })
+            let (entry, found) = shared::find(&sidecar.slides, i + 1, &hash)?;
+            Some(Resolved {
+                script: entry.scene.clone(),
+                source: match found {
+                    Match::Pinned => Source::Pinned,
+                    Match::Current => Source::Sidecar,
+                    Match::Stale => Source::Stale,
+                },
+            })
         })
         .collect();
     (resolved, problems)

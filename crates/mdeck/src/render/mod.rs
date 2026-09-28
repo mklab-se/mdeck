@@ -11,6 +11,7 @@ pub mod logo;
 pub mod math;
 pub mod page;
 pub mod particles;
+pub mod sidecar;
 pub mod story;
 // Pen strokes: the laser and the art engines draw with them.
 #[cfg(any(feature = "laser", feature = "art"))]

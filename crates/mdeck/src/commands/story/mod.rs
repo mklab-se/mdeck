@@ -51,7 +51,7 @@ pub fn generate_one_blocking(deck: &Path, index: usize) -> Result<Script> {
         let mut lib = Library::for_deck(Some(base));
         let script = generate_script(&client, &pres, index, &cast, &mut lib).await?;
         upsert(&mut sc, &pres, index, script.clone());
-        sidecar::save(deck, &sc).map_err(|e| anyhow::anyhow!(e))?;
+        sidecar::save(deck, &sc)?;
         Ok(script)
     })?
 }
@@ -200,12 +200,10 @@ pub async fn run(
 
 /// The deck's story sidecar, or an empty one.
 fn load_or_empty(deck: &Path) -> Result<Sidecar> {
-    Ok(sidecar::load(deck)
-        .map_err(|e| anyhow::anyhow!(e))?
-        .unwrap_or(Sidecar {
-            version: sidecar::VERSION,
-            slides: vec![],
-        }))
+    Ok(sidecar::load(deck)?.unwrap_or(Sidecar {
+        version: sidecar::VERSION,
+        slides: vec![],
+    }))
 }
 
 /// 0-based indices of the slides `--slide` or `--range` name, or all of them.
@@ -254,7 +252,7 @@ fn prune_unstageable(
     });
     let pruned = before - sc.slides.len();
     if pruned > 0 && !dry_run {
-        sidecar::save(file, sc).map_err(|e| anyhow::anyhow!(e))?;
+        sidecar::save(file, sc)?;
         if !quiet {
             eprintln!(
                 "Removed {pruned} stored stor{} for slides without a stage.",
@@ -299,7 +297,7 @@ impl Writer<'_> {
                     }
                     upsert(sc, self.pres, i, script);
                     // Save after every slide so an interruption keeps the work so far.
-                    sidecar::save(self.file, sc).map_err(|e| anyhow::anyhow!(e))?;
+                    sidecar::save(self.file, sc)?;
                 }
                 Err(e) => {
                     failures += 1;

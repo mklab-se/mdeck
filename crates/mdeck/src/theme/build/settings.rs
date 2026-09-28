@@ -93,7 +93,7 @@ pub(super) fn syntax(f: &ThemeFile, warnings: &mut Vec<String>) -> Result<String
         let loaded = if p.is_absolute() {
             syntax::register_tm_theme(p)
         } else {
-            Err(format!("'{sx}' must be a file in a theme folder"))
+            Err(anyhow::anyhow!("'{sx}' must be a file in a theme folder"))
         };
         return Ok(loaded.unwrap_or_else(|e| {
             warnings.push(format!("code.syntax: {e}; using the default"));

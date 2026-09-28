@@ -4,13 +4,13 @@
 //! picture goes stale when its slide changes and is never shown in a style
 //! it was not made for.
 
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::parser::{Presentation, Slide};
+use crate::render::sidecar::{self as shared, Keyed, Match};
 
 pub const VERSION: u32 = 1;
 
@@ -37,6 +37,18 @@ pub struct Entry {
     pub pinned: bool,
 }
 
+impl Keyed for Entry {
+    fn slide(&self) -> usize {
+        self.slide
+    }
+    fn hash(&self) -> &str {
+        &self.hash
+    }
+    fn pinned(&self) -> bool {
+        self.pinned
+    }
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Sidecar {
     pub version: u32,
@@ -46,13 +58,7 @@ pub struct Sidecar {
 
 /// `talk.art.yaml` for `talk.md`.
 pub fn path_for(deck: &Path) -> PathBuf {
-    let stem = deck
-        .file_stem()
-        .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_else(|| "deck".to_string());
-    deck.parent()
-        .unwrap_or(Path::new("."))
-        .join(format!("{stem}.art.yaml"))
+    shared::beside(deck, "art.yaml")
 }
 
 /// The folder the images go in: `art/` next to the deck.
@@ -61,33 +67,21 @@ pub fn folder_for(deck: &Path) -> PathBuf {
 }
 
 /// Load the sidecar for a deck, if there is one.
-pub fn load(deck: &Path) -> Result<Option<Sidecar>, String> {
-    let path = path_for(deck);
-    if !path.exists() {
-        return Ok(None);
-    }
-    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-    serde_norway::from_str(&text)
-        .map(Some)
-        .map_err(|e| format!("{}: {e}", path.display()))
+pub fn load(deck: &Path) -> Result<Option<Sidecar>> {
+    shared::read(&path_for(deck))
 }
 
-pub fn save(deck: &Path, sidecar: &Sidecar) -> Result<PathBuf, String> {
+pub fn save(deck: &Path, sidecar: &Sidecar) -> Result<PathBuf> {
     let path = path_for(deck);
-    let text = serde_norway::to_string(sidecar).map_err(|e| e.to_string())?;
     let header = "# Generated art for the art engines (like blueprint), written by `mdeck ai art`.\n# Set `pinned: true` to keep a picture for its slide number whatever the slide says.\n";
-    std::fs::write(&path, format!("{header}{text}"))
-        .map_err(|e| format!("{}: {e}", path.display()))?;
+    shared::write(&path, header, sidecar)?;
     Ok(path)
 }
 
 /// Stable hash of what a slide's picture depends on: the slide source and
 /// the deck's `@art` world.
 pub fn slide_hash(slide: &Slide, world: Option<&str>) -> String {
-    let mut h = DefaultHasher::new();
-    slide.raw_source.trim().hash(&mut h);
-    world.unwrap_or("").trim().hash(&mut h);
-    format!("{:016x}", h.finish())
+    shared::slide_hash(slide, world)
 }
 
 /// Where a slide's picture came from.
@@ -128,32 +122,16 @@ pub fn resolve(
             if !super::wants_art(slide) {
                 return None;
             }
-            let entries: Vec<&Entry> = sidecar?
-                .slides
-                .iter()
-                .filter(|e| e.style == style)
-                .collect();
-            let n = i + 1;
+            let entries = sidecar?.slides.iter().filter(|e| e.style == style);
             let hash = slide_hash(slide, world);
-            let (entry, source) = entries
-                .iter()
-                .find(|e| e.pinned && e.slide == n)
-                .map(|e| (*e, Source::Pinned))
-                .or_else(|| {
-                    entries
-                        .iter()
-                        .find(|e| e.hash == hash)
-                        .map(|e| (*e, Source::Current))
-                })
-                .or_else(|| {
-                    entries
-                        .iter()
-                        .find(|e| e.slide == n)
-                        .map(|e| (*e, Source::Stale))
-                })?;
+            let (entry, found) = shared::find(entries, i + 1, &hash)?;
             Some(Resolved {
                 file: base.join(&entry.file),
-                source,
+                source: match found {
+                    Match::Pinned => Source::Pinned,
+                    Match::Current => Source::Current,
+                    Match::Stale => Source::Stale,
+                },
             })
         })
         .collect()
