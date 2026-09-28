@@ -6,9 +6,9 @@ use super::{
     VIZ_FONT_AXIS_LABEL, VIZ_FONT_GRID_LABEL, VIZ_FONT_SECONDARY_LABEL, VIZ_LABEL_REVEAL_THRESHOLD,
     VIZ_OPACITY_AXIS, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL,
     VIZ_SCATTER_RADIUS, VIZ_STROKE_AXIS, VIZ_STROKE_GRID, VizReveal, assign_steps,
-    draw_x_axis_label, draw_y_axis_label, format_axis_value, grid_range_values, label_fade,
-    nice_grid_step, parse_axis_label_directive, parse_reveal_prefix, parse_value,
-    reveal_anim_progress, strip_thousands_separators,
+    draw_x_axis_label, draw_y_axis_label, format_axis_value, grid_range_values, header_directive,
+    label_fade, nice_grid_step, parse_reveal_prefix, parse_value, reveal_anim_progress,
+    strip_thousands_separators,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -40,12 +40,10 @@ fn parse_scatter_plot(content: &str) -> ScatterData {
         }
 
         if trimmed.starts_with('#') {
-            if let Some((key, val)) = parse_axis_label_directive(trimmed) {
-                match key {
-                    "x-label" => x_label = Some(val),
-                    "y-label" => y_label = Some(val),
-                    _ => {}
-                }
+            match header_directive(trimmed) {
+                Some(("x-label", val)) => x_label = Some(val.to_string()),
+                Some(("y-label", val)) => y_label = Some(val.to_string()),
+                _ => {}
             }
             continue;
         }

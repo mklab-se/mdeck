@@ -4,8 +4,8 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_CORNER_SWATCH, VIZ_DOT_RADIUS, VIZ_FONT_AXIS_LABEL, VIZ_FONT_LEGEND, VIZ_OPACITY_LABEL,
-    VIZ_STROKE_SEPARATOR, VIZ_SWATCH_SIZE, VizReveal, assign_steps, parse_label_values,
-    parse_reveal_prefix, reveal_anim_progress,
+    VIZ_STROKE_SEPARATOR, VIZ_SWATCH_SIZE, VizReveal, assign_steps, header_directive,
+    parse_label_values, parse_reveal_prefix, reveal_anim_progress,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -35,10 +35,7 @@ fn parse_radar_chart(content: &str) -> RadarData {
 
         // Parse axes directive
         if trimmed.starts_with('#') {
-            if let Some(rest) = trimmed
-                .strip_prefix("# axes:")
-                .or_else(|| trimmed.strip_prefix("#axes:"))
-            {
+            if let Some(("axes", rest)) = header_directive(trimmed) {
                 axes = rest.split(',').map(|s| s.trim().to_string()).collect();
             }
             continue;

@@ -7,9 +7,8 @@ use super::{
     VIZ_FONT_GRID_LABEL, VIZ_FONT_LEGEND, VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD,
     VIZ_OPACITY_AXIS, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL, VIZ_STROKE_AXIS,
     VIZ_STROKE_GRID, VIZ_SWATCH_SIZE, VizReveal, assign_steps, draw_x_axis_label,
-    draw_y_axis_label, format_axis_value, format_value, grid_values, label_fade, nice_axis_max,
-    nice_grid_step, parse_axis_label_directive, parse_label_values, parse_reveal_prefix,
-    reveal_anim_progress,
+    draw_y_axis_label, format_axis_value, format_value, grid_values, header_directive, label_fade,
+    nice_axis_max, nice_grid_step, parse_label_values, parse_reveal_prefix, reveal_anim_progress,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -43,17 +42,13 @@ fn parse_stacked_bar(content: &str) -> StackedBarData {
 
         // Parse directives
         if trimmed.starts_with('#') {
-            if let Some(rest) = trimmed
-                .strip_prefix("# categories:")
-                .or_else(|| trimmed.strip_prefix("#categories:"))
-            {
-                categories = rest.split(',').map(|s| s.trim().to_string()).collect();
-            } else if let Some((key, val)) = parse_axis_label_directive(trimmed) {
-                match key {
-                    "x-label" => x_label = Some(val),
-                    "y-label" => y_label = Some(val),
-                    _ => {}
+            match header_directive(trimmed) {
+                Some(("categories", rest)) => {
+                    categories = rest.split(',').map(|s| s.trim().to_string()).collect();
                 }
+                Some(("x-label", val)) => x_label = Some(val.to_string()),
+                Some(("y-label", val)) => y_label = Some(val.to_string()),
+                _ => {}
             }
             continue;
         }

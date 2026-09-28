@@ -4,8 +4,8 @@ use crate::theme::Theme;
 
 use super::{
     LegendItem, VIZ_FONT_MIN, VIZ_OPACITY_BORDER_RING, VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR,
-    VizReveal, assign_steps, draw_legend_column, fit_text, parse_label_value, parse_reveal_prefix,
-    reveal_anim_progress, sector_mesh, side_legend_width,
+    VizReveal, assign_steps, draw_legend_column, fit_text, header_directive, parse_label_value,
+    parse_reveal_prefix, reveal_anim_progress, sector_mesh, side_legend_width,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -29,11 +29,8 @@ fn parse_donut_chart(content: &str) -> (Vec<DonutEntry>, Option<String>) {
 
         // Parse center text directive
         if trimmed.starts_with('#') {
-            if let Some(rest) = trimmed
-                .strip_prefix("# center:")
-                .or_else(|| trimmed.strip_prefix("#center:"))
-            {
-                center_text = Some(rest.trim().to_string());
+            if let Some(("center", rest)) = header_directive(trimmed) {
+                center_text = Some(rest.to_string());
             }
             continue;
         }

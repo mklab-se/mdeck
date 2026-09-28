@@ -5,8 +5,8 @@ use crate::theme::Theme;
 use super::{
     VIZ_CORNER_BAR, VIZ_FONT_GRID_LABEL, VIZ_FONT_SECONDARY_LABEL, VIZ_FONT_TITLE,
     VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_GRID, VIZ_STROKE_AXIS, VIZ_STROKE_CONNECTOR,
-    VIZ_STROKE_GRID, VizReveal, assign_steps, label_fade, label_stride, parse_reveal_prefix,
-    reveal_anim_progress,
+    VIZ_STROKE_GRID, VizReveal, assign_steps, header_directive, label_fade, label_stride,
+    parse_reveal_prefix, reveal_anim_progress,
 };
 
 // ─── Date Arithmetic ────────────────────────────────────────────────────────
@@ -185,17 +185,12 @@ fn parse_gantt(content: &str) -> GanttData {
 
         // Parse directives
         if trimmed.starts_with('#') {
-            if let Some(rest) = trimmed
-                .strip_prefix("# title:")
-                .or_else(|| trimmed.strip_prefix("#title:"))
-            {
-                title = Some(rest.trim().to_string());
-            } else if let Some(rest) = trimmed
-                .strip_prefix("# labels:")
-                .or_else(|| trimmed.strip_prefix("#labels:"))
-                && rest.trim().eq_ignore_ascii_case("inside")
-            {
-                labels = LabelMode::Inside;
+            match header_directive(trimmed) {
+                Some(("title", rest)) => title = Some(rest.to_string()),
+                Some(("labels", rest)) if rest.eq_ignore_ascii_case("inside") => {
+                    labels = LabelMode::Inside;
+                }
+                _ => {}
             }
             continue;
         }
