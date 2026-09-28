@@ -17,7 +17,10 @@ mod vocabulary;
 #[cfg(test)]
 mod fixtures;
 
-pub use labels::{draw_labels, label_collisions};
+// The labels are drawn only by the particles engine.
+#[cfg(feature = "particles")]
+pub use labels::draw_labels;
+pub use labels::label_collisions;
 pub use script::{Cell, Fill, FlowColor, Member, Script};
 pub use stage::{Label, Staged, allowed, stage, stage_box};
 pub use vocabulary::{is_figure, vocabulary};
