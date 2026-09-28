@@ -1,7 +1,46 @@
 use eframe::egui;
 use std::time::Instant;
 
-use super::{ActiveDraw, ArrowAnnotation, DRAG_THRESHOLD, PenStroke, PresentationApp};
+use super::{DRAG_THRESHOLD, PresentationApp};
+
+/// A freehand pen stroke (left-drag)
+pub(super) struct PenStroke {
+    pub(super) points: Vec<egui::Pos2>,
+    pub(super) start: Instant,
+    pub(super) slide_index: usize,
+}
+
+/// An arrow annotation (right-drag)
+pub(super) struct ArrowAnnotation {
+    pub(super) from: egui::Pos2,
+    pub(super) to: egui::Pos2,
+    pub(super) start: Instant,
+    pub(super) slide_index: usize,
+}
+
+/// Tracks an in-progress mouse interaction
+pub(super) enum ActiveDraw {
+    None,
+    /// Left button held: collecting points, might still be a click
+    PenPending {
+        origin: egui::Pos2,
+        points: Vec<egui::Pos2>,
+    },
+    /// Left button held: drag threshold exceeded, definitely drawing
+    PenDrawing {
+        points: Vec<egui::Pos2>,
+    },
+    /// Right button held: collecting start/end, might still be a click
+    ArrowPending {
+        origin: egui::Pos2,
+        current: egui::Pos2,
+    },
+    /// Right button held: drag threshold exceeded, definitely an arrow
+    ArrowDrawing {
+        from: egui::Pos2,
+        current: egui::Pos2,
+    },
+}
 
 /// What a finished mouse interaction should do.
 #[derive(Debug, PartialEq)]

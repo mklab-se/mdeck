@@ -12,9 +12,7 @@ impl PresentationApp {
     /// Re-read the sidecar and rebuild per-slide stories and step counts.
     pub(super) fn reload_stories(&mut self) {
         self.deck.reload_stories(&self.theme);
-        for (i, r) in self.reveal_steps.iter_mut().enumerate() {
-            *r = (*r).min(self.deck.max_steps[i]);
-        }
+        self.clamp_reveals();
     }
 
     /// `S`: AI for the current slide, in the background: a picture on an

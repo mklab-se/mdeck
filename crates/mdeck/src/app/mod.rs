@@ -1,15 +1,29 @@
+mod actions;
 mod ai;
+mod countdown;
 mod drawing;
+mod end_slide;
+mod frame;
+mod grid;
 mod helpers;
 mod input;
 pub mod keys;
+mod launch;
+mod navigation;
+mod overlays;
+mod overview;
+mod reload;
 
-use drawing::{draw_hud, draw_raw_markdown_overlay};
+use actions::{MonitorMove, ViewportSnapshot};
+use countdown::{Countdown, CountdownPhase};
+use grid::GridLayout;
 use helpers::{
     find_matching_slide, hash_content, load_app_icon, print_incident_summary, resolve_setting,
     spawn_file_watcher,
 };
-use keys::{Action, DoubleTap, KeyMode, MonitorMoveOutcome, evaluate_monitor_move, map_key};
+use input::{ActiveDraw, ArrowAnnotation, PenStroke};
+use keys::{Action, DoubleTap, MonitorMoveOutcome, evaluate_monitor_move};
+pub use launch::run;
 
 use eframe::egui;
 use std::path::PathBuf;
@@ -21,7 +35,7 @@ use notify_debouncer_mini::{Debouncer, notify};
 
 use crate::check::CheckReport;
 use crate::config::{Config, DefaultsConfig};
-use crate::deck::{self, Deck, EngineFrame};
+use crate::deck::{self, Deck};
 use crate::incident_log::IncidentLog;
 use crate::parser::{self, Presentation};
 use crate::render;
@@ -33,20 +47,8 @@ const DRAW_FADE_DURATION: f32 = 8.0;
 const DRAG_THRESHOLD: f32 = 5.0;
 /// Window for double-tap quit gestures (Esc, Q, Ctrl+C).
 const DOUBLE_TAP_WINDOW: Duration = Duration::from_secs(1);
-/// Each countdown digit holds for this long.
-const COUNTDOWN_DIGIT: Duration = Duration::from_millis(1100);
-/// Time for the particles to gather into the first digit before its second
-/// starts counting (the clock starts on the first drawn frame).
-const COUNTDOWN_LEAD: Duration = Duration::from_millis(450);
-/// The 3 holds this much longer than the other digits: it is the one the
-/// audience has to find on a screen that was black a moment ago.
-const COUNTDOWN_FIRST_EXTRA: Duration = Duration::from_millis(600);
-/// Ember's final burst, after the "1".
-const COUNTDOWN_BURST: Duration = Duration::from_millis(1000);
 /// A reveal animation counts as "in flight" for this long after it started.
 const REVEAL_IN_FLIGHT_WINDOW: Duration = Duration::from_secs(3);
-/// How long to wait for the window to settle after a monitor move.
-const MONITOR_MOVE_SETTLE: Duration = Duration::from_millis(1000);
 
 /// A navigation request made while a transition was running; applied when
 /// the transition completes so quick key presses are not dropped.
@@ -54,70 +56,6 @@ const MONITOR_MOVE_SETTLE: Duration = Duration::from_millis(1000);
 enum PendingNav {
     Forward,
     Backward,
-}
-
-/// State machine for hopping a fullscreen window to the next monitor.
-struct MonitorMove {
-    /// Requested window position.
-    target: egui::Pos2,
-    monitor_width: f32,
-    /// Whether we already wrapped around to the origin.
-    wrapped: bool,
-    phase: MonitorMovePhase,
-}
-
-enum MonitorMovePhase {
-    /// Fullscreen was dropped and the window repositioned; re-enter fullscreen next frame.
-    Reposition,
-    /// Fullscreen re-entered at this instant; verify where the window landed after settling.
-    Verify(Instant),
-}
-
-/// Viewport facts captured inside `ctx.input` for use outside the closure.
-#[derive(Debug, Clone, Copy, Default)]
-struct ViewportSnapshot {
-    fullscreen: bool,
-    monitor_size: Option<egui::Vec2>,
-    outer_pos: Option<egui::Pos2>,
-}
-
-/// A freehand pen stroke (left-drag)
-struct PenStroke {
-    points: Vec<egui::Pos2>,
-    start: Instant,
-    slide_index: usize,
-}
-
-/// An arrow annotation (right-drag)
-struct ArrowAnnotation {
-    from: egui::Pos2,
-    to: egui::Pos2,
-    start: Instant,
-    slide_index: usize,
-}
-
-/// Tracks an in-progress mouse interaction
-enum ActiveDraw {
-    None,
-    /// Left button held: collecting points, might still be a click
-    PenPending {
-        origin: egui::Pos2,
-        points: Vec<egui::Pos2>,
-    },
-    /// Left button held: drag threshold exceeded, definitely drawing
-    PenDrawing {
-        points: Vec<egui::Pos2>,
-    },
-    /// Right button held: collecting start/end, might still be a click
-    ArrowPending {
-        origin: egui::Pos2,
-        current: egui::Pos2,
-    },
-    /// Right button held: drag threshold exceeded, definitely an arrow
-    ArrowDrawing {
-        from: egui::Pos2,
-        current: egui::Pos2,
-    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -129,9 +67,38 @@ enum RawOverlaySide {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum AppMode {
-    Presentation,
-    Grid { selected: usize },
-    OverviewTransition { selected: usize, entering: bool },
+    /// Presenting slides; `end` is the virtual "The End" slide after the last.
+    Presentation {
+        end: bool,
+    },
+    Grid {
+        selected: usize,
+    },
+    OverviewTransition {
+        selected: usize,
+        entering: bool,
+    },
+}
+
+/// Where one slide stands: how far it is revealed and how far scrolled.
+#[derive(Debug, Clone, Copy, Default)]
+struct SlideView {
+    /// Reveal steps shown.
+    reveal: usize,
+    /// When the latest step was revealed (animates it in); `None` once
+    /// stepping back, so what stays on screen does not rise in again.
+    revealed_at: Option<Instant>,
+    /// Current, animated scroll offset.
+    scroll: f32,
+    /// Where the scroll offset is heading.
+    scroll_target: f32,
+}
+
+impl SlideView {
+    fn reset_scroll(&mut self) {
+        self.scroll = 0.0;
+        self.scroll_target = 0.0;
+    }
 }
 
 struct PresentationApp {
@@ -163,11 +130,8 @@ struct PresentationApp {
     ctrl_c_tap: DoubleTap,
     esc_tap: DoubleTap,
     quit_tap: DoubleTap,
-    reveal_steps: Vec<usize>,
-    /// Timestamp of when each slide's reveal_step was last incremented (for animation)
-    reveal_timestamps: Vec<Option<Instant>>,
-    scroll_offsets: Vec<f32>,
-    scroll_targets: Vec<f32>,
+    /// Reveal progress and scroll position, one per slide.
+    views: Vec<SlideView>,
     frame_count: u32,
     fps: f32,
     fps_update: Instant,
@@ -197,8 +161,6 @@ struct PresentationApp {
     precache_report_printed: bool,
     /// Suppress non-essential output.
     quiet: bool,
-    /// Whether the virtual "The End" slide is being displayed.
-    on_end_slide: bool,
     /// Whether the screen is blacked out (toggled with `.` or `B`).
     blackout: bool,
     /// In-progress monitor hop (M key).
@@ -223,54 +185,6 @@ struct PresentationApp {
     story_rx: Option<mpsc::Receiver<(usize, Result<(), String>)>>,
     /// Opening countdown, while it runs.
     countdown: Option<Countdown>,
-}
-
-/// The 3-2-1 opener. Ember forms the digits out of particles and bursts;
-/// Nord shows plain numerals. Any key or click cancels it.
-struct Countdown {
-    /// Set on the first frame that draws it, not when the app is created:
-    /// shader compilation and font atlas building would eat the first digit.
-    start: Option<Instant>,
-    burst: bool,
-}
-
-/// What the countdown is showing right now.
-#[derive(Clone, Copy, PartialEq, Debug)]
-enum CountdownPhase {
-    /// A digit and how far through its second we are (0..1).
-    Digit(u8, f32),
-    /// The burst and its progress (0..1).
-    Burst(f32),
-    Done,
-}
-
-impl Countdown {
-    fn phase(&self, now: Instant) -> CountdownPhase {
-        let Some(start) = self.start else {
-            return CountdownPhase::Digit(3, 0.0);
-        };
-        let t = now.saturating_duration_since(start).as_secs_f32() - COUNTDOWN_LEAD.as_secs_f32();
-        if t < 0.0 {
-            return CountdownPhase::Digit(3, 0.0);
-        }
-        let d = COUNTDOWN_DIGIT.as_secs_f32();
-        let first = d + COUNTDOWN_FIRST_EXTRA.as_secs_f32();
-        if t < first {
-            return CountdownPhase::Digit(3, t / first);
-        }
-        let t2 = t - first;
-        if t2 < 2.0 * d {
-            let n = (t2 / d).floor();
-            return CountdownPhase::Digit(2 - n as u8, (t2 - n * d) / d);
-        }
-        if self.burst {
-            let b = (t2 - 2.0 * d) / COUNTDOWN_BURST.as_secs_f32();
-            if b < 1.0 {
-                return CountdownPhase::Burst(b);
-            }
-        }
-        CountdownPhase::Done
-    }
 }
 
 struct Toast {
@@ -304,19 +218,36 @@ impl Toast {
     }
 }
 
+/// The watcher that tells the window its deck file changed.
+struct FileWatch {
+    rx: mpsc::Receiver<()>,
+    watcher: Option<Debouncer<notify::RecommendedWatcher>>,
+    /// Hash of the content the deck was parsed from.
+    content_hash: u64,
+}
+
+/// What the window starts with from the command line and the config.
+struct Launch {
+    quiet: bool,
+    incident_log: Arc<IncidentLog>,
+    defaults: DefaultsConfig,
+    /// `--engine`.
+    cli_engine: Option<crate::engines::EngineKind>,
+}
+
 impl PresentationApp {
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        file: PathBuf,
-        presentation: Presentation,
-        watcher_rx: mpsc::Receiver<()>,
-        watcher: Option<Debouncer<notify::RecommendedWatcher>>,
-        content_hash: u64,
-        quiet: bool,
-        incident_log: Arc<IncidentLog>,
-        defaults: &DefaultsConfig,
-        cli_engine: Option<crate::engines::EngineKind>,
-    ) -> Self {
+    fn new(file: PathBuf, presentation: Presentation, watch: FileWatch, launch: Launch) -> Self {
+        let Launch {
+            quiet,
+            incident_log,
+            defaults,
+            cli_engine,
+        } = launch;
+        let FileWatch {
+            rx: watcher_rx,
+            watcher,
+            content_hash,
+        } = watch;
         // Precedence: frontmatter > config defaults > built-in
         let themes = lookup::Lookup::for_deck(file.parent());
         let (resolved, theme_key) =
@@ -357,7 +288,7 @@ impl PresentationApp {
             current_slide: 0,
             watcher_rx,
             _watcher: watcher,
-            mode: AppMode::Presentation,
+            mode: AppMode::Presentation { end: false },
             theme,
             theme_key,
             themes,
@@ -371,10 +302,7 @@ impl PresentationApp {
             ctrl_c_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
             esc_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
             quit_tap: DoubleTap::new(DOUBLE_TAP_WINDOW),
-            reveal_steps: vec![0; slide_count],
-            reveal_timestamps: vec![None; slide_count],
-            scroll_offsets: vec![0.0; slide_count],
-            scroll_targets: vec![0.0; slide_count],
+            views: vec![SlideView::default(); slide_count],
             frame_count: 0,
             fps: 0.0,
             fps_update: now,
@@ -393,7 +321,6 @@ impl PresentationApp {
             precache_report_rx: None,
             precache_report_printed: false,
             quiet,
-            on_end_slide: false,
             blackout: false,
             monitor_move: None,
             pending_nav: None,
@@ -410,49 +337,19 @@ impl PresentationApp {
         }
     }
 
-    /// Start the opening countdown if the theme has one and the deck did not
-    /// turn it off (`@countdown: false`).
-    fn start_countdown(&mut self) {
-        if self.deck.presentation.meta.countdown == Some(false) {
-            return;
+    fn on_end_slide(&self) -> bool {
+        matches!(self.mode, AppMode::Presentation { end: true })
+    }
+
+    /// Back from the end slide to the last real one, if it is showing.
+    fn leave_end_slide(&mut self) {
+        if let AppMode::Presentation { end } = &mut self.mode {
+            *end = false;
         }
-        let burst = match self.theme.countdown {
-            ThemeCountdown::Burst => true,
-            ThemeCountdown::Plain => false,
-            ThemeCountdown::None => return,
-        };
-        self.countdown = Some(Countdown { start: None, burst });
     }
 
     fn countdown_running(&self) -> bool {
         self.countdown.is_some()
-    }
-
-    /// Draw Nord's plain numeral for the current countdown phase.
-    fn draw_countdown_numeral(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
-        let Some(cd) = &self.countdown else {
-            return;
-        };
-        let CountdownPhase::Digit(d, p) = cd.phase(Instant::now()) else {
-            return;
-        };
-        // fade in over the first quarter, out over the last quarter, settle in size
-        let fade_in = (p / 0.25).clamp(0.0, 1.0);
-        let fade_out = ((1.0 - p) / 0.25).clamp(0.0, 1.0);
-        let alpha = fade_in.min(fade_out);
-        let size =
-            420.0 * scale * (1.06 - 0.06 * render::transition::ease_in_out(p.min(0.5) * 2.0));
-        let color = Theme::with_opacity(self.theme.heading_color, alpha);
-        let galley = ui.painter().layout_no_wrap(
-            d.to_string(),
-            egui::FontId::new(size, self.theme.display_family()),
-            color,
-        );
-        let pos = egui::pos2(
-            rect.center().x - galley.rect.width() / 2.0,
-            rect.center().y - galley.rect.height() / 2.0,
-        );
-        ui.painter().galley(pos, galley, color);
     }
 
     /// The story playing on slide `index`, if any.
@@ -462,6 +359,20 @@ impl PresentationApp {
 
     fn slide_count(&self) -> usize {
         self.deck.slide_count()
+    }
+
+    /// Slide `index`'s reveal and scroll state (settled, at the top, when
+    /// out of range).
+    fn view(&self, index: usize) -> SlideView {
+        self.views.get(index).copied().unwrap_or_default()
+    }
+
+    /// Keep every slide's reveal within its step count (after the counts
+    /// changed: a theme switch, new stories).
+    fn clamp_reveals(&mut self) {
+        for (v, &max) in self.views.iter_mut().zip(&self.deck.max_steps) {
+            v.reveal = v.reveal.min(max);
+        }
     }
 
     fn display_title(&self) -> String {
@@ -503,166 +414,6 @@ impl PresentationApp {
         }
     }
 
-    fn navigate_forward(&mut self) {
-        if self.transition.is_some() {
-            self.pending_nav = Some(PendingNav::Forward);
-            return;
-        }
-
-        // Already on end slide — nowhere to go
-        if self.on_end_slide {
-            return;
-        }
-
-        let idx = self.current_slide;
-
-        // If we have reveal steps remaining, reveal next item
-        if self.reveal_steps[idx] < self.deck.max_steps[idx] {
-            self.reveal_steps[idx] += 1;
-            self.reveal_timestamps[idx] = Some(Instant::now());
-            self.pending_reveal_scroll = true;
-            return;
-        }
-
-        // On last real slide — transition to end slide
-        if idx >= self.slide_count().saturating_sub(1) {
-            self.scroll_offsets[idx] = 0.0;
-            self.scroll_targets[idx] = 0.0;
-            self.on_end_slide = true;
-            return;
-        }
-
-        // Scroll offsets are reset when the transition completes so the
-        // outgoing slide keeps its scroll position while sliding out.
-        self.transition = Some(ActiveTransition::new(
-            idx,
-            idx + 1,
-            self.default_transition,
-            TransitionDirection::Forward,
-        ));
-    }
-
-    fn navigate_backward(&mut self) {
-        if self.transition.is_some() {
-            self.pending_nav = Some(PendingNav::Backward);
-            return;
-        }
-
-        // Coming back from end slide — return to last real slide
-        if self.on_end_slide {
-            self.on_end_slide = false;
-            return;
-        }
-
-        let idx = self.current_slide;
-
-        // If we've revealed items, un-reveal. Only Next animates: clearing
-        // the timestamp keeps what stays on screen from rising in again.
-        if self.reveal_steps[idx] > 0 {
-            self.reveal_steps[idx] -= 1;
-            self.reveal_timestamps[idx] = None;
-            return;
-        }
-
-        // Otherwise go to previous slide (fully revealed)
-        if idx == 0 {
-            return;
-        }
-
-        let prev = idx - 1;
-        // Show previous slide fully revealed
-        self.reveal_steps[prev] = self.deck.max_steps[prev];
-
-        self.transition = Some(ActiveTransition::new(
-            idx,
-            prev,
-            self.default_transition,
-            TransitionDirection::Backward,
-        ));
-    }
-
-    /// Jump directly to a slide (Home/End). The target is shown fully
-    /// revealed and scrolled to the top, like `navigate_backward`.
-    fn jump_to_slide(&mut self, index: usize) {
-        if index >= self.slide_count() || self.transition.is_some() {
-            return;
-        }
-        self.on_end_slide = false;
-        self.reveal_steps[index] = self.deck.max_steps[index];
-        let cur = self.current_slide;
-        if index == cur {
-            return;
-        }
-        self.scroll_offsets[index] = 0.0;
-        self.scroll_targets[index] = 0.0;
-        let direction = if index > cur {
-            TransitionDirection::Forward
-        } else {
-            TransitionDirection::Backward
-        };
-        self.transition = Some(ActiveTransition::new(
-            cur,
-            index,
-            self.default_transition,
-            direction,
-        ));
-    }
-
-    /// Finish a completed slide transition: land on the target slide, reset
-    /// the outgoing slide's scroll, and apply any navigation queued meanwhile.
-    fn advance_transition(&mut self) {
-        let Some(t) = self.transition.as_ref() else {
-            return;
-        };
-        if !t.is_complete() {
-            return;
-        }
-        let (from, to) = (t.from, t.to);
-        self.transition = None;
-        self.current_slide = to;
-        if let Some(o) = self.scroll_offsets.get_mut(from) {
-            *o = 0.0;
-        }
-        if let Some(t) = self.scroll_targets.get_mut(from) {
-            *t = 0.0;
-        }
-        if let Some(nav) = self.pending_nav.take() {
-            match nav {
-                PendingNav::Forward => self.navigate_forward(),
-                PendingNav::Backward => self.navigate_backward(),
-            }
-        }
-    }
-
-    /// Finish a completed grid zoom animation.
-    fn advance_overview_transition(&mut self) {
-        let AppMode::OverviewTransition { selected, entering } = self.mode else {
-            return;
-        };
-        let Some(start) = self.overview_transition_start else {
-            return;
-        };
-        if start.elapsed().as_secs_f32() < OVERVIEW_TRANSITION_DURATION {
-            return;
-        }
-        let selected = selected.min(self.slide_count().saturating_sub(1));
-        if entering {
-            self.mode = AppMode::Grid { selected };
-            // The hero slide zoomed out to its unscrolled cell; forget its scroll.
-            let cur = self.current_slide;
-            self.scroll_offsets[cur] = 0.0;
-            self.scroll_targets[cur] = 0.0;
-        } else {
-            self.current_slide = selected;
-            // Leaving the grid behaves like navigating back: fully revealed, top.
-            self.reveal_steps[selected] = self.deck.max_steps[selected];
-            self.scroll_offsets[selected] = 0.0;
-            self.scroll_targets[selected] = 0.0;
-            self.mode = AppMode::Presentation;
-        }
-        self.overview_transition_start = None;
-    }
-
     /// Whether any time-based animation is currently running. Used to decide
     /// whether a long frame gap (sleep, occlusion) is worth an incident entry.
     fn animation_in_flight(&self, reference: Instant) -> bool {
@@ -674,9 +425,9 @@ impl PresentationApp {
             || !matches!(self.active_draw, ActiveDraw::None)
             || self.monitor_move.is_some()
             || self
-                .reveal_timestamps
+                .views
                 .iter()
-                .any(|t| keys::reveal_in_flight(*t, reference, REVEAL_IN_FLIGHT_WINDOW))
+                .any(|v| keys::reveal_in_flight(v.revealed_at, reference, REVEAL_IN_FLIGHT_WINDOW))
     }
 
     /// Shift every animation timestamp forward by `jump` so animations resume
@@ -697,7 +448,7 @@ impl PresentationApp {
         if let Some(ref mut t) = self.toast {
             t.start = (t.start + jump).min(now);
         }
-        for t in self.reveal_timestamps.iter_mut().flatten() {
+        for t in self.views.iter_mut().filter_map(|v| v.revealed_at.as_mut()) {
             *t = (*t + jump).min(now);
         }
     }
@@ -740,9 +491,7 @@ impl PresentationApp {
     fn apply_theme(&mut self, theme: Theme) {
         self.theme = crate::engines::with_engine(theme, self.engine_override);
         self.deck.retheme(&self.theme);
-        for (i, r) in self.reveal_steps.iter_mut().enumerate() {
-            *r = (*r).min(self.deck.max_steps[i]);
-        }
+        self.clamp_reveals();
         self.toast = Some(Toast::new(format!("Theme: {}", self.theme.name)));
     }
 
@@ -772,236 +521,9 @@ impl PresentationApp {
         }
     }
 
-    fn reload_presentation(&mut self) {
-        let content = match std::fs::read_to_string(&self.deck.file) {
-            Ok(c) => c,
-            Err(e) => {
-                self.incident_log.record(
-                    "file_reload_error",
-                    "failed to read presentation file for reload",
-                    &format!("{e}\npath: {}", self.deck.file.display()),
-                );
-                self.toast = Some(Toast::new(format!("Reload error: {e}")));
-                return;
-            }
-        };
-
-        // Skip reload if file content hasn't actually changed (macOS FSEvents
-        // can fire spuriously, and each reload resets per-slide state).
-        let new_hash = hash_content(&content);
-        if new_hash == self.last_content_hash {
-            return;
-        }
-        self.last_content_hash = new_hash;
-
-        let new_presentation = parser::parse(&content, self.deck.dir());
-
-        if new_presentation.slides.is_empty() {
-            self.toast = Some(Toast::new("Reload: no slides found".to_string()));
-            return;
-        }
-
-        self.apply_reloaded(new_presentation);
-    }
-
-    /// Swap in a re-parsed presentation, preserving as much per-slide state
-    /// (position, reveal progress, scroll) as still makes sense.
-    fn apply_reloaded(&mut self, new_presentation: Presentation) {
-        // Preserve slide position
-        let old_current = self.current_slide;
-        let old_raw = self
-            .deck
-            .presentation
-            .slides
-            .get(old_current)
-            .map(|s| s.raw_source.as_str());
-        let old_reveal = self.reveal_steps.get(old_current).copied().unwrap_or(0);
-        let old_scroll = self.scroll_targets.get(old_current).copied().unwrap_or(0.0);
-        self.current_slide = find_matching_slide(old_raw, old_current, &new_presentation.slides);
-
-        let slide_count = new_presentation.slides.len();
-
-        // Recompute per-slide vectors, keeping the current slide's reveal
-        // progress (clamped to the new step count) and scroll position.
-        let engine_override = deck::deck_engine(self.cli_engine, &new_presentation, false);
-        let new_theme = new_presentation.meta.theme.clone();
-        let new_transition = new_presentation.meta.transition.clone();
-        self.deck.replace(new_presentation, &self.theme);
-        self.reveal_steps = vec![0; slide_count];
-        self.reveal_timestamps = vec![None; slide_count];
-        self.scroll_offsets = vec![0.0; slide_count];
-        self.scroll_targets = vec![0.0; slide_count];
-        let cur = self.current_slide;
-        self.reveal_steps[cur] = old_reveal.min(self.deck.max_steps[cur]);
-        self.scroll_targets[cur] = old_scroll;
-        self.scroll_offsets[cur] = old_scroll;
-
-        // Update theme/transition from new frontmatter (and pick up edits to
-        // the theme file itself)
-        if let Some(name) = &new_theme {
-            let (theme, problems) = lookup::resolve_or_default(&self.themes, name);
-            deck::report_theme_problems(&problems);
-            self.theme_key = name.trim().to_ascii_lowercase();
-            self.pending_theme = Some(theme);
-        } else if engine_override != self.engine_override {
-            let (theme, _) = lookup::resolve_or_default(&self.themes, &self.theme_key);
-            self.pending_theme = Some(theme);
-        }
-        self.engine_override = engine_override;
-        if let Some(name) = &new_transition {
-            self.default_transition = TransitionKind::from_name(name);
-        }
-
-        self.precache_cancel.store(true, Ordering::Relaxed);
-        render::diagram::clear_route_cache();
-        render::visualizations::word_cloud::clear_cache();
-        self.precache_cancel = Arc::new(AtomicBool::new(false));
-        self.transition = None;
-        self.pending_nav = None;
-        self.on_end_slide = false;
-        self.pen_strokes.clear();
-        self.arrows.clear();
-        self.active_draw = ActiveDraw::None;
-
-        // Clamp grid selection (both the grid and its zoom animation carry one)
-        match self.mode {
-            AppMode::Grid { ref mut selected }
-            | AppMode::OverviewTransition {
-                ref mut selected, ..
-            } => {
-                *selected = (*selected).min(slide_count.saturating_sub(1));
-            }
-            AppMode::Presentation => {}
-        }
-
-        self.toast = Some(Toast::new("Presentation Change Detected".to_string()));
-
-        self.spawn_diagram_precache();
-    }
-
-    /// Collect all diagram content from every slide and spawn a background thread
-    /// to pre-compute their routing caches at reference resolution (1920x1080).
-    fn spawn_diagram_precache(&mut self) {
-        let diagrams: Vec<(usize, String)> = self
-            .deck
-            .presentation
-            .slides
-            .iter()
-            .enumerate()
-            .flat_map(|(i, s)| {
-                s.blocks.iter().filter_map(move |b| {
-                    if let parser::Block::Diagram { content } = b {
-                        Some((i + 1, content.clone()))
-                    } else {
-                        None
-                    }
-                })
-            })
-            .collect();
-
-        if diagrams.is_empty() {
-            return;
-        }
-
-        let rx = render::diagram::precache_all_diagrams_with_report(
-            diagrams,
-            self.precache_cancel.clone(),
-        );
-        self.precache_report_rx = Some(rx);
-        self.precache_report_printed = false;
-    }
-
-    fn grid_columns(&self) -> usize {
-        let count = self.slide_count();
-        if count <= 4 {
-            2
-        } else if count <= 9 {
-            3
-        } else {
-            4
-        }
-    }
-
-    fn grid_cell_rect(
-        &self,
-        index: usize,
-        rect: egui::Rect,
-        scale: f32,
-        scroll_offset: f32,
-    ) -> egui::Rect {
-        let cols = self.grid_columns();
-        let count = self.slide_count();
-        let rows = count.div_ceil(cols);
-
-        let padding = 24.0 * scale;
-        let gap = 12.0 * scale;
-
-        let grid_top = rect.top() + padding + 40.0 * scale;
-        let grid_width = rect.width() - padding * 2.0;
-        let grid_height = rect.bottom() - grid_top - padding;
-
-        let cell_width = (grid_width - gap * (cols as f32 - 1.0)) / cols as f32;
-        let natural_height = cell_width * 9.0 / 16.0;
-        let total_natural = rows as f32 * natural_height + (rows as f32 - 1.0) * gap;
-
-        // If natural layout fits in the viewport, clamp to viewport; otherwise use natural size
-        let cell_height = if total_natural <= grid_height {
-            let cell_height_max = (grid_height - gap * (rows as f32 - 1.0)) / rows as f32;
-            cell_height_max.min(natural_height)
-        } else {
-            natural_height
-        };
-
-        let col = index % cols;
-        let row = index / cols;
-        let x = rect.left() + padding + col as f32 * (cell_width + gap);
-        let y = grid_top + row as f32 * (cell_height + gap) - scroll_offset;
-
-        egui::Rect::from_min_size(egui::pos2(x, y), egui::vec2(cell_width, cell_height))
-    }
-
-    /// Total content height of the grid (for scroll calculation)
-    fn grid_content_height(&self, rect: egui::Rect, scale: f32) -> f32 {
-        let cols = self.grid_columns();
-        let count = self.slide_count();
-        let rows = count.div_ceil(cols);
-
-        let padding = 24.0 * scale;
-        let gap = 12.0 * scale;
-        let grid_width = rect.width() - padding * 2.0;
-        let cell_width = (grid_width - gap * (cols as f32 - 1.0)) / cols as f32;
-        let cell_height = cell_width * 9.0 / 16.0;
-
-        rows as f32 * cell_height + (rows as f32 - 1.0) * gap
-    }
-
-    /// Available viewport height for grid content
-    fn grid_available_height(&self, rect: egui::Rect, scale: f32) -> f32 {
-        let padding = 24.0 * scale;
-        let grid_top = rect.top() + padding + 40.0 * scale;
-        rect.bottom() - grid_top - padding
-    }
-
-    /// Grid scroll target that brings `index` into view, starting from `current`.
-    fn grid_scroll_to_show(&self, index: usize, rect: egui::Rect, scale: f32, current: f32) -> f32 {
-        let content_h = self.grid_content_height(rect, scale);
-        let available_h = self.grid_available_height(rect, scale);
-        let overflow = (content_h - available_h).max(0.0);
-        if overflow <= 0.0 {
-            return 0.0;
-        }
-        let padding = 24.0 * scale;
-        let grid_top = rect.top() + padding + 40.0 * scale;
-        let grid_bottom = rect.bottom() - padding;
-        let cell = self.grid_cell_rect(index, rect, scale, current);
-        let target = if cell.top() < grid_top {
-            current - (grid_top - cell.top() + padding)
-        } else if cell.bottom() > grid_bottom {
-            current + (cell.bottom() - grid_bottom + padding)
-        } else {
-            current
-        };
-        target.clamp(0.0, overflow)
+    /// The overview grid for this deck in `rect`.
+    fn grid(&self, rect: egui::Rect, scale: f32) -> GridLayout {
+        GridLayout::new(self.slide_count(), rect, scale)
     }
 
     fn compute_scale(rect: egui::Rect) -> f32 {
@@ -1013,7 +535,7 @@ impl PresentationApp {
     /// Convert screen position to slide-local coordinates (accounting for scroll)
     fn screen_to_local(&self, screen_pos: egui::Pos2) -> egui::Pos2 {
         let rect = self.last_slide_rect;
-        let scroll = self.scroll_offsets[self.current_slide];
+        let scroll = self.views[self.current_slide].scroll;
         egui::pos2(
             screen_pos.x - rect.left(),
             screen_pos.y - rect.top() + scroll,
@@ -1023,535 +545,8 @@ impl PresentationApp {
     /// Convert slide-local coordinates back to screen position
     fn local_to_screen(&self, local: egui::Pos2) -> egui::Pos2 {
         let rect = self.last_slide_rect;
-        let scroll = self.scroll_offsets[self.current_slide];
+        let scroll = self.views[self.current_slide].scroll;
         egui::pos2(local.x + rect.left(), local.y + rect.top() - scroll)
-    }
-}
-
-/// Re-export `lerp_rect` so the drawing module can use it.
-use helpers::lerp_rect;
-
-impl PresentationApp {
-    /// Drive the monitor-hop state machine one frame. Returns viewport
-    /// commands to send after input handling.
-    fn tick_monitor_move(&mut self, vp: &ViewportSnapshot) -> Vec<egui::ViewportCommand> {
-        let mut cmds = Vec::new();
-        let Some(mv) = self.monitor_move.as_mut() else {
-            return cmds;
-        };
-        match mv.phase {
-            MonitorMovePhase::Reposition => {
-                cmds.push(egui::ViewportCommand::Fullscreen(true));
-                mv.phase = MonitorMovePhase::Verify(Instant::now());
-            }
-            MonitorMovePhase::Verify(since) => {
-                if since.elapsed() < MONITOR_MOVE_SETTLE {
-                    return cmds;
-                }
-                let Some(actual) = vp.outer_pos else {
-                    self.monitor_move = None;
-                    return cmds;
-                };
-                match evaluate_monitor_move(mv.target.x, actual.x, mv.monitor_width, mv.wrapped) {
-                    MonitorMoveOutcome::Landed => {
-                        // Remember the real monitor origin for the next launch
-                        if let Ok(mut config) = Config::load() {
-                            let defaults = config.defaults.get_or_insert_with(Default::default);
-                            defaults.monitor_position = Some([actual.x, actual.y]);
-                            let _ = config.save();
-                        }
-                        self.monitor_move = None;
-                    }
-                    MonitorMoveOutcome::Wrap => {
-                        mv.target = egui::pos2(0.0, 0.0);
-                        mv.wrapped = true;
-                        mv.phase = MonitorMovePhase::Reposition;
-                        cmds.push(egui::ViewportCommand::Fullscreen(false));
-                        cmds.push(egui::ViewportCommand::OuterPosition(mv.target));
-                        self.toast = Some(Toast::new("Wrapping to first monitor...".to_string()));
-                    }
-                    MonitorMoveOutcome::Failed => {
-                        self.toast = Some(Toast::new("No other monitor found".to_string()));
-                        self.monitor_move = None;
-                    }
-                }
-            }
-        }
-        cmds
-    }
-
-    /// Apply a keyboard action. Viewport commands are collected in `cmds` and
-    /// sent by the caller (sending inside `ctx.input` would deadlock).
-    fn handle_action(
-        &mut self,
-        action: Action,
-        vp: &ViewportSnapshot,
-        cmds: &mut Vec<egui::ViewportCommand>,
-    ) {
-        let now = Instant::now();
-        match action {
-            Action::Quit => {
-                if self.quit_tap.tap(now) {
-                    cmds.push(egui::ViewportCommand::Close);
-                } else {
-                    self.toast = Some(Toast::new("Press Q again to quit".to_string()));
-                }
-            }
-            Action::CtrlC => {
-                if self.ctrl_c_tap.tap(now) {
-                    cmds.push(egui::ViewportCommand::Close);
-                } else {
-                    self.toast = Some(Toast::new("Press Ctrl+C again to quit".to_string()));
-                }
-            }
-            Action::Escape => {
-                // In presentation mode, first ESC clears annotations if any exist
-                if matches!(self.mode, AppMode::Presentation) {
-                    let idx = self.current_slide;
-                    let has_annotations = self.pen_strokes.iter().any(|s| s.slide_index == idx)
-                        || self.arrows.iter().any(|a| a.slide_index == idx);
-                    if has_annotations {
-                        self.pen_strokes.retain(|s| s.slide_index != idx);
-                        self.arrows.retain(|a| a.slide_index != idx);
-                        self.esc_tap.reset();
-                        return;
-                    }
-                }
-                if self.esc_tap.tap(now) {
-                    cmds.push(egui::ViewportCommand::Close);
-                } else {
-                    self.toast = Some(Toast::new("Press Esc again to exit".to_string()));
-                }
-            }
-            Action::ToggleFullscreen => {
-                cmds.push(egui::ViewportCommand::Fullscreen(!vp.fullscreen));
-            }
-            Action::MoveMonitor => {
-                if self.monitor_move.is_some() {
-                    return;
-                }
-                if !vp.fullscreen {
-                    self.toast = Some(Toast::new(
-                        "Press F for fullscreen before moving monitors".to_string(),
-                    ));
-                    return;
-                }
-                let Some(monitor_size) = vp.monitor_size else {
-                    self.toast = Some(Toast::new("Monitor layout unknown".to_string()));
-                    return;
-                };
-                // Exit fullscreen, move right by one monitor width, re-enter
-                // fullscreen next frame, then verify where we landed.
-                let current_pos = vp.outer_pos.unwrap_or(egui::pos2(0.0, 0.0));
-                let target = keys::next_monitor_position(current_pos, monitor_size.x);
-                cmds.push(egui::ViewportCommand::Fullscreen(false));
-                cmds.push(egui::ViewportCommand::OuterPosition(target));
-                self.monitor_move = Some(MonitorMove {
-                    target,
-                    monitor_width: monitor_size.x,
-                    wrapped: false,
-                    phase: MonitorMovePhase::Reposition,
-                });
-                self.toast = Some(Toast::new("Moving to next monitor...".to_string()));
-            }
-            Action::CycleTheme => self.toggle_theme(),
-            Action::CycleTransition => self.cycle_transition(),
-            Action::ToggleBlackout => self.blackout = !self.blackout,
-            Action::Next => self.navigate_forward(),
-            Action::Previous => self.navigate_backward(),
-            Action::ScrollUp => {
-                let idx = self.current_slide;
-                self.scroll_targets[idx] = (self.scroll_targets[idx] - 120.0).max(0.0);
-            }
-            Action::ScrollDown => {
-                let idx = self.current_slide;
-                // Max will be clamped at render time when we know content height
-                self.scroll_targets[idx] += 120.0;
-            }
-            Action::FirstSlide => self.jump_to_slide(0),
-            Action::LastSlide => self.jump_to_slide(self.slide_count().saturating_sub(1)),
-            Action::EnterGrid => {
-                if self.transition.is_none() {
-                    self.on_end_slide = false;
-                    self.mode = AppMode::OverviewTransition {
-                        selected: self.current_slide,
-                        entering: true,
-                    };
-                    self.overview_transition_start = Some(Instant::now());
-                    self.show_hud = false;
-                    // Grid scroll is seeded at draw time (needs the viewport rect)
-                    self.grid_seed_scroll = true;
-                    self.hover_slide = None;
-                    self.use_hover = false;
-                }
-            }
-            Action::ToggleHud => self.show_hud = !self.show_hud,
-            Action::Generate => self.generate(),
-            Action::CycleRawOverlay => {
-                self.raw_overlay_side = match self.raw_overlay_side {
-                    RawOverlaySide::Off => RawOverlaySide::Left,
-                    RawOverlaySide::Left => RawOverlaySide::Right,
-                    RawOverlaySide::Right => RawOverlaySide::Off,
-                };
-            }
-            Action::GridRight | Action::GridLeft | Action::GridDown | Action::GridUp => {
-                let AppMode::Grid { selected } = self.mode else {
-                    return;
-                };
-                let cols = self.grid_columns();
-                let last = self.slide_count().saturating_sub(1);
-                let next = match action {
-                    Action::GridRight => (selected + 1).min(last),
-                    Action::GridLeft => selected.saturating_sub(1),
-                    Action::GridDown => (selected + cols).min(last),
-                    _ => selected.saturating_sub(cols),
-                };
-                self.mode = AppMode::Grid { selected: next };
-                self.use_hover = false;
-            }
-            Action::GridSelect => {
-                let AppMode::Grid { selected } = self.mode else {
-                    return;
-                };
-                self.use_hover = false;
-                self.mode = AppMode::OverviewTransition {
-                    selected,
-                    entering: false,
-                };
-                self.overview_transition_start = Some(Instant::now());
-            }
-        }
-    }
-}
-
-impl eframe::App for PresentationApp {
-    fn ui(&mut self, root_ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        let ctx = &root_ui.ctx().clone();
-        // Theme font files registered since last frame become drawable one
-        // frame after they are installed; a waiting theme switches then.
-        self.font_sync.sync(ctx);
-        if self.font_sync.ready()
-            && let Some(theme) = self.pending_theme.take()
-        {
-            self.apply_theme(theme);
-        } else if self.pending_theme.is_some() {
-            ctx.request_repaint();
-        }
-        self.update_fps();
-        self.preload_upcoming_images(ctx);
-
-        // Detect frame gaps (sleep, occlusion, scheduling) and shift animation
-        // timestamps forward. Threshold must exceed the repaint heartbeat:
-        //   Linux: 500ms heartbeat → 2s threshold
-        //   macOS/Windows: 4s heartbeat → 6s threshold
-        // macOS also stops redrawing occluded windows, so a gap is only worth
-        // an incident entry when an animation was actually interrupted.
-        let now = Instant::now();
-        let prev_frame = self.last_frame;
-        let frame_delta = now.duration_since(prev_frame);
-        self.last_frame = now;
-        #[cfg(target_os = "linux")]
-        let time_jump_threshold_ms = 2000;
-        #[cfg(not(target_os = "linux"))]
-        let time_jump_threshold_ms = 6000;
-        if frame_delta.as_millis() > time_jump_threshold_ms {
-            if self.animation_in_flight(prev_frame) {
-                self.incident_log.record(
-                    "time_jump",
-                    &format!("frame delta {}ms", frame_delta.as_millis()),
-                    "Power-state or scheduling gap interrupted an animation; shifting timestamps",
-                );
-            }
-            self.shift_timestamps(frame_delta, now);
-        }
-
-        // Publish current slide position for the incident log
-        if let Some(shared) = &self.shared_slide {
-            shared.store(self.current_slide, Ordering::Relaxed);
-        }
-
-        self.poll_story();
-        self.poll_art();
-
-        // Check for file changes
-        if self.watcher_rx.try_recv().is_ok() {
-            // Drain any extra queued events
-            while self.watcher_rx.try_recv().is_ok() {}
-            self.reload_presentation();
-        }
-
-        // Poll for diagram precache report
-        if let Some(ref rx) = self.precache_report_rx
-            && let Ok(report) = rx.try_recv()
-        {
-            if report.has_warnings() && !self.quiet && !self.precache_report_printed {
-                report.print_brief();
-                self.precache_report_printed = true;
-            }
-            self.precache_report_rx = None;
-        }
-
-        let mode = self.mode;
-        let key_mode = match mode {
-            AppMode::Presentation => KeyMode::Presentation,
-            AppMode::Grid { .. } => KeyMode::Grid,
-            AppMode::OverviewTransition { .. } => KeyMode::Blocked,
-        };
-
-        // Snapshot input inside the closure; act on it outside (sending
-        // viewport commands inside ctx.input() deadlocks).
-        let (pressed, wheel_y, vp) = ctx.input(|i| {
-            let pressed: Vec<(egui::Key, egui::Modifiers)> = i
-                .events
-                .iter()
-                .filter_map(|e| match e {
-                    egui::Event::Key {
-                        key,
-                        pressed: true,
-                        modifiers,
-                        ..
-                    } => Some((*key, *modifiers)),
-                    _ => None,
-                })
-                .collect();
-            let vp = ViewportSnapshot {
-                fullscreen: i.viewport().fullscreen.unwrap_or(false),
-                monitor_size: i.viewport().monitor_size,
-                outer_pos: i.viewport().outer_rect.map(|r| r.left_top()),
-            };
-            (pressed, i.smooth_scroll_delta.y, vp)
-        });
-
-        let mut viewport_cmds = self.tick_monitor_move(&vp);
-        if self.monitor_move.is_some() {
-            ctx.request_repaint_after(Duration::from_millis(100));
-        }
-
-        // The opening countdown ends on its own, or on any key or click.
-        if let Some(cd) = &mut self.countdown {
-            cd.start.get_or_insert_with(Instant::now);
-            let clicked = ctx.input(|i| i.pointer.any_pressed());
-            if cd.phase(Instant::now()) == CountdownPhase::Done || !pressed.is_empty() || clicked {
-                self.countdown = None;
-            }
-            ctx.request_repaint();
-        }
-        // keys pressed during the countdown only cancel it
-        let pressed = if self.countdown_running() {
-            Vec::new()
-        } else {
-            pressed
-        };
-
-        for (key, modifiers) in pressed {
-            let Some(action) = map_key(key, modifiers, key_mode) else {
-                continue;
-            };
-            // Block everything but global actions while blacked out
-            if self.blackout && !action.is_global() {
-                continue;
-            }
-            self.handle_action(action, &vp, &mut viewport_cmds);
-        }
-
-        // Mouse wheel scroll (presentation mode only)
-        if wheel_y != 0.0 && matches!(mode, AppMode::Presentation) && !self.blackout {
-            let idx = self.current_slide;
-            self.scroll_targets[idx] -= wheel_y;
-        }
-
-        for cmd in viewport_cmds {
-            ctx.send_viewport_cmd(cmd);
-        }
-
-        // Mouse input handling (presentation mode only)
-        if matches!(mode, AppMode::Presentation) && self.transition.is_none() && !self.blackout {
-            self.handle_mouse_input(ctx);
-        }
-
-        // Expire old annotations
-        self.pen_strokes
-            .retain(|s| s.start.elapsed().as_secs_f32() < DRAW_FADE_DURATION);
-        self.arrows
-            .retain(|a| a.start.elapsed().as_secs_f32() < DRAW_FADE_DURATION);
-        if !self.pen_strokes.is_empty() || !self.arrows.is_empty() {
-            ctx.request_repaint();
-        }
-
-        self.advance_transition();
-        self.advance_overview_transition();
-
-        // Expire toast
-        if self.toast.as_ref().is_some_and(|t| t.is_expired()) {
-            self.toast = None;
-        }
-
-        let bg = if self.blackout || self.on_end_slide {
-            egui::Color32::BLACK
-        } else {
-            self.theme.background
-        };
-
-        egui::CentralPanel::default()
-            .frame(egui::Frame::new().fill(bg).inner_margin(0.0))
-            .show(root_ui, |ui| {
-                let rect = ui.max_rect();
-                ui.painter().rect_filled(rect, 0.0, bg);
-
-                // Blackout mode: solid black, nothing else rendered
-                if self.blackout {
-                    return;
-                }
-
-                // A theme's page puts the slide on a sheet.
-                let rect = if self.on_end_slide {
-                    rect
-                } else {
-                    render::page::draw(ui.painter(), rect, &self.theme, Self::compute_scale(rect))
-                };
-                let scale = Self::compute_scale(rect);
-
-                // The engine's layer goes under everything.
-                if self.theme.engine.paints() && matches!(self.mode, AppMode::Presentation) {
-                    let target = self
-                        .transition
-                        .as_ref()
-                        .map(|t| t.to)
-                        .unwrap_or(self.current_slide);
-                    let countdown =
-                        self.countdown
-                            .as_ref()
-                            .and_then(|cd| match cd.phase(Instant::now()) {
-                                CountdownPhase::Digit(d, p) => {
-                                    Some((crate::engines::CountPhase::Digit(d), p))
-                                }
-                                CountdownPhase::Burst(p) => {
-                                    Some((crate::engines::CountPhase::Burst, p))
-                                }
-                                CountdownPhase::Done => None,
-                            });
-                    self.deck.art.repaint_on(ctx);
-                    self.deck.engine_layer(
-                        ui,
-                        &self.theme,
-                        EngineFrame {
-                            rect,
-                            scale,
-                            index: target,
-                            reveal: self.reveal_steps.get(target).copied().unwrap_or(0),
-                            end: self.on_end_slide,
-                            countdown,
-                            still: false,
-                        },
-                        None,
-                    );
-                }
-
-                // A plain countdown: numerals on the bare background, no slide yet.
-                if self.countdown_running() && !self.theme.engine.capabilities().countdown {
-                    self.draw_countdown_numeral(ui, rect, scale);
-                    return;
-                }
-
-                // End slide: "The End" with logo attribution
-                if self.on_end_slide {
-                    self.draw_end_slide(ui, rect, scale);
-                    return;
-                }
-
-                // Entering the grid: start with the selected cell in view so the
-                // zoom-out lands on a visible cell instead of one below the fold.
-                if self.grid_seed_scroll {
-                    self.grid_seed_scroll = false;
-                    if let AppMode::OverviewTransition { selected, .. } = self.mode {
-                        let seed = self.grid_scroll_to_show(selected, rect, scale, 0.0);
-                        self.grid_scroll_offset = seed;
-                        self.grid_scroll_target = seed;
-                    }
-                }
-
-                match self.mode {
-                    AppMode::Presentation => {
-                        self.draw_presentation_with_scroll(ui, ctx, rect, scale);
-                    }
-                    AppMode::Grid { selected } => {
-                        self.draw_grid(ui, ctx, rect, selected, scale);
-                    }
-                    AppMode::OverviewTransition { selected, entering } => {
-                        self.draw_overview_transition(ui, ctx, rect, scale, selected, entering);
-                    }
-                }
-
-                // Toast notification (shown in both modes)
-                if let Some(ref toast) = self.toast {
-                    let opacity = toast.opacity();
-                    if opacity > 0.0 {
-                        let toast_color = Theme::with_opacity(self.theme.foreground, opacity * 0.9);
-                        let toast_bg =
-                            Theme::with_opacity(self.theme.code_background, opacity * 0.9);
-                        let galley = ui.painter().layout_no_wrap(
-                            toast.message.clone(),
-                            egui::FontId::proportional(20.0 * scale),
-                            toast_color,
-                        );
-                        let padding = 16.0 * scale;
-                        let toast_rect = egui::Rect::from_min_size(
-                            egui::pos2(
-                                rect.center().x - galley.rect.width() / 2.0 - padding,
-                                rect.bottom() - 80.0 * scale,
-                            ),
-                            egui::vec2(
-                                galley.rect.width() + padding * 2.0,
-                                galley.rect.height() + padding * 2.0,
-                            ),
-                        );
-                        ui.painter().rect_filled(toast_rect, 8.0 * scale, toast_bg);
-                        let text_pos =
-                            egui::pos2(toast_rect.left() + padding, toast_rect.top() + padding);
-                        ui.painter().galley(text_pos, galley, toast_color);
-                        ctx.request_repaint();
-                    }
-                }
-
-                // HUD overlay (presentation mode only)
-                if self.show_hud && matches!(self.mode, AppMode::Presentation) {
-                    draw_hud(ui, &self.theme, rect, scale);
-                }
-
-                // Debug overlay (presentation mode only)
-                if self.raw_overlay_side != RawOverlaySide::Off
-                    && matches!(self.mode, AppMode::Presentation)
-                {
-                    let slide = &self.deck.presentation.slides[self.current_slide];
-                    let raw = &slide.raw_source;
-                    let debug_info = slide.blocks.iter().find_map(|b| {
-                        if let parser::Block::Diagram { content } = b {
-                            Some(render::diagram::diagram_debug_info(content))
-                        } else {
-                            None
-                        }
-                    });
-                    draw_raw_markdown_overlay(
-                        ui,
-                        raw,
-                        debug_info.as_deref(),
-                        self.raw_overlay_side,
-                        &self.theme,
-                        rect,
-                        scale,
-                    );
-                }
-            });
-
-        // Keep the display pipeline alive with periodic repaints. Without this,
-        // eframe enters ControlFlow::Wait when idle, and on Linux the EGL/GLX
-        // context can become stale after ~30 s, crashing with EINVAL (os error 22).
-        // On Linux we repaint more aggressively (500ms) to prevent power-state idle
-        // from disrupting GPU context during battery/screen-share scenarios.
-        #[cfg(target_os = "linux")]
-        ctx.request_repaint_after(std::time::Duration::from_millis(500));
-        #[cfg(not(target_os = "linux"))]
-        ctx.request_repaint_after(std::time::Duration::from_secs(4));
     }
 }
 
@@ -1596,234 +591,9 @@ fn report_deck_warnings(deck: &Deck, engine: crate::engines::EngineKind) {
     );
 }
 
-/// Resolve the initial slide (0-indexed) and overview flag from CLI flags and
-/// the configured `defaults.start_mode`. CLI flags win.
-fn resolve_start(
-    start_slide: Option<usize>,
-    start_overview: bool,
-    config_start: Option<&str>,
-) -> (usize, bool) {
-    if start_overview {
-        return (start_slide.map(|s| s.saturating_sub(1)).unwrap_or(0), true);
-    }
-    if let Some(s) = start_slide {
-        return (s.saturating_sub(1), false);
-    }
-    match config_start {
-        Some("overview") => (0, true),
-        Some("first") | None => (0, false),
-        Some(n) => match n.parse::<usize>() {
-            Ok(num) => (num.saturating_sub(1), false),
-            Err(_) => (0, false),
-        },
-    }
-}
-
-pub fn run(
-    file: PathBuf,
-    windowed: bool,
-    start_slide: Option<usize>,
-    start_overview: bool,
-    quiet: bool,
-    engine: Option<String>,
-) -> anyhow::Result<()> {
-    let file = file.canonicalize().unwrap_or(file);
-
-    // Config defaults: start mode, theme/transition fallbacks, monitor position
-    let config = Config::load_or_default();
-    let defaults = config.defaults.clone().unwrap_or_default();
-    let (cli_initial_slide, cli_initial_overview) =
-        resolve_start(start_slide, start_overview, defaults.start_mode.as_deref());
-
-    let icon = load_app_icon().map(std::sync::Arc::new);
-    let incident_log = Arc::new(IncidentLog::new(&file.display().to_string()));
-
-    let content = std::fs::read_to_string(&file)?;
-    let base_path = file.parent().unwrap_or(std::path::Path::new("."));
-    let presentation = parser::parse(&content, base_path);
-
-    if presentation.slides.is_empty() {
-        anyhow::bail!("No slides found in {}", file.display());
-    }
-    let (cli_engine, _) =
-        crate::engines::choose(engine.as_deref(), None).map_err(|e| anyhow::anyhow!("{e}"))?;
-
-    if !quiet {
-        crate::commands::check::warn_missing_cjk_font(&presentation);
-    }
-
-    // Warn about ungenerated AI images
-    if !quiet {
-        let ungenerated = presentation
-            .slides
-            .iter()
-            .flat_map(|s| s.blocks.iter())
-            .filter(
-                |b| matches!(b, parser::Block::Image { path, .. } if path == "image-generation"),
-            )
-            .count();
-        if ungenerated > 0 {
-            use colored::Colorize;
-            eprintln!(
-                "{} This presentation contains {} ungenerated image(s).",
-                "Warning:".yellow().bold(),
-                ungenerated
-            );
-            eprintln!(
-                "  Run `mdeck ai generate {}` to generate them first.\n",
-                file.display()
-            );
-        }
-    }
-
-    let title = presentation.meta.title.clone().unwrap_or_else(|| {
-        format!(
-            "mdeck \u{2014} {}",
-            file.file_name().unwrap_or_default().to_string_lossy()
-        )
-    });
-
-    let slide_count = presentation.slides.len();
-    let initial_slide = cli_initial_slide.min(slide_count.saturating_sub(1));
-    let initial_overview = cli_initial_overview;
-
-    // The slide position is shared with the window so a display error can be
-    // logged together with where the presentation was.
-    let shared_slide = Arc::new(AtomicUsize::new(initial_slide));
-
-    let viewport = if windowed {
-        egui::ViewportBuilder::default()
-            .with_inner_size([1280.0, 720.0])
-            .with_title(&title)
-    } else {
-        let vp = egui::ViewportBuilder::default()
-            .with_fullscreen(true)
-            .with_title(&title);
-        // If we have a saved monitor position, set it so the window
-        // opens fullscreen on the remembered monitor
-        if let Some([x, y]) = defaults.monitor_position {
-            vp.with_position(egui::pos2(x, y))
-        } else {
-            vp
-        }
-    };
-
-    let viewport = if let Some(ref icon) = icon {
-        viewport.with_icon(icon.clone())
-    } else {
-        viewport
-    };
-
-    let options = eframe::NativeOptions {
-        viewport,
-        ..Default::default()
-    };
-
-    let shared = shared_slide.clone();
-    let file_clone = file.clone();
-    let log_clone = incident_log.clone();
-    // winit allows exactly one event loop per process, so there is no point
-    // retrying `run_native` after a display error: run once, log, and bail.
-    // Theme font files must be registered before the window installs fonts.
-    lookup::preload(&lookup::Lookup::for_deck(file.parent()));
-
-    let result = eframe::run_native(
-        &title,
-        options,
-        Box::new(move |cc| {
-            render::fonts::install(&cc.egui_ctx);
-            let content_hash = hash_content(&content);
-            let (watcher_rx, watcher) =
-                spawn_file_watcher(&file_clone, cc.egui_ctx.clone(), log_clone.clone())?;
-            let mut app = PresentationApp::new(
-                file_clone,
-                presentation,
-                watcher_rx,
-                Some(watcher),
-                content_hash,
-                quiet,
-                log_clone,
-                &defaults,
-                cli_engine,
-            );
-            app.current_slide = initial_slide;
-            app.shared_slide = Some(shared);
-            if initial_overview {
-                app.mode = AppMode::Grid {
-                    selected: initial_slide,
-                };
-            } else if initial_slide == 0 {
-                // Starting on a chosen slide (an agent checking its work, a
-                // presenter resuming) skips the opener.
-                app.start_countdown();
-            }
-            app.spawn_diagram_precache();
-            Ok(Box::new(app))
-        }),
-    );
-
-    match result {
-        Ok(()) => {
-            print_incident_summary(&incident_log);
-            Ok(())
-        }
-        Err(e) => {
-            let slide = shared_slide.load(Ordering::Relaxed);
-            incident_log.record(
-                "display_error",
-                "eframe display error",
-                &format!("{e}\nslide: {slide}"),
-            );
-            print_incident_summary(&incident_log);
-            Err(anyhow::anyhow!("{e}"))
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn countdown_phases_run_three_two_one_then_burst_then_done() {
-        let start = Instant::now();
-        let lead = COUNTDOWN_LEAD.as_secs_f32();
-        let d = COUNTDOWN_DIGIT.as_secs_f32();
-        let three = d + COUNTDOWN_FIRST_EXTRA.as_secs_f32();
-        let cd = Countdown {
-            start: Some(start),
-            burst: true,
-        };
-        let at = |secs: f32| start + Duration::from_secs_f32(lead + secs);
-        // before the clock has started, and during the lead, the 3 is forming
-        let unstarted = Countdown {
-            start: None,
-            burst: true,
-        };
-        assert_eq!(unstarted.phase(start), CountdownPhase::Digit(3, 0.0));
-        assert_eq!(cd.phase(start), CountdownPhase::Digit(3, 0.0));
-        assert!(matches!(cd.phase(at(0.1)), CountdownPhase::Digit(3, _)));
-        // the 3 holds longer than a plain digit
-        assert!(matches!(cd.phase(at(d + 0.2)), CountdownPhase::Digit(3, _)));
-        assert!(matches!(
-            cd.phase(at(three + d * 0.5)),
-            CountdownPhase::Digit(2, _)
-        ));
-        assert!(matches!(
-            cd.phase(at(three + d * 1.9)),
-            CountdownPhase::Digit(1, _)
-        ));
-        assert!(matches!(
-            cd.phase(at(three + d * 2.0 + 0.3)),
-            CountdownPhase::Burst(_)
-        ));
-        assert_eq!(cd.phase(at(three + d * 2.0 + 1.2)), CountdownPhase::Done);
-        let plain = Countdown {
-            start: Some(start),
-            burst: false,
-        };
-        assert_eq!(plain.phase(at(three + d * 2.0 + 0.1)), CountdownPhase::Done);
-    }
 
     use crate::parser::{Layout, Slide};
 
