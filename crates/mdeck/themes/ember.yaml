@@ -4,6 +4,7 @@
 name: Ember
 extends: dark
 engine: particles
+designs: editorial
 countdown: on
 colors:
   background: "#050505"      # ink-950

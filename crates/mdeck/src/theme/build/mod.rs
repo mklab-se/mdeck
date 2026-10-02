@@ -43,6 +43,16 @@ impl Theme {
         let art = extras::art(f)?;
         let heat = extras::heat(&f.heat)?;
         let [h1_size, h2_size, h3_size, body_size, code_size] = settings::sizes(&f.sizes)?;
+        let arrangements = super::arrangement::Arrangements::resolve(
+            f.designs
+                .as_deref()
+                .map(str::trim)
+                .unwrap_or(super::arrangement::DEFAULT_SET),
+            f.arrangements.as_ref(),
+        )?;
+        let spacing = super::spacing::Spacing::resolve(&f.spacing)?;
+        let radius =
+            range("radius", f.radius, 0.0, 100.0)?.unwrap_or(super::spacing::DEFAULT_RADIUS);
 
         let p = palette.flattened();
         let theme = Theme {
@@ -50,6 +60,9 @@ impl Theme {
             engine,
             countdown,
             surface,
+            arrangements,
+            spacing,
+            radius,
             transition,
             background: p.background,
             foreground: p.foreground,

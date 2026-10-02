@@ -28,6 +28,38 @@ use crate::theme::Theme;
 
 pub use context::{BlockCx, SlideContext, TextCx};
 
+/// Whether the slide's design leaves room for the engine's picture of the
+/// slide in `theme` (the arrangement's `stage`). A `content` slide that
+/// holds a wide block (an image, code, a table or a visual) gives its stage
+/// up to the copy. Seam for the engines: where pictures go is the design's
+/// business, never the engine's.
+pub fn design_has_stage(slide: &Slide, theme: &Theme) -> bool {
+    design_stage(slide, theme) != crate::theme::arrangement::Stage::None
+}
+
+/// Where the slide's design leaves room for the picture (see
+/// [`design_has_stage`]).
+pub fn design_stage(slide: &Slide, theme: &Theme) -> crate::theme::arrangement::Stage {
+    let a = theme.arrangement(slide.design);
+    if a.wide.is_some() && slide.blocks.iter().any(is_wide_block) {
+        return crate::theme::arrangement::Stage::None;
+    }
+    a.stage
+}
+
+/// A block that needs more width than a copy column gives it.
+pub fn is_wide_block(block: &crate::parser::Block) -> bool {
+    use crate::parser::Block;
+    matches!(
+        block,
+        Block::Image { .. }
+            | Block::CodeBlock { .. }
+            | Block::Table { .. }
+            | Block::Chart { .. }
+            | Block::Diagram { .. }
+    )
+}
+
 /// Measure the content height of a slide (for scroll/overflow detection),
 /// laying blocks out at the same column width the slide's layout draws them.
 /// Returns (content_height, available_height) where available_height is the

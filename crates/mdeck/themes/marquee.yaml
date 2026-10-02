@@ -4,6 +4,7 @@
 name: Marquee
 extends: dark
 engine: led
+designs: editorial
 countdown: on
 colors:
   background: "#06070b"      # the wall with the power off

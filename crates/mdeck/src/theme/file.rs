@@ -23,6 +23,15 @@ pub struct ThemeFile {
     pub surface: Option<String>,
     /// `slide`, `fade`, `spatial` or `none`.
     pub transition: Option<String>,
+    /// The design set: `standard` or `editorial`.
+    pub designs: Option<String>,
+    /// Arrangement overrides per design (`all` for every design), merged
+    /// key by key over the design set and through `extends`.
+    pub arrangements: Option<serde_norway::Value>,
+    #[serde(default)]
+    pub spacing: Spacing,
+    /// Corner radius of cards (code, tables, callouts), px at 1920x1080.
+    pub radius: Option<f32>,
     #[serde(default)]
     pub colors: Colors,
     #[serde(default)]
@@ -47,6 +56,17 @@ pub struct ThemeFile {
     pub art: Art,
     #[serde(default)]
     pub heat: Heat,
+}
+
+/// The spacing scale, px at 1920x1080 (THM-07).
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Spacing {
+    pub xs: Option<f32>,
+    pub sm: Option<f32>,
+    pub md: Option<f32>,
+    pub lg: Option<f32>,
+    pub xl: Option<f32>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -202,6 +222,23 @@ impl ThemeFile {
             countdown: pick(&self.countdown, &parent.countdown),
             surface: pick(&self.surface, &parent.surface),
             transition: pick(&self.transition, &parent.transition),
+            designs: pick(&self.designs, &parent.designs),
+            arrangements: match (&self.arrangements, &parent.arrangements) {
+                (Some(c), Some(p)) => {
+                    let mut merged = p.clone();
+                    super::arrangement::merge(&mut merged, c);
+                    Some(merged)
+                }
+                (c, p) => c.clone().or_else(|| p.clone()),
+            },
+            spacing: Spacing {
+                xs: pick(&self.spacing.xs, &parent.spacing.xs),
+                sm: pick(&self.spacing.sm, &parent.spacing.sm),
+                md: pick(&self.spacing.md, &parent.spacing.md),
+                lg: pick(&self.spacing.lg, &parent.spacing.lg),
+                xl: pick(&self.spacing.xl, &parent.spacing.xl),
+            },
+            radius: pick(&self.radius, &parent.radius),
             colors: Colors {
                 background: pick(&c.background, &p.background),
                 text: pick(&c.text, &p.text),
@@ -333,5 +370,21 @@ mod tests {
         assert_eq!(m.colors.background.as_deref(), Some("#000"));
         assert_eq!(m.colors.accent.as_deref(), Some("#0f0"));
         assert_eq!(m.sizes.h1, Some(90.0));
+    }
+
+    #[test]
+    fn arrangements_merge_through_extends() {
+        let parent = ThemeFile::parse(
+            "designs: editorial\narrangements: { quote: { ornaments: { quote-bar: none, bullet: x } } }\n",
+        )
+        .unwrap();
+        let child =
+            ThemeFile::parse("arrangements: { quote: { ornaments: { bullet: y } } }\n").unwrap();
+        let m = child.over(&parent);
+        assert_eq!(m.designs.as_deref(), Some("editorial"));
+        let o = m.arrangements.unwrap();
+        let orn = &o["quote"]["ornaments"];
+        assert_eq!(orn["bullet"].as_str(), Some("y"));
+        assert_eq!(orn["quote-bar"].as_str(), Some("none"));
     }
 }

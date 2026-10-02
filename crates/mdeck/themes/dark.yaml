@@ -2,6 +2,7 @@
 # format as user themes; see `mdeck spec`, section 9.4.
 name: Dark
 engine: plain
+designs: standard
 countdown: off
 colors:
   background: "#1e1e1e"

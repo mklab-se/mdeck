@@ -1,6 +1,6 @@
 //! The document model the parser produces.
 
-use super::Layout;
+use super::{Design, Layout, Recognition};
 
 #[derive(Debug, Clone)]
 pub struct Presentation {
@@ -52,6 +52,12 @@ pub struct Slide {
     /// not, in order.
     pub settings: Vec<Setting>,
     pub blocks: Vec<Block>,
+    /// The slide's design: its `design:` setting or the recognised one.
+    pub design: Design,
+    /// How the design was decided (for `--check`).
+    pub recognition: Recognition,
+    /// The v1 layout kind closest to the design, for the engines that key
+    /// their scenery on it (see [`Layout`]).
     pub layout: Layout,
     /// The original raw markdown source text for this slide.
     pub raw_source: String,
