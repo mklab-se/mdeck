@@ -1,8 +1,8 @@
 # Decisions
 
-Decisions the owner made on the questions this specification raised (October 2026). Each row
-links to the requirement that now records it. New open questions are added at the end, marked
-**open**.
+Decisions the owner made on the questions raised while specifying mdeck 2 (October 2026). Each
+row names the requirement that records it. New questions are added at the end, marked **open**
+until they are decided.
 
 | # | Question | Decision | Where |
 |---|---|---|---|
@@ -20,7 +20,7 @@ links to the requirement that now records it. New open questions are added at th
 | Q12 | Presenter view in v2.0? | Yes, with notes rendered as markdown. | RUN-03, MD-15 |
 | Q13 | Video or animated export? | Later, not in v2.0. | RUN-18 |
 | Q14 | Stories? | Removed for now. | PIC-06 |
-| Q15 | Which of the 12 engines stay in the default build? | Ten engines. Laser (and its `etch` theme) is removed; blueprint and chalkboard merge into one `line` engine with a surface setting; the other nine stay. Decided after the side-by-side engine review. | ENG-17a, removal candidates |
+| Q15 | Which of the 12 engines stay in the default build? | Ten engines. Laser (and its `etch` theme) is removed; blueprint and chalkboard merge into one `line` engine with a surface setting; the other nine stay. Decided after the side-by-side engine review. | ENG-17a |
 | Q16 | Placeholder syntax for generated images? | `![prompt](generate:)`, with the asset manifest mapping it to a file. | GEN-04 |
 | Q17 | Add `statement` and `table` designs? | Yes to both. | DES-02 |
 | Q18 | Migration from v1? | No migration tool. v2.0 breaks cleanly; the format reference is precise enough for an AI harness to convert a deck, the release notes map v1 to v2, and `--check` names the v2 form of any v1 construct it finds. | LANG-07 |

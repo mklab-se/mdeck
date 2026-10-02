@@ -284,12 +284,28 @@ an AI harness can convert a deck.
 
 ### Deferred to 2.x
 
-- Built-in visuals still draw through an internal bridge rather than the SDK's drawing interface,
-  and the built-in transitions and the `standard` and `editorial` design sets are not yet
-  registered through the SDK, so an extension cannot replace them by name.
+The full list, with the requirements behind each item, is in
+[`docs/spec/README.md`](docs/spec/README.md#deferred-to-2x).
+
+- Built-in visuals still draw through an internal bridge rather than the SDK's drawing interface.
+- The built-in transitions and the `standard` and `editorial` design sets are not registered
+  through the SDK, and mdeck does not yet use a transition or a code design set an extension
+  registers (a code design set works as a board engine's own). Only the engine scaffold is
+  compiled in CI; built-in visuals are not cargo features; no dynamic loading.
+- The SDK content model flattens quotes and callouts and has no list start number (the split-flap
+  board numbers lists from 1); headings reach engines one glyph at a time.
+- `picture:` naming an image file is not drawn yet; a generated artwork also shows on designs
+  without a stage; diagram icons and point clouds have separate names.
 - `--check -v` does not yet say that a theme's engine settings are ignored when the deck or
-  `--engine` runs another engine.
-- Italic display text is a synthetic slant; no italic faces are bundled.
+  `--engine` runs another engine, nor warn that a slide's `transition` has no effect on a board
+  engine; no `--check --json`; no editor completion from the language table.
+- No video or animated export.
+- `mdeck ai deck` does not check the deck it writes and ask again; a malformed scene reply in
+  `mdeck ai pictures` fails without a second request.
+- The split-flap board shows an empty panel while its image loads; inline images in a copy column
+  sit in a fixed box; italic display text is a synthetic slant (no italic faces are bundled).
+- Two internal modules keep v1 names (`render::ember`, `render::illustration`), and the tests
+  that read `docs/`, `samples/` or `examples/` run from the repository only.
 
 ## [1.19.0] - 2026-10-02
 
