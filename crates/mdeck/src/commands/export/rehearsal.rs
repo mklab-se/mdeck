@@ -20,6 +20,11 @@ pub enum Moment {
     End,
 }
 
+/// How far into the burst `--moment burst` shows it when no `--at` is given:
+/// the frame it starts, already blown apart (it clears the slide in a tenth
+/// of a second).
+const BURST_STILL_AT: f32 = 0.0;
+
 /// Settings for looking at an engine's motion in export.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub(super) struct Rehearsal {
@@ -38,6 +43,12 @@ impl Rehearsal {
             Some(Moment::One) => Some((CountPhase::Digit(1), 0.5)),
             Some(Moment::Burst) => Some((CountPhase::Burst, 0.0)),
             Some(Moment::End) | None => None,
+        };
+        // A settled burst has flown off the slide: without `--at`, show its
+        // first frame.
+        let at = match moment {
+            Some(Moment::Burst) => at.or(Some(BURST_STILL_AT)),
+            _ => at,
         };
         Rehearsal {
             at,
@@ -69,6 +80,9 @@ mod tests {
         );
         let end = Rehearsal::new(Some(2.0), Some(Moment::End));
         assert!(end.end && end.countdown.is_none());
+        // a burst is always rehearsed: settled, it is an empty slide
+        assert_eq!(Rehearsal::new(None, Some(Moment::Burst)).at, Some(0.0));
+        assert_eq!(Rehearsal::new(Some(0.8), Some(Moment::Burst)).at, Some(0.8));
         let plain = Rehearsal::new(Some(1.5), None);
         assert!(!plain.moment());
         assert_eq!(plain.at, Some(1.5));

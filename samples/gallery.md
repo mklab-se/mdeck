@@ -7,13 +7,13 @@ transition: spatial
 
 # MDeck Gallery
 
-A showcase of layouts, visualizations, and diagrams
+A showcase of slide designs, visualizations and diagrams
 
 ---
 
 # Title Slide
 
-This is a title layout — a heading with a short subtitle.
+This is a title slide: a heading with a short subtitle.
 
 ---
 
@@ -26,10 +26,10 @@ This is a title layout — a heading with a short subtitle.
 ### Key Features
 
 - Write slides in **standard markdown**
-- Layout is *inferred* from content structure
+- The design is *recognised* from the content
 - Supports code highlighting, images, and diagrams
-- Built-in themes: light, dark, and nord
-- Export slides as PNG with `mdeck export`
+- Built-in themes, from a plain dark page to a field of particles
+- Export to PNG or PDF with `mdeck export`
 
 ---
 
@@ -41,7 +41,7 @@ use mdeck::parser;
 fn main() {
     let presentation = parser::parse("slides.md");
     for slide in &presentation.slides {
-        println!("Layout: {:?}", slide.layout);
+        println!("Design: {:?}", slide.design);
     }
 }
 ```
@@ -342,7 +342,7 @@ title: Product Launch
 
 - The Sahara Desert is roughly the size of the United States
 - Lake Victoria is the world's second-largest freshwater lake
-- Home to 54 countries — more than any other continent
+- Home to 54 countries, more than any other continent
 - Africa has more languages than any other continent (~2,000)
 
 ![African savanna at golden hour](../media/gallery/africa.png)
@@ -355,7 +355,7 @@ title: Product Launch
 
 ---
 
-## Two-Column Layout
+## Two Columns
 <!-- design: columns -->
 
 ### Markdown Source

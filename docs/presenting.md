@@ -2,28 +2,32 @@
 
 # Presenting
 
-`mdeck talk.md` opens the deck fullscreen. Edit the file while presenting and
-MDeck reloads it in place, staying on the current slide.
+`mdeck talk.md` opens the deck fullscreen. Edit the file while presenting and mdeck reloads it
+in place, on the same slide and with the same steps revealed. Press `H` at any time for the
+shortcuts.
+
+## Keys and mouse
 
 | Key | Action |
 |-----|--------|
-| Space, N, Right, PageDown, Enter | Next slide or reveal step |
-| P, Left, PageUp, Backspace | Previous slide |
-| Up, Down, scroll wheel | Scroll a long slide |
-| Home, End | First / last slide |
-| Digits, then Enter | Jump to that slide (`1` `2` Enter goes to slide 12) |
-| G | Grid overview (click a slide to jump to it) |
-| T | Cycle transition (slide, fade, spatial, none) |
-| Shift+T | Cycle theme (the built-ins, then your own) |
-| F | Toggle fullscreen |
-| M | Move to the next monitor |
-| `.` or B | Blackout |
-| H | Presenter HUD with shortcuts |
-| V | Presenter view on the other display (notes overlay with one display) |
+| Space, N, Right, PageDown, Enter | Next slide or step |
+| P, Left, PageUp, Backspace | Previous slide (shown fully revealed) |
+| Up, Down, mouse wheel | Scroll a slide that overflows |
+| Home, End | First, last slide |
+| Digits, then Enter | Jump to that slide (`1` `2` Enter goes to slide 12; Backspace edits, Esc cancels) |
+| G | Grid overview: arrows move, Enter, E or a click opens a slide |
+| V | Presenter view (a notes overlay with one display) |
 | Shift+V | Reset the presenter timer |
-| C, Shift+C | Next thermal palette for every `@thermal` image; back to the palettes as written |
-| S | AI for this slide: a picture on an art engine |
-| Esc | Clear drawings; press twice to quit (Q twice and Ctrl+C twice also quit) |
+| `.` or B | Black out the screen |
+| T | Next transition (fade, slide, spatial, none) |
+| Shift+T | Next theme (the built-ins, then your own) |
+| F | Toggle fullscreen |
+| M | Move to the next monitor (remembered next time) |
+| H | Shortcuts and status (with a frame rate counter) |
+| C, Shift+C | Next palette for every `@thermal` image; back to the palettes as written |
+| S | Draw this slide's picture in the background (art engines, needs AI) |
+| R | Debug overlay (left, right, off) |
+| Esc | Clear drawings; twice quits (so do Q twice and Ctrl+C twice) |
 
 | Mouse | Action |
 |-------|--------|
@@ -32,48 +36,65 @@ MDeck reloads it in place, staying on the current slide.
 | Left drag | Freehand pen |
 | Right drag | Arrow |
 
-Drawings fade away after a few seconds (on the thermal engine a pen stroke
-arrives white-hot and cools away). Presentation clickers that send
-PageUp/PageDown or Enter work out of the box, and keys pressed during a
-transition are queued rather than lost.
+Drawings fade away after about eight seconds (on the thermal engine a pen stroke arrives white-hot
+and cools away). Clickers that send PageUp/PageDown or Enter work out of the box, and keys pressed
+during a transition are queued, never lost. `T` and `Shift+T` last for the session; the deck file
+is never changed.
 
 ## Presenter view
 
-Press `V` (or start with `mdeck talk.md --presenter`) and a second window
-opens on the display beside the slides: your cockpit. It shows the current
-slide large, the next slide or reveal step beside it, the slide's speaker
-notes rendered as markdown (headings, **emphasis**, lists, code, quotes,
-tables, math) and the elapsed time. `Shift+V` resets the timer; keys typed in
-either window drive the deck, and `V` closes it again.
+Press `V` (or start with `mdeck talk.md --presenter`) and a second window opens on the display
+beside the slides: the current slide large, the next slide or step, the slide's speaker notes
+rendered as markdown (headings, **emphasis**, lists, code, quotes, tables, math) and the elapsed
+time. `Shift+V` resets the timer; keys typed in either window drive the deck, and `V` closes it.
 
-With one display (or displays that are not side by side) the presenter
-window has nowhere to go, so `V` shows the notes as an overlay at the bottom
-of the slides instead, with the timer; `V` hides it.
+With one display (or displays that are not side by side) the presenter window has nowhere to go,
+so `V` shows the notes as an overlay at the bottom of the slides instead, with the timer.
 
-Notes are written in a ```` ```@notes ```` block anywhere in the slide, in plain markdown.
+Notes are ```` ```@notes ```` blocks anywhere in a slide ([Writing slides](writing-slides.md#speaker-notes)).
 
-## Start options
+## Starting
 
 ```bash
-mdeck talk.md --windowed     # in a window instead of fullscreen
-mdeck talk.md --presenter    # open the presenter view at once
-mdeck talk.md --theme nord   # present in another theme without editing the deck
-mdeck talk.md --slide 7      # start on slide 7
-mdeck talk.md --overview     # start in the grid overview
-mdeck talk.md --check        # validate the deck without opening a window
-mdeck talk.md --reduced-motion   # every slide and step settled, no motion
+mdeck talk.md                    # fullscreen, from the first slide
+mdeck talk.md --windowed         # in a window
+mdeck talk.md --presenter        # with the presenter view open
+mdeck talk.md --slide 7          # on slide 7 (skips the countdown)
+mdeck talk.md --overview         # in the grid overview
+mdeck talk.md --theme nord       # in another theme, without editing the deck
+mdeck talk.md --engine plain     # on another engine
+mdeck talk.md --reduced-motion   # settled states only (below)
+mdeck talk.md --check            # validate without opening a window
 ```
 
-**Transitions** come from the deck's `transition`, then the theme's
-`transition:`, then `defaults.transition` in your config, then `fade`. `T`
-cycles them for the rest of the session. A slide's own `transition` (in its
-settings comment) sets how it is entered.
+**Transitions** come from the deck's `transition`, then the theme's `transition:`, then
+`defaults.transition` in your config, then `fade`. A slide's own `transition` (in its settings
+comment) sets how that slide is entered, and `zoom-to: <spot>` enters it by zooming into a named
+thermal spot on the slide before.
 
-**The countdown** before the first slide is on when the deck says
-`countdown: on`, off with `countdown: off`, and otherwise follows the
-theme. The engine decides its look; plain themes show numerals.
+**The countdown** before the first slide is on with `countdown: on` in the deck, off with
+`countdown: off`, and otherwise follows the theme (Ember's is counted in particles; `dark` has
+none). The engine decides how it looks, and any key skips it.
 
-**Reduced motion** shows every slide and reveal step in its settled state:
-no transitions, entry or reveal animations, countdown or engine motion, as in
-an export. Steps still arrive one click at a time. Make it the default with
-`mdeck config set defaults.reduced_motion true`.
+**Reduced motion** shows every slide and step in its settled state: no transitions, entry or
+reveal animations, countdown or engine motion, as in an export. Steps still arrive one click at a
+time. Make it the default with `mdeck config set defaults.reduced_motion true`.
+
+## Your defaults
+
+`mdeck config show` prints your configuration and `mdeck config set <key> <value>` changes it.
+The file is `config.yaml` in your user folder (`~/Library/Application Support/mdeck/` on macOS,
+`~/.config/mdeck/` on Linux, `%APPDATA%\mdeck\` on Windows).
+
+| Key | Values |
+|---|---|
+| `defaults.theme` | a built-in or user theme (default `dark`) |
+| `defaults.transition` | `fade`, `slide`, `spatial`, `none` |
+| `defaults.start_mode` | `first`, `overview`, or a slide number |
+| `defaults.reduced_motion` | `true`, `false` |
+| `defaults.image_style`, `defaults.icon_style` | a named style (`mdeck ai style`) for generated images and icons |
+
+A deck's own settings win over the config, and the config wins over the built-in values.
+
+When mdeck runs into a problem while presenting (a slow frame, a failed image), it says so when
+you quit and writes the details to a log in the `logs/` folder of your user folder.

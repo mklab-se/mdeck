@@ -113,8 +113,6 @@ mod tests {
     #[test]
     fn a_rotated_word_is_drawn_inside_its_box() {
         // A word 120 wide and 30 tall, turned: a 30x120 box at (200, 100).
-        // The anchor used to be the box's top-right corner, which drew the
-        // word above and right of its box, over its neighbours.
         let (text_w, text_h) = (120.0, 30.0);
         let wl = WordLayout {
             x: 200.0,

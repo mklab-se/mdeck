@@ -2,10 +2,12 @@
 
 # AI features
 
-MDeck uses [ailloy](https://github.com/mklab-se/ailloy) to talk to OpenAI,
-Anthropic, Azure OpenAI, Ollama, and others. Run `mdeck ai enable` once to
-pick a provider; everything below is optional. Presenting and exporting never
-call an AI: everything is generated ahead of time with `mdeck ai`.
+AI is optional in mdeck: a deck without any generated asset is complete. When you want it,
+mdeck uses [ailloy](https://github.com/mklab-se/ailloy) to talk to OpenAI, Anthropic, Azure
+OpenAI, Microsoft Foundry, Ollama and others. Run `mdeck ai enable` once to pick a provider
+(`mdeck ai config` for the full wizard, `mdeck ai test` to check it). Presenting and exporting
+never call an AI and never touch the network: everything is generated ahead of time with
+`mdeck ai`, stored next to the deck and versioned with it.
 
 Everything AI makes lives under `mdeck ai`, one subcommand per kind:
 
@@ -39,8 +41,9 @@ mdeck ai deck --input hobbits.md --prompt "For 10-year-olds, focus on the advent
 
 MDeck extracts the text, analyses it for key points and visualization
 opportunities, and writes a concise deck with varied layouts, charts, image
-placeholders, and speaker notes. The source stays the handout; the deck tells
-the story.
+placeholders, and speaker notes, in the v2 format. The source stays the
+handout; the deck tells the story. `--style` sets the style of its image
+placeholders.
 
 ## Generated assets
 
@@ -97,7 +100,7 @@ presentation look for images, a minimalist icon look for icons, the engine's
 medium for pictures (line art, graphite, watercolour, a darkroom print) and
 glowing particles for point clouds. A deck chooses its own with `image-style`
 and `icon-style`; a theme's engine block (`kind`, `style`, `references`) sets the house style of pictures
-([Themes](themes.md#pages-and-art)). A style is a name or a literal
+([Themes](themes.md#the-engine-and-its-settings)). A style is a name or a literal
 description:
 
 ```yaml
@@ -123,7 +126,7 @@ in, so changing the style makes it stale.
 
 ## Draw a picture for every slide
 
-On an art engine (`line`, `sketch`, `watercolour` or `darkroom`, see [Engines](engines.md#art-engines-a-drawing-made-for-every-slide)),
+On an art engine (`line`, `sketch`, `watercolour` or `darkroom`, see [Engines](engines.md#art-engines-a-picture-made-for-every-slide)),
 each slide gets a picture made for it, drawn in as the slide opens:
 
 ```bash
@@ -142,8 +145,9 @@ the current slide's picture in the background.
 
 ## Point clouds
 
-The particle engines draw `picture` names as point clouds. A name that
-is not built in and not in your libraries can be generated:
+Engines that draw pictures draw a slide's `picture` name as a point cloud
+([Engines](engines.md#pictures)). A name that is not built in and not in your
+libraries can be generated:
 
 ```bash
 mdeck ai point-cloud talk.md                    # every name the deck uses that resolves nowhere

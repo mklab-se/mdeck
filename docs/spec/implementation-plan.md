@@ -142,8 +142,8 @@ the binary where `--out` says.
 | 2 | Workspace, SDK, registries, paint; engines v2 (D10-D13), laser removed, line merged, D24/D26 fixed | done (see Phase 2b notes and deferrals) |
 | 3 | Designs and themes v2 (D8, D9), default theme, layout defects | done (see Phase 3 notes and deferrals) |
 | 4 | Presenter view, per-slide transitions, slide jump, `--theme`, `export --at`; generated assets and `mdeck ai` (D14) | done |
-| 5 | Extensibility tooling: `mdeck build`, packs, external visual programs, `mdeck sdk new/preview`, SDK docs and tutorials | todo |
-| 6 | Documentation, README, gallery, format reference, CHANGELOG, release workflow (publish `mdeck-sdk`), v2.0.0 | todo |
+| 5 | Extensibility tooling: `mdeck build`, packs, external visual programs, `mdeck sdk new/preview`, SDK docs and tutorials | done |
+| 6 | Documentation, README, gallery, format reference, CHANGELOG, release workflow (publish `mdeck-sdk`), v2.0.0 | in progress: release workflow, packaging and CI done (see Release readiness); docs being rewritten |
 
 ## Phase 1 notes
 
@@ -285,6 +285,29 @@ What later phases build on:
   missing-page warnings, contrast over every rendered text pair, `theme preview` one slide per
   design, chart grids on `rule`/`muted`.
 
+## Release readiness
+
+- **Packaging.** `cargo package -p mdeck-sdk -p mdeck` packages both crates and verifies mdeck
+  against the packaged SDK through a temporary local registry (mdeck-sdk is not on crates.io
+  yet; the release workflow publishes it first). CI runs it as the `Package` job and the release
+  skill as a pre-flight check. The SDK templates store their manifests as `Cargo.toml.tmpl`.
+  Every `include_str!`/`include_bytes!` the build reads lives inside its crate; the ones that
+  reach outside (`docs/`, `samples/`, `examples/`) are in `#[cfg(test)]` code only, so the
+  published crate builds but its unit tests need the repository.
+- **Version.** mdeck and mdeck-sdk take `version.workspace = true`; the workspace's exact
+  `mdeck-sdk` pin is the one other place the number lives. The release skill bumps both, and a
+  missed pin fails the build at once (cargo cannot resolve `=OLD` against the new path crate).
+- **CI.** fmt, clippy (`--all-targets`), `cargo test --workspace` (examples included; GitHub
+  sets `CI`, so a missing golden image fails instead of being recorded), the engine feature
+  matrix (none, then each of particles, led, splitflap, blocks, line, sketch, watercolour,
+  darkroom, thermal alone) and the package check.
+- **`--check` over `samples/`.** Every deck checks clean except these deliberate warnings:
+  `continents.md` and `layouts/image-generation.md` (images and icons not generated yet: the
+  generated assets stay out of git), `features/math.md` (a broken formula that shows its source),
+  `features/thermal.md` (an author-supplied spot value and a colour image shown as it is),
+  `themes/custom-theme.md` and `themes/minimal-theme.md` (contrast advice on sample themes) and
+  `design-systems/mdeck-co/SKILL.md` (not a deck: the input for `mdeck theme new --from`).
+
 ## Deferrals
 
 Any requirement deferred to 2.x is listed here and in the release notes.
@@ -303,10 +326,6 @@ Any requirement deferred to 2.x is listed here and in the release notes.
     (quotes and callouts flatten to one run of text); the parser does not produce it directly.
   - A generated artwork shows on any slide the art pipeline resolves one for (as in 1.x), not
     only where `design_has_stage` says; point clouds and image pictures follow the seam.
-  - `mdeck-sdk`'s templates contain `Cargo.toml` files, which `cargo package` leaves out of a
-    crate: publishing the SDK (phase 6) needs them renamed (for example `Cargo.toml.tmpl`).
-  - The workspace's `mdeck-sdk` dependency pins `=1.19.0`; the release skill must bump it with
-    the workspace version.
   - Split-flap: the SDK content model has no list `start`, so numbered lists on the board count
     from 1; a panel image that is still loading shows the empty panel colour; the board drawn
     without a live engine (grid thumbnails, overview) has no golden test yet
@@ -327,6 +346,13 @@ Any requirement deferred to 2.x is listed here and in the release notes.
     in that box.
   - Italic display text (editorial quotes) is egui's synthetic slant; no italic faces are
     bundled.
+- **Release readiness (to 2.x):**
+  - `--moment` exports the moment once per slide in range (each over that slide's backdrop);
+    pass `--slide 1` for one image.
+  - The presenter view (`--presenter`) opens a window and is not covered by an export path; it
+    was not exercised in the release-readiness pass.
+  - mdeck's tests that read `docs/`, `samples/` or `examples/` run from the repository only,
+    not from the unpacked crate (the SDK's tests run from either).
 - **Phase 6:** `docs/*.md`, the README and the AI supplement were converted mechanically to the
   v2 syntax but not rewritten; the gallery and tutorial screenshots were not regenerated; the
   format reference still describes v1 layouts and engines outside the sections phase 1 changed.

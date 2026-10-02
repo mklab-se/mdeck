@@ -10,8 +10,22 @@ cargo fmt --all -- --check                  # formatting (CI-enforced)
 cargo run -p mdeck -- samples/gallery.md    # run the app on a sample
 ```
 
-Sample decks live in `samples/`, with one file per layout and visualization
-type for quick visual checks.
+The workspace has two crates: `crates/mdeck` (the library and the `mdeck` binary: parser,
+designs, themes, the window, export, commands and the built-in engines and visuals) and
+`crates/mdeck-sdk` (the stable interfaces extensions are written against). The CI gate is
+`cargo fmt --all -- --check && cargo clippy --workspace -- -D warnings && cargo test --workspace`.
+
+Sample decks live in `samples/`, with one deck per design (`samples/layouts/`), visual
+(`samples/visualizations/`), engine (`samples/engines/`) and feature (`samples/features/`) for
+quick visual checks; export one with `cargo run -p mdeck -- export <deck> --slide N` and look at
+the PNG. `scripts/engine-golden.sh` proves a change did not move the other engines.
+
+- The format reference is [`crates/mdeck/doc/mdeck-spec.md`](../crates/mdeck/doc/mdeck-spec.md),
+  embedded in the binary (`mdeck spec`); its settings and design tables are generated from the
+  code, and tests parse its examples.
+- The v2 design documents are in [`docs/spec/`](spec/README.md).
+- Writing an engine: [`crates/mdeck/doc/engines.md`](../crates/mdeck/doc/engines.md) and the
+  [SDK](sdk/README.md).
 
 ## Releasing
 
@@ -25,7 +39,7 @@ the tag triggers `.github/workflows/release.yml`, which:
    (Intel + ARM), and Windows, with a CycloneDX SBOM per target
 3. Creates a GitHub Release with the archives and SBOMs (see the
    [SBOM notes](install.md) for how to read them)
-4. Publishes `mdeck` to crates.io
+4. Publishes `mdeck-sdk` and then `mdeck` to crates.io
 5. Updates the Homebrew formula in [`mklab-se/homebrew-tap`](https://github.com/mklab-se/homebrew-tap)
 
 ### Required secrets
