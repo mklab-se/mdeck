@@ -202,6 +202,30 @@ impl Deck {
         frame: EngineFrame,
         rehearse_at: Option<f32>,
     ) {
+        self.layer(None, ui, theme, frame, rehearse_at);
+    }
+
+    /// [`Deck::engine_layer`] run by another engine host than the deck's
+    /// own: the presenter view's thumbnail keeps its own engine state, so
+    /// the slides' engine is not ticked twice a frame or in two sizes.
+    pub fn engine_layer_on(
+        &mut self,
+        host: &mut engines::Host,
+        ui: &egui::Ui,
+        theme: &Theme,
+        frame: EngineFrame,
+    ) {
+        self.layer(Some(host), ui, theme, frame, None);
+    }
+
+    fn layer(
+        &mut self,
+        host: Option<&mut engines::Host>,
+        ui: &egui::Ui,
+        theme: &Theme,
+        frame: EngineFrame,
+        rehearse_at: Option<f32>,
+    ) {
         let count = self.slide_count();
         let index = frame.index.min(count.saturating_sub(1));
         self.art.sync(&self.presentation, theme);
@@ -226,9 +250,13 @@ impl Deck {
             count,
             deck_dir: deck_dir(&self.file),
         };
+        let host = match host {
+            Some(h) => h,
+            None => &mut self.engine,
+        };
         match rehearse_at {
-            Some(t) => self.engine.rehearse(ui, shot, &mut self.illustrations, t),
-            None => self.engine.frame(ui, shot, &mut self.illustrations),
+            Some(t) => host.rehearse(ui, shot, &mut self.illustrations, t),
+            None => host.frame(ui, shot, &mut self.illustrations),
         }
     }
 

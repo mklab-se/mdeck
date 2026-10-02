@@ -247,6 +247,8 @@ an AI harness can convert a deck.
 - On the particles engine the clusters keep clear of the copy whatever the design set: with
   `designs: standard` (a centred title, wide bullets) they no longer land on the words. Designs
   publish their copy box as the new SDK hint `Hint::Copy`.
+- The presenter view's current slide shows the engine's layer (particles, generated pictures, the
+  blueprint sheet) as the slides window does, run by its own engine so the slides are not slowed.
 
 ### Deferred to 2.x
 

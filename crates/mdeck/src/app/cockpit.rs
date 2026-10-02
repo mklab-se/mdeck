@@ -159,17 +159,22 @@ impl PresentationApp {
         }
         self.presenter_keys(&pctx);
         let index = self.presenter_slide();
-        let view = presenter::View {
-            deck: &self.deck,
+        let reveal = self.view(index).reveal;
+        let end = self.on_end_slide();
+        let elapsed = self.presenter.elapsed();
+        let mut view = presenter::View {
+            deck: &mut self.deck,
             theme: &self.theme,
+            engine: Some(&mut self.presenter.engine),
+            still: self.reduced_motion,
             index,
-            reveal: self.view(index).reveal,
-            end: self.on_end_slide(),
-            elapsed: self.presenter.elapsed(),
+            reveal,
+            end,
+            elapsed,
         };
         egui::CentralPanel::default()
             .frame(egui::Frame::new().inner_margin(0.0))
-            .show(ui, |ui| presenter::draw(ui, ui.max_rect(), &view));
+            .show(ui, |ui| presenter::draw(ui, ui.max_rect(), &mut view));
     }
 
     /// Once the new window has settled, keep it if it landed on another

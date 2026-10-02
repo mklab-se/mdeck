@@ -8,7 +8,8 @@ use std::time::{Duration, Instant};
 
 use eframe::egui::{self, FontId, Pos2, Rect, Stroke, pos2, vec2};
 
-use crate::deck::{Deck, SlideFrame};
+use crate::deck::{Deck, EngineFrame, SlideFrame};
+use crate::engines::Host;
 use crate::render;
 use crate::theme::Theme;
 
@@ -124,8 +125,14 @@ pub fn format_elapsed(d: Duration) -> String {
 
 /// Everything the cockpit shows for one moment of the talk.
 pub struct View<'a> {
-    pub deck: &'a Deck,
+    pub deck: &'a mut Deck,
     pub theme: &'a Theme,
+    /// Runs the engine under the "now" slide, as the slides window does
+    /// (its own host: see [`Deck::engine_layer_on`]). `None`: no engine
+    /// layer (export draws the cockpit settled).
+    pub engine: Option<&'a mut Host>,
+    /// Show the engine settled (reduced motion, export).
+    pub still: bool,
     pub index: usize,
     pub reveal: usize,
     /// On the end slide, past the last one.
@@ -134,7 +141,7 @@ pub struct View<'a> {
 }
 
 /// Paint the presenter view over `rect`.
-pub fn draw(ui: &mut egui::Ui, rect: Rect, view: &View) {
+pub fn draw(ui: &mut egui::Ui, rect: Rect, view: &mut View) {
     // Slides drawn here must not feed the engine's geometry hints.
     let hints = render::hints::enabled(ui.ctx());
     render::hints::set_enabled(ui.ctx(), false);
@@ -142,7 +149,7 @@ pub fn draw(ui: &mut egui::Ui, rect: Rect, view: &View) {
     render::hints::set_enabled(ui.ctx(), hints);
 }
 
-fn paint(ui: &mut egui::Ui, rect: Rect, view: &View) {
+fn paint(ui: &mut egui::Ui, rect: Rect, view: &mut View) {
     let l = layout(rect);
     let u = l.unit;
     let painter = &ui.painter().clone();
@@ -200,7 +207,8 @@ fn paint(ui: &mut egui::Ui, rect: Rect, view: &View) {
     if view.end {
         end_card(painter, l.current, u);
     } else {
-        slide(ui, view, view.index, view.reveal, l.current);
+        let (index, reveal) = (view.index, view.reveal);
+        slide(ui, view, index, reveal, l.current, true);
     }
 
     // Next
@@ -221,7 +229,7 @@ fn paint(ui: &mut egui::Ui, rect: Rect, view: &View) {
                 "NEXT STEP",
                 Some(format!("{reveal} of {max}")),
             );
-            slide(ui, view, index, reveal, l.next);
+            slide(ui, view, index, reveal, l.next, false);
         }
         (false, Upcoming::Slide { index }) => {
             label(
@@ -231,7 +239,7 @@ fn paint(ui: &mut egui::Ui, rect: Rect, view: &View) {
                 "NEXT SLIDE",
                 Some(format!("{} of {count}", index + 1)),
             );
-            slide(ui, view, index, 0, l.next);
+            slide(ui, view, index, 0, l.next, false);
         }
     }
 
@@ -335,10 +343,11 @@ fn end_card(painter: &egui::Painter, r: Rect, u: f32) {
     );
 }
 
-/// Slide `index` at step `reveal`, settled, in `r` (clipped to it).
-fn slide(ui: &mut egui::Ui, view: &View, index: usize, reveal: usize, r: Rect) {
-    let deck = view.deck;
+/// Slide `index` at step `reveal`, settled, in `r` (clipped to it). `now`:
+/// the slide on screen, which gets the engine's layer under it.
+fn slide(ui: &mut egui::Ui, view: &mut View, index: usize, reveal: usize, r: Rect, now: bool) {
     let theme = view.theme;
+    let deck = &mut *view.deck;
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(r).id_salt((
         "presenter-slide",
         index,
@@ -352,6 +361,20 @@ fn slide(ui: &mut egui::Ui, view: &View, index: usize, reveal: usize, r: Rect) {
     let sheet = render::page::draw(painter, r, theme, scale);
     let scale = (sheet.width() / 1920.0).min(sheet.height() / 1080.0);
     deck.draw_background(painter, sheet, index, 1.0, 0.0, false);
+    let live = now && theme.engine.paints();
+    if live && let Some(host) = view.engine.as_deref_mut() {
+        let frame = EngineFrame {
+            rect: sheet,
+            scale,
+            index,
+            reveal,
+            end: false,
+            countdown: None,
+            still: view.still,
+        };
+        deck.engine_layer_on(host, &child, theme, frame);
+    }
+    let live = live && view.engine.is_some();
     let cx = render::SlideContext {
         index,
         count: deck.slide_count(),
@@ -359,7 +382,7 @@ fn slide(ui: &mut egui::Ui, view: &View, index: usize, reveal: usize, r: Rect) {
         author: deck.presentation.meta.author.clone(),
         hold_copy: false,
         animate: false,
-        engine_drew: false,
+        engine_drew: live,
     };
     let frame = SlideFrame {
         rect: sheet,
@@ -398,6 +421,9 @@ pub(super) struct Presenter {
     pub(super) start_frames: u32,
     /// Where the presenter window opens.
     pub(super) target: Pos2,
+    /// The engine under the "now" slide (its own state, apart from the
+    /// slides window's engine).
+    pub(super) engine: Host,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -417,6 +443,7 @@ impl Presenter {
             open_at_start,
             start_frames: 0,
             target: Pos2::ZERO,
+            engine: Host::new(crate::engines::EngineId::plain()).without_hints(),
         }
     }
 

@@ -113,6 +113,9 @@ pub struct Host {
     clouds: HashMap<String, Arc<SdkCloud>>,
     /// Pictures that are image paths, decoded once (`None`: unreadable).
     images: HashMap<PathBuf, Option<Arc<ImageData>>>,
+    /// Collects the geometry the slide's renderers publish. A second host
+    /// (the presenter's thumbnail) leaves it to the slides' own host.
+    collects_hints: bool,
 }
 
 impl Host {
@@ -135,7 +138,15 @@ impl Host {
             slides: HashMap::new(),
             clouds: HashMap::new(),
             images: HashMap::new(),
+            collects_hints: true,
         }
+    }
+
+    /// A host that does not take the renderers' geometry (it would take it
+    /// from the slides' own host, which shares the egui context).
+    pub fn without_hints(mut self) -> Self {
+        self.collects_hints = false;
+        self
     }
 
     /// Seconds since the end slide was entered (0 when not on it).
@@ -151,7 +162,9 @@ impl Host {
         let settings = crate::theme::engine_settings(theme);
         let key = settings_key(&settings);
         if theme.engine != self.id || key != self.settings_key {
+            let collects = self.collects_hints;
             *self = Host::new(theme.engine).with_settings(settings, key, self.backend);
+            self.collects_hints = collects;
         }
     }
 
@@ -262,7 +275,9 @@ impl Host {
     }
 
     fn step(&mut self, ui: &egui::Ui, shot: &Shot, lib: &mut Library, tick: Tick) {
-        self.follow_hints(ui, shot.index, shot.theme);
+        if self.collects_hints {
+            self.follow_hints(ui, shot.index, shot.theme);
+        }
         let moment = self.moment(ui, shot, tick.end_elapsed);
         let title = shot
             .slide
@@ -499,6 +514,21 @@ mod tests {
             Pos2::new(10.0, 20.0),
             Vec2::new(40.0, 80.0),
         ))]
+    }
+
+    // The presenter's "now" thumbnail runs a second host on the same egui
+    // context; it must never take the slides' geometry, also after the
+    // theme switches its engine (which rebuilds the host).
+    #[cfg(feature = "particles")]
+    #[test]
+    fn a_host_without_hints_keeps_out_of_them_across_engine_switches() {
+        let mut host = Host::new(EngineId::plain()).without_hints();
+        let mut theme = Theme::dark();
+        theme.set_engine(EngineId::find("particles").expect("particles is built in"));
+        host.follow(&theme);
+        assert_eq!(host.id, theme.engine);
+        assert!(!host.collects_hints);
+        assert!(Host::new(EngineId::plain()).collects_hints);
     }
 
     #[test]
