@@ -1,15 +1,29 @@
 # Getting started
 
-This page takes you from nothing to your own engine running in a custom mdeck build. It takes
-about fifteen minutes, most of it compiling.
+This page takes you from nothing to your own engine running in a custom mdeck build, on one page,
+for readers who already know Rust. It takes about fifteen minutes, most of it compiling. New to
+Rust, or want every step explained, including git and sharing with colleagues? Follow
+[Your first engine](tutorial-0-your-first-engine.md) instead.
+
+**What you will build:** `glow`, the engine the scaffold generates, running in your own mdeck.
+
+**What you will learn:** the scaffold's files, the test and golden-image loop, `mdeck build`,
+presenting, exporting stills, and `--check`.
 
 ## What you need
 
-- mdeck 2.x, installed as usual (`mdeck --version`).
-- A Rust toolchain (`rustup`, stable). You need it to build an mdeck with your extension in it;
-  the people you give that build to do not.
+The [prerequisites](prerequisites.md), in short:
+
+- mdeck 2.x, installed as usual (`mdeck --version`). You do not need mdeck's source code.
+- Rust 1.95 or newer through `rustup`, and a C toolchain. You need them to build an mdeck with
+  your extension in it; the people you give that build to do not.
+
+Code blocks are labelled **RUN** (terminal commands, with the folder to run them in) or **READ**
+(generated code, shown so you understand it).
 
 ## 1. Create an engine
+
+**RUN** in the folder where you keep code:
 
 ```bash
 mdeck sdk new engine glow
@@ -28,6 +42,8 @@ This creates a crate that builds and runs as it is:
 | `README.md` | The commands on this page |
 
 The heart of `src/lib.rs` is three things: a definition, an entry point and the engine itself.
+
+**READ** `src/lib.rs` (generated; shortened here):
 
 ```rust
 pub static DEF: EngineDef = EngineDef {
@@ -58,6 +74,8 @@ brings: here an engine and the theme that shows it off.
 
 ## 2. Test it
 
+**RUN** in `glow/`:
+
 ```bash
 cargo test
 ```
@@ -65,6 +83,8 @@ cargo test
 The first run renders the engine headlessly (no window, no GPU) and records
 `tests/golden/glow.png`. Look at it, then commit it. Later runs compare against it and fail when
 the look changes. When you change the look on purpose, accept the new image:
+
+**RUN** in `glow/`:
 
 ```bash
 MDECK_UPDATE_GOLDEN=1 cargo test
@@ -76,6 +96,8 @@ look at both. The helpers are in [`mdeck_sdk::testing`](https://docs.rs/mdeck-sd
 
 ## 3. Build an mdeck with your engine
 
+**RUN** in `glow/`:
+
 ```bash
 mdeck build --with .
 ```
@@ -86,8 +108,11 @@ and compiles it in release mode. It copies the binary to `./target/release/mdeck
 path; `--out <file|folder>` puts it elsewhere and `--name` names it. Name as many extensions as
 you like, as paths or crate names (with an optional version):
 
+**RUN** in the folder that holds the extensions:
+
 ```bash
 mdeck build --with ./glow --with ../acme-roadmap --with acme-brand-engines@1.2
+mdeck build --with git+ssh://git@github.com/acme/glow.git#v0.1.0     # a private git repository
 ```
 
 An extension that registers a name another one (or a built-in) already has stops the build's
@@ -97,12 +122,16 @@ Nothing about mdeck's source changes: the custom build is mdeck plus your crates
 
 ## 4. See it live
 
+**RUN** in `glow/`:
+
 ```bash
 ./target/release/mdeck deck.md
 ```
 
 The sample deck selects `theme: glow`, which selects `engine: glow`. To try the engine with any
 other deck, without changing the deck:
+
+**RUN** in the folder of your deck (`talk.md`):
 
 ```bash
 ./target/release/mdeck talk.md --engine glow
@@ -114,6 +143,8 @@ Press `H` for the HUD (it shows the frame rate), `Shift+T` to cycle themes, `Esc
 
 Stills are how you check an engine without watching it: they are deterministic, so you can
 compare them, attach them to a pull request, or diff them after a change.
+
+**RUN** in `glow/`:
 
 ```bash
 ./target/release/mdeck export deck.md --output-dir out              # every slide, settled
@@ -128,6 +159,8 @@ ending instead of a slide.
 
 ## 6. Check it
 
+**RUN** in `glow/`:
+
 ```bash
 ./target/release/mdeck deck.md --check
 ```
@@ -137,6 +170,10 @@ wrong type or unknown to the engine, things a design set cannot show, mistakes i
 
 ## Where next
 
+- [Packaging and sharing](packaging-and-sharing.md): git, crates.io, binaries, and bundling an
+  engine with its themes and fonts.
+- [Your first engine](tutorial-0-your-first-engine.md): the full cycle in detail, including
+  version control and colleagues.
 - [Concepts](concepts.md): the model your extension lives in, and the contract it keeps.
 - [Tutorial step 1](tutorial-1-ambience.md): a calm animated ground, explained line by line.
 - `mdeck sdk new visual <name>`, `design-set` and `transition` scaffold the other extension

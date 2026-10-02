@@ -6,13 +6,28 @@ recognises it from the content or the author chooses it (`<!-- design: statement
 theme can restyle them without code. Write a design set in code when data cannot express the look:
 a poster wall, a kiosk layout, or the whole-slide medium of a board engine.
 
+**What you will build:** `poster`, a design set in code that a theme selects, and an
+understanding of board engines, which draw every slide themselves.
+
+**What you will learn:** the `DesignSet` trait, saying what a design set cannot show, publishing
+geometry, testing headlessly, and how a board engine ties a design set to an engine.
+
+**Before you start:** the [prerequisites](prerequisites.md), and
+[Your first engine](tutorial-0-your-first-engine.md) for the build, test, git and sharing cycle,
+which is the same for a design set. Code blocks are labelled **TYPE** (you write it), **READ**
+(shown for understanding) and **RUN** (terminal commands).
+
 Start with the scaffold:
+
+**RUN** in the folder where you keep code:
 
 ```bash
 mdeck sdk new design-set poster
 ```
 
 ## The `DesignSet` trait
+
+**READ** the trait, from `mdeck_sdk::design` (you implement it):
 
 ```rust
 pub trait DesignSet: Send + Sync {
@@ -25,12 +40,16 @@ pub trait DesignSet: Send + Sync {
 
 Register it, and a theme selects it:
 
+**TYPE** `src/lib.rs` in your design set's crate (the scaffold has a working version):
+
 ```rust
 pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
     r.design_set(Box::new(Poster))?;
     r.theme("poster", include_str!("../theme.yaml"))
 }
 ```
+
+**TYPE** a theme that selects it, for example `theme.yaml`:
 
 ```yaml
 name: poster
@@ -66,6 +85,8 @@ slide smoothly. The default says everything fits.
 A design set may not show every block kind. That is fine, but silently dropping content is not:
 `unsupported` returns one problem per thing it leaves out, and `--check` reports them.
 
+**TYPE** `src/lib.rs`, in your `impl DesignSet`:
+
 ```rust
 fn unsupported(&self, slide: &Slide) -> Vec<Problem> {
     slide
@@ -85,6 +106,8 @@ fn unsupported(&self, slide: &Slide) -> Vec<Problem> {
 
 A **board engine** draws every slide itself, text included, in its own medium: mdeck's split-flap
 departures board is one. It is an engine whose definition carries a design set:
+
+**READ** how a board engine is defined (the built-in split-flap board, `crates/mdeck/src/engines/splitflap/`):
 
 ```rust
 static BOARD: FlapBoard = FlapBoard; // implements DesignSet
@@ -120,6 +143,8 @@ pub static DEF: EngineDef = EngineDef {
 
 `Headless::render_design` draws a slide with a design set and returns the image, the published
 hints and the measured height:
+
+**TYPE** a test in `tests/` or `mod tests`:
 
 ```rust
 let out = Headless::new(480, 270).render_design(&Poster, &slide, 0, &Tokens::default());
