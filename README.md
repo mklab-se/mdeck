@@ -18,8 +18,8 @@
 </p>
 
 <p align="center">
-  <strong>New in 1.17:</strong> <code>mdeck --check</code> tells you the line in the file behind
-  every warning.<br>
+  <strong>New in 1.18:</strong> background images behind every slide, or one slide, with
+  <code>@background</code> and <code>@background-opacity</code>.<br>
   <a href="CHANGELOG.md"><strong>What's new</strong></a> &middot;
   <a href="https://github.com/mklab-se/mdeck/releases">All releases</a> &middot;
   <a href="BACKLOG.md">Roadmap</a>
