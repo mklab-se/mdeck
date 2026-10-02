@@ -34,7 +34,7 @@ pub const SHORTCUTS: &[(&str, &str)] = &[
     ("H", "Toggle HUD"),
     ("V", "Presenter view / notes"),
     ("Shift+V", "Reset presenter timer"),
-    ("S", "AI: picture for slide (art engines)"),
+    ("S", "AI picture (art engines)"),
     (". / B", "Blackout screen"),
     ("R", "Debug overlay (L/R/off)"),
 ];
@@ -350,7 +350,9 @@ pub fn next_monitor_position(current: Pos2, monitor_width: f32) -> Pos2 {
 /// `mdeck spec --short` card.
 pub fn shortcut_card() -> String {
     const KEY_W: usize = 22;
-    const DESC_W: usize = 26;
+    // One more than the longest left-column description, so the columns
+    // never run together.
+    const DESC_W: usize = 28;
     let mut out = String::new();
     let mut rows = SHORTCUTS.chunks(2);
     for pair in &mut rows {
@@ -710,6 +712,12 @@ mod tests {
         for line in card.lines() {
             assert!(line.starts_with("  "));
             assert!(!line.ends_with(' '));
+        }
+        // the left column's description never runs into the right column's key
+        for (i, (_, desc)) in SHORTCUTS.iter().enumerate().step_by(2) {
+            if i + 1 < SHORTCUTS.len() {
+                assert!(desc.chars().count() < 28, "{desc} is too long for the card");
+            }
         }
     }
 

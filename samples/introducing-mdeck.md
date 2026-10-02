@@ -1,247 +1,200 @@
 ---
-title: "Introducing MDeck"
-author: "MDeck Team"
-theme: dark
-transition: slide
+title: Introducing mdeck
+author: The mdeck team
+theme: ember
+slide-level: 2
 ---
 
-# Introducing MDeck
+# Introducing mdeck
+<!-- picture: rocket -->
 
-Presentations from plain markdown
+Markdown in, a presentation people remember out
 
----
+```@notes
+Welcome. Everything you are about to see is **one markdown file**:
+`samples/introducing-mdeck.md`. Press `V` to open the presenter view
+with these notes, the next slide and a timer.
+```
 
-# The Problem
+## A deck is a markdown file
 
-- Presentation tools are heavy and lock you in
-- Your content lives in proprietary formats
-- Formatting slides takes longer than writing content
-- Sharing and version control are painful
+Write the talk in any editor. mdeck reads the structure and does the design.
 
----
+```@notes
+This slide has no settings at all. A heading with a short paragraph is
+recognised as a **statement**, so the line is set large.
+```
 
-# What is MDeck?
+## Why markdown
 
-MDeck is a **markdown-based presentation tool** built in Rust.
++ You already know it
++ It lives in git, next to your code
++ It reads well on GitHub, in any editor, in any preview
++ Nothing locks you in
 
-Write standard markdown. Get polished slides.
+```@notes
+Each `+` item is a step: press Space to reveal the next one.
+Items written with `-` show at once.
+```
 
-- Any `.md` file is instantly presentable
-- Layout is inferred from content structure
-- No special syntax required for basic use
-- Keyboard-driven, fast, and lightweight
-
----
-
-# Getting Started
+## Sixty seconds to your first talk
 
 ```bash
-# Install via Homebrew
-brew install mklab-se/tap/mdeck
-
-# Or via Cargo
-cargo install mdeck
-
-# Present any markdown file
-mdeck my-talk.md
+brew install mklab-se/tap/mdeck     # or: cargo install mdeck
+mdeck talk.md                       # present it
+mdeck export talk.md --format pdf   # share it
 ```
 
-That's it. No config files, no build step, no setup.
+## How a file becomes slides
 
----
+- A heading at the slide level starts a new slide
+- Three dashes on a line of their own force a break
+- Each slide gets a design from what is on it
+- Settings, when you want them, hide in an HTML comment
 
-# How Slides Work
+## Thirteen designs, chosen for you
 
-Three ways to separate slides:
+| You write | mdeck shows |
+|---|---|
+| `#` with one short line | title |
+| A lone heading | section |
+| A heading and a sentence | statement |
+| A heading and a list | points |
+| An image beside text | split |
+| A quote with an attribution | quote |
+| A fence of chart data | visual |
+| Two halves split by `+++` | columns |
 
-```markdown
-# Heading starts a new slide
-
-Content below the heading.
-
----
-
-An explicit separator also works.
-
-
-Three blank lines create a break too.
+```@notes
+`mdeck --check -v talk.md` prints the design of every slide and the
+rule that picked it. The other designs: media, gallery, code, table
+and content.
 ```
 
-MDeck figures out the rest. Headings, separators, and blank lines all do what you'd expect.
+## Platform 4
 
----
+![The evening train](showcase/station.jpg)
 
-# Layout Inference
-
-MDeck detects what kind of slide you're writing:
-
-- **Title** -- a heading with an optional subtitle
-- **Bullets** -- a heading followed by a list
-- **Code** -- a heading with a fenced code block
-- **Quote** -- a blockquote, optionally with attribution
-- **Image** -- a single image, fills the slide
-- **Two-column** -- split content with `+++`
-- **Diagram** -- architecture diagrams from text
-- **Visualization** -- charts and data from text
-
-No `design` setting needed in most cases.
-
----
-
-# Code Slides
-
-Fenced code blocks get syntax highlighting automatically:
-
-```rust
-fn main() {
-    let slides = parse_markdown("talk.md");
-    for slide in &slides {
-        render(slide);
-    }
-}
-```
-
-Add line highlighting with `{lines}` after the language tag.
-
----
-
-# Visualizations
-
-MDeck renders charts directly from your markdown. Here's project status at a glance:
-
-```@progress
-- Parsing: 100%
-- Rendering: 100%
-- Themes: 85%
-- Export: 90%
-- AI Features: 60%
-```
-
----
-
-# Visualizations: Charts
-
-```@bar
-orientation: horizontal
-x-label: Stars
-- Ease of Use: 92
-- Visual Quality: 88
-- Speed: 95
-- Portability: 90
-- Extensibility: 75
-```
-
----
-
-# Math
-
-Formulas are plain LaTeX between dollar signs.
-
-$$\hat{f}(\xi) = \int_{-\infty}^{\infty} f(x)\, e^{-2\pi i x \xi}\, dx$$
-
-- Inline, on the baseline: $E = mc^2$, $\alpha + \beta = \gamma$
-- Dollar amounts like $5 stay text
-
----
-
-# Architecture
-
-```@architecture
-- Markdown File  (icon: storage,   pos: 1,1)
-- Parser         (icon: function,  pos: 2,1)
-- Layout Engine  (icon: container, pos: 3,1)
-- Renderer       (icon: monitor,   pos: 3,2)
-- Theme System   (icon: browser,   pos: 4,2)
-
-- Markdown File -> Parser: reads
-- Parser -> Layout Engine: slide blocks
-- Layout Engine -> Renderer: positioned elements
-- Theme System -> Renderer: colors and fonts
-```
-
----
-
-# Keyboard Shortcuts
-
-| Key | Action |
-|-----|--------|
-| Space / N / Right | Next slide |
-| P / Left | Previous slide |
-| G | Grid overview |
-| Shift+T | Cycle theme |
-| T | Cycle transition |
-| F | Toggle fullscreen |
-| Up / Down | Scroll overflowed content |
-| Esc Esc | Quit |
-
----
-
-# Themes and Customization
-
-Set a theme globally in frontmatter:
-
-```markdown
----
-theme: dark
----
-```
-
-Built-in themes: **light**, **dark**, **nord**, **ember**, the four seasons
-**spring**, **summer**, **autumn** and **winter**, and **marquee**,
-**departures**, **stack**, **blueprint**, **sketchbook**, **chalkboard**, **watercolour** and **darkroom**.
-
-Cycle themes live with `Shift+T`, and transitions with `T`.
-
----
-
-# Eleven Engines
-
-The same slides, a whole different show:
-
-- **plain** and **particles**: a flat page, or a living particle field
-- **led**: a wall of RGB LEDs that light up your illustrations
-- **splitflap**: every slide on a departure board
-- **blocks**: pictures built from falling blocks
-- **line**: a drawing made for every slide (`mdeck ai pictures`), inked onto a blue sheet or drawn in chalk on a slate
-- **sketch**: a drawing made for every slide, pencilled into a sketchbook
-- **watercolour** and **darkroom**: paintings that bloom, photographs that develop
-
-One line switches, `engine: led`, or try one with `mdeck deck.md --engine blocks`.
-
----
-
-# Your Own Theme
-
-A theme is a YAML file next to the deck, `themes/acme.yaml`:
-
-```yaml
-extends: light
-colors:
-  accent: "#e85d04"
-logo:
-  file: logo.svg
-```
-
-Add a logo to any deck with `logo: logo.svg`, or turn a design system into a
-theme with `mdeck ai theme acme --from ./brand`.
+- Night train to Paris
+- Departs 18:42
+- Boarding now
 
 ---
 
 > Any markdown file should be presentable.
+>
+> mdeck design principle
 
--- MDeck design principle
+## Before and after
 
----
+**Before**
 
-# Learn More
+- Slides in a proprietary file
+- An hour of nudging boxes
+- A PDF nobody can diff
 
-- **GitHub:** github.com/mklab-se/mdeck
-- **Format spec:** `mdeck spec` prints the full reference
-- **Quick ref:** `mdeck spec --short`
-- **Export:** `mdeck export talk.md` renders slides to PNG
++++
 
-Start presenting in seconds:
+**After**
+
+- One markdown file in git
+- Design picked from the content
+- Pull requests for your talk
+
+# Charts and diagrams from text
+
+## Where the time goes
+
+```@bar
+x-label: Hours per week
++ Status meetings: 6
++ Updating slides: 4
++ Writing the talk: 2
+```
+
+```@notes
+Chart items written with `+` are steps too: each bar grows in on its
+own press.
+```
+
+## How it fits together
+
+```@architecture
+- Markdown  (icon: storage,   pos: 1,2)
+- Parser    (icon: function,  pos: 2,2)
+- Designs   (icon: container, pos: 3,1)
+- Theme     (icon: browser,   pos: 3,3)
+- Window    (icon: monitor,   pos: 4,2)
+
+- Markdown -> Parser: reads
+- Parser -> Designs: slides
+- Designs -> Window: arranges
+- Theme -> Window: look
+```
+
+## Launch week
+
+```@kpi
+- Sign-ups: 12.4K (trend: +38%)
+- Activation: 64% (trend: +9%)
+- Churn: 1.8% (trend: -0.6%)
+```
+
+## Math, as you would write it
+
+$$\hat{f}(\xi) = \int_{-\infty}^{\infty} f(x)\, e^{-2\pi i x \xi}\, dx$$
+
+Inline too: $E = mc^2$, and $5 stays a price.
+
+## Pictures
+<!-- picture: lightbulb -->
+
+- `picture: lightbulb` puts a point cloud on the stage
+- The engine draws it: particles here, LEDs or blocks elsewhere
+- Thirty-eight are built in, and `mdeck ai point-cloud` makes more
+
+# Make it yours
+
+## One line changes the look
+
+| `theme:` | What you get |
+|---|---|
+| `dark` | The default: plain, bright, still |
+| `ember` | A living field of glowing particles |
+| `marquee` | A wall of RGB LEDs |
+| `departures` | Every slide on a split-flap board |
+| `stack` | Pictures built from falling blocks |
+| `thermal` | Headings that form in heat |
+| `blueprint`, `chalkboard` | Line art on a sheet or a slate |
+| `sketchbook`, `watercolour`, `darkroom` | Drawings, paintings, prints |
+
+```@notes
+`Shift+T` cycles the themes live, so you can try them on this deck now.
+```
+
+## Presenting
+
+- `V` opens the presenter view: notes, next slide, timer
+- `G` shows every slide; type a number and Enter to jump
+- Draw with the mouse; `B` blacks out the screen
+- Save the file and the slide on screen updates
+
+## Share it
 
 ```bash
-mdeck your-talk.md
+mdeck export talk.md                          # a PNG per slide
+mdeck export talk.md --format pdf --notes     # a PDF with notes pages
 ```
+
+Export shows exactly what the window shows, at any size.
+
+## Extend it, privately
+
+- Themes and point clouds travel as **packs**
+- `mdeck sdk new engine glow` starts an engine in Rust
+- `mdeck build --with ./glow` builds your own mdeck with it
+- Nothing has to be published
+
+# Start presenting
+
+`mdeck your-talk.md`

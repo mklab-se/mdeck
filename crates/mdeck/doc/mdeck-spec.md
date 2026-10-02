@@ -1,9 +1,12 @@
-# MDeck Markdown Syntax Specification
+# mdeck format reference
 
-**Version:** 2.0 (in progress)
-**Status:** Draft
+This reference describes **mdeck 2**: everything a markdown file can say to mdeck, and how mdeck
+presents it. It is printed by `mdeck spec` (the quick card is `mdeck spec --short`) and is precise
+enough for an AI agent to write, check or convert a deck from it. Decks written for mdeck 1 need a
+few changes; section 19 maps every v1 construct to its v2 form.
 
-MDeck is a markdown-based presentation tool. Authors write standard markdown; MDeck recognises each slide's design from its content and renders it as a presentation.
+mdeck is a markdown-based presentation tool. Authors write standard markdown; mdeck recognises each
+slide's design from its content and renders it as a presentation.
 
 ---
 
@@ -41,7 +44,7 @@ transition: slide
 ---
 ```
 
-Every key is a **setting** (section 7). A key in the frontmatter is the deck's value; the same key in a slide's settings comment overrides it for that slide. Keys that only make sense for the whole deck (such as `theme`) are errors in a slide. Unknown keys, invalid values and v1 keys (`theme`) are reported by `mdeck --check` with a "did you mean" or the v2 form; they are never honoured silently.
+Every key is a **setting** (section 7). A key in the frontmatter is the deck's value; the same key in a slide's settings comment overrides it for that slide. Keys that only make sense for the whole deck (such as `theme`) are errors in a slide. Unknown keys, invalid values and v1 keys (`@theme`) are reported by `mdeck --check` with a "did you mean" or the v2 form; they are never honoured silently.
 
 #### Transitions
 
@@ -221,9 +224,9 @@ height that decides scrolling is measured with the same layout that draws the sl
 Standard ATX headings. Levels 1-3 are meaningful for design recognition; levels 4-6 are rendered as body-weight text.
 
 ```markdown
-# Level 1 — Slide title / section
-## Level 2 — Subtitle / subsection
-### Level 3 — Minor heading within slide
+# Level 1: slide title or section
+## Level 2: subtitle or subsection
+### Level 3: minor heading within a slide
 ```
 
 Optional closing hashes (`## Heading ##`) are stripped. Setext headings are
@@ -270,7 +273,7 @@ as an image inside running text, a remote image or an HTML `<video>`.
 
 ### 5.3 Lists
 
-Both ordered and unordered lists with nesting up to 3 levels. The `+` marker makes an item a step (see [Section 6](#6-incremental-reveal)). An ordered list counts from its first number, and task list items show their box.
+Both ordered and unordered lists with nesting up to 3 levels. The `+` marker makes an item a step (see [section 6](#6-steps-incremental-reveal)). An ordered list counts from its first number, and task list items show their box.
 
 ```markdown
 - First item
@@ -294,8 +297,9 @@ Standard markdown image syntax:
 ![Alt text](path/to/image.png)
 ```
 
-Size options go in the alt text, in the settings grammar (`@key: value`, the space after the
-colon is optional):
+By default an image fits the space its design gives it and keeps its aspect ratio. Size options
+go in the alt text, in the settings grammar (`@key: value`; the space after the colon is
+optional):
 
 ```markdown
 ![Architecture @width: 80%](arch.png)
@@ -305,15 +309,15 @@ colon is optional):
 
 | Option          | Description                                     |
 |-----------------|-------------------------------------------------|
-| `@width: VAL`   | Width: `%` of the space, or pixels at the 1920×1080 reference size (scaled on other resolutions) |
-| `@height: VAL`  | Height (same units as `@width`); with both, the image keeps its aspect and fits both |
-| `@fill`         | Cover the space, cropping                       |
+| `@width: VAL`   | Width: a percentage of the image's space, or pixels at the 1920x1080 reference size (`400` or `400px`, scaled on other resolutions) |
+| `@height: VAL`  | Height, in the same units; with both, the image keeps its aspect and fits both |
+| `@fill`         | Cover the space, cropping, never stretching. On a `media` slide that is the whole slide, with the heading in a band at the bottom |
 
-Without options an image fits its space and keeps its aspect. Where an image goes (left, right,
-full bleed) is up to the slide's design, not an option. Any other `@` word in an image's alt
-text (including v1's `@fit`, `@left`, `@right` and `@center`) is reported by `--check`.
-
-When rendered in a standard markdown viewer, the `@` options appear as alt text, which is acceptable degradation.
+The options are taken out of the alt text, so `![Our team @fill](team.jpg)` has the alt text
+"Our team"; on a standard markdown renderer the alt text only shows when the image is missing.
+Where an image goes (beside the text, full bleed, in a grid) is up to the slide's design
+(section 4), not an option. Any other `@` word in an image's alt text, including v1's `@fit`,
+`@left`, `@right` and `@center`, is reported by `mdeck --check` (category `content`).
 
 #### AI Image Generation
 
@@ -330,7 +334,7 @@ The alt text is the prompt. Leave it empty to have the chat model write one from
 ```
 
 Run `mdeck ai images <file.md>` (or `mdeck ai <file.md>` for every kind of asset). The command:
-- Detects orientation automatically (horizontal for full-slide, vertical for side-panel layouts)
+- Picks the orientation from where the image goes (landscape for a slide of its own, portrait beside text)
 - Applies the image style (`--style`, then `image-style`, then the config default, then the built-in one)
 - Writes the image to `<deck>.assets/images/` and records it in `<deck>.assets/manifest.yaml`
   (section 9.7, "Generated assets"). The deck is never rewritten: the placeholder stays as it is
@@ -754,7 +758,7 @@ built-in:
 | `autumn` | dark bark and maple amber, the particle field glowing in amber, rust and gold | particles | `#17110D` | `#E0782A` |
 | `winter` | a clear night over snow, the particle field glowing ice-blue and white | particles | `#0A1220` | `#7CC4FA` |
 
-**`ember`** (experimental)
+**`ember`**
 
 | Property        | Value           |
 |-----------------|-----------------|
@@ -766,12 +770,12 @@ built-in:
 | Quote border    | accent color    |
 
 Ember is MKLab's brand theme and goes further than a palette: it runs on the
-**particles engine** (section 9.4), which any custom theme can use too. It bundles its
+**particles engine** (section 9.6), which any custom theme can use too. It bundles its
 own typefaces (Spectral for headings, Hanken Grotesk for copy, JetBrains Mono
 for labels), lays text slides out as a copy column on the left, and draws a
 living field of glowing particles behind every slide. The field morphs from
 slide to slide and follows the content: a title slide opens on a constellation
-(after the particles assemble into the logo), a bullet slide lights one
+(after the particles assemble into the logo), a points slide lights one
 cluster per item as the items reveal, a quote slide burns like a candle, a
 code slide rains. Ember uses the editorial design set (section 9.9), which
 arranges every design, code, tables, charts and images included, with an
@@ -871,43 +875,45 @@ of earlier drawings wiped off it; generated line art is drawn in chalk.
 |---|---|---|---|---|
 | `thermal` | the deck seen through a thermal instrument: cold indigo-black, white-hot headings, iron orange; headings form in heat on title and section slides | thermal | `#05030D` | `#F37A0C` |
 
-Thermal extends Ember's editorial layouts and type. It pairs with `@thermal`
+Thermal extends Ember's editorial design set and type. It pairs with `@thermal`
 blocks for thermal images (section 14.20); the engine is in section 9.6.
 
 Every theme can draw the symbols text faces usually lack: circled numbers and letters (①②③, ⓐ), check marks, arrows, geometric shapes and stars. Noto Sans Symbols and DejaVu Sans are bundled as the last fallback of every font family, so such characters never render as boxes.
 
 Chinese, Japanese and Korean text draws with a font borrowed from the system, since a CJK face is too large to bundle: PingFang, Hiragino or Arial Unicode on macOS, Microsoft YaHei, Yu Gothic or Malgun Gothic on Windows, Noto Sans CJK, WenQuanYi or Droid Sans Fallback on Linux (`fonts-noto-cjk` on Debian and Ubuntu). It is added after the symbol faces in every family, on the family's own baseline. To use a specific file, set `MDECK_CJK_FONT=/path/to/font.ttc`. When no font on the machine covers a script the deck uses, `mdeck --check` warns (`fonts` category) and presenting or exporting prints the same warning; the text then draws as boxes.
 
-Behind all of that, on every slide but the title, the dark is space. Slides
-walk through four backdrops by number, so neighbours never share one and a
-run of look-alike bullet slides still changes from one to the next: a star
-field drifting slowly forward (the bigger, brighter stars pass faster), soft
-dust, a galaxy of two spiral arms turning about the centre, and a nebula of
-large clouds out of focus. A bullet slide's item clusters likewise take a
-different formation on each slide: an arc, a lazy S, a ring, a diagonal, a
-scatter, a column. Every
-slide gets a tracked eyebrow with its roman numeral and the deck title, and
-the presenter chrome is a counter and a progress hairline.
+On the particles engine, every slide but the title has space behind it.
+Slides walk through four backdrops by number, so neighbours never share one:
+a star field drifting slowly forward, soft dust, a galaxy of two spiral arms
+turning about the centre, and a nebula of large clouds out of focus. A points
+slide's item clusters likewise take a different formation on each slide. On
+the editorial design set every slide gets a tracked eyebrow with its Roman
+numeral and the deck title, and the chrome is a counter and a progress
+hairline.
 
 #### The countdown
 
-Nord, Ember and the engine showcase themes open with a three-second
-countdown before the first slide (any theme can, with `countdown: on` in
-section 9.4; a deck's `countdown: on|off` wins over the theme). The engine
-decides how it looks: an engine with a countdown of its own draws it, any
-other shows plain numerals.
-In Ember the particles form the digits 3, 2 and 1 in the display face, morph
+Every built-in theme except `dark`, `light`, `spring` and `summer` opens
+with a three-second countdown before the first slide. Any theme can, with
+`countdown: on` (section 9.4), and a deck's `countdown: on|off` wins over the
+theme's. The engine decides how it looks: an engine with a countdown of its
+own draws it (section 9.6), any other shows plain numerals that fade. In
+Ember the particles form the digits 3, 2 and 1 in the display face, morph
 from one to the next, and the 1 bursts outward into black before the first
-slide's scene assembles; in Nord the numerals simply fade. Any key or click
-cancels it, starting on a chosen slide (`--slide`, `--overview`) skips it, and
-`countdown: off` in the frontmatter turns it off for a deck (`on` turns it
-on in a theme without one).
+slide's scene assembles. Any key or click cancels it, starting on a chosen
+slide (`--slide`, `--overview`) skips it, and reduced motion leaves it out.
 
-#### Point clouds
+#### Pictures
 
-The field can draw a thing: a **point cloud**, a named file of points the
-particles settle into. Ask for one on a slide with the `picture`
-setting:
+A slide's **picture** is what the engine draws on the design's stage. Ask for
+one with the `picture` setting. Its value resolves in this order:
+
+1. on an art engine (section 9.7), the slide's generated artwork, when there
+   is one;
+2. a **point cloud** of that name: a named file of points that the particles
+   settle into, the LEDs light up, the blocks build or the pencil traces;
+3. an image file at that path, relative to the deck, drawn on the stage as it
+   is.
 
 ```markdown
 ## Our new server
@@ -922,18 +928,25 @@ statement, points, quote, section and text-only content slides show it on
 the right, beside the copy, warm and lit from the first step. Title slides
 put it behind the centred copy, large, dim and slow: a backdrop rather than
 a picture. Split, media, gallery, code, visual, columns and table slides
-never show one, and the standard set leaves no stage at all, and `mdeck --check` warns when a slide asks
-for a point cloud it cannot show, or one that does not exist (category
-`point-cloud`).
-Engines that cannot draw a picture ignore the setting, and `--check` says so.
+never show one, and the standard set leaves no stage at all. Every engine
+except `plain` and `splitflap` draws pictures, each in its own medium
+(section 9.6). `mdeck --check` warns when a slide asks for a picture its
+design or engine cannot show, or one that does not exist. `picture: none`
+keeps a slide's stage empty.
 
-A name resolves through four places, first match wins: the deck's
-`illustrations/<name>.mdpc` next to the deck, the user library (the
-`illustrations/` folder in the user config folder: `~/.config/mdeck/` on
-Linux, `~/Library/Application Support/mdeck/` on macOS, `%APPDATA%\mdeck\` on
-Windows), the `point-clouds/` folders of installed packs, and the set built
-into MDeck. So a deck can carry its own clouds, a user can keep favourites
-across decks, and either can shadow a built-in by using the same name. Names are lowercase letters, digits
+A point cloud name resolves through these places, first match wins:
+
+1. the deck's generated point clouds, `<deck>.assets/point-clouds/` (made by
+   `mdeck ai point-cloud`, section 9.7);
+2. `illustrations/<name>.mdpc` next to the deck;
+3. the user library: `illustrations/` in the user folder
+   (`~/.config/mdeck/` on Linux, `~/Library/Application Support/mdeck/` on
+   macOS, `%APPDATA%\mdeck\` on Windows);
+4. the `point-clouds/` folders of installed packs (section 18);
+5. the set built into mdeck.
+
+So a deck can carry its own clouds, a user can keep favourites across decks,
+and either can shadow a built-in by using the same name. Names are lowercase letters, digits
 and hyphens. The built-in set: `person`, `hooded`, `man`, `woman`,
 `thermographer`, `presenter-up`, `presenter-down`, `box`, `orb`, `doc`,
 `docs`, `inbox`, `db`, `cloud`, `laptop`, `folder`, `mail`, `gate`,
@@ -953,10 +966,12 @@ mdeck point-cloud list          # every name visible from here, and what shadows
 mdeck point-cloud show server   # a preview image
 ```
 
-`generate` asks the configured image provider for a sparse constellation of
-glowing particles forming the subject, then reduces the image to a cloud.
-Both commands write `./illustrations/<name>.mdpc`; `--user` writes to the
-user library instead, and `--force` overwrites. A cloud is JSON: a name, a
+`mdeck ai point-cloud` asks the configured image provider for a sparse
+constellation of glowing particles forming the subject, then reduces the
+image to a cloud. Given a deck, it writes every missing name into
+`<deck>.assets/point-clouds/`; with `--name`, and `mdeck point-cloud import`,
+it writes `./illustrations/<name>.mdpc` (`--user` writes to the user library
+instead, and `--force` overwrites an import). A cloud is JSON: a name, a
 description, the prompt that made it, the bounding box's height over width,
 and up to 1500 points in the unit square, stored in **importance order** so
 that the first sixty points already sketch the whole subject and the first
@@ -1049,8 +1064,8 @@ engine:                    # the engine and its settings (section 9.6); `engine:
   kind: line               # art engines: line | tonal (section 9.7)
   style: "graphite and ink, cross-hatching"   # art engines: the style prompt
   references: [refs/teacup.jpg]               # art engines: style swatches in the theme folder
-designs: standard          # standard | editorial | a set in designs/: how the slide designs look (section 6)
-arrangements: {}           # per-design overrides of the design set (section 6)
+designs: standard          # standard | editorial | a set in designs/: how the slide designs look (section 9.9)
+arrangements: {}           # per-design overrides of the design set (section 9.9)
 countdown: off             # on | off: the 3-2-1 opener (the engine decides its look)
 transition: fade           # slide | fade | spatial | none (a deck's `transition` wins)
 spacing:                   # the gaps the designs use, px on a 1920x1080 slide
@@ -1078,7 +1093,7 @@ colors:                    # #rgb, #rrggbb or #rrggbbaa
     - "#ffb400"
     - "#4ea8ff"
     - "#3ecf8e"
-annotations:               # the presenter's pen (drag) and arrow (Shift+drag) tools
+annotations:               # the presenter's pen (drag) and arrow (right drag) tools
   pen: "#50c8ff"
   pen-outline: "#1e82b4"
   arrow: "#ffc832"
@@ -1236,7 +1251,7 @@ Tools for the loop of converting, looking and adjusting:
 | `mdeck theme new <name>` | writes a commented starter theme to `themes/<name>.yaml` |
 | `mdeck ai theme <name> --from <dir>` | reads a design system folder (`SKILL.md`, `readme.md`, CSS tokens, `*.tokens.json`, Tailwind config) and writes the theme with AI (see `mdeck ai`); font files and logos (PNG or SVG files with "logo" in their path) found there are copied into the theme folder |
 | `mdeck theme check <name>` | reports errors, fallbacks and weak contrast |
-| `mdeck theme preview <name> --output-dir <dir>` | exports a sampler deck (title, bullets, code, chart, diagram, table, quote) in the theme, as PNGs to look at |
+| `mdeck theme preview <name> --output-dir <dir>` | exports a sampler deck in the theme, one slide per design, as PNGs to look at |
 
 `new` takes `--user` to write to the user folder and `--force` to overwrite.
 `mdeck export <deck> --theme <name>` renders any deck in a theme without
@@ -1295,18 +1310,25 @@ it paints under the slides, how text slides are laid out, and what it plays
 for the countdown and the end. Colours, fonts, sizes and the logo always come
 from the theme, so every theme looks like itself on every engine.
 
-| Engine | What it shows | Point clouds | Stories | Countdown and end act |
-|---|---|---|---|---|
-| `plain` | slides on a flat background | no | no | plain numerals |
-| `particles` | a living field of glowing particles that morphs from slide to slide and follows the content, editorial copy layouts (section 9.1, Ember) | yes | yes | particle digits that burst; the words, a swirl and a bang |
-| `led` | a fixed wall of RGB LEDs behind every slide, editorial copy layouts (theme `marquee`) | yes | no | LED digits, then a white-hot ring runs out over the wall; the words, then every LED dies out |
-| `splitflap` | the slide is a departure board: all its text on a grid of split flaps (theme `departures`) | no | no | digits in solid flaps, then the board scrambles awake; the words, then the board clears |
-| `blocks` | pictures built from falling blocks, editorial copy layouts (theme `stack`) | yes | no | digits in falling blocks that burst apart; the words, then a line clear |
-| `line` | generated line art drawn stroke by stroke on a surface: a draftsman's `sheet`, inked construction lines first (theme `blueprint`), or a `slate`, in chalk (theme `chalkboard`; section 9.7) | yes, as technical pen lines or in chalk when a slide has no art | no | digits drawn with the pen or the chalk; the words, then they fade |
-| `sketch` | a sketchbook page: generated graphite drawings drawn in with a pencil, outlines first, then the shading (theme `sketchbook`, section 9.7) | yes, in pencil when a slide has no art | no | digits drawn in pencil; the words, then they fade |
-| `watercolour` | cold-press paper: generated watercolours bloom onto it, a pale wash first, then the colour spreading (theme `watercolour`, section 9.7) | yes, in ink with a loose wash when a slide has no art | no | digits in ink and wash; the words, then they fade |
-| `darkroom` | a darkroom under a red safelight: generated photographs develop as prints, then the white light comes on (theme `darkroom`, section 9.7) | yes, as a photogram when a slide has no art | no | digits glowing white like a photogram; the words, then they fade |
-| `thermal` | a heat field under the slides in the theme's heat palette; title and section headings form in heat (the cold opening), editorial copy layouts (theme `thermal`) | yes, as a heat signature | no | digits that heat up and cool off; the words glow, then cool |
+mdeck has ten engines. Each has a showcase theme, and any theme can name any
+engine.
+
+| Engine | What it shows | Pictures | Countdown and end act |
+|---|---|---|---|
+| `plain` | slides on a flat background (themes `dark`, `light`, `nord`, `spring`, `summer`) | no | plain numerals |
+| `particles` | a living field of glowing particles that morphs from slide to slide and follows the content (themes `ember`, `autumn`, `winter`) | yes | particle digits that burst; the words, a swirl and a bang |
+| `led` | a fixed wall of RGB LEDs behind every slide (theme `marquee`) | yes | LED digits, then a white-hot ring runs out over the wall; the words, then every LED dies out |
+| `splitflap` | the slide is a departure board: all its text on a grid of split flaps (theme `departures`) | no | digits in solid flaps, then the board scrambles awake; the words, then the board clears |
+| `blocks` | pictures built from falling blocks (theme `stack`) | yes | digits in falling blocks that burst apart; the words, then a line clear |
+| `thermal` | a heat field under the slides in the theme's heat palette; title and section headings form in heat (theme `thermal`) | yes, as a heat signature | digits that heat up and cool off; the words glow, then cool |
+| `line` | generated line art drawn stroke by stroke on a surface: a draftsman's `sheet`, construction lines first (theme `blueprint`), or a `slate`, in chalk (theme `chalkboard`; section 9.7) | yes, as technical pen lines or in chalk when a slide has no art | digits drawn with the pen or the chalk; the words, then they fade |
+| `sketch` | a sketchbook page: generated graphite drawings drawn in with a pencil, outlines first, then the shading (theme `sketchbook`, section 9.7) | yes, in pencil when a slide has no art | digits drawn in pencil; the words, then they fade |
+| `watercolour` | cold-press paper: generated watercolours bloom onto it, a pale wash first, then the colour spreading (theme `watercolour`, section 9.7) | yes, in ink with a loose wash when a slide has no art | digits in ink and wash; the words, then they fade |
+| `darkroom` | a darkroom under a red safelight: generated photographs develop as prints, then the white light comes on (theme `darkroom`, section 9.7) | yes, as a photogram when a slide has no art | digits glowing white like a photogram; the words, then they fade |
+
+The engine and the design set are independent: the showcase themes other
+than `departures` use the editorial design set (section 9.9), the plain ones
+the standard set. The split-flap engine draws every slide itself, as a board.
 
 **The LED engine.** The slide sits on a wall of LEDs, a few pixels apart,
 their unlit lenses just visible. Nothing ever moves: pictures appear by
@@ -1369,8 +1391,8 @@ picture stay calm. Exports show the settled stack.
 **The line engine.** Line art drawn on a surface the theme chooses with
 `surface:` (`sheet`, the default, or `slate`). Line art is the same on both,
 so a deck switches between the `blueprint` and `chalkboard` themes without
-new pictures. (`surface:` is a top-level theme key for now; it moves into the
-engine's own settings with the next theme format.)
+new pictures. `surface` is a setting in the theme's engine block
+(`engine: { name: line, surface: slate }`).
 
 *The sheet* (`surface: sheet`, theme `blueprint`). Every slide is a Prussian
 blue drawing sheet: a
@@ -1466,11 +1488,12 @@ engine: plain
 `mdeck deck.md --check --engine <name>` try an engine without editing the deck.
 Precedence: `--engine`, then `engine`, then the theme's `engine:`. An unknown
 `engine` is reported and the theme's engine is used; an unknown `--engine`
-stops with the list of engines. The countdown switch stays the theme's; an
-engine without a countdown of its own shows plain numerals.
+stops with the list of engines. Whether there is a countdown comes from the
+deck's `countdown`, then the theme's; an engine without a countdown of its
+own shows plain numerals.
 
 **Content an engine does not show.** Engines differ in what they can show:
-the plain engine draws no point clouds, and the
+the plain engine draws no pictures, and the
 split-flap board shows text only. `mdeck --check`
 lists every such slide under the `engine` category (for example
 `slide 4 (line 31): [engine] picture: server is not shown by the plain engine`),
@@ -1650,7 +1673,7 @@ background, and `The quiet one` shows the deck's image, fainter.
   parse, and a slide `background-opacity` with no image to apply to, each
   with its line.
 
-An image with `@fill` (section 3) is different: it is content and takes the
+An image with `@fill` (section 5.4) is different: it is content and takes the
 slide over. A background stays behind the heading and the text.
 
 ### 9.9 Designs and arrangements
@@ -1669,10 +1692,18 @@ screen; `designs: standard` with `engine: particles` puts centred slides
 over the particle field.
 
 `designs:` may also name a set file, `designs/<name>.yaml`, found in the
-deck's `designs/` folder, then the `designs/` folder of the user config
-folder, then installed packs' `designs/`, then the built-ins. A set file has
+deck's `designs/` folder, then the `designs/` folder of the user folder, then
+installed packs' `designs/` (section 18), then the built-ins. A set file has
 `base` (keys for every design) and `designs` (keys per design), merged over
-the set it `extends` (default `standard`).
+the set it `extends` (default `standard`):
+
+```yaml
+# designs/roomy.yaml
+extends: editorial
+base:
+  roles:
+    body: { color: accent }
+```
 
 **Arrangements.** `arrangements:` overrides any key of any design's
 arrangement; `all:` applies to every design. Overrides are partial and
@@ -1751,7 +1782,7 @@ The `+++` separator was chosen because it is visually distinct from `---` (slide
 ## 11. Edge Cases
 
 ### Content overflow
-Text is never truncated silently. If content overflows, MDeck reduces font size (down to 60% of theme default). If it still overflows, content is clipped with a subtle fade indicator and a warning is emitted.
+Text is never truncated silently. Content that does not fit first shrinks (code to 40% of its size, then prose and lists to 80%), then scrolls with fade cues at the edges (section 4.3).
 
 ### Empty slides
 A slide with no content renders as a blank slide with the theme's background. This is intentional, not an error.
@@ -1885,7 +1916,7 @@ pub async fn handle_request(req: Request) -> Response {
 Thank you for listening.
 ```
 
-This example demonstrates: frontmatter, title slide, bullet slide with `+` reveal, image slide, diagram with `-`/`+` reveal, code slide with line highlighting, result slide with incremental reveal, quote slide with attribution, two-column layout, and a closing section divider.
+This example shows: frontmatter, a title slide, a points slide with steps, a media slide with a caption, a diagram with static and stepped links (a visual slide), a code slide with line highlighting, a quote with its attribution, the columns design, and a closing title slide. The `---` breaks are optional between slides that start with a heading; the quote needs one, since it has no heading.
 
 ---
 
@@ -1979,7 +2010,6 @@ KEY          = /[A-Za-z][A-Za-z0-9_-]*/
 A visual's verbs (`petal`, `lens`, `commit`) are the first word of an item's
 TEXT. Any other line is a problem that `--check` reports (category
 `visual`); it is never drawn.
-```
 
 ### 13.4 Phase 4: Recognise the design
 
@@ -2635,3 +2665,245 @@ left out.
 
 While presenting, the file is watched: saving it reloads the deck in place and
 keeps the current slide and reveal state.
+
+**Starting.** `mdeck deck.md` presents fullscreen from the first slide.
+
+| Option | Effect |
+|---|---|
+| `--windowed` | a window instead of fullscreen |
+| `--slide N` | start on slide N (skips the countdown) |
+| `--overview` | start in the grid overview |
+| `--presenter` | open the presenter view at once |
+| `--theme <name>` | present in another theme without editing the deck |
+| `--engine <name>` | present on another engine (section 9.6) |
+| `--reduced-motion` | settled states only (see above) |
+
+The user config (`mdeck config show`, `mdeck config set <key> <value>`) holds
+the defaults a deck does not set: `defaults.theme`, `defaults.transition`,
+`defaults.start_mode` (`first`, `overview` or a slide number) and
+`defaults.reduced_motion`. A deck's own settings win over the config, and the
+config wins over the built-in values.
+
+---
+
+## 16. Export
+
+Export renders the same slides the window shows, with the same theme, engine,
+designs and chrome (footer, slide counter, logo), at any size.
+
+```bash
+mdeck export talk.md                          # PNGs: export/slide-01.png, ...
+mdeck export talk.md --format pdf             # export/talk.pdf, one page per slide
+mdeck export talk.md --format pdf --notes     # export/talk-notes.pdf, with notes pages
+mdeck export talk.md --width 3840 --height 2160 -o out
+mdeck export talk.md --slide 4                # one slide, keeping its number
+mdeck export talk.md --range 3-7
+```
+
+| Option | Effect |
+|---|---|
+| `-o`, `--output-dir <dir>` | where the files go (default `export`) |
+| `--format png\|pdf` | one PNG per slide (default), or one PDF with a page and an outline entry per slide |
+| `--notes` | PDF only: a notes page per slide, the slide on top and its notes below (section 3.4) |
+| `--width`, `--height` | the size in pixels (default 1920x1080) |
+| `--slide N`, `--range A-B` | only these slides; file names keep the deck's numbering |
+| `--theme <name>`, `--engine <name>` | another theme or engine, without editing the deck |
+| `--debug` | every reveal step of every slide, as its own file |
+| `--at <seconds>` | a still of the motion: run the engine this many seconds from a cold start, instead of the settled still |
+| `--moment <m>` | a moment instead of the slides: `countdown` (its 3), `3`, `2`, `1`, `burst` or `end` |
+
+Every slide is exported with all its steps revealed and its engine settled,
+so exports are reproducible. A PNG is exactly `--width` by `--height` pixels
+on any display.
+
+---
+
+## 17. Checking a deck
+
+`mdeck --check deck.md` reads the deck as presenting would and reports what
+will not show as written, without opening a window. Each warning names its
+slide, its line in the file and a category:
+
+| Category | What it reports |
+|---|---|
+| `settings` | unknown settings (with a "did you mean"), invalid values, deck settings in a slide, duplicates, comments that look like a misspelt setting, v1 syntax with its v2 form, a chosen `design` that cannot hold the slide |
+| `visual` | unknown or v1 fence tags, and lines inside a visual it cannot read (section 14.1) |
+| `content` | markdown that will not show as written: an image inside running text, a remote image, an HTML `<video>`, an unknown or invalid image option |
+| `engine` | content the deck's engine does not show, and an unknown `engine` |
+| `point-cloud` | a `picture` that resolves nowhere, or that the slide's design cannot show |
+| `assets` | generated assets that are missing or stale, and a manifest that cannot be read (section 9.7) |
+| `background` | background images that are missing or unreadable, opacities that do not parse |
+| `theme` | an unknown or invalid theme, fallbacks, contrast below WCAG AA |
+| `thermal` | `@thermal` sources and steps the source cannot honour (section 14.20) |
+| `architecture` | diagram edges that cannot be routed cleanly |
+| `math` | formulas that do not parse |
+| `fonts` | scripts no available font can draw |
+| `extensions` | packs and extensions named in `requires` that are not installed |
+
+`mdeck --check -v` also prints, per slide, its design and the rule that
+matched, its steps and the settings that apply to it. `--engine <name>`
+checks the deck on another engine. The exit status is 0 when nothing was
+found and 1 otherwise, so `--check` fits in CI.
+
+---
+
+## 18. Extending mdeck
+
+mdeck can be extended privately: nothing has to be published, and opening a
+deck never installs or fetches anything.
+
+**Packs** carry data only: themes, design sets, point clouds, styles and
+fonts. A pack is a folder (or a zip of one) with an `mdeck-pack.yaml`
+manifest and any of the folders `themes/`, `designs/`, `point-clouds/`,
+`styles/` and `fonts/`:
+
+```yaml
+# mdeck-pack.yaml
+name: acme-brand          # lowercase letters, digits and hyphens
+version: 1.2.0
+description: Acme's slide themes and pictures
+min-mdeck: "2.0"          # optional
+```
+
+```bash
+mdeck pack install ./acme-brand        # a folder, a .zip or a git URL; into the user folder
+mdeck pack install ./acme-brand --deck # into this folder's packs/, next to the deck
+mdeck pack list
+mdeck pack remove acme-brand
+```
+
+Themes, design sets and point clouds in packs are found after the deck's own
+and the user's, and before the built-ins: deck packs first, then user packs.
+What each folder provides:
+
+- `themes/`: themes, chosen by name (`theme: acme`).
+- `designs/`: design sets a theme names with `designs:` (section 9.9).
+- `point-clouds/`: `.mdpc` point clouds, used by name (`<!-- picture: name -->`).
+- `styles/`: named AI styles, one `<name>.yaml` each, usable wherever a style
+  name is (`--style`, `image-style`, `icon-style`, `defaults.image_style`,
+  `defaults.icon_style`); the user's own styles of the same name win.
+- `fonts/`: font files the pack's own themes name. A font file a pack theme
+  names is looked up in the theme's folder, then in the pack's `fonts/`.
+
+```yaml
+# styles/brand.yaml
+prompt: Flat shapes in Acme orange and navy, soft grain, no text
+kind: image                    # image (default) or icon
+references: [refs/look.png]    # optional, relative to styles/
+```
+
+**Code extensions** (engines, visual kinds, design sets, transitions) are Rust
+crates built on the `mdeck-sdk` crate:
+
+```bash
+mdeck sdk new engine glow                # a crate that builds and tests as it is
+mdeck build --with ./glow                # an mdeck with it inside: ./target/release/mdeck
+mdeck build --with ./glow --with acme-visuals@1.2 --out ~/bin
+```
+
+`mdeck sdk new` makes an `engine`, `visual`, `design-set` or `transition`.
+`mdeck build` needs a Rust toolchain: it generates a cargo project that
+registers the built-ins and each extension, builds it in release mode and
+copies the binary to `--out`. `mdeck extensions list` shows the installed
+packs and the engines, visuals, transitions and themes this mdeck provides,
+with their origin. The SDK guide is the repository's `docs/sdk/` folder.
+
+**Visual programs** let a team draw a visual kind in any language: the user
+config maps a fence tag to a command, which reads the block's content, the
+theme colours and the size as JSON on stdin and writes a PNG to stdout. The
+PNG is cached in `<deck>.assets/visuals/`, so presenting never waits on it.
+
+```yaml
+# config.yaml in the user folder
+visuals:
+  plantuml: ~/bin/plantuml-png
+```
+
+**`requires`.** A deck names the packs and extensions it expects in its
+frontmatter (`requires: [acme-brand, glow]`); `mdeck --check` reports each
+one that is not installed (category `extensions`).
+
+---
+
+## 19. Upgrading from v1
+
+mdeck 2 breaks with the v1 syntax on purpose and does not read it. There is
+no converter: this section maps every v1 construct to its v2 form, precisely
+enough to hand to an AI agent with "convert this deck to mdeck 2". `mdeck
+--check` recognises v1 constructs and names the v2 form, for example
+`slide 4 (line 37): [settings] "@layout: quote" is v1 syntax; write <!-- design: quote -->`.
+
+**Deck settings** (frontmatter): drop the `@`. The frontmatter is plain YAML.
+
+| v1 | v2 |
+|---|---|
+| `@theme: ember` | `theme: ember` |
+| `@engine`, `@transition`, `@slide-level`, `@footer` | `engine`, `transition`, `slide-level`, `footer` |
+| `@countdown: true` / `false` | `countdown: on` / `off` |
+| `@logo`, `@logo-position`, `@logo-opacity`, `@logo-height` | `logo`, `logo-position`, `logo-opacity`, `logo-height` |
+| `@background`, `@background-opacity` | `background`, `background-opacity` |
+| `@palette` | `palette` |
+| `@art: <world>` | `art-world: <world>` |
+| `@image-style`, `@icon-style` | `image-style`, `icon-style` |
+| `@story` | removed (stories are gone) |
+| `date`, `@aspect`, `@code-theme` | removed |
+
+**Slide settings**: a visible `@key: value` line becomes a settings comment,
+`<!-- key: value -->`, anywhere in the slide. Several settings can share one
+comment, one `key: value` per line.
+
+| v1 | v2 |
+|---|---|
+| `@layout: bullet` or `bullets` | `<!-- design: points -->` |
+| `@layout: two-column` | `<!-- design: columns -->` (or nothing: `+++` is recognised) |
+| `@layout: image` | `<!-- design: media -->` (or `split` for an image beside text) |
+| `@layout: diagram`, `architecture`, `visualization` | `<!-- design: visual -->` |
+| `@layout: title`, `section`, `quote`, `code`, `gallery`, `content` | `<!-- design: ... -->` with the same name |
+| `@illustration: rocket` | `<!-- picture: rocket -->` |
+| `@art: none` | `<!-- picture: none -->` |
+| `@art: <scene>` (on a slide) | `<!-- picture-prompt: <scene> -->` |
+| `@zoom: Hotspot` | `<!-- zoom-to: Hotspot -->` |
+| `@logo`, `@background`, `@background-opacity`, `@thermal-window` | the same key in a settings comment |
+| `@class` | removed |
+
+**Structure and blocks**
+
+| v1 | v2 |
+|---|---|
+| `???` and the notes after it | a ```` ```@notes ```` fenced block, anywhere in the slide |
+| three blank lines as a slide break | `---` with blank lines around it, or a heading |
+| `*` items revealed with the `+` item before them | nest them under that `+` item; `*` is an ordinary bullet |
+| ```` ```@barchart ````, ```` ```@linechart ````, ```` ```@piechart ````, ```` ```@donutchart ```` | ```` ```@bar ````, ```` ```@line ````, ```` ```@pie ````, ```` ```@donut ```` |
+| `# key: value` settings inside a visual | `key: value` (a `#` line is now a comment) |
+| visual item lines without a list marker | start each item with `-` or `+` |
+| `@orgchart` with `(parent: X)` | `- X -> Name` |
+| `@kpi` with `(trend: up, change: +12%)` | `(trend: +12%)` |
+| `@venn` with `Set: items` | `- Name (size: N)` and `- A & B: label` |
+| `@flower` `centre` | `center` |
+| `![prompt](image-generation)` | `![prompt](generate:)` |
+| `(icon: generate-image, prompt: "...")` | `(icon: generate:, prompt: "...")` |
+| `@width:80%`, `@height:100px` in image alt text | `@width: 80%`, `@height: 100px` (the space is optional) |
+| `@fit`, `@left`, `@right`, `@center` in image alt text | leave them out: the design places images |
+| ```` ```@story ````, ```` ```@scene ```` | removed |
+
+**Themes and files**
+
+| v1 | v2 |
+|---|---|
+| `engine: blueprint` | `engine: { name: line, surface: sheet }` |
+| `engine: chalkboard` | `engine: { name: line, surface: slate }` |
+| `engine: laser`, theme `etch` | removed |
+| top-level `particles:`, `heat:`, `art:`, `surface:` in a theme | the same keys inside the theme's `engine:` block |
+| `countdown: none`, `plain` or `burst` in a theme | `countdown: on` or `off` (the engine decides the look) |
+| `<deck>.art.yaml` and `art/` | `<deck>.assets/manifest.yaml` and `<deck>.assets/artworks/` |
+| `mdeck ai art`, `mdeck ai create`, `mdeck ai generate` | `mdeck ai pictures`, `mdeck ai deck`, `mdeck ai images` and `mdeck ai icons` |
+| `mdeck illustration generate` | `mdeck ai point-cloud` |
+| `mdeck illustration import`, `list`, `show`, `contribute` | `mdeck point-cloud import`, `list`, `show`, `contribute` |
+| `--check` category `illustration` | `point-cloud` |
+| `mdeck theme new --from <dir>` | `mdeck ai theme <name> --from <dir>` |
+| `MDECK_EXPORT_AT`, `MDECK_EXPORT_MOMENT` | `mdeck export --at`, `--moment` |
+
+What looks different without any change: the default theme is `dark` (plain,
+standard designs, fades, no countdown); the default transition is `fade`; a
+heading with a sentence is a large `statement` slide; no slide drops content;
+and editorial themes such as `ember` arrange every slide editorially.

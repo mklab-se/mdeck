@@ -1,20 +1,24 @@
 ---
-title: "My First Talk"
+title: My First Talk
 theme: ember
 ---
 
 # My First Talk
 
-Made with MDeck
+Made with mdeck
 
-# What I will cover
+## Why plain markdown
+
+Your notes are already a talk. mdeck only has to show them well.
+
+## What I will cover
 
 - Why plain markdown
-+ How MDeck makes it look good
++ How mdeck makes it look good
 + Where to go next
 + Questions and coffee
 
-# Where our users are
+## Where our users are
 
 ```@bar
 - Europe: 42
@@ -22,7 +26,7 @@ Made with MDeck
 - Asia: 23
 ```
 
-# How it fits together
+## How it fits together
 
 ```@architecture
 - Browser  (icon: browser)
@@ -33,7 +37,7 @@ Made with MDeck
 - API -> Database: queries
 ```
 
-# Ready for launch
+## Ready for launch
 <!-- picture: rocket -->
 
 - Ship small, ship often
@@ -41,5 +45,5 @@ Made with MDeck
 - Celebrate the wins
 
 ```@notes
-Thank everyone for coming. Mention that the whole deck is one markdown file.
+Thank everyone for coming. Mention that the **whole deck** is one markdown file.
 ```

@@ -1,8 +1,8 @@
 //! AI agent skill information for mdeck.
 //!
-//! `mdeck ai skill`             — print setup guide
-//! `mdeck ai skill --emit`      — print skill markdown file to stdout
-//! `mdeck ai skill --reference` — print full reference documentation
+//! `mdeck ai skill`: print the setup guide.
+//! `mdeck ai skill --emit`: print the skill markdown file to stdout.
+//! `mdeck ai skill --reference`: print the full reference documentation.
 
 const SUPPLEMENT: &str = include_str!("../../doc/ai-reference-supplement.md");
 
@@ -22,7 +22,7 @@ fn print_setup_guide() {
 ====================
 
 mdeck is a markdown-based presentation tool. A skill helps AI agents
-create stunning presentations from standard markdown files.
+write, check and convert decks in the mdeck 2 format.
 
 To create the skill file, run:
 
@@ -43,44 +43,45 @@ fn print_skill_file() {
     print!(
         r#"---
 name: mdeck
-description: Markdown-based presentation tool — create slide decks with 15+ visualization types, AI-generated images, themes, transitions, and automatic layout inference.
+description: Write, check and present slide decks in plain markdown with mdeck 2. Recognised slide designs, 20 chart and diagram kinds, steps, speaker notes, themes and engines, PNG and PDF export, and optional AI-generated images and pictures.
 ---
 
-# mdeck — Markdown Presentations
+# mdeck: presentations from markdown
 
-Use mdeck when the user needs to create, edit, or present slide decks
-written in markdown.
+Use mdeck when the user wants to create, edit, convert, check or present a slide deck written
+in markdown.
 
-## Getting current documentation
+## Load the current reference first
 
-IMPORTANT: Before writing ANY presentation content, you MUST run this
-command to load the complete format specification and reference:
+Before writing any deck content, run:
 
 ```bash
 mdeck ai skill --reference
 ```
 
-Do NOT skip this step. The spec contains essential details about slide
-separation, layout inference, directives, diagram syntax, visualization
-types, and incremental reveal that you need to write correct presentations.
+It prints the complete format reference for the installed mdeck (slides, designs, settings,
+steps, notes, every visual's syntax, themes, engines, export, checking and the v1 to v2 map)
+and a guide for agents. Do not write a deck from memory: the syntax is precise.
 
-## Quick command reference
+## Commands
 
-- `mdeck <file.md>` — launch presentation
-- `mdeck <file.md> --check` — validate without launching
-- `mdeck ai <file.md>`: generate every AI asset the deck is missing (`![prompt](generate:)` images, `icon: generate:` icons, artworks, point clouds)
-- `mdeck export <file.md>` — export slides as PNG images
-- `mdeck spec` — print format specification
-- `mdeck spec --short` — print quick reference card
-- `mdeck ai status` — show AI configuration status
-- `mdeck ai config` — configure AI providers
+- `mdeck <file.md>`: present (fullscreen; `--windowed`, `--presenter`, `--theme`, `--engine`)
+- `mdeck <file.md> --check`: validate without opening a window; `-v` prints each slide's design
+- `mdeck export <file.md>`: PNGs in `./export` (`--format pdf`, `--notes`, `--slide N`)
+- `mdeck ai <file.md>`: generate every asset the deck is missing (`![prompt](generate:)` images,
+  `icon: generate:` icons, pictures on art engines, point clouds)
+- `mdeck spec --short`: the quick reference card
+- `mdeck ai status`, `mdeck ai config`: AI configuration
 
 ## Workflow
 
-1. Run `mdeck ai skill --reference` to load the full spec
-2. Write or edit the presentation markdown
-3. Run `mdeck <file.md> --check` to validate
-4. If using AI images (`![prompt](generate:)`), run `mdeck ai <file.md>`
+1. Run `mdeck ai skill --reference` and read it.
+2. Write or edit the deck. Plain YAML frontmatter (`theme: ember`), slide settings in HTML
+   comments (`<!-- design: quote -->`), notes in ```` ```@notes ```` blocks.
+3. Run `mdeck <file.md> --check` and fix every warning.
+4. Export a slide (`mdeck export <file.md> --slide N -o /tmp/look`) and look at it when the
+   layout matters.
+5. If the deck has `generate:` placeholders or uses an art engine, run `mdeck ai <file.md>`.
 "#
     );
 }

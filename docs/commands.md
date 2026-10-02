@@ -2,102 +2,125 @@
 
 # Command reference
 
+Every command prints its own help with `--help`.
+
+## Presenting and checking
+
 ```bash
-mdeck <file.md>                    # present (add --windowed, --slide N, --overview, --theme, --engine, --presenter, --reduced-motion, --check)
-mdeck export <file.md>             # PNG or PDF export (--width, --height, --output-dir, --debug, --slide, --range, --format, --notes, --theme, --engine, --at, --moment)
-mdeck theme list                   # Every theme visible from here (deck, user, built-in)
-mdeck theme new <n>                # Starter theme in ./themes (--user, --force)
-mdeck theme check <n>              # Errors, fallbacks and weak contrast in a theme
-mdeck theme preview <n> -o <dir>   # Sampler deck in a theme, as PNGs
-mdeck point-cloud import <image> --name <n>   # Convert an image of light strokes on dark into a point cloud
-mdeck point-cloud list             # Every point cloud visible from here (deck, user, pack, built-in)
-mdeck point-cloud show <n>         # Preview a point cloud
-mdeck point-cloud contribute <n>   # Offer one to the built-in set (prefilled GitHub issue, --no-open)
-mdeck spec                         # full format specification
-mdeck spec --short                 # quick reference card
-mdeck config show                  # show configuration
-mdeck config set <key> <value>     # defaults.theme, defaults.transition, defaults.start_mode, defaults.reduced_motion, ...
-mdeck completion <shell>           # bash, zsh, fish, powershell
-mdeck version                      # version banner
+mdeck talk.md                      # present fullscreen
+  --windowed                       #   in a window
+  --slide N                        #   start on slide N
+  --overview                       #   start in the grid overview
+  --presenter                      #   open the presenter view
+  --theme <name>                   #   in another theme
+  --engine <name>                  #   on another engine
+  --reduced-motion                 #   settled states, no motion
+mdeck talk.md --check              # validate without opening a window (exit status 1 on problems)
+mdeck talk.md --check -v           #   with each slide's design, steps and settings
+```
 
-mdeck ai                           # AI status (also `mdeck ai status`)
-mdeck ai <file.md>                 # every asset the deck is missing: pictures, images, icons, point clouds
-mdeck ai images <file.md>          # images for ![prompt](generate:) (--style); or --prompt "..." [--output]
-mdeck ai icons <file.md>           # diagram icons for icon: generate: (--style); or --prompt "..." [--output]
-mdeck ai pictures <file.md>        # a picture per slide for an art engine (--engine, --node)
-mdeck ai point-cloud <file.md>     # the deck's missing `picture` point clouds (--description)
-mdeck ai point-cloud --name <n> --description "..."   # one library cloud in ./illustrations (--user, --force)
-mdeck ai theme <n> --from <dir>    # a theme from a design system (--user, --force)
-mdeck ai deck ...                  # a deck from a file, prompt, or stdin
-mdeck ai skill [--emit | --reference]
-mdeck ai enable | disable | test   # provider setup and check
-mdeck ai config                    # interactive provider and model wizard
-mdeck ai style list | add | remove | clear | set-default | set-icon-default | show-defaults   # add --reference <image>
+See [Presenting](presenting.md) and [Writing slides](writing-slides.md#check-your-deck).
 
+## Export
+
+```bash
+mdeck export talk.md               # a PNG per slide in ./export
+  -o, --output-dir <dir>           #   where the files go
+  --format png|pdf                 #   one PNG per slide, or one PDF
+  --notes                          #   PDF: notes pages, slide on top and notes below
+  --width <px> --height <px>       #   size (default 1920x1080)
+  --slide N | --range 3-7          #   only some slides
+  --debug                          #   every reveal step
+  --theme <name> --engine <name>   #   another theme or engine
+  --at <seconds>                   #   a still of the engine's motion
+  --moment countdown|3|2|1|burst|end   # the countdown or the end act instead of the slides
+```
+
+See [Export](export.md).
+
+## Themes and pictures
+
+```bash
+mdeck theme list                   # every theme visible from here: themes, then variants
+mdeck theme new <name>             # a starter theme in ./themes, every key commented (--user, --force)
+mdeck theme check <name|file>      # errors, fallbacks, contrast, keys that do nothing
+mdeck theme preview <name|file> -o <dir>   # one slide per design, as PNGs (--width, --height)
+
+mdeck point-cloud list            # every point cloud visible from here
+mdeck point-cloud show <name>     # a preview image
+mdeck point-cloud import <image> --name <name>   # from an image of light strokes on dark (--user, --force)
+mdeck point-cloud contribute <name>   # offer one to the built-in set: a prefilled GitHub issue (--no-open)
+```
+
+See [Themes](themes.md) and [Engines](engines.md#pictures).
+
+## AI
+
+```bash
+mdeck ai                           # status (also `mdeck ai status`)
+mdeck ai enable | disable | test | config   # set up and check a provider
+mdeck ai <talk.md>                 # every asset the deck is missing: pictures, images, icons, point clouds
+mdeck ai images <talk.md>          # images for ![prompt](generate:) placeholders (--style)
+mdeck ai images --prompt "..." --output img.png   # one image, no deck
+mdeck ai icons <talk.md>           # diagram icons for (icon: generate:) (--style; or --prompt, --output)
+mdeck ai pictures <talk.md>        # a picture per slide on an art engine (--engine, --node)
+mdeck ai point-cloud <talk.md>     # point clouds for picture names that exist nowhere (--description)
+mdeck ai point-cloud --name <n> --description "..."   # one for your library (--user, --force)
+mdeck ai theme <name> --from <dir> # a theme from a design system (--user, --force)
+mdeck ai deck --input <file|text>  # a whole deck (--output, --prompt, -i, --style; or stdin)
+mdeck ai skill                     # setup guide for AI agents (--emit: the skill file, --reference: the format reference)
+mdeck ai style list | add | set | remove | clear | set-default | set-icon-default | show-defaults
+```
+
+The deck forms (bare, `images`, `icons`, `pictures`, `point-cloud`) share `--slide N`,
+`--stale`, `--force` and `--dry-run`. Generated assets go in `<deck>.assets/`, recorded in
+`<deck>.assets/manifest.yaml`. See [AI features](ai.md).
+
+## Extending
+
+```bash
 mdeck sdk new <kind> <name>        # an extension crate: engine, visual, design-set or transition (--dir)
-mdeck build --with <path|crate[@version]>...   # an mdeck with extensions built in (--out, --name, --mdeck-path)
-mdeck pack install <path|zip|git-url>          # install a pack for the user (--deck: into ./packs)
-mdeck pack list                    # packs installed for the user and in ./packs
+mdeck build --with <path|crate[@version]>   # an mdeck with extensions built in (repeat --with; --out, --name, --mdeck-path)
+mdeck pack install <folder|zip|git-url>     # install a pack for you (--deck: into ./packs)
+mdeck pack list                    # packs installed for you and in ./packs
 mdeck pack remove <name>           # remove a pack (--deck)
 mdeck extensions list              # packs, engines, visuals, transitions, themes and external visual programs, with origins
 ```
 
-The deck forms of `mdeck ai` (bare, `images`, `icons`, `pictures`, `point-cloud`) take
-`--slide N`, `--stale`, `--force` and `--dry-run`. Generated assets go in `<deck>.assets/`,
-recorded in `<deck>.assets/manifest.yaml` (see [AI](ai.md#generated-assets)).
-
-Global flags: `-q/--quiet`, `-v/--verbose`, `--no-color`.
-
-## Extending mdeck
-
 **Code extensions** are Rust crates written against `mdeck-sdk` ([SDK](sdk/README.md)).
-`mdeck sdk new engine glow` creates one in `./glow` that builds and tests as it is; it refuses to
-write into a folder that is not empty. `mdeck build --with ./glow` generates a cargo project in
+`mdeck sdk new engine glow` creates one in `./glow` that builds and tests as it is (it never
+writes into a folder that is not empty). `mdeck build --with ./glow` generates a cargo project in
 the cache folder (`~/Library/Caches/mdeck/build/` on macOS, `~/.cache/mdeck/build/` on Linux)
 that registers mdeck's built-ins and then each extension, compiles it in release mode, copies the
 binary to `./target/release/mdeck` (or `--out`, a file or a folder; `--name` names the binary)
 and prints its path. Extensions are crate folders or crates.io names (`acme-engines@1.2`). mdeck
 itself comes from the checkout the running mdeck was built from (or `--mdeck-path`, or the
-`MDECK_SOURCE` environment variable), else from crates.io at the running version. It needs a
-Rust toolchain ([rustup.rs](https://rustup.rs)); the people you give the binary to do not.
+`MDECK_SOURCE` environment variable), else from crates.io at the running version. Building needs
+a Rust toolchain ([rustup.rs](https://rustup.rs)); the people you give the binary to do not.
 
-**Packs** are data extensions: a folder (or a `.zip` of one, or a repository URL) with an
-`mdeck-pack.yaml` and any of `themes/`, `designs/`, `point-clouds/`, `styles/` and `fonts/`:
+**Packs** are data extensions: themes, design sets, point clouds, AI styles and fonts as plain
+files ([Themes](themes.md#packs)).
 
-```yaml
-name: acme-brand          # lowercase letters, digits, hyphens; the install folder's name
-version: 1.2.0
-description: Acme's themes and point clouds
-min-mdeck: "2.0"          # optional: older mdecks refuse the pack
-```
-
-What each folder provides:
-
-- `themes/`: themes, chosen by name like your own (`theme: acme`).
-- `designs/`: design sets a theme names with `designs:` (see
-  [Themes](themes.md#designs-and-arrangements)).
-- `point-clouds/`: `.mdpc` point clouds, used by name (`<!-- picture: name -->`).
-- `styles/`: named AI styles, one `<name>.yaml` each, usable wherever a style name is
-  (`--style`, `image-style`, `icon-style`, `defaults.image_style`) and listed by
-  `mdeck ai style list`. Your own styles of the same name win.
-
-  ```yaml
-  prompt: Flat shapes in Acme orange and navy, soft grain, no text
-  kind: image               # image (default) or icon
-  references: [refs/look.png]   # optional, relative to styles/
-  ```
-- `fonts/`: font files the pack's own themes name. A pack theme writes
-  `fonts: { body: AcmeSans-Regular.ttf }` and mdeck finds it in the theme's folder or,
-  failing that, in the pack's `fonts/`.
-
-`mdeck pack install` copies a pack into the `packs/<name>/` folder of your user config folder
-(`mdeck config show` prints where that is; an installed pack of the same name is replaced) or,
-with `--deck`, into `./packs/<name>/` next to the deck, so the deck carries it. Themes, design
-sets and point clouds are looked up in the deck's own folder, then the user's, then packs (the
-deck's packs first), then the built-ins.
+**Visuals in any language.** `visuals:` in the config maps a fence tag to a program that reads the
+block, the theme's colours and the size as JSON on stdin and writes a PNG; its output is cached in
+`<deck>.assets/visuals/`, so presenting never runs it. See
+[Writing a visual kind](sdk/visuals.md#visuals-in-any-language).
 
 A deck names what it expects with `requires: [acme-brand, glow]` in its frontmatter; `--check`
 (category `extensions`) warns about each pack or extension this mdeck does not have.
+
+## Everything else
+
+```bash
+mdeck spec                         # the full format reference
+mdeck spec --short                 # a one-page quick reference card
+mdeck config show                  # your configuration
+mdeck config set <key> <value>     # defaults.theme, defaults.transition, defaults.start_mode, defaults.reduced_motion, ...
+mdeck completion <shell>           # bash, zsh, fish, powershell
+mdeck version                      # version and build information
+```
+
+Global flags: `-q/--quiet`, `-v/--verbose`, `--no-color`.
 
 Shell completions:
 
