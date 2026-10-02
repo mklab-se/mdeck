@@ -52,6 +52,14 @@ fn value_to_string(value: &serde_norway::Value) -> Option<String> {
         serde_norway::Value::String(s) => Some(s.clone()),
         serde_norway::Value::Number(n) => Some(n.to_string()),
         serde_norway::Value::Bool(b) => Some(b.to_string()),
+        // A list (`requires: [a, b]`) reads as `a, b`.
+        serde_norway::Value::Sequence(items) => Some(
+            items
+                .iter()
+                .filter_map(value_to_string)
+                .collect::<Vec<_>>()
+                .join(", "),
+        ),
         _ => None,
     }
 }
