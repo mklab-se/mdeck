@@ -229,6 +229,10 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
 - `countdown: on` turns a countdown on, also on a theme without one (`--engine particles` on
   the default theme), instead of being ignored (D17).
 - A blank `transition` no longer skips the config default (D19).
+- `mdeck --check --theme <name>` checks the deck in that theme, so `--theme departures` reports
+  the diagrams and charts the split-flap board cannot show instead of finding no issues.
+- The split-flap board shows a hyphen as a bar above the hinge, so `Sign-ups` no longer reads
+  `SIGN UPS`.
 
 ## [1.19.0] - 2026-10-02
 

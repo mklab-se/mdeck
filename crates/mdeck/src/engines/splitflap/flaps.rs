@@ -110,10 +110,11 @@ impl Flaps<'_> {
         warp: Option<&dyn Fn(Pos2) -> Pos2>,
     ) {
         // a list marker is a coloured bar, like a platform indicator, not the
-        // font's small bullet
-        let (rel, uv) = if c.ch == '•' {
-            let size = Vec2::new(cell.width() * 0.26, cell.height() * 0.56);
-            (Rect::from_center_size(Pos2::ZERO, size), WHITE)
+        // font's small bullet; a hyphen is a bar on the upper flap, since
+        // the font's thin one sits in the hinge and all but vanishes
+        // ("SIGN UPS")
+        let (rel, uv) = if let Some(bar) = bar_rect(c.ch, cell.size()) {
+            (bar, WHITE)
         } else {
             match self.glyphs.get(self.painter, c.ch) {
                 Some(q) => q,
@@ -157,6 +158,22 @@ impl Flaps<'_> {
                 break;
             }
         }
+    }
+}
+
+/// The bar a flap draws for `ch` instead of the font's glyph, relative to
+/// the cell's centre: the list marker, and the hyphen just above the hinge.
+fn bar_rect(ch: char, cell: Vec2) -> Option<Rect> {
+    match ch {
+        '•' => Some(Rect::from_center_size(
+            Pos2::ZERO,
+            Vec2::new(cell.x * 0.26, cell.y * 0.56),
+        )),
+        '-' => Some(Rect::from_center_size(
+            Pos2::new(0.0, -cell.y * 0.1),
+            Vec2::new(cell.x * 0.42, cell.y * 0.09),
+        )),
+        _ => None,
     }
 }
 
@@ -243,5 +260,24 @@ fn rounded_half(mesh: &mut Mesh, rect: Rect, r: f32, top: bool, color: Color) {
     let n = outline.len() as u32;
     for k in 0..n {
         mesh.triangle(base, base + 1 + k, base + 1 + (k + 1) % n);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_hyphen_is_a_bar_that_shows_past_the_hinge() {
+        // the hinge is 3.5% of the cell's height (draw.rs); the font's
+        // hyphen was hidden behind it, so "SIGN-UPS" read "SIGN UPS"
+        let cell = Vec2::new(40.0, 60.0);
+        let bar = bar_rect('-', cell).expect("the hyphen is drawn as a bar");
+        let hinge = cell.y * 0.035;
+        assert!(bar.bottom() < -hinge, "clear of the hinge: {bar:?}");
+        assert!(bar.height() > hinge * 1.5, "{bar:?}");
+        assert!(bar.width() > bar.height() * 2.0, "a hyphen is wide, not a dot");
+        assert!(bar_rect('A', cell).is_none());
+        assert!(super::super::wheel::wheel_index('-').is_some());
     }
 }

@@ -354,7 +354,13 @@ impl Cli {
             anyhow::bail!("File not found: {}", file.display());
         }
         if self.check {
-            return crate::commands::check::run(file, self.verbose, self.quiet, self.engine);
+            return crate::commands::check::run(
+                file,
+                self.verbose,
+                self.quiet,
+                self.engine,
+                self.theme,
+            );
         }
         crate::app::run(crate::app::RunOptions {
             file,
