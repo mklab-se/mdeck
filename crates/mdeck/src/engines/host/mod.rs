@@ -33,7 +33,7 @@ use super::EngineId;
 use crate::parser::Slide;
 use crate::render::art::prepare::Prepared;
 use crate::render::hints;
-use crate::render::illustration::Library;
+use crate::render::point_cloud::Library;
 use crate::theme::Theme;
 
 /// Seconds a rehearsed burst spends forming the countdown's 1 first, so the
@@ -285,7 +285,7 @@ impl Host {
         let moment = self.moment(ui, shot, tick.end_elapsed);
         let title = shot
             .slide
-            .is_some_and(|s| crate::render::ember::is_title(s, shot.index));
+            .is_some_and(|s| crate::render::editorial::is_title(s, shot.index));
         let picture = self.picture(shot, lib, title);
         let slide = shot.slide.map(|s| self.sdk_slide(shot.index, s));
         let stage = Stage {

@@ -6,7 +6,7 @@ use std::path::Path;
 use anyhow::{Context, Result, bail};
 use colored::Colorize;
 
-use crate::render::illustration::{self, Cloud, Source};
+use crate::render::point_cloud::{self, Cloud, Source};
 
 /// Where contributions go.
 const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
@@ -18,7 +18,7 @@ const MAX_URL_LEN: usize = 8000;
 /// title and body filled in. The person drags the file onto the issue and
 /// submits; nothing needs to be installed.
 pub(super) fn contribute(name: &str, no_open: bool, quiet: bool) -> Result<()> {
-    let Some((src, cloud)) = illustration::resolve(name, Some(Path::new(".")))? else {
+    let Some((src, cloud)) = point_cloud::resolve(name, Some(Path::new(".")))? else {
         bail!("no point cloud named `{name}` (run `mdeck point-cloud list`)");
     };
     let path = match &src {
@@ -205,7 +205,7 @@ mod tests {
 
     fn ring_cloud(aspect: f32) -> Cloud {
         Cloud {
-            version: illustration::VERSION,
+            version: point_cloud::VERSION,
             name: "ring".into(),
             description: "A ring".into(),
             prompt: Some("A ring. Sparse particles.".into()),

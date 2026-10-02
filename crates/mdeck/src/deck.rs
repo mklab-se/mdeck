@@ -14,7 +14,7 @@ use crate::engines::{self, CountPhase, EngineId, Host};
 use crate::parser::{self, Presentation};
 use crate::render::art::gallery::DeckArt;
 use crate::render::background::{Backgrounds, FadeIn};
-use crate::render::illustration::Library;
+use crate::render::point_cloud::Library;
 use crate::render::image_cache::ImageCache;
 use crate::render::image_cache::ImageState;
 use crate::render::logo::Logos;
@@ -296,8 +296,8 @@ impl Deck {
         cx: &SlideContext,
         scale: f32,
     ) {
-        if render::ember::draws_chrome(theme) {
-            render::ember::draw_chrome(painter, theme, rect, cx, scale);
+        if render::editorial::draws_chrome(theme) {
+            render::editorial::draw_chrome(painter, theme, rect, cx, scale);
             return;
         }
         if theme.engine.is_board() {

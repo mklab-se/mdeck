@@ -15,7 +15,7 @@ use crate::assets::style::Style;
 use crate::cli::Select;
 use crate::commands::ai;
 use crate::parser::Presentation;
-use crate::render::illustration::{self, EXTENSION, Library, convert};
+use crate::render::point_cloud::{self, EXTENSION, Library, convert};
 
 /// The style point clouds are made in: the particle prompt.
 pub fn style() -> Style {
@@ -43,7 +43,7 @@ fn plan(deck: &Path, pres: &Presentation, manifest: &mut Manifest, select: &Sele
     let mut first: BTreeMap<String, usize> = BTreeMap::new();
     for (i, slide) in pres.slides.iter().enumerate() {
         if let Some(name) = slide.illustration.as_deref().map(str::trim)
-            && illustration::validate_name(name).is_ok()
+            && point_cloud::validate_name(name).is_ok()
         {
             first.entry(name.to_string()).or_insert(i);
         }
@@ -159,7 +159,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let deck = dir.join("talk.md");
         // a built-in name is never planned (built-ins come with the particles engine)
-        let b = match illustration::builtin_names().first() {
+        let b = match point_cloud::builtin_names().first() {
             Some(builtin) => format!("## B\n<!-- picture: {builtin} -->\n\n- b\n\n"),
             None => String::new(),
         };

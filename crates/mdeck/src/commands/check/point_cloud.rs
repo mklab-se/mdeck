@@ -15,13 +15,13 @@ pub fn point_cloud_warnings(
 ) -> Vec<CheckWarning> {
     let mut out = Vec::new();
     let base = deck.parent().unwrap_or(std::path::Path::new("."));
-    let mut lib = render::illustration::Library::for_deck(Some(base))
+    let mut lib = render::point_cloud::Library::for_deck(Some(base))
         .with_assets(crate::assets::point_cloud_dir(deck));
     for (i, slide) in presentation.slides.iter().enumerate() {
         let Some(name) = &slide.illustration else {
             continue;
         };
-        let message = if let Err(e) = render::illustration::validate_name(name) {
+        let message = if let Err(e) = render::point_cloud::validate_name(name) {
             format!("picture: {e}")
         } else if !lib.has(name) {
             format!(
@@ -58,17 +58,17 @@ pub fn point_cloud_warnings(
 /// A deck folder that still keeps point clouds in v1's `illustrations/`,
 /// which v2 no longer reads (CON-01).
 fn v1_folder(base: &std::path::Path) -> Option<String> {
-    let dir = base.join(render::illustration::V1_FOLDER);
+    let dir = base.join(render::point_cloud::V1_FOLDER);
     let has_clouds = std::fs::read_dir(&dir).ok()?.flatten().any(|e| {
         e.path()
             .extension()
-            .is_some_and(|x| x == render::illustration::EXTENSION)
+            .is_some_and(|x| x == render::point_cloud::EXTENSION)
     });
     has_clouds.then(|| {
         format!(
             "`{}/` is a v1 folder; rename it to `{}/` (its point clouds are not read)",
-            render::illustration::V1_FOLDER,
-            render::illustration::FOLDER
+            render::point_cloud::V1_FOLDER,
+            render::point_cloud::FOLDER
         )
     })
 }
@@ -105,8 +105,8 @@ mod tests {
     fn point_cloud_warnings_cover_missing_names_and_layouts() {
         let tmp = std::env::temp_dir().join(format!("mdeck-illu-check-{}", std::process::id()));
         std::fs::create_dir_all(tmp.join("point-clouds")).unwrap();
-        let cloud = render::illustration::Cloud {
-            version: render::illustration::VERSION,
+        let cloud = render::point_cloud::Cloud {
+            version: render::point_cloud::VERSION,
             name: "kettle".into(),
             description: String::new(),
             prompt: None,
