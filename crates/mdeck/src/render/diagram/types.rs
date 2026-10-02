@@ -165,6 +165,8 @@ pub(super) struct EdgeMetrics {
     pub(super) gap_len: f32,
     pub(super) label_pad_h: f32,
     pub(super) label_pad_v: f32,
+    /// Width of a label pill's hairline.
+    pub(super) label_rim: f32,
 }
 
 impl EdgeMetrics {
@@ -180,6 +182,7 @@ impl EdgeMetrics {
             gap_len: 5.0 * scale,
             label_pad_h: 10.0 * scale,
             label_pad_v: 5.0 * scale,
+            label_rim: 1.5 * scale,
         }
     }
 }

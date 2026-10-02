@@ -17,6 +17,8 @@ use crate::theme::Theme;
 struct EdgeStyle<'a> {
     color: Color32,
     label_bg: Color32,
+    /// The pill's hairline, in the edge colour.
+    label_rim: Color32,
     label_text: Color32,
     label_font: &'a FontId,
     metrics: &'a EdgeMetrics,
@@ -33,7 +35,7 @@ pub(super) fn draw_edges(
 ) -> bool {
     let metrics = EdgeMetrics::new(cx.scale);
     let palette = cx.theme.edge_palette();
-    let label_text = Theme::with_opacity(cx.theme.foreground, cx.opacity * 0.8);
+    let label_text = Theme::with_opacity(cx.theme.foreground, cx.opacity);
     let label_font = FontId::new(cx.theme.body_size * 0.65 * cx.scale, cx.theme.body_family());
     let step_of = |i: usize| steps.get(i).copied().unwrap_or(0);
 
@@ -84,8 +86,13 @@ pub(super) fn draw_edges(
         hints::push(cx.ui.ctx(), hints::Hint::Path(points.clone()));
         let style = EdgeStyle {
             color,
-            // The edge color as label background, so labels visually match their edge
-            label_bg: Theme::with_opacity(color, cx.opacity * 0.80),
+            // a tint of the edge colour over the slide, so the label matches
+            // its edge and the text reads on any edge colour
+            label_bg: Theme::with_opacity(
+                tint(cx.theme.background, color, LABEL_TINT),
+                cx.opacity * 0.95,
+            ),
+            label_rim: Theme::with_opacity(color, cx.opacity * 0.9),
             label_text,
             label_font: &label_font,
             metrics: &metrics,
@@ -233,6 +240,19 @@ fn label_distance(total_len: f32, dir: egui::Vec2, size: egui::Vec2, gap: f32) -
     (total_len * 0.20).max(clear).min(total_len * 0.45)
 }
 
+/// How much of the edge colour a label's pill takes over the background.
+const LABEL_TINT: f32 = 0.28;
+
+/// `base` moved `t` of the way toward `toward` (opaque).
+fn tint(base: Color32, toward: Color32, t: f32) -> Color32 {
+    let mix = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * t).round() as u8;
+    Color32::from_rgb(
+        mix(base.r(), toward.r()),
+        mix(base.g(), toward.g()),
+        mix(base.b(), toward.b()),
+    )
+}
+
 /// A pill-shaped label near the start of the edge, clear of its node.
 fn draw_edge_label(
     painter: &egui::Painter,
@@ -254,6 +274,12 @@ fn draw_edge_label(
     let mid = polyline_point_at_distance(smooth_points, along);
     let label_rect = egui::Rect::from_center_size(mid, egui::vec2(label_w, label_h));
     painter.rect_filled(label_rect, label_h / 2.0, style.label_bg);
+    painter.rect_stroke(
+        label_rect,
+        label_h / 2.0,
+        egui::Stroke::new(m.label_rim, style.label_rim),
+        egui::StrokeKind::Inside,
+    );
     painter.galley(
         egui::pos2(
             label_rect.left() + m.label_pad_h,
@@ -269,6 +295,20 @@ mod tests {
     use super::label_distance;
     use crate::theme::Theme;
     use eframe::egui::vec2;
+
+    /// Edge labels were the edge colour at 80% under 80% text: unreadable
+    /// on the blue and amber edges. The pill is now mostly background.
+    #[test]
+    fn a_label_pill_is_a_tint_of_its_edge_over_the_background() {
+        use eframe::egui::Color32;
+        let bg = Color32::from_rgb(30, 30, 30);
+        let edge = Color32::from_rgb(80, 150, 230);
+        let pill = super::tint(bg, edge, super::LABEL_TINT);
+        assert!(pill.r() < 60 && pill.b() < 100, "{pill:?}");
+        assert!(pill.b() > bg.b(), "{pill:?}");
+        assert_eq!(super::tint(bg, edge, 0.0), bg);
+        assert_eq!(super::tint(bg, edge, 1.0), edge);
+    }
 
     #[test]
     fn labels_clear_the_node_they_leave() {

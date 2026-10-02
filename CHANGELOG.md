@@ -256,6 +256,9 @@ an AI harness can convert a deck.
 
 ### Fixed
 
+- Architecture diagram edge labels read on every edge colour: the pill is a tint of the edge colour
+  with a hairline in it, and the text is the theme's foreground. Long node labels ("API Gateway")
+  shrink to sit clear of the node's border instead of running edge to edge.
 - **Code reads as written.** Monospace ligatures no longer turn `---` into a line or `<!--`
   into dash glyphs, in inline code and in code blocks.
 - **Inline code sits on the baseline.** Code chips in editorial lists no longer drop below the

@@ -11,6 +11,11 @@ A showcase of every visualization type in MDeck
 ## Architecture Diagram
 
 ```@architecture
+- Client (icon: browser)
+- API Gateway (icon: api)
+- Auth Service (icon: lock)
+- Cache (icon: cache)
+- Database (icon: database)
 - Client -> API Gateway
 - API Gateway -> Auth Service
 - API Gateway -> Cache

@@ -53,6 +53,23 @@ fn icon_image_path(icon: &str) -> Option<String> {
     Some(format!("media/diagram-icons/{icon}.png"))
 }
 
+/// Space between a node's label and its border, px at 1920x1080.
+const LABEL_INSET: f32 = 14.0;
+
+/// How far a long node label shrinks before it wraps.
+const LABEL_FIT_FLOOR: f32 = 0.75;
+
+/// The size a node label laid out `wide` at `size` is drawn at to fit
+/// `inner`: unchanged when it fits, else shrunk, not below
+/// [`LABEL_FIT_FLOOR`].
+fn label_size(size: f32, wide: f32, inner: f32) -> f32 {
+    if wide > inner {
+        size * (inner / wide).max(LABEL_FIT_FLOOR)
+    } else {
+        size
+    }
+}
+
 /// A card with a drop shadow: icon in the upper half, label below.
 fn draw_node(cx: &DiagramCx, style: &NodeStyle, node: &DiagramNode, b: &NodeBox) {
     let painter = cx.painter;
@@ -89,13 +106,17 @@ fn draw_node(cx: &DiagramCx, style: &NodeStyle, node: &DiagramNode, b: &NodeBox)
         );
     }
 
-    // Label text below icon
-    let galley = painter.layout(
-        node.label.clone(),
-        FontId::new(cx.theme.body_size * 0.8 * scale, cx.theme.body_family()),
-        style.label,
-        b.width - 8.0 * scale,
-    );
+    // Label text below icon: shrunk to sit on one line clear of the border
+    // (down to LABEL_FIT_FLOOR), wrapped only below that
+    let inner = (b.width - 2.0 * LABEL_INSET * scale).max(1.0);
+    let size = cx.theme.body_size * 0.8 * scale;
+    let font = |size: f32| FontId::new(size, cx.theme.body_family());
+    let wide = painter
+        .layout_no_wrap(node.label.clone(), font(size), style.label)
+        .rect
+        .width();
+    let fitted = label_size(size, wide, inner);
+    let galley = painter.layout(node.label.clone(), font(fitted), style.label, inner);
     let text_y = b.center.y + b.height * 0.25;
     let text_pos = egui::pos2(b.center.x - galley.rect.width() / 2.0, text_y);
     painter.galley(text_pos, galley, style.label);
@@ -133,7 +154,16 @@ fn draw_icon_image(cx: &DiagramCx, icon: &str, center: Pos2, icon_size: f32) -> 
 
 #[cfg(test)]
 mod tests {
-    use super::icon_image_path;
+    use super::{LABEL_FIT_FLOOR, icon_image_path, label_size};
+
+    /// "API Gateway" ran from border to border of its node.
+    #[test]
+    fn a_long_label_shrinks_to_fit_its_node() {
+        assert_eq!(label_size(20.0, 80.0, 100.0), 20.0);
+        assert!((label_size(20.0, 110.0, 100.0) - 20.0 * 100.0 / 110.0).abs() < 1e-4);
+        // past the floor it stops shrinking (and wraps)
+        assert_eq!(label_size(20.0, 400.0, 100.0), 20.0 * LABEL_FIT_FLOOR);
+    }
 
     #[test]
     fn icons_are_names_or_resolved_paths() {
