@@ -621,7 +621,7 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 
 ````markdown
 ```@architecture
-...diagram content...
+# diagram content (section 8)
 ```
 ````
 
@@ -660,9 +660,11 @@ Further down a slide they stay text (see 7.1); `--check` reports likely typos.
 
 ## 8. Diagram Syntax
 
+Architecture diagrams use a fenced block tagged `@architecture`. Like every visual, the block follows the visual grammar of section 14.1: settings first, then list items, `#` for comments.
+
 ### 8.1 Basic form
 
-Diagrams use a fenced code block with the `@architecture` language tag. In the simplest form, just write relationships — components are inferred:
+In the simplest form, just write relationships; components are inferred:
 
 ````markdown
 ```@architecture
@@ -689,28 +691,26 @@ For explicit layout, icons, and stepped reveal:
 + User -> Server: Sends request
 + Server -> Database: Queries data
 + Database -> Server: Returns results
-* Server -> User: Sends response
 ```
 ````
 
 In this example:
 - All four components and the logging relationship are visible from the start (`-`)
-- Forward press 1: "User -> Server: Sends request" appears
-- Forward press 2: "Server -> Database: Queries data" appears
-- Forward press 3: "Database -> Server: Returns results" and "Server -> User: Sends response" appear together (the `*` groups with the preceding `+`)
+- Each forward press reveals the next `+` relationship
 
 ### 8.3 Components
 
 ```
 - Name (key: value, key: value)
+- Name: Display label (key: value)
 ```
 
-| Key     | Values                          | Default       | Description           |
-|---------|---------------------------------|---------------|-----------------------|
-| `icon`  | icon name from theme icon set   | `box`         | Visual icon           |
-| `pos`   | `x,y` (integer grid coords)     | auto-layout   | Position hint         |
-| `label` | string                          | component name| Display label         |
-| `style`  | `primary`, `secondary`, `muted` | `primary`     | Visual emphasis       |
+The text after `:` is the label drawn on the component (the name is used when there is none); relationships refer to the component by its name.
+
+| Key      | Values                          | Default       | Description           |
+|----------|---------------------------------|---------------|-----------------------|
+| `icon`   | icon name (section 8.8)         | `box`         | Visual icon           |
+| `pos`    | `x,y` (integer grid coords)     | auto-layout   | Position hint         |
 | `prompt` | quoted string                   | none          | AI icon generation prompt |
 
 Use `icon: generate-image` with a `prompt` to mark a node for AI icon generation:
@@ -729,7 +729,7 @@ If no components are explicitly declared, they are inferred from relationship li
 - Source -> Target: Label
 ```
 
-Arrow types:
+Arrow types (written with a space on each side):
 
 | Arrow   | Meaning                    |
 |---------|----------------------------|
@@ -741,9 +741,13 @@ Arrow types:
 
 The text after `:` is the label. If no `:` is present, the relationship has no label.
 
-### 8.5 Comments
+### 8.5 Settings and comments
 
-Lines starting with `#` inside a diagram block are comments / section headers. They are ignored by the parser but help organize the source.
+| Setting | Values | Default | Description |
+|---------|--------|---------|-------------|
+| `scale` | `fit`, `scroll`, or a factor such as `0.7` (0.1 to 2) | `fit` | `fit` scales the diagram to the slide; a factor draws it at that size; `scroll` keeps it at full size and scrolls when it is taller than the slide |
+
+Lines starting with `#` are comments. They are ignored but help organize the source, as `# Components` does above.
 
 ### 8.6 Layout algorithm
 
@@ -751,24 +755,12 @@ The `pos: x,y` values are relative grid coordinates:
 - `1,1` is the top-left of the diagram area
 - Higher x moves right; higher y moves down
 - The grid auto-scales to fill available space
-- If no `pos` is specified for any component, MDeck uses an automatic layout algorithm (left-to-right for linear chains, tree layout for hierarchical structures)
+- Without any `pos`, components are placed in source order: in one row up to five, then in a near-square grid
+- When some components have a `pos`, the others fill the free grid cells row by row
 
 ### 8.7 Diagram type qualifier
 
-For future extensibility, a type can be specified after `@architecture`:
-
-````markdown
-```@architecture sequence
-- Alice -> Bob: Hello
-- Bob -> Alice: Hi there
-```
-````
-
-Supported types in v0.1:
-- (default, no qualifier): architectural / component diagram
-- `sequence`: sequence diagram with timeline ordering
-
-Additional types (`flowchart`, `timeline`, etc.) are reserved for future versions.
+There is none: `@architecture` draws component diagrams only. Other diagram kinds are their own visuals (section 14).
 
 ### 8.8 Built-in icons
 
@@ -1933,27 +1925,37 @@ List         = ListItem+
 ListItem     = /^[-+*]\s+/ CONTENT        (unordered)
              | /^\d+\.\s+/ CONTENT         (ordered)
 ```
+### 13.3 Phase 3: Parse visual blocks
 
-### 13.3 Phase 3: Parse diagram blocks
+Every visual block (charts, diagrams, `@thermal`) is read with one grammar:
 
 ```
-DiagramLine  = Comment | Relationship | Component
+BlockLine    = Blank | Comment | Setting | Item
 
-Comment      = /^#\s+.*/
+Comment      = /^\s*#.*/              (a whole line)
+TrailComment = /\s#(\s.*)?$/          (cut from any line, outside "quotes")
 
-Relationship = MARKER NAME ARROW NAME (":" LABEL)? Attrs?
+Setting      = KEY ":" VALUE          (only before the first Item)
 
-Component    = MARKER NAME Attrs
+Item         = INDENT MARKER TEXT Attrs?
 
-MARKER       = /^[-+*]\s+/
+MARKER       = "-" | "+" | "*"        (followed by whitespace)
+
+Attrs        = "(" KEY ":" VALUE ("," KEY ":" VALUE)* ")"
+               (at the end of the item, after a space; a value may hold
+               commas and "quoted text"; a trailing "(...)" that is not
+               key: value pairs is part of TEXT)
+
+Relation     = NAME " " ARROW " " NAME (":" LABEL)?    (an Item's TEXT)
 
 ARROW        = "->" | "<-" | "<->" | "--" | "-->"
 
-Attrs        = /\(([^)]+)\)/
-               (comma-separated key: value pairs)
+KEY          = /[A-Za-z][A-Za-z0-9_-]*/
+```
 
-NAME         = /[A-Za-z][A-Za-z0-9 ]*/
-               (parsing stops at '(' or ARROW token)
+A visual's verbs (`petal`, `lens`, `commit`) are the first word of an item's
+TEXT. Any other line is a problem that `--check` reports (category
+`visual`); it is never drawn.
 ```
 
 ### 13.4 Phase 4: Classify layout
@@ -1976,73 +1978,79 @@ classify(elements) -> Layout:
 
 ## 14. Visualization Syntax
 
-MDeck supports data visualizations as fenced code blocks with `@` language tags. Each visualization type has its own format for data entry and optional directives.
+MDeck draws charts, diagrams and thermal images from fenced code blocks whose info string is a visual's tag (`@bar`, `@architecture`, ...). Every visual reads its block with the same grammar.
 
-### 14.1 Common Features
+### 14.1 The visual grammar
 
-All visualization types share these features:
+**Settings** are `key: value` lines before the first item. Each visual lists the settings it takes; any other key is a problem.
 
-**Reveal markers:** The same `-`, `+`, `*` markers from Section 6 control progressive reveal of data items.
+**Items** are list lines. `-` shows the item from the start and `+` reveals it on the next step (section 6). An item may end with attributes in parentheses, `(key: value, key: value)`; a value may hold commas (`pos: 1,2`) and `"quoted text"`. Parentheses that are not `key: value` pairs, as in `- Revenue (USD): 40`, are part of the item's text.
 
-**Comment directives:** Lines starting with `#` inside visualization blocks are parsed as directives (e.g., `# orientation: horizontal`). Use them to configure the visualization.
+**Verbs.** A visual whose items come in kinds names the kind with the item's first word: `- petal Payments`, `+ lens 76% 43% 16%`, `- commit main`.
 
-**Axis labels:** Chart types with axes support `# x-label:` and `# y-label:` directives. The Y-axis label is rendered rotated 90° counter-clockwise.
+**Relations** are items of the form `- A -> B: label`, with a space on each side of the arrow. Visuals that draw links take `->`; `@architecture` takes all five arrows (section 8.4).
+
+**Comments.** A line starting with `#` is a comment, and so is the rest of a line after a space and `#` (`image: a.png  # white-hot`). `#` inside a word or in `"quotes"` is text (`PR #42`).
+
+**Problems.** `mdeck --check` reports, with its line in the file (category `visual`), every line a visual cannot read: a line that is neither a setting nor an item, a setting after the first item, an unknown setting or attribute, and a value that does not parse. Such lines are never drawn as labels.
+
+**Numbers:** Values may carry a currency prefix (`$4200`, `€40`), a `%` suffix, thousands separators (`1,000` or `1_000`), or a trailing unit (`40 users`, `4.2M`). The decoration is ignored; only the number is used. In comma-separated series (`- Revenue: 1,000, 2,000`), a comma followed by exactly three digits is a thousands separator only when items are separated by `", "`.
+
+**Axis labels:** Chart types with axes take `x-label:` and `y-label:` settings. The Y-axis label is rendered rotated 90° counter-clockwise.
 
 **Automatic scaling:** All visualizations scale proportionally to the available slide area. Axes end on a "nice" round number above the largest value (1, 2, 5, 10, 20, 50, 100, ...), so the tallest bar never touches the top of the chart.
 
-**Numbers:** Values may carry a currency prefix (`$4200`, `€40`), a `%` suffix, thousands separators (`1,000` or `1_000`), or a trailing unit (`40 users`, `4.2M`). The decoration is ignored; only the number is used. Values that are not finite numbers (`inf`, `nan`) are skipped. In comma-separated series (`- Revenue: 1,000, 2,000`), a comma followed by exactly three digits is a thousands separator only when items are separated by `", "`.
-
 **Labels:** Category labels, legend entries and KPI values shrink to a shared minimum size and are then truncated with an ellipsis instead of overflowing. Crowded axis labels (many line-chart points, long Gantt timelines) are thinned automatically.
 
-### 14.2 Bar Chart (`@barchart`)
+### 14.2 Bar Chart (`@bar`)
 
 Vertical or horizontal bar chart with category labels and values.
 
 ````markdown
-```@barchart
-# orientation: vertical
-# x-label: Programming Language
-# y-label: Popularity Index
+```@bar
+orientation: vertical
+x-label: Programming Language
+y-label: Popularity Index
 - JavaScript: 65
 - Python: 48
 + TypeScript: 38
-* Rust: 22
++ Rust: 22
 ```
 ````
 
-**Directives:**
+**Settings:**
 
-| Directive       | Values                      | Default    | Description                |
-|-----------------|-----------------------------|------------|----------------------------|
-| `orientation`   | `vertical`, `horizontal`    | `vertical` | Bar direction              |
-| `x-label`       | string                      | none       | Label for the X axis       |
-| `y-label`       | string                      | Label for the Y axis (rotated 90° CCW) |
+| Setting       | Values                      | Default    | Description                |
+|---------------|-----------------------------|------------|----------------------------|
+| `orientation` | `vertical`, `horizontal`    | `vertical` | Bar direction              |
+| `x-label`     | string                      | none       | Label for the X axis       |
+| `y-label`     | string                      | none       | Label for the Y axis (rotated 90° CCW) |
 
-**Data format:** `- Label: value` or `- Label: value%` (the `%` suffix is stripped).
+**Items:** `- Label: value`.
 
-### 14.3 Line Chart (`@linechart`)
+### 14.3 Line Chart (`@line`)
 
 Line chart with one or more data series plotted over shared X-axis categories.
 
 ````markdown
-```@linechart
-# x-labels: Jan, Feb, Mar, Apr, May, Jun
-# x-label: Month
-# y-label: Temperature (°C)
+```@line
+x-labels: Jan, Feb, Mar, Apr, May, Jun
+x-label: Month
+y-label: Temperature (°C)
 - London: 5, 6, 10, 14, 17, 20
 + Madrid: 10, 12, 16, 19, 23, 28
 ```
 ````
 
-**Directives:**
+**Settings:**
 
-| Directive   | Values              | Default | Description                              |
+| Setting     | Values              | Default | Description                              |
 |-------------|---------------------|---------|------------------------------------------|
 | `x-labels`  | comma-separated     | none    | Category labels along the X axis         |
 | `x-label`   | string              | none    | Label for the X axis                     |
 | `y-label`   | string              | none    | Label for the Y axis (rotated 90° CCW)   |
 
-**Data format:** `- Series Name: value1, value2, value3, ...`
+**Items:** `- Series Name: value1, value2, value3, ...`
 
 Each series is a separate line. All series share the X-axis categories. A legend is displayed at the top-right.
 
@@ -2052,24 +2060,17 @@ Each series is a separate line. All series share the X-axis categories. A legend
 
 ````markdown
 ```@scatter
-# x-label: Hours Studied
-# y-label: Test Score
+x-label: Hours Studied
+y-label: Test Score
 - Alice: 80, 90
 - Bob: 65, 75
 - Carol: 90, 95 (size: 30)
 ```
 ````
 
-**Directives:**
+**Settings:** `x-label`, `y-label` (as for `@bar`).
 
-| Directive | Values | Default | Description                            |
-|-----------|--------|---------|----------------------------------------|
-| `x-label` | string | none    | Label for the X axis                   |
-| `y-label` | string | none    | Label for the Y axis (rotated 90° CCW) |
-
-**Data format:** `- Label: x, y` or `- Label: x, y (size: N)`
-
-The optional `(size: N)` controls the radius of the data point. Without it, a default radius is used.
+**Items:** `- Label: x, y`, with an optional `(size: N)` attribute for the radius of the point.
 
 ### 14.5 Stacked Bar Chart (`@stackedbar`)
 
@@ -2077,60 +2078,62 @@ Stacked bar chart showing multiple series stacked on top of each other for each 
 
 ````markdown
 ```@stackedbar
-# categories: Q1, Q2, Q3, Q4
-# x-label: Quarter
-# y-label: Revenue ($M)
+categories: Q1, Q2, Q3, Q4
+x-label: Quarter
+y-label: Revenue ($M)
 - Product A: 40, 45, 50, 55
 - Product B: 30, 35, 40, 45
 + Product C: 15, 20, 25, 30
 ```
 ````
 
-**Directives:**
+**Settings:**
 
-| Directive    | Values          | Default | Description                            |
+| Setting      | Values          | Default | Description                            |
 |--------------|-----------------|---------|----------------------------------------|
-| `categories` | comma-separated | `1..n`  | Category labels along the X axis (defaults to numbering when omitted) |
+| `categories` | comma-separated | `1..n`  | Category labels along the X axis (numbered when omitted) |
 | `x-label`    | string          | none    | Label for the X axis                   |
 | `y-label`    | string          | none    | Label for the Y axis (rotated 90° CCW) |
 
-**Data format:** `- Series Name: value1, value2, value3, ...`
+**Items:** `- Series Name: value1, value2, value3, ...`
 
 Each series provides one value per category. Values are stacked vertically. A legend is displayed at the top.
 
-### 14.6 Pie Chart (`@piechart`)
+### 14.6 Pie Chart (`@pie`)
 
 Pie chart showing proportional segments. Values are automatically normalized to 100%.
 
 ````markdown
-```@piechart
+```@pie
 - Frontend: 35%
 - Backend: 30%
 + DevOps: 20%
-* Testing: 15%
++ Testing: 15%
 ```
 ````
 
-**Data format:** `- Label: value%` or `- Label: value`
+**Items:** `- Label: value%` or `- Label: value`. No settings.
 
-### 14.7 Donut Chart (`@donutchart`)
+### 14.7 Donut Chart (`@donut`)
 
 Like a pie chart but with a hollow center that can display a label.
 
 ````markdown
-```@donutchart
-# center: Total
+```@donut
+center: Total
 - Completed: 65%
 - In Progress: 25%
 - Not Started: 10%
 ```
 ````
 
-**Directives:**
+**Settings:**
 
-| Directive | Values | Default | Description                |
+| Setting   | Values | Default | Description                |
 |-----------|--------|---------|----------------------------|
 | `center`  | string | none    | Text displayed in the center hole |
+
+**Items:** as for `@pie`.
 
 ### 14.8 Word Cloud (`@wordcloud`)
 
@@ -2147,7 +2150,7 @@ Word cloud with words sized proportionally and laid out using spiral packing. So
 ```
 ````
 
-**Data format:** `- Word or Phrase (size: N)` or `- Word or Phrase`
+**Items:** `- Word or Phrase (size: N)` or `- Word or Phrase`. No settings.
 
 The `size` value controls relative importance (larger = bigger font). Without a size, the default is 20. Words are placed largest-first using spiral search. Approximately 35% of words are rendered vertically (rotated 90° CCW) for visual variety; the two largest words are always horizontal.
 
@@ -2155,7 +2158,7 @@ For best results with word clouds, use 30-100 words with a good spread of sizes 
 
 ### 14.9 Timeline (`@timeline`)
 
-Horizontal or vertical timeline showing events in chronological order.
+Horizontal timeline showing events in order, alternating above and below the line.
 
 ````markdown
 ```@timeline
@@ -2166,7 +2169,7 @@ Horizontal or vertical timeline showing events in chronological order.
 ```
 ````
 
-**Data format:** `- Year/Date: Event description`
+**Items:** `- Date: Event description`, or `- Event description` without a date. No settings.
 
 ### 14.10 Funnel Chart (`@funnel`)
 
@@ -2181,7 +2184,7 @@ Funnel chart showing progressive narrowing stages.
 ```
 ````
 
-**Data format:** `- Stage: value`
+**Items:** `- Stage: value`. No settings.
 
 ### 14.11 KPI Cards (`@kpi`)
 
@@ -2189,13 +2192,14 @@ Key Performance Indicator cards showing metric values with optional trend indica
 
 ````markdown
 ```@kpi
-- Revenue: $4.2M (trend: up, change: +12%)
-- Users: 1.2M (trend: up, change: +8%)
-- Churn: 2.1% (trend: down, change: -0.3%)
+- Revenue: $4.2M (trend: +12%)
+- Users: 1.2M (trend: +8%)
+- Churn: 2.1% (trend: -0.3%)
+- NPS: 61 (trend: steady)
 ```
 ````
 
-**Data format:** `- Metric: value (trend: up|down|flat, change: text)`
+**Items:** `- Metric: value`, with an optional `(trend: text)` attribute. The trend is shown under the value; its sign picks the arrow and colour: `+` is up (the theme's positive colour), `-` is down (its negative colour), and text without a sign has no arrow. No settings.
 
 ### 14.12 Progress Bars (`@progress`)
 
@@ -2209,7 +2213,7 @@ Horizontal progress bar indicators.
 ```
 ````
 
-**Data format:** `- Label: value%`
+**Items:** `- Label: value%` (clamped to 0 to 100). No settings.
 
 ### 14.13 Radar Chart (`@radar`)
 
@@ -2217,53 +2221,60 @@ Spider/radar chart comparing multiple items across shared axes.
 
 ````markdown
 ```@radar
-# axes: Speed, Power, Range, Agility, Defense
+axes: Speed, Power, Range, Agility, Defense
 - Fighter A: 9, 7, 5, 8, 6
 + Fighter B: 4, 9, 8, 6, 7
 ```
 ````
 
-**Directives:**
+**Settings:**
 
-| Directive | Values          | Default | Description                    |
-|-----------|-----------------|---------|--------------------------------|
-| `axes`    | comma-separated | none    | Names of the radar axes        |
+| Setting | Values          | Default | Description                    |
+|---------|-----------------|---------|--------------------------------|
+| `axes`  | comma-separated | none    | Names of the radar axes (required) |
 
-**Data format:** `- Series: v1, v2, v3, ...` (one value per axis)
+**Items:** `- Series: v1, v2, v3, ...` (one value per axis)
 
 ### 14.14 Venn Diagram (`@venn`)
 
-Venn diagram showing set intersections (2-3 sets).
+Venn diagram of two or three overlapping sets, with a label in each overlap.
 
 ````markdown
 ```@venn
-- Frontend: HTML, CSS, JavaScript, React
-- Backend: Python, SQL, Redis, Docker
-- DevOps: Docker, AWS, Terraform, CI/CD
+- Design (size: 30)
+- Engineering (size: 30)
+- Business (size: 25)
++ Design & Engineering: Prototypes
++ Engineering & Business: Platforms
++ Design & Engineering & Business: Products
 ```
 ````
 
-**Data format:** `- Set Name: item1, item2, item3, ...`
+**Items:**
+- `- Name` or `- Name (size: N)`: a set, drawn as a circle whose area follows its size (default 30).
+- `- A & B: label`: the label written in the overlap of sets A and B (`A & B & C` for the middle). The names must be sets of the diagram.
 
-Shared items between sets are automatically detected and displayed in the overlapping regions.
+No settings.
 
 ### 14.15 Organization Chart (`@orgchart`)
 
-Hierarchical org chart with parent-child relationships.
+Hierarchical org chart drawn as a tree with connecting lines.
 
 ````markdown
 ```@orgchart
 - CEO
-- CTO (parent: CEO)
-- VP Engineering (parent: CTO)
-- VP Product (parent: CTO)
-- CFO (parent: CEO)
+- CEO -> CTO
+- CEO -> CFO
++ CTO -> VP Engineering
++ CTO -> VP Product
 ```
 ````
 
-**Data format:** `- Name` or `- Name (parent: ParentName)`
+**Items:**
+- `- Manager -> Report`: a reporting line (the parent first). Links take no label.
+- `- Name`: a root of the tree, or a person with no reporting line. Without any `- Name` item the roots are the people who report to no one.
 
-The root node has no `parent` attribute. The chart is drawn as a tree with connecting lines.
+No settings.
 
 ### 14.16 Gantt Chart (`@gantt`)
 
@@ -2271,7 +2282,7 @@ Project timeline with tasks, durations, dependencies, and automatic time scaling
 
 ````markdown
 ```@gantt
-# title: Project Plan
+title: Project Plan
 - Research: 2024-01-15, 10d
 - Design: 5d, after Research
 - Frontend: 15d, after Design
@@ -2281,7 +2292,7 @@ Project timeline with tasks, durations, dependencies, and automatic time scaling
 ```
 ````
 
-**Task specification:** Each task line has the format `- Task Name: spec1, spec2, ...` where specs can be:
+**Items:** `- Task Name: spec1, spec2, ...` where specs can be:
 
 | Spec | Description |
 |------|-------------|
@@ -2299,9 +2310,12 @@ Project timeline with tasks, durations, dependencies, and automatic time scaling
 - Duration + dependency: `5d, after Research`
 - Duration + dependency with delay: `3wd, after Design + 2d`
 
-**Directives:**
-- `# title: text` — Chart title displayed above the bars
-- `# labels: inside` — Render task names inside the bars instead of in a left column. The left label area is removed, giving the full width to the timeline. When a bar is too short for the name, it falls back to showing the name to the right of the bar.
+**Settings:**
+
+| Setting  | Values            | Default | Description |
+|----------|-------------------|---------|-------------|
+| `title`  | string            | none    | Chart title displayed above the bars |
+| `labels` | `side`, `inside`  | `side`  | `inside` renders task names inside the bars instead of in a left column, giving the full width to the timeline. When a bar is too short for the name, the name shows to the right of the bar |
 
 **Timeline auto-scaling:** The time axis automatically selects the appropriate unit:
 - Days (for timelines up to ~3 weeks)
@@ -2314,7 +2328,7 @@ Dependencies are shown as connector arrows between tasks.
 
 Visualizes git branching, committing, and merging as a horizontal lane diagram. Useful for illustrating branching strategies like Git Flow, or showing actual repository history.
 
-```
+````markdown
 ```@gitgraph
 - lane main
 - lane develop
@@ -2327,21 +2341,22 @@ Visualizes git branching, committing, and merging as a horizontal lane diagram. 
 + commit feature/login: "Add login form"
 + merge feature/login -> develop: "PR #42"
 + tag main: "v1.0"
-* merge develop -> main
++ merge develop -> main
 ```
-```
+````
 
-**Line types:**
-- `lane <name>` — declare a branch lane (order determines vertical position, rendered as a dotted background line)
-- `commit <branch>` — add a commit dot on the named branch (optional `: "message"`)
-- `branch <source> -> <target>` — fork a new branch (S-curve connector with arrow, same syntax as merge)
-- `merge <source> -> <target>` — merge one branch into another (curved connector with arrow)
-- `merge <source> -> <target>: "label"` — merge with a label
-- `tag <branch>: "label"` — tag box displayed above the most recent commit on the branch
+**Items** (each starts with its verb):
+- `lane <name>`: declare a branch lane (order determines vertical position, rendered as a dotted background line)
+- `commit <branch>`: add a commit dot on the named branch (optional `: "message"`)
+- `branch <source> -> <target>`: fork a new branch (S-curve connector with arrow)
+- `merge <source> -> <target>`: merge one branch into another (curved connector with arrow), optionally with `: "label"`
+- `tag <branch>: "label"`: tag box displayed above the most recent commit on the branch
+
+No settings.
 
 **Rendering:** Lanes are stacked vertically as parallel horizontal tracks with dotted background lines. Commits appear as dots on the lane. Forks and merges are shown as S-curve connections with arrows between lanes. Each lane gets a distinct color from the theme palette.
 
-**Progressive reveal:** Use `+` and `*` markers to build the graph step by step — ideal for walking through a branching strategy one operation at a time.
+**Progressive reveal:** Use `+` markers to build the graph step by step, ideal for walking through a branching strategy one operation at a time.
 
 ### 14.18 Flower (`@flower`)
 
@@ -2361,14 +2376,14 @@ arrow.
 ```
 ````
 
-**Line types:**
-- `center Name: description (icon: name)`: the platform, a circle in the theme's accent colour. One per flower (with two, the last wins); `centre` also works.
-- `petal Name: description (icon: name)`: a team or domain. A line with no keyword is a petal too, so `- Payments` is enough.
-- `A -> B: label`: a link from one petal to another, drawn as a curve that keeps clear of the centre. Links to names that are not petals are left out.
+**Items:**
+- `center Name: description (icon: name)`: the platform, a circle in the theme's accent colour. One per flower (with two, the last wins).
+- `petal Name: description (icon: name)`: a team or domain. An item with no verb that is not a link is a petal too, so `- Payments` is enough.
+- `A -> B: label`: a link from one petal to another, drawn as a curve that keeps clear of the centre. Both ends must be petals.
 
 The description and the icon are optional. Petals show the `team` icon unless
 they name another (section 8.8) or `(icon: none)`; the centre shows an icon
-only when it names one.
+only when it names one. No settings.
 
 **Rendering:** The first petal is on top and the rest follow clockwise, evenly
 spaced, each in the next colour of the theme's palette. Every petal is the same
@@ -2376,7 +2391,7 @@ size; the flower sizes its petals and centre for the text, then scales as a
 whole to fit the slide, so long descriptions or many petals make it smaller.
 Keep descriptions to a short sentence.
 
-**Progressive reveal:** `+` and `*` on a petal make it grow out of the centre
+**Progressive reveal:** `+` on a petal makes it grow out of the centre
 on its step; a link appears once both its petals have.
 
 ### 14.19 Artifact Flow (`@artifactflow`)
@@ -2389,8 +2404,8 @@ with its name on it.
 
 ````markdown
 ```@artifactflow
-# producers: Producing Teams | Build and publish artifacts
-# consumers: Consuming Teams | Retrieve and use artifacts
+producers: Producing Teams | Build and publish artifacts
+consumers: Consuming Teams | Retrieve and use artifacts
 - producer Build Team: Produces binaries and container images
 - producer Platform Team: Produces reusable libraries
 - service Artifactory: Artifact repository / registry
@@ -2401,21 +2416,21 @@ with its name on it.
 + Build Team -> Artifactory: Container image v1.2.3 (icon: package)
 + Platform Team -> Artifactory: Library v4.5.0 (icon: code)
 + Artifactory -> Integration Team: Pull image (icon: package)
-* Artifactory -> Product Team: Pull package (icon: code)
++ Artifactory -> Product Team: Pull package (icon: code)
 ```
 ````
 
-**Line types:**
+**Items:**
 - `producer Name: description (icon: name)`, `service ...`, `consumer ...`: a card in that column. Producers and consumers show the `team` icon and services the `database` icon unless they name another (section 8.8) or `(icon: none)`.
-- An indented `- item` under a node adds a bullet to its card.
-- `A -> B: label (icon: name)`: an artifact moving from A to B. The label and its icon are optional.
+- An indented `- item` under a card adds a bullet to it.
+- `A -> B: label (icon: name)`: an artifact moving from A to B. The label and its icon are optional; both ends must be cards.
 
-Without any `->` line, every producer publishes to every service and every
+Without any `->` item, every producer publishes to every service and every
 service feeds every consumer (or producers feed consumers directly when there
 is no service).
 
-**Directives:**
-- `# producers: Title | subtitle`, `# services: ...`, `# consumers: ...`: a column's heading. Producers and consumers are titled "Producers" and "Consumers" by default and services have none; `none` removes a heading.
+**Settings:**
+- `producers: Title | subtitle`, `services: ...`, `consumers: ...`: a column's heading. Producers and consumers are titled "Producers" and "Consumers" by default and services have none; `none` removes a heading.
 
 **Rendering:** Edges are smooth curves that leave a card's right side and
 reach the next card's left side; edges sharing a side are spread along it in
@@ -2423,8 +2438,8 @@ the order of their other ends, so they never cross there. Labels sit above
 their arrow at its quieter end. Text shrinks together when a column is too
 tall for the slide.
 
-**Progressive reveal:** `+` and `*` work on nodes and on edges; an edge
-appears (drawing itself toward its arrowhead) once both of its ends have.
+**Progressive reveal:** `+` works on cards and on edges; an edge appears
+(drawing itself toward its arrowhead) once both of its ends have.
 
 ### 14.20 Thermal images (`@thermal`)
 
@@ -2442,13 +2457,13 @@ palette: iron
 label: Cabinet 4, breaker row B
 + lens 76% 43% 16%
 + reveal
-* spot Hotspot 76% 43%
-* spot Reference 30% 52%
++ spot Hotspot 76% 43%
++ spot Reference 30% 52%
 + above 85%
 ```
 ````
 
-**Keys** (`key: value`, also written `# key: value`):
+**Settings** (`key: value` lines before the first step):
 
 | Key | Value |
 |---|---|
@@ -2461,7 +2476,7 @@ label: Cabinet 4, breaker row B
 | `polarity:` | `black-hot` for a source where darker is hotter (inverted before palette and thresholds); `white-hot` is the default |
 | `label:` | a caption under the image |
 
-**Steps** (with `-`, `+` and `*` like every visualization; the state at a
+**Steps** (items with `-` and `+` like every visual, each starting with its verb; the state at a
 step never depends on how it was reached, so going back shows that step
 exactly):
 

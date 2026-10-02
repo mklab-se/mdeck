@@ -113,25 +113,27 @@ SPEAKER NOTES
         Everything after ??? is presenter-only notes (not rendered)
         Supports full markdown formatting in notes content
 
-VISUALIZATIONS (fenced code blocks with @ language tag)
-  @barchart      Bar chart (vertical/horizontal, # orientation:, # x-label:, # y-label:)
-  @linechart     Line chart (# x-labels:, # x-label:, # y-label:, multiple series)
-  @scatter       Scatter plot (# x-label:, # y-label:, optional size per point)
-  @stackedbar    Stacked bar (# categories:, # x-label:, # y-label:)
+VISUALIZATIONS (fenced code blocks with @ language tag; settings are key: value
+  lines before the first - or + item, items end in (key: value) attributes,
+  # starts a comment; spec section 14.1)
+  @barchart      Bar chart (- Label: value; orientation:, x-label:, y-label:)
+  @linechart     Line chart (- Series: v1, v2; x-labels:, x-label:, y-label:)
+  @scatter       Scatter plot (- Label: x, y (size: N); x-label:, y-label:)
+  @stackedbar    Stacked bar (- Series: v1, v2; categories:, x-label:, y-label:)
   @piechart      Pie chart (- Label: value%)
-  @donutchart    Donut chart (# center: text)
+  @donutchart    Donut chart (- Label: value%; center: text)
   @wordcloud     Word cloud (- Word (size: N), auto-rotation)
   @timeline      Timeline (- Year: Event)
   @funnel        Funnel chart (- Stage: value)
-  @kpi           KPI cards (- Metric: value (trend: up, change: +N%))
+  @kpi           KPI cards (- Metric: value (trend: +N%))
   @progress      Progress bars (- Label: value%)
-  @radar         Radar chart (# axes: A, B, C)
-  @venn          Venn diagram (- Set: item1, item2)
-  @orgchart      Org chart (- Name (parent: Parent))
-  @gantt         Gantt chart (- Task: date, duration, after Dep; # labels: inside)
+  @radar         Radar chart (- Series: v1, v2, v3; axes: A, B, C)
+  @venn          Venn diagram (- Set (size: N), - A & B: overlap label)
+  @orgchart      Org chart (- Manager -> Report)
+  @gantt         Gantt chart (- Task: date, duration, after Dep; title:, labels: inside)
   @gitgraph      Git branch graph (lane, commit, branch/merge with ->, tag)
-  @flower        Platform and teams (- center Name, - petal Name: what, A -> B)
-  @artifactflow  Artifact supply chain (producer/service/consumer, A -> B: artifact)
+  @flower        Platform and teams (- center Name, - petal Name: what, - A -> B)
+  @artifactflow  Artifact supply chain (- producer/service/consumer Name, - A -> B: artifact)
   @thermal       Thermal image: palette, lens, reveal, threshold, spots (spec 14.20)
 
 GANTT CHART DURATION FORMATS
@@ -140,11 +142,11 @@ GANTT CHART DURATION FORMATS
   Nw             Weeks (e.g. 2w)
   Nm             Months (e.g. 3m)
   after Task     Start when Task ends
-  after Task+Nd  Start N days after Task ends
+  after Task + Nd  Start N days after Task ends
 
 CHART AXIS LABELS
-  # x-label: text    Horizontal axis label (centered below)
-  # y-label: text    Vertical axis label (rotated 90° CCW)
+  x-label: text      Horizontal axis label (centered below)
+  y-label: text      Vertical axis label (rotated 90° CCW)
   Supported by: @barchart, @linechart, @scatter, @stackedbar
 
 THEMES (custom themes are YAML files; mdeck spec, section 9.4)

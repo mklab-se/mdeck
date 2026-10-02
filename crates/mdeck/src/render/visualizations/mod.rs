@@ -380,6 +380,80 @@ mod tests {
         assert!(heights[2..].iter().all(|&h| h > 0.0));
     }
 
+    /// Every visual fence in `doc` (also those nested in a ````markdown
+    /// example): its tag, its 1-based line and its content.
+    fn visual_examples(doc: &str) -> Vec<(String, usize, String)> {
+        let mut out = Vec::new();
+        let mut open: Option<(String, usize, String)> = None;
+        for (i, line) in doc.lines().enumerate() {
+            let t = line.trim();
+            if let Some((_, _, content)) = open.as_mut() {
+                if t == "```" {
+                    out.extend(open.take());
+                } else {
+                    content.push_str(line);
+                    content.push('\n');
+                }
+            } else if let Some(info) = t.strip_prefix("```")
+                && !info.starts_with('`')
+            {
+                let tag = info.split_whitespace().next().unwrap_or("");
+                if kind_for_tag(tag).is_some() {
+                    open = Some((tag.to_string(), i + 1, String::new()));
+                }
+            }
+        }
+        out
+    }
+
+    /// VIZ-08: the format reference documents exactly what the code accepts.
+    #[test]
+    fn every_visual_example_in_the_docs_reads_without_problems() {
+        for (name, doc) in [
+            ("mdeck-spec.md", include_str!("../../../doc/mdeck-spec.md")),
+            (
+                "visualizations.md",
+                include_str!("../../../../../docs/visualizations.md"),
+            ),
+        ] {
+            let examples = visual_examples(doc);
+            assert!(examples.len() >= 2, "{name}: found {}", examples.len());
+            for (tag, line, content) in examples {
+                let problems = check_tag(&tag, &content).unwrap();
+                assert!(
+                    problems.is_empty(),
+                    "{name} line {line} ({tag}): {problems:?}"
+                );
+            }
+        }
+        // every kind has an example in the spec
+        let spec = visual_examples(include_str!("../../../doc/mdeck-spec.md"));
+        for tag in [
+            "@bar",
+            "@line",
+            "@pie",
+            "@donut",
+            "@scatter",
+            "@stackedbar",
+            "@funnel",
+            "@radar",
+            "@progress",
+            "@kpi",
+            "@wordcloud",
+            "@timeline",
+            "@gantt",
+            "@architecture",
+            "@orgchart",
+            "@gitgraph",
+            "@flower",
+            "@artifactflow",
+            "@venn",
+            "@thermal",
+        ] {
+            assert!(spec.iter().any(|(t, _, _)| t == tag), "no {tag} example");
+        }
+    }
+
     #[test]
     fn test_sector_mesh_geometry() {
         let shape = sector_mesh(
