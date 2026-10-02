@@ -26,13 +26,48 @@ const fn key(path: &'static str, example: &'static str, note: &'static str, on: 
 /// Every key of a theme file except `name` and the engine block (written
 /// per engine from [`engine_settings`]) and `arrangements` (an example).
 pub const KEYS: &[Key] = &[
-    key("extends", "dark", "unset keys come from this theme (default: dark)", true),
-    key("variant-of", "dark", "a recolouring of this theme: listed after the themes", false),
-    key("designs", "standard", "standard | editorial: how every slide design looks", false),
-    key("countdown", "off", "on | off: open with a 3-2-1 countdown (the engine decides its look)", false),
-    key("transition", "fade", "slide | fade | spatial | none (a deck's own wins)", false),
-    key("radius", "8", "corner radius of code, tables and callouts, px at 1920x1080", false),
-    key("spacing.xs", "8", "the spacing scale arrangements name, px at 1920x1080", false),
+    key(
+        "extends",
+        "dark",
+        "unset keys come from this theme (default: dark)",
+        true,
+    ),
+    key(
+        "variant-of",
+        "dark",
+        "a recolouring of this theme: listed after the themes",
+        false,
+    ),
+    key(
+        "designs",
+        "standard",
+        "standard | editorial: how every slide design looks",
+        false,
+    ),
+    key(
+        "countdown",
+        "off",
+        "on | off: open with a 3-2-1 countdown (the engine decides its look)",
+        false,
+    ),
+    key(
+        "transition",
+        "fade",
+        "slide | fade | spatial | none (a deck's own wins)",
+        false,
+    ),
+    key(
+        "radius",
+        "8",
+        "corner radius of code, tables and callouts, px at 1920x1080",
+        false,
+    ),
+    key(
+        "spacing.xs",
+        "8",
+        "the spacing scale arrangements name, px at 1920x1080",
+        false,
+    ),
     key("spacing.sm", "16", "", false),
     key("spacing.md", "24", "", false),
     key("spacing.lg", "40", "", false),
@@ -40,24 +75,74 @@ pub const KEYS: &[Key] = &[
     key("colors.background", "\"#1e1e1e\"", "slide background", true),
     key("colors.text", "\"#c8c8c8\"", "body text", true),
     key("colors.heading", "\"#ffffff\"", "headings", true),
-    key("colors.accent", "\"#5294e2\"", "links, quote bars, highlights", true),
-    key("colors.muted", "\"#8f8f8f\"", "captions, eyebrows, slide numbers, chart axes", false),
+    key(
+        "colors.accent",
+        "\"#5294e2\"",
+        "links, quote bars, highlights",
+        true,
+    ),
+    key(
+        "colors.muted",
+        "\"#8f8f8f\"",
+        "captions, eyebrows, slide numbers, chart axes",
+        false,
+    ),
     key("colors.strong", "\"#ffffff\"", "**bold** text", false),
-    key("colors.rule", "\"#3a3a3a\"", "hairlines and chart grids", false),
-    key("colors.accent-soft", "\"#8fb8ee\"", "lighter accent: editorial emphasis, glows", false),
-    key("colors.secondary", "\"#e8a838\"", "a second, rarer highlight", false),
+    key(
+        "colors.rule",
+        "\"#3a3a3a\"",
+        "hairlines and chart grids",
+        false,
+    ),
+    key(
+        "colors.accent-soft",
+        "\"#8fb8ee\"",
+        "lighter accent: editorial emphasis, glows",
+        false,
+    ),
+    key(
+        "colors.secondary",
+        "\"#e8a838\"",
+        "a second, rarer highlight",
+        false,
+    ),
     key("colors.code-background", "\"#2d2d2d\"", "", false),
     key("colors.code-text", "\"#d4d4d4\"", "", false),
     key("colors.positive", "\"#5cdb95\"", "", false),
     key("colors.negative", "\"#ff6b6b\"", "", false),
-    key("colors.series", "[\"#5cb8ff\", \"#ff7e67\", \"#5cdb95\", \"#e8a838\"]", "chart colours, cycled", false),
-    key("annotations.pen", "\"#50c8ff\"", "the presenter's pen", false),
+    key(
+        "colors.series",
+        "[\"#5cb8ff\", \"#ff7e67\", \"#5cdb95\", \"#e8a838\"]",
+        "chart colours, cycled",
+        false,
+    ),
+    key(
+        "annotations.pen",
+        "\"#50c8ff\"",
+        "the presenter's pen",
+        false,
+    ),
     key("annotations.pen-outline", "\"#1e82b4\"", "", false),
     key("annotations.arrow", "\"#ffc832\"", "", false),
     key("annotations.arrow-outline", "\"#c88c00\"", "", false),
-    key("fonts.display", "sans", "a bundled face or a .ttf/.otf file in this folder:", false),
-    key("fonts.body", "sans", "sans, mono, spectral-light, hanken-light,", false),
-    key("fonts.lead", "sans", "hanken-regular, hanken-medium, jetbrains-mono", false),
+    key(
+        "fonts.display",
+        "sans",
+        "a bundled face or a .ttf/.otf file in this folder:",
+        false,
+    ),
+    key(
+        "fonts.body",
+        "sans",
+        "sans, mono, spectral-light, hanken-light,",
+        false,
+    ),
+    key(
+        "fonts.lead",
+        "sans",
+        "hanken-regular, hanken-medium, jetbrains-mono",
+        false,
+    ),
     key("fonts.strong", "sans", "", false),
     key("fonts.mono", "mono", "", false),
     key("sizes.h1", "96", "px at 1920x1080", false),
@@ -65,14 +150,39 @@ pub const KEYS: &[Key] = &[
     key("sizes.h3", "52", "", false),
     key("sizes.body", "44", "", false),
     key("sizes.code", "30", "", false),
-    key("text.line-height", "1.4", "a multiple of the font size", false),
+    key(
+        "text.line-height",
+        "1.4",
+        "a multiple of the font size",
+        false,
+    ),
     key("charts.fill-opacity", "0.85", "", false),
-    key("code.syntax", "base16-ocean.dark", "a bundled syntax theme or a .tmTheme file in this folder", false),
-    key("logo.file", "logo.svg", "a PNG or SVG in this folder, in a corner of every slide", false),
-    key("logo.position", "top-right", "top-left | top-right | bottom-left | bottom-right", false),
+    key(
+        "code.syntax",
+        "base16-ocean.dark",
+        "a bundled syntax theme or a .tmTheme file in this folder",
+        false,
+    ),
+    key(
+        "logo.file",
+        "logo.svg",
+        "a PNG or SVG in this folder, in a corner of every slide",
+        false,
+    ),
+    key(
+        "logo.position",
+        "top-right",
+        "top-left | top-right | bottom-left | bottom-right",
+        false,
+    ),
     key("logo.height", "56", "px at 1920x1080", false),
     key("logo.opacity", "0.6", "", false),
-    key("page.surface", "\"#2a2a2a\"", "the slide as a sheet on a surface: the colour around it", false),
+    key(
+        "page.surface",
+        "\"#2a2a2a\"",
+        "the slide as a sheet on a surface: the colour around it",
+        false,
+    ),
     key("page.margin", "56", "px at 1920x1080, 0 to 300", false),
     key("page.shadow", "0.5", "0 to 1", false),
     key("page.grain", "0.5", "0 to 1", false),
@@ -84,10 +194,16 @@ pub fn engine_setting(key: &str) -> (&'static str, &'static str) {
     match key {
         "light" => ("\"#d7d7e1\"", "the brightest tint the engine draws in"),
         "cool" => ("\"#afc3f0\"", "a cool tint besides the accents"),
-        "palette" => ("iron", "iron | white-hot | black-hot | rainbow | arctic | lava"),
+        "palette" => (
+            "iron",
+            "iron | white-hot | black-hot | rainbow | arctic | lava",
+        ),
         "drift" => ("false", "embers drift on ordinary slides"),
         "surface" => ("sheet", "sheet | slate"),
-        "kind" => ("line", "line | tonal: what kind of picture generated art is"),
+        "kind" => (
+            "line",
+            "line | tonal: what kind of picture generated art is",
+        ),
         "style" => ("\"ink on white\"", "the style prompt for generated art"),
         "references" => ("[swatch.png]", "style swatches in this folder"),
         _ => ("", ""),
@@ -141,7 +257,10 @@ pub fn starter(name: &str, all: bool) -> String {
             out.push_str(&engine_block(all));
             emit_engine = false;
         }
-        let open = all || KEYS.iter().any(|x| x.on && x.path.starts_with(&format!("{sec}.")));
+        let open = all
+            || KEYS
+                .iter()
+                .any(|x| x.on && x.path.starts_with(&format!("{sec}.")));
         if sec != section && !sec.is_empty() {
             out.push_str(&format!("{}{sec}:\n", if open { "" } else { "# " }));
         }
@@ -163,7 +282,11 @@ fn engine_block(all: bool) -> String {
     let mut out = format!(
         "{hash}engine:                           # the engine and its settings (or `engine: plain`)\n\
          {hash}  name: {}\n",
-        if all { "line" } else { "plain     # plain | particles | led | splitflap | blocks | thermal | line | sketch | watercolour | darkroom" }
+        if all {
+            "line"
+        } else {
+            "plain     # plain | particles | led | splitflap | blocks | thermal | line | sketch | watercolour | darkroom"
+        }
     );
     // every setting once, grouped by the engines that read it
     let mut keys: Vec<&str> = Vec::new();
@@ -248,14 +371,22 @@ mod tests {
         need("name", name.is_some());
         need("extends", extends.is_some());
         need("variant-of", variant_of.is_some());
-        need("engine", engine.as_ref().is_some_and(|e: &EngineBlock| e.name.is_some()));
+        need(
+            "engine",
+            engine
+                .as_ref()
+                .is_some_and(|e: &EngineBlock| e.name.is_some()),
+        );
         need("countdown", countdown.is_some());
         need("transition", transition.is_some());
         need("designs", designs.is_some());
         need("arrangements", arrangements.is_some());
         need("radius", radius.is_some());
         let s = spacing;
-        need("spacing", [s.xs, s.sm, s.md, s.lg, s.xl].iter().all(Option::is_some));
+        need(
+            "spacing",
+            [s.xs, s.sm, s.md, s.lg, s.xl].iter().all(Option::is_some),
+        );
         let c = colors;
         need(
             "colors",
@@ -295,7 +426,9 @@ mod tests {
         let z = sizes;
         need(
             "sizes",
-            [z.h1, z.h2, z.h3, z.body, z.code].iter().all(Option::is_some),
+            [z.h1, z.h2, z.h3, z.body, z.code]
+                .iter()
+                .all(Option::is_some),
         );
         need("text", text.line_height.is_some());
         need("charts", charts.fill_opacity.is_some());

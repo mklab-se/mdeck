@@ -367,7 +367,10 @@ fn absolutize(file: &mut ThemeFile, base: &Path, warnings: &mut Vec<String>) {
             }
         }
     }
-    let refs = file.engine.as_ref().and_then(|b| b.list("references").ok().flatten());
+    let refs = file
+        .engine
+        .as_ref()
+        .and_then(|b| b.list("references").ok().flatten());
     if let (Some(mut refs), Some(block)) = (refs, file.engine.as_mut()) {
         refs.retain_mut(|v| match super::confined_path(base, v) {
             Ok(p) => {
@@ -539,7 +542,11 @@ mod tests {
         assert!(tiers[first_variant..].iter().all(|v| *v), "{tiers:?}");
         for (name, _) in BUILTIN {
             if let Some(of) = builtin_file(name).unwrap().variant_of {
-                assert_eq!(builtin_file(name).unwrap().extends, Some(of.clone()), "{name}");
+                assert_eq!(
+                    builtin_file(name).unwrap().extends,
+                    Some(of.clone()),
+                    "{name}"
+                );
             }
         }
     }

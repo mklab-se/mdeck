@@ -61,7 +61,6 @@ impl Theme {
             countdown,
             surface,
             engine_block: f.engine_block().settings,
-            variant_of: f.variant_of.clone(),
             arrangements,
             spacing,
             radius,

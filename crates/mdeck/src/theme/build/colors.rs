@@ -43,9 +43,8 @@ pub(super) fn parse_opaque(key: &str, s: &str) -> Result<Color32, ThemeError> {
 }
 
 fn channels(key: &str, s: &str) -> Result<[u8; 4], ThemeError> {
-    parse_color(s).ok_or_else(|| {
-        ThemeError::invalid(key, format!("'{s}' is not a colour (use #rrggbb)"))
-    })
+    parse_color(s)
+        .ok_or_else(|| ThemeError::invalid(key, format!("'{s}' is not a colour (use #rrggbb)")))
 }
 
 /// An optional colour under `colors:`: `None` when unset, an error when
@@ -121,14 +120,15 @@ impl Palette {
 
         let a = &f.annotations;
         let pen = optional_at("annotations.pen", &a.pen)?.unwrap_or(accent);
-        let pen_outline = optional_at("annotations.pen-outline", &a.pen_outline)?.unwrap_or(darken(pen, 0.6));
+        let pen_outline =
+            optional_at("annotations.pen-outline", &a.pen_outline)?.unwrap_or(darken(pen, 0.6));
         let arrow = optional_at("annotations.arrow", &a.arrow)?.unwrap_or(secondary);
-        let arrow_outline =
-            optional_at("annotations.arrow-outline", &a.arrow_outline)?.unwrap_or(darken(arrow, 0.6));
+        let arrow_outline = optional_at("annotations.arrow-outline", &a.arrow_outline)?
+            .unwrap_or(darken(arrow, 0.6));
         let tints = f.particles()?;
         let particle_light = optional_at("engine.light", &tints.light)?.unwrap_or(heading);
-        let particle_cool = optional_at("engine.cool", &tints.cool)?
-            .unwrap_or(Color32::from_rgb(0xAF, 0xC3, 0xF0));
+        let particle_cool =
+            optional_at("engine.cool", &tints.cool)?.unwrap_or(Color32::from_rgb(0xAF, 0xC3, 0xF0));
 
         Ok(Palette {
             background,
@@ -194,10 +194,7 @@ mod tests {
     #[test]
     fn colour_errors_name_the_key() {
         let e = parse("page.surface", "paper").unwrap_err().to_string();
-        assert_eq!(
-            e,
-            "page.surface: 'paper' is not a colour (use #rrggbb)"
-        );
+        assert_eq!(e, "page.surface: 'paper' is not a colour (use #rrggbb)");
         let e = required("accent", &None).unwrap_err().to_string();
         assert_eq!(
             e,

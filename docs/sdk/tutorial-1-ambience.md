@@ -60,13 +60,13 @@ The theme is plain data:
 ```yaml
 name: Dusk
 extends: dark
-engine: ambience
+engine:
+  name: ambience
+  cool: "#8fb2ff"
 colors:
   background: "#0b1020"
   accent: "#ff7a45"
   secondary: "#f5c26b"
-particles:
-  cool: "#8fb2ff"
 ```
 
 ## The state

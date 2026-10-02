@@ -8,6 +8,8 @@ engine:
   glow: 1.2
   runners: true
   palette: accent
+  light: "#d8f4ff"
+  cool: "#9fc8ff"
 colors:
   background: "#08090c"
   text: "#c3c7d1"
@@ -16,6 +18,3 @@ colors:
   rule: "#22252d"
   accent: "#3ad1ff"
   secondary: "#ffb347"
-particles:
-  light: "#d8f4ff"
-  cool: "#9fc8ff"

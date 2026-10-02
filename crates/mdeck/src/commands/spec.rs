@@ -117,10 +117,12 @@ CHART AXIS LABELS
 THEMES (custom themes are YAML files; mdeck spec, section 9.4)
   themes/<name>.yaml     Next to the deck (or <name>/theme.yaml with fonts)
   user folder            ~/.config/mdeck/themes (macOS: ~/Library/Application Support)
-  extends: dark          Unset keys come from another theme
-  engine: plain|particles|...  What the theme does beyond colours (section 9.6)
+  extends: dark          Unset keys come from another theme (dark is the default)
+  variant-of: ember      A recolouring: listed after the themes
+  engine: { name: thermal, palette: iron }   The engine and its settings (9.6)
+  designs: standard|editorial   How the slide designs look; arrangements: overrides
+  spacing: { md: 24 }  radius: 8   Gaps and corners every design uses
   page: { surface, margin, shadow, grain, radius }   The slide as a sheet on a surface
-  art: { kind, style, references }   House style of generated art
   mdeck theme list | check <n> | preview <n> -o <dir>
   mdeck theme new <n>    A commented starter
   mdeck ai theme <n> --from <design system folder>

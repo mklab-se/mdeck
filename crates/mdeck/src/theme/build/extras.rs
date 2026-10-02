@@ -96,12 +96,7 @@ pub(super) fn art(f: &ThemeFile) -> Result<ThemeArt, ThemeError> {
     Ok(ThemeArt {
         kind,
         style: a.style.clone().filter(|s| !s.trim().is_empty()),
-        references: a
-            .references
-            .iter()
-            .flatten()
-            .map(PathBuf::from)
-            .collect(),
+        references: a.references.iter().flatten().map(PathBuf::from).collect(),
     })
 }
 
@@ -183,7 +178,8 @@ mod tests {
 
     #[test]
     fn art_kind_and_blank_style() {
-        let f = ThemeFile::parse("engine: { name: sketch, style: '  ', references: [a.png] }").unwrap();
+        let f =
+            ThemeFile::parse("engine: { name: sketch, style: '  ', references: [a.png] }").unwrap();
         let a = art(&f).unwrap();
         assert_eq!(a.style, None);
         assert_eq!(a.references, [PathBuf::from("a.png")]);

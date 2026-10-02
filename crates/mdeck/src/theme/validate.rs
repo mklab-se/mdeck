@@ -36,14 +36,39 @@ pub fn review(theme: &Theme) -> Vec<String> {
 fn pairs(t: &Theme) -> Vec<(String, Color32, Color32, f32)> {
     let bg = t.background;
     let mut v = vec![
-        ("colors.text on colors.background".to_string(), t.foreground, bg, BODY_TEXT),
-        ("colors.heading on colors.background".into(), t.heading_color, bg, LARGE_TEXT),
+        (
+            "colors.text on colors.background".to_string(),
+            t.foreground,
+            bg,
+            BODY_TEXT,
+        ),
+        (
+            "colors.heading on colors.background".into(),
+            t.heading_color,
+            bg,
+            LARGE_TEXT,
+        ),
         // `**bold**` runs are body text
-        ("colors.strong on colors.background".into(), t.strong, bg, BODY_TEXT),
+        (
+            "colors.strong on colors.background".into(),
+            t.strong,
+            bg,
+            BODY_TEXT,
+        ),
         // links and inline accents in body text, eyebrow numerals
-        ("colors.accent on colors.background".into(), t.accent, bg, BODY_TEXT),
+        (
+            "colors.accent on colors.background".into(),
+            t.accent,
+            bg,
+            BODY_TEXT,
+        ),
         // captions, footers, eyebrows, the slide counter: small text
-        ("colors.muted on colors.background".into(), t.muted, bg, BODY_TEXT),
+        (
+            "colors.muted on colors.background".into(),
+            t.muted,
+            bg,
+            BODY_TEXT,
+        ),
         (
             "colors.code-text on colors.code-background".into(),
             t.code_foreground,
@@ -87,7 +112,11 @@ fn pairs(t: &Theme) -> Vec<(String, Color32, Color32, f32)> {
         ] {
             let fg = mix(bg, ink(t, style.color), style.opacity);
             let px = size_px(t, style);
-            let min = if px >= LARGE_PX { LARGE_TEXT } else { BODY_TEXT };
+            let min = if px >= LARGE_PX {
+                LARGE_TEXT
+            } else {
+                BODY_TEXT
+            };
             if seen.insert((fg, min.to_bits())) {
                 v.push((
                     format!("the {name} role ({} design)", design.name()),
@@ -258,7 +287,9 @@ mod tests {
 
     #[test]
     fn grey_on_grey_is_flagged() {
-        let r = review(&over_dark("colors: { background: '#777777', text: '#888888' }"));
+        let r = review(&over_dark(
+            "colors: { background: '#777777', text: '#888888' }",
+        ));
         assert!(r.iter().any(|l| l.starts_with("colors.text")), "{r:?}");
         // small muted text needs body contrast
         let r = review(&over_dark("colors: { muted: '#555555' }"));

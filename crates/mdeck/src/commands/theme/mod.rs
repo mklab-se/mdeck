@@ -75,11 +75,7 @@ fn list() -> Result<()> {
                 None if b.theme.engine.is_board() => {
                     format!("{}, board", b.theme.engine.name())
                 }
-                None => format!(
-                    "{}, {}",
-                    b.theme.engine.name(),
-                    b.theme.arrangements.set
-                ),
+                None => format!("{}, {}", b.theme.engine.name(), b.theme.arrangements.set),
             },
             Err(_) => "invalid (run `mdeck theme check`)".red().to_string(),
         };

@@ -52,7 +52,9 @@ mod tests {
 
     #[test]
     fn every_design_has_a_layout_view() {
-        let pres = parse("# Title\n\n## Sub\n\n---\n\n## Points\n\n- a\n\n---\n\n## D\n\n```@architecture\nA -> B\n```\n");
+        let pres = parse(
+            "# Title\n\n## Sub\n\n---\n\n## Points\n\n- a\n\n---\n\n## D\n\n```@architecture\nA -> B\n```\n",
+        );
         let layouts: Vec<Layout> = pres.slides.iter().map(|s| s.layout).collect();
         assert_eq!(layouts, [Layout::Title, Layout::Bullet, Layout::Diagram]);
         for d in Design::ALL {

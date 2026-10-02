@@ -90,7 +90,9 @@ impl<'de> Deserialize<'de> for EngineBlock {
                     if key == "name" {
                         match v {
                             Value::String(n) => block.name = Some(n),
-                            _ => return Err(D::Error::custom("engine.name must be an engine name")),
+                            _ => {
+                                return Err(D::Error::custom("engine.name must be an engine name"));
+                            }
                         }
                     } else {
                         block.settings.push((key.to_string(), v));
@@ -161,7 +163,8 @@ impl EngineBlock {
     /// name the same engine; a child that names a different engine starts
     /// from its own settings only (the parent's belong to another engine).
     pub fn over(&self, parent: &EngineBlock) -> EngineBlock {
-        let switched = matches!((&self.name, &parent.name), (Some(c), Some(p)) if c.trim() != p.trim());
+        let switched =
+            matches!((&self.name, &parent.name), (Some(c), Some(p)) if c.trim() != p.trim());
         if switched {
             return self.clone();
         }
@@ -324,9 +327,17 @@ impl ThemeFile {
         let f: ThemeFile =
             serde_norway::from_str(yaml).map_err(|e| ThemeError::Parse(e.to_string()))?;
         let moved = [
-            ("particles", f.moved_particles.is_some(), "light: ..., cool: ..."),
+            (
+                "particles",
+                f.moved_particles.is_some(),
+                "light: ..., cool: ...",
+            ),
             ("heat", f.moved_heat.is_some(), "palette: ..., drift: ..."),
-            ("art", f.moved_art.is_some(), "kind: ..., style: ..., references: [...]"),
+            (
+                "art",
+                f.moved_art.is_some(),
+                "kind: ..., style: ..., references: [...]",
+            ),
             ("surface", f.moved_surface.is_some(), "surface: sheet"),
         ];
         if let Some((key, _, example)) = moved.into_iter().find(|(_, set, _)| *set) {

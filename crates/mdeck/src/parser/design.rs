@@ -281,7 +281,9 @@ pub const RULES: &[Rule] = &[
     Rule {
         design: Design::Gallery,
         when: "two or more images (a heading allowed)",
-        test: |s| s.images >= 2 && s.headings.len() <= 1 && s.paragraphs == 0 && s.others() == s.images,
+        test: |s| {
+            s.images >= 2 && s.headings.len() <= 1 && s.paragraphs == 0 && s.others() == s.images
+        },
     },
     Rule {
         design: Design::Split,
@@ -410,9 +412,13 @@ pub fn recognise(design: Option<&str>, blocks: &[Block], first: bool) -> Recogni
     }
     // the content fits the chosen design when one of its rules takes it
     let fits = wanted == Design::Content
-        || RULES
-            .iter()
-            .any(|r| r.design == wanted && (r.test)(&Shape { first: true, ..shape.clone() }));
+        || RULES.iter().any(|r| {
+            r.design == wanted
+                && (r.test)(&Shape {
+                    first: true,
+                    ..shape.clone()
+                })
+        });
     Recognition {
         design: wanted,
         reason: if fits {
@@ -429,7 +435,12 @@ pub fn recognise(design: Option<&str>, blocks: &[Block], first: bool) -> Recogni
 pub fn rules_reference() -> String {
     let mut out = String::from("| # | Design | The slide has |\n|---|---|---|\n");
     for (i, r) in RULES.iter().enumerate() {
-        out.push_str(&format!("| {} | `{}` | {} |\n", i + 1, r.design.name(), r.when));
+        out.push_str(&format!(
+            "| {} | `{}` | {} |\n",
+            i + 1,
+            r.design.name(),
+            r.when
+        ));
     }
     out.push_str(&format!(
         "\nA short line is at most {SHORT_LINE_CHARS} characters; a statement has at most \
@@ -497,7 +508,10 @@ mod tests {
     #[test]
     fn title_and_section_borders() {
         // a lone H1 opens the deck as a title, later it is a divider
-        assert_eq!(recognise(None, &blocks::parse("# Hi"), true).design, Design::Title);
+        assert_eq!(
+            recognise(None, &blocks::parse("# Hi"), true).design,
+            Design::Title
+        );
         assert_eq!(design("# Hi"), Design::Section);
         assert_eq!(design("# Hi\n\nShort subtitle"), Design::Title);
         // an H1 with an H3 is a section with a kicker, not a title
@@ -520,7 +534,10 @@ mod tests {
     fn a_chosen_design_is_honoured_and_reported() {
         let b = blocks::parse("## A\n\n- one\n\n> q");
         let r = recognise(Some("quote"), &b, false);
-        assert_eq!((r.design, r.reason.clone()), (Design::Quote, Reason::ChosenWithRest));
+        assert_eq!(
+            (r.design, r.reason.clone()),
+            (Design::Quote, Reason::ChosenWithRest)
+        );
         let r = recognise(Some("points"), &blocks::parse("## A\n\n- one"), false);
         assert_eq!(r.reason, Reason::Chosen);
         // no quote: the slide falls back to content

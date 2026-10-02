@@ -121,8 +121,6 @@ pub struct Theme {
     /// The engine block's settings as written (every key but `name`), for
     /// [`engine_settings`].
     pub engine_block: Vec<(String, serde_norway::Value)>,
-    /// The theme this one recolours (`variant-of:`), if it is a variant.
-    pub variant_of: Option<String>,
     /// How every design looks: the design set (`designs:`) with the theme's
     /// `arrangements:` applied.
     pub arrangements: std::sync::Arc<arrangement::Arrangements>,
@@ -224,6 +222,13 @@ pub struct Built {
 /// The settings of the theme's `engine:` block (every key but `name`), as
 /// the engine reads them (THM-11). Seam for the engines: an engine reads
 /// its settings from here, never from theme sections named after it.
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "the engines read it once they run on the SDK (phase 2b)"
+    )
+)]
 pub fn engine_settings(theme: &Theme) -> mdeck_sdk::tokens::EngineSettings {
     mdeck_sdk::tokens::EngineSettings::from_pairs(
         theme
@@ -233,6 +238,7 @@ pub fn engine_settings(theme: &Theme) -> mdeck_sdk::tokens::EngineSettings {
     )
 }
 
+#[cfg_attr(not(test), allow(dead_code, reason = "see engine_settings"))]
 /// A YAML value as the SDK's library-free [`mdeck_sdk::tokens::Value`].
 fn sdk_value(v: &serde_norway::Value) -> mdeck_sdk::tokens::Value {
     use mdeck_sdk::tokens::Value as V;

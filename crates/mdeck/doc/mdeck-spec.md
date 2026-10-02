@@ -765,6 +765,18 @@ An unrecognized icon name falls back to `box`. Icons are simple and clear line d
 
 ### 9.1 Built-in themes
 
+The built-in themes come in two tiers, in this order in `mdeck theme list` and
+`Shift+T`:
+
+- **Themes:** `dark` (the default: plain, dark, a bright foreground, standard
+  designs, fades, no countdown), `light`, `nord`, `ember`, `thermal`,
+  `marquee`, `departures`, `stack`, `blueprint`, `chalkboard`, `sketchbook`,
+  `watercolour`, `darkroom`.
+- **Variants** (recolourings, `variant-of:`): `spring` and `summer` of
+  `light`, `autumn` and `winter` of `ember`.
+
+A deck that names no theme (and no `defaults.theme` in the config) gets `dark`.
+
 **`light`**
 
 | Property        | Value           |
@@ -873,7 +885,7 @@ A theme for the blocks engine (section 9.6):
 
 **`blueprint`**
 
-A draftsman's sheet for the line engine (`surface: sheet`, sections 9.6 and 9.7): a
+A draftsman's sheet for the line engine (`engine: { name: line, surface: sheet }`, sections 9.6 and 9.7): a
 Prussian blue sheet with a fine grid, a ruled border and a title block, laid
 on a dark drafting table (`page:`), with generated line art inked in
 blue-white, construction lines first.
@@ -899,11 +911,11 @@ technology), drawn in with a pencil; an editorial serif for headings.
 | Headings (graphite) | `#1F1D1A`   |
 | Accent (a red pencil) | `#A8472A` |
 | Secondary (a blue pencil) | `#35657F` |
-| The pencil (`particles.cool`) | `#2F5D50` |
+| The pencil (`engine.cool`) | `#2F5D50` |
 
 **`chalkboard`**
 
-A green slate in a wooden frame for the line engine (`surface: slate`), with the ghosts
+A green slate in a wooden frame for the line engine (`engine: { name: line, surface: slate }`), with the ghosts
 of earlier drawings wiped off it; generated line art is drawn in chalk.
 
 | Property        | Value           |
@@ -946,7 +958,7 @@ the presenter chrome is a counter and a progress hairline.
 
 #### The countdown
 
-Ember, Nord and the engine showcase themes open with a three-second
+Nord, Ember and the engine showcase themes open with a three-second
 countdown before the first slide (any theme can, with `countdown: on` in
 section 9.4; a deck's `countdown: on|off` wins over the theme). The engine
 decides how it looks: an engine with a countdown of its own draws it, any
@@ -1059,16 +1071,15 @@ match wins:
 2. the user folder: `~/.config/mdeck/themes/` on Linux,
    `~/Library/Application Support/mdeck/themes/` on macOS,
    `%APPDATA%\mdeck\themes\` on Windows
-3. the built-in themes (`dark`, `light`, `nord`, `ember`, `spring`, `summer`,
-   `autumn`, `winter`, `marquee`, `departures`, `stack`, `blueprint`,
-   `sketchbook`, `chalkboard`, `watercolour`, `darkroom`, `thermal`)
+3. the `themes/` folders of installed packs (`mdeck pack`)
+4. the built-in themes (section 9.1)
 
 `theme` may also be a path to a file (`theme: brand/acme.yaml`), relative
 to the deck. A user or deck theme may reuse a built-in name to replace it.
 Theme names are lowercase letters, digits, `-` and `_`. `defaults.theme` in
 the config accepts built-in and user themes. An unknown name or an invalid
 theme file is reported (by `--check`, and as a warning when presenting or
-exporting) and the deck falls back to `light`.
+exporting) and the deck falls back to `dark`.
 
 **The format.** Every key is optional. Unset keys come from the theme named by
 `extends`, which is `dark` when the file does not say. So a brand theme can be
@@ -1090,10 +1101,28 @@ The full set of keys:
 ```yaml
 name: Acme
 extends: dark
-engine: plain              # plain | particles | led | splitflap | blocks | line | sketch | watercolour | darkroom | thermal (section 9.6)
+variant-of: dark           # this theme recolours another: listed with the variants
+engine:                    # the engine and its settings (section 9.6); `engine: plain` names one alone
+  name: thermal            # plain | particles | led | splitflap | blocks | line | sketch | watercolour | darkroom | thermal
+  palette: iron            # thermal: iron | white-hot | black-hot | rainbow | arctic | lava
+  drift: false             # thermal: true lets embers drift through the dark on ordinary slides
+  light: "#d7d7e1"         # particles, led, blocks, line, sketch: the brightest tint
+  cool: "#afc3f0"          # particles, led, blocks, line, sketch: a cool tint besides the accents
+  surface: sheet           # line: sheet | slate
+  kind: line               # art engines: line | tonal (section 9.7)
+  style: "graphite and ink, cross-hatching"   # art engines: the style prompt
+  references: [refs/teacup.jpg]               # art engines: style swatches in the theme folder
+designs: standard          # standard | editorial: how the slide designs look (section 6)
+arrangements: {}           # per-design overrides of the design set (section 6)
 countdown: off             # on | off: the 3-2-1 opener (the engine decides its look)
-surface: sheet             # the line engine's ground: sheet | slate (section 9.6; interim, moves into an engine block)
 transition: fade           # slide | fade | spatial | none (a deck's `transition` wins)
+spacing:                   # the gaps the designs use, px on a 1920x1080 slide
+  xs: 8
+  sm: 16
+  md: 24
+  lg: 40
+  xl: 64
+radius: 8                  # corner radius of code blocks, tables and callouts, px
 colors:                    # #rgb, #rrggbb or #rrggbbaa
   background: "#0b1020"    # slide background
   text: "#c9d1e3"          # body text
@@ -1117,16 +1146,10 @@ annotations:               # the presenter's pen (drag) and arrow (Shift+drag) t
   pen-outline: "#1e82b4"
   arrow: "#ffc832"
   arrow-outline: "#c88c00"
-particles:                 # particles and led engines: tints besides the accents
-  light: "#d7d7e1"
-  cool: "#afc3f0"
-heat:                      # thermal engine: the heat field
-  palette: iron            # iron | white-hot | black-hot | rainbow | arctic | lava
-  drift: false             # true: embers drift through the dark on ordinary slides
 fonts:                     # a bundled face, or a .ttf/.otf file in the theme folder
   display: fonts/Acme-Display.ttf   # headings
   body: hanken-regular     # body text and list items
-  lead: hanken-light       # lead paragraphs in the particles copy column (default: body)
+  lead: hanken-light       # lead paragraphs where the design set uses it (editorial; default: body)
   strong: hanken-medium    # **bold** runs (default: body)
   mono: jetbrains-mono     # code, labels, eyebrows
 sizes:                     # px on a 1920x1080 slide; everything scales with the window
@@ -1148,17 +1171,40 @@ logo:                      # a logo in a corner of every slide (section 9.5)
   opacity: 0.6             # 0 to 1
 page:                      # lay every slide on a sheet with a surface around it
   surface: "#0a1b33"       # what is around the sheet (a desk, a drafting table)
-  margin: 26               # px around the sheet on a 1920x1080 slide (0 to 200)
+  margin: 26               # px around the sheet on a 1920x1080 slide (0 to 300)
   shadow: 0.7              # the sheet's shadow on the surface, 0 to 1 (default 0.5)
   grain: 0.25              # paper fibre on the sheet, 0 to 1 (default 0.5)
   radius: 2                # corner radius in px (0 to 60, default 6)
-art:                       # how generated art looks on an art engine (section 9.7)
-  kind: line               # line (ink lines the engine draws) | tonal (a finished picture)
-  style: "graphite and ink, cross-hatching, old craft meets modern technology"
-  references: [refs/teacup.jpg, refs/street.jpg]   # style swatches, in the theme folder
 ```
 
-Unknown keys are errors, so a typo never goes unnoticed.
+Unknown keys are errors, so a typo never goes unnoticed. The v1 top-level
+`particles:`, `heat:`, `art:` and `surface:` sections moved into the engine
+block; a theme that still has one gets an error saying where it went.
+
+**The engine block.** `engine:` is the engine's name, or a block with `name`
+and the engine's settings. Settings merge key by key through `extends` while
+the child names the same engine (or none); a child that names a different
+engine starts from its own settings only. When a deck's `engine` or
+`--engine` runs another engine, the theme's settings are ignored.
+`mdeck theme check` warns about a setting the theme's engine does not read.
+
+**Variants.** `variant-of: <theme>` marks a theme as a recolouring of
+another (it normally also `extends` it). Variants are listed after the
+themes in `mdeck theme list` and `Shift+T`. It is the theme's own key: a theme
+extending a variant is not a variant unless it says so.
+
+**Spacing and radius.** `spacing` is the scale of gaps the slide designs
+name (`xs` to `xl`, growing), and `radius` the corner radius of cards. Change
+them to make every design airier or tighter at once.
+
+**Checking a theme.** `mdeck theme check <name>` reports errors, fallbacks,
+contrast below WCAG AA (4.5:1 for small text, 3:1 for large text of 24 px or
+more) for every text colour the theme draws (body text, headings, bold,
+links, muted captions and eyebrows, code on its background, the soft accent
+where the design set draws emphasis in it, and every role of every design at
+its size and opacity), and keys that do nothing: an engine setting the engine
+does not read, `fonts.lead` when no design uses the lead face, and an engine
+that draws on a page (line, sketch, watercolour) without a `page:`.
 
 **The page.** With a `page:` block the slide is a sheet (the theme's
 `background`) lying on `surface`, with a soft shadow and a fine paper grain.
@@ -1166,7 +1212,7 @@ Everything on the slide, the engine's layer included, draws on the sheet.
 `surface` is required for a page; the other keys have defaults. It works on
 every engine.
 
-**Art.** On an art engine (section 9.7) the `art:` block sets the house style
+**Art.** On an art engine (section 9.7) the engine block sets the house style
 of the deck's generated pictures. `kind` overrides the medium's own kind,
 `style` replaces the medium's style prompt (the part that carries the look),
 and `references` replaces the medium's bundled style swatches with your own
@@ -1174,8 +1220,8 @@ images (paths inside the theme folder; sent to image models that accept
 reference images). Pictures made in one style are never shown in another.
 
 **Engines.** The engine decides what a theme does beyond colours and type
-(section 9.6). A theme picks one by name with `engine:`; a deck can run on
-another with `engine`.
+(section 9.6). A theme picks one with `engine:` (a name or a block with its
+settings); a deck can run on another with `engine`.
 
 **Fonts.** Fonts are named by *role*, not weight, because a slide draws each
 role with one face. A value is either a bundled face or a TTF/OTF file inside
@@ -1329,8 +1375,8 @@ from the theme, so every theme looks like itself on every engine.
 their unlit lenses just visible. Nothing ever moves: pictures appear by
 lighting LEDs. A `picture` powers on from its centre outward, each LED
 flickering as it strikes, and then shimmers slowly between the theme's
-`accent`, `accent-soft` and `particles.cool`; the hottest cores whiten toward
-`particles.light`. Brightness follows the point cloud's density, so strokes
+`accent`, `accent-soft` and `engine.cool`; the hottest cores whiten toward
+`engine.light`. Brightness follows the point cloud's density, so strokes
 stay brighter than fills and the picture keeps its structure. Title slides get
 a marquee border of chasing bulbs in `secondary`; slides without an
 illustration get a slow, faint aurora on the side away from the copy. A reveal
@@ -1378,7 +1424,7 @@ agendas, schedules, status and numbers read best.
 **The blocks engine.** A `picture` is cut into a grid of blocks,
 grouped into pieces of two to four, and the pieces drop from above the slide,
 bottom row first, land with a small bounce and settle into the picture. The
-blocks are bevelled, in `accent`, `secondary`, `particles.cool`,
+blocks are bevelled, in `accent`, `secondary`, `engine.cool`,
 `accent-soft` and the fifth `series` colour. Leaving a slide, the stack
 flashes and clears row by row, like a completed line. Slides without an
 illustration stay calm. Exports show the settled stack.
@@ -1411,8 +1457,8 @@ slide's generated drawing (section 9.7; graphite and ink by default) is
 drawn in with a pencil you can see: first the outlines, traced along the
 lines, then the shading, laid in stroke by stroke in bands that sweep across
 the picture while the pencil zigzags along them. The pencil's body is
-`particles.cool`; its lead and line art are the `heading` colour. Line art
-(`art: { kind: line }` in a theme) is drawn with a faint underdrawing first.
+the engine block's `cool`; its lead and line art are the `heading` colour. Line art
+(`kind: line` in a theme's engine block) is drawn with a faint underdrawing first.
 On a title slide the drawing sits large and faint behind the title. Without
 art, the slide's `picture` is drawn in pencil, and so are the
 countdown and the end words. Exports show the finished drawing.
@@ -1447,7 +1493,7 @@ white on a black print. The countdown and the end words glow the same way.
 
 **The thermal engine.** The deck is seen through a thermal instrument: a
 heat field lies under the slides, drawn in the theme's heat palette
-(`heat: { palette: iron }`) in contour bands and transparent where it is
+(`engine: { name: thermal, palette: iron }`) in contour bands and transparent where it is
 cold. Its motion is kept for the moments that matter:
 
 - *The cold opening.* On title and section slides the heading forms in heat:
@@ -1458,7 +1504,7 @@ cold. Its motion is kept for the moments that matter:
 - *Heat signatures.* A `picture` glows like a warm body; the
   countdown digits heat up and cool off; the end words glow and fade.
 - *Calm evidence.* Where a slide shows a chart, a diagram, an image or a
-  `@thermal` block, the field stays dark. With `heat: { drift: true }` a few
+  `@thermal` block, the field stays dark. With `drift: true` in the engine block a few
   embers drift through the dark on ordinary slides, cooling as they rise;
   by default the background is still.
 - *Cooling between slides.* Nothing is cleared on a slide change: the old
@@ -1602,7 +1648,7 @@ is. Every `mdeck ai` generation command takes `--slide N`, `--stale`,
 
 **Style.** Each medium has a style card: a style prompt and two small
 neutral style swatches (a still life and a street), sent as reference images
-to models that accept them. A theme's `art:` block (section 9.4) replaces
+to models that accept them. A theme's engine block (`style`, `references`, section 9.4) replaces
 either.
 
 **Without art.** An art engine never needs the AI to present: a slide with
