@@ -24,7 +24,8 @@ impl PresentationApp {
         // If we have reveal steps remaining, reveal next item
         if self.views[idx].reveal < self.deck.max_steps[idx] {
             self.views[idx].reveal += 1;
-            self.views[idx].revealed_at = Some(Instant::now());
+            // reduced motion shows each step settled, without its animation
+            self.views[idx].revealed_at = (!self.reduced_motion).then(Instant::now);
             self.pending_reveal_scroll = true;
             return;
         }
@@ -38,12 +39,23 @@ impl PresentationApp {
 
         // Scroll offsets are reset when the transition completes so the
         // outgoing slide keeps its scroll position while sliding out.
-        self.transition = Some(ActiveTransition::new(
+        let mut t = ActiveTransition::new(
             idx,
             idx + 1,
-            self.default_transition,
+            self.transition_kind(),
             TransitionDirection::Forward,
-        ));
+        );
+        // `@zoom: Spot` on the next slide zooms into that spot of this one
+        if !self.reduced_motion
+            && let Some(spot) =
+                crate::parser::directive(&self.deck.presentation.slides[idx + 1].directives, "zoom")
+        {
+            t.zoom = Some(crate::render::transition::Zoom {
+                spot: spot.trim().to_string(),
+                anchor: None,
+            });
+        }
+        self.transition = Some(t);
     }
 
     pub(super) fn navigate_backward(&mut self) {
@@ -80,7 +92,7 @@ impl PresentationApp {
         self.transition = Some(ActiveTransition::new(
             idx,
             prev,
-            self.default_transition,
+            self.transition_kind(),
             TransitionDirection::Backward,
         ));
     }
@@ -106,7 +118,7 @@ impl PresentationApp {
         self.transition = Some(ActiveTransition::new(
             cur,
             index,
-            self.default_transition,
+            self.transition_kind(),
             direction,
         ));
     }

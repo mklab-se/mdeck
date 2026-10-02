@@ -3,7 +3,7 @@
 # Command reference
 
 ```bash
-mdeck <file.md>                    # present (add --windowed, --slide N, --overview, --check)
+mdeck <file.md>                    # present (add --windowed, --slide N, --overview, --reduced-motion, --check)
 mdeck export <file.md>             # PNG or PDF export (--width, --height, --output-dir, --debug, --slide, --range, --format, --notes, --theme)
 mdeck theme list                   # Every theme visible from here (deck, user, built-in)
 mdeck theme new <n>                # Starter theme in ./themes (--from <design system> with AI, --user, --force)
@@ -17,7 +17,7 @@ mdeck illustration contribute <n>  # Offer one to the built-in set (prefilled Gi
 mdeck spec                         # full format specification
 mdeck spec --short                 # quick reference card
 mdeck config show                  # show configuration
-mdeck config set <key> <value>     # defaults.theme, defaults.transition, defaults.start_mode, ...
+mdeck config set <key> <value>     # defaults.theme, defaults.transition, defaults.start_mode, defaults.reduced_motion, ...
 mdeck completion <shell>           # bash, zsh, fish, powershell
 mdeck version                      # version banner
 

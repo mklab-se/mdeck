@@ -110,6 +110,11 @@ fn entry_age(ui: &egui::Ui, index: usize, animate: bool, hold: bool) -> f32 {
     age
 }
 
+/// Seconds the copy of a title or section slide holds back while an engine
+/// with a cold opening forms the heading in heat; the copy then rises into
+/// the settling heat.
+pub const COLD_OPEN_HOLD: f32 = 1.5;
+
 /// Fade/rise progress of the `nth` copy element, staggered 120 ms apart
 /// over a 650 ms rise, as on the site.
 fn stagger(age: f32, nth: usize) -> f32 {
@@ -208,9 +213,25 @@ struct Frame<'a> {
     deck: &'a SlideContext,
     reveal_step: usize,
     reveal_timestamp: Option<Instant>,
+    /// The engine forms the heading: publish it as a hint.
+    cold_open: bool,
 }
 
 impl Frame<'_> {
+    /// Tell an engine that forms headings where this one settles.
+    fn heading_hint(&self, galley: &std::sync::Arc<egui::Galley>, pos: Pos2) {
+        if self.cold_open {
+            crate::render::hints::push(
+                self.ui.ctx(),
+                crate::render::hints::Hint::Text {
+                    galley: galley.clone(),
+                    pos,
+                    slide: self.deck.index,
+                },
+            );
+        }
+    }
+
     /// Opacity of the pillow as the slide is entered.
     fn pillow_alpha(&self) -> f32 {
         self.opacity * ease_out(self.age / 0.9)
@@ -238,6 +259,15 @@ pub fn render(cx: &BlockCx, slide: &Slide, rect: Rect, deck: &SlideContext) {
     } else {
         entry_age(cx.ui, deck.index, deck.animate, false)
     };
+    // an engine that forms headings itself (the thermal cold opening) gets
+    // the title and section copy late, and the heading's layout as a hint
+    let cold_open = cx.theme.engine.capabilities().cold_open
+        && (is_title(slide, deck.index) || matches!(slide.layout, Layout::Title | Layout::Section));
+    let age = if cold_open && age >= 0.0 && deck.animate {
+        age - COLD_OPEN_HOLD
+    } else {
+        age
+    };
     let f = Frame {
         ui: cx.ui,
         theme: cx.theme,
@@ -249,6 +279,7 @@ pub fn render(cx: &BlockCx, slide: &Slide, rect: Rect, deck: &SlideContext) {
         deck,
         reveal_step: cx.reveal_step,
         reveal_timestamp: cx.reveal_timestamp,
+        cold_open,
     };
     if is_title(slide, deck.index) {
         slides::render_title(&f, slide);

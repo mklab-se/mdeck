@@ -207,6 +207,7 @@ impl Host {
             still: tick.still,
             theme: shot.theme,
         };
+        self.engine.prepare(ui, &cx, &stage);
         self.engine.update(&cx, &stage, lib);
         if tick.paint {
             self.engine.paint(ui, &cx, &stage);

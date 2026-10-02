@@ -26,10 +26,10 @@ FRONTMATTER (YAML at top of file)
   @theme: name            Theme: dark, light, nord, ember, spring, summer,
                           autumn, winter, marquee, departures, etch, stack,
                           blueprint, sketchbook, chalkboard, watercolour,
-                          darkroom, or a custom one (see THEMES)
+                          darkroom, thermal, or a custom one (see THEMES)
   @engine: name           Run on this engine instead of the theme's: plain,
                           particles, led, splitflap, laser, blocks, blueprint,
-                          sketch, chalkboard, watercolour, darkroom
+                          sketch, chalkboard, watercolour, darkroom, thermal
                           (try one with --engine name)
   @art: "..."             The deck's world for generated art (art engines)
   @transition: slide|fade|spatial|none
@@ -37,6 +37,8 @@ FRONTMATTER (YAML at top of file)
   @footer: "text"         Footer on every slide
   @background: file       Image behind every slide (png, jpg, webp, svg)
   @background-opacity: 30%  How strongly it shows (0-1 or %, default 30%)
+  @palette: iron          Palette of @thermal images (iron, white-hot,
+                          black-hot, rainbow, arctic, lava)
 
 SLIDE DIRECTIVES (on their own line, under the slide's heading)
   @layout: name         Override the inferred layout
@@ -45,6 +47,8 @@ SLIDE DIRECTIVES (on their own line, under the slide's heading)
   @art: "..."|none      This slide's picture on an art engine, or none
   @background: file|none  This slide's background image, or none
   @background-opacity: 50%  This slide's background opacity
+  @thermal-window: 25..90 °C  One scale for the slide's @thermal images
+  @zoom: Spot           Enter by zooming into a spot of the last slide
 
 LAYOUTS (auto-inferred, override with @layout: name)
   title        H1 + optional subtitle
@@ -84,6 +88,17 @@ ART ENGINES (blueprint, sketch, chalkboard, watercolour, darkroom; spec 9.7)
   S                     While presenting: draw this slide's picture
   Without art           The slide's @illustration is drawn in the medium
 
+THERMAL IMAGES (```@thermal; spec 14.20)
+  image: file.png       Grayscale, white-hot (brighter is hotter)
+  data: file.png        Temperature data, with file.yaml (unit, scale, offset)
+  visible: photo.jpg    Registered photo for the lens
+  mapping: linear 18..92 °C   Gray levels as values; window: 40..90 °C
+  palette: iron   label: text   polarity: black-hot
+  + lens 76% 43% 16%    Lens over the photo; + reveal fills the frame
+  + above 85%           Colour only the hottest (or: above 60 °C)
+  - spot Name 76% 43%   Crosshair; sampled value, or ": text" (marked †)
+  Ordinary images are never treated as thermal. C / Shift+C: palettes
+
 KEYBOARD & MOUSE
 "#;
 
@@ -117,6 +132,7 @@ VISUALIZATIONS (fenced code blocks with @ language tag)
   @gitgraph      Git branch graph (lane, commit, branch/merge with ->, tag)
   @flower        Platform and teams (- center Name, - petal Name: what, A -> B)
   @artifactflow  Artifact supply chain (producer/service/consumer, A -> B: artifact)
+  @thermal       Thermal image: palette, lens, reveal, threshold, spots (spec 14.20)
 
 GANTT CHART DURATION FORMATS
   Nd             Calendar days (e.g. 10d)

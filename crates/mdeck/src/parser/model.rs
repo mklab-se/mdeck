@@ -43,6 +43,8 @@ pub struct PresentationMeta {
     /// `@art` in the frontmatter: the deck's world for generated art
     /// (setting, era, recurring characters).
     pub art: Option<String>,
+    /// `@palette`: the palette of `@thermal` blocks that name none.
+    pub palette: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -229,6 +231,8 @@ pub enum Chart {
     Flower,
     /// Artifacts from producers through services to consumers (`@artifactflow`).
     ArtifactFlow,
+    /// A thermal image with its lens, reveals and spots (`@thermal`).
+    Thermal,
 }
 
 impl Chart {
@@ -253,6 +257,7 @@ impl Chart {
         ("@gitgraph", Chart::GitGraph),
         ("@flower", Chart::Flower),
         ("@artifactflow", Chart::ArtifactFlow),
+        ("@thermal", Chart::Thermal),
     ];
 
     /// The chart a fence info string (```` ```@barchart ````) names.

@@ -321,3 +321,17 @@ A showcase of every visualization type in MDeck
 - Artifactory -> Integration Team: pull image
 - Artifactory -> Product Team: pull package
 ```
+
+---
+
+## Thermal Image
+
+```@thermal
+image: ../images/thermal/cabinet.jpg
+visible: ../images/thermal/cabinet-visible.jpg
+label: Synthetic example images
++ lens 76% 43% 16%
++ reveal
+* spot Hotspot 76% 43%
++ above 80%
+```

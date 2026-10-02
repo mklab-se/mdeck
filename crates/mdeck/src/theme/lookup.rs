@@ -12,7 +12,8 @@ use super::{Built, Theme, ThemeError};
 /// `marquee` on led, `departures` on splitflap, `etch` on laser, `stack` on
 /// blocks, `blueprint` on blueprint, `sketchbook` on sketch,
 /// `chalkboard` on chalkboard, `watercolour` on watercolour, `darkroom` on
-/// darkroom) is left out of a build without that feature.
+/// darkroom, `thermal` on thermal) is left out of a build without that
+/// feature.
 pub const BUILTIN: &[(&str, &str)] = &[
     ("dark", include_str!("../../themes/dark.yaml")),
     ("light", include_str!("../../themes/light.yaml")),
@@ -43,6 +44,8 @@ pub const BUILTIN: &[(&str, &str)] = &[
     ("watercolour", include_str!("../../themes/watercolour.yaml")),
     #[cfg(feature = "darkroom")]
     ("darkroom", include_str!("../../themes/darkroom.yaml")),
+    #[cfg(feature = "thermal")]
+    ("thermal", include_str!("../../themes/thermal.yaml")),
 ];
 
 /// The theme used when nothing names one.

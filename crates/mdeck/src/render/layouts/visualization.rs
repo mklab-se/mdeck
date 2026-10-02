@@ -62,7 +62,13 @@ pub fn render(cx: &BlockCx, slide: &Slide, rect: egui::Rect) {
         let remaining_height = rect.bottom() - y - padding;
         if remaining_height > 50.0 * scale {
             let viz_pos = Pos2::new(content_left, y);
-            if let Block::Chart { kind, content } = block {
+            if let Block::Chart {
+                kind: crate::parser::Chart::Thermal,
+                content,
+            } = block
+            {
+                crate::render::thermal::draw(cx, content, viz_pos, content_width, remaining_height);
+            } else if let Block::Chart { kind, content } = block {
                 visualizations::draw(
                     *kind,
                     content,

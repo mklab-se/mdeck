@@ -55,6 +55,23 @@ impl Countdown {
 
 /// The slide as a sheet on a surface: paper on a desk, a board on a wall.
 /// The sheet is the theme's background; sizes are px on a 1920x1080 slide.
+/// The thermal engine's heat field: the palette it glows in and whether
+/// embers drift on ordinary slides.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Heat {
+    pub palette: crate::render::thermal::Palette,
+    pub drift: bool,
+}
+
+impl Default for Heat {
+    fn default() -> Self {
+        Heat {
+            palette: crate::render::thermal::Palette::Iron,
+            drift: false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Page {
     pub surface: Color32,
@@ -149,6 +166,8 @@ pub struct Theme {
     pub page: Option<Page>,
     /// What generated artwork looks like (`art:`), over the engine's own style.
     pub art: ThemeArt,
+    /// The thermal engine's heat field (`heat:`).
+    pub heat: Heat,
     /// The file this theme was read from (`None` for built-ins).
     pub source: Option<PathBuf>,
 }

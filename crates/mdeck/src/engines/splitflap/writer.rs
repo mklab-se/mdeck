@@ -416,6 +416,11 @@ impl Writer {
                 }
                 Block::HorizontalRule => self.blank(0),
                 Block::Image { .. } | Block::ColumnSeparator => {}
+                // in the image panel (see `layout::lay_out`)
+                Block::Chart {
+                    kind: Chart::Thermal,
+                    ..
+                } => {}
                 Block::StoryHint { .. } | Block::SceneScript { .. } => {}
                 Block::CodeBlock { .. } => {
                     self.unsupported.insert("code blocks".into());
@@ -464,6 +469,7 @@ fn viz_name(block: &Block) -> &'static str {
         Chart::GitGraph => "git graphs",
         Chart::Flower => "flowers",
         Chart::ArtifactFlow => "artifact flows",
+        Chart::Thermal => "thermal images",
         _ => "visualizations",
     }
 }

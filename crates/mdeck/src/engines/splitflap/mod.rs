@@ -261,10 +261,8 @@ pub fn render_slide(
         };
         draw::paint(ui, &geo, theme, &scene, opacity, scale);
     }
-    if let Some(i) = board.image
-        && let Some(Block::Image { path, .. }) = slide.blocks.get(i)
-    {
-        draw_panel_image(
+    match board.image.and_then(|i| slide.blocks.get(i)) {
+        Some(Block::Image { path, .. }) => draw_panel_image(
             ui,
             path,
             panel_rect(&geo),
@@ -272,7 +270,16 @@ pub fn render_slide(
             opacity,
             image_cache,
             scale,
-        );
+        ),
+        // the composed evidence view, annotations and all
+        Some(Block::Chart {
+            kind: crate::parser::Chart::Thermal,
+            content,
+        }) => {
+            let panel = panel_rect(&geo).shrink(8.0 * scale);
+            crate::render::thermal::draw(block, content, panel.min, panel.width(), panel.height());
+        }
+        _ => {}
     }
 }
 

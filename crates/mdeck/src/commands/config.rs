@@ -45,6 +45,12 @@ fn show_defaults(config: &Config) {
     field("transition:", or_unset(&defaults.transition));
     field("aspect:", or_unset(&defaults.aspect));
     field("start_mode:", or_unset(&defaults.start_mode));
+    field(
+        "reduced_motion:",
+        defaults
+            .reduced_motion
+            .map_or("(not set)".to_string(), |b| b.to_string()),
+    );
     field("image_style:", or_unset(&defaults.image_style));
     field("icon_style:", or_unset(&defaults.icon_style));
     field(

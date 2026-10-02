@@ -126,6 +126,8 @@ pub fn draw(
         Chart::ArtifactFlow => {
             artifact_flow::draw_artifact_flow(cx, content, pos, max_width, max_height)
         }
+        // drawn by `render::thermal`, which needs the deck's images
+        Chart::Thermal => 0.0,
     }
 }
 

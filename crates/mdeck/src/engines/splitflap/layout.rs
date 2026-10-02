@@ -102,7 +102,17 @@ pub fn lay_out(slide: &Slide, title: bool, reveal: usize) -> Board {
         .blocks
         .iter()
         .enumerate()
-        .filter(|(_, b)| matches!(b, Block::Image { .. }))
+        // a thermal image takes the panel too, composed as everywhere else
+        .filter(|(_, b)| {
+            matches!(
+                b,
+                Block::Image { .. }
+                    | Block::Chart {
+                        kind: crate::parser::Chart::Thermal,
+                        ..
+                    }
+            )
+        })
         .map(|(i, _)| i)
         .collect();
     let image = images.first().copied();

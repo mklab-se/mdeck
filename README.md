@@ -6,7 +6,7 @@
 
 <p align="center">
   Write your talk in any markdown editor. MDeck turns it into slides that look amazing:<br>
-  laid out, animated and themed, with charts, diagrams, illustrations and eleven presentation engines.
+  laid out, animated and themed, with charts, diagrams, illustrations and twelve presentation engines.
 </p>
 
 <p align="center">
@@ -52,7 +52,7 @@ heading and three bullets a bullet slide. Then pick a theme and an engine.</em><
   </tr>
   <tr>
     <td><img src="media/showcase/winter-kpi.jpg" alt="KPI cards on the Winter theme"><br><sub><b>KPI cards</b> on the Winter theme</sub></td>
-    <td><img src="media/showcase/spring-chart.jpg" alt="A stacked bar chart on the Spring theme"><br><sub><b>Nineteen charts</b>, here on the Spring theme</sub></td>
+    <td><img src="media/showcase/spring-chart.jpg" alt="A stacked bar chart on the Spring theme"><br><sub><b>Twenty charts</b>, here on the Spring theme</sub></td>
   </tr>
   <tr>
     <td><img src="media/showcase/etch-gear.jpg" alt="A laser etching a gear"><br><sub><b>Laser</b>: a beam etches each illustration</sub></td>
@@ -160,15 +160,15 @@ updates every time you save.
 - **Any markdown file is a deck.** Headings split slides and every slide picks
   its layout from its content. Nothing to learn but a few conventions.
   [Writing slides](docs/writing-slides.md)
-- **Charts and diagrams from text.** Nineteen visualizations, from bar charts
+- **Charts and diagrams from text.** Twenty visualizations, from bar charts
   to Gantt charts and routed architecture diagrams, all animated.
   [Visualizations](docs/visualizations.md)
-- **Seventeen themes, and yours.** Your brand in a few lines of YAML, or converted
+- **Eighteen themes, and yours.** Your brand in a few lines of YAML, or converted
   from your design system. [Themes](docs/themes.md)
-- **Eleven engines.** A particle field, an LED wall, a departure board, a
-  laser, falling blocks, five art media (blueprint, sketchbook, chalkboard,
-  watercolour, darkroom) that draw a picture made for every slide, or a clean
-  flat page: one line switches. [Engines](docs/engines.md)
+- **Twelve engines.** A particle field, an LED wall, a departure board, a
+  laser, falling blocks, a thermal camera, five art media (blueprint,
+  sketchbook, chalkboard, watercolour, darkroom) that draw a picture made for
+  every slide, or a clean flat page: one line switches. [Engines](docs/engines.md)
 - **A real presenter tool.** Transitions, grid overview, pen and arrows,
   speaker notes, multiple monitors, clickers. [Presenting](docs/presenting.md)
 - **Pixel-perfect export.** PNG at any resolution, and PDF with or without

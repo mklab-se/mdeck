@@ -26,6 +26,8 @@ pub const SHORTCUTS: &[(&str, &str)] = &[
     ("Enter / E", "Grid: open slide"),
     ("T", "Cycle transition"),
     ("Shift+T", "Cycle theme"),
+    ("C", "Cycle thermal palette"),
+    ("Shift+C", "Thermal palette as written"),
     ("F", "Toggle fullscreen"),
     ("M", "Move to next monitor"),
     ("H", "Toggle HUD"),
@@ -69,6 +71,8 @@ pub enum Action {
     ToggleHud,
     CycleRawOverlay,
     Generate,
+    CyclePalette,
+    ResetPalette,
     // Grid mode
     GridRight,
     GridLeft,
@@ -126,6 +130,8 @@ pub fn map_key(key: Key, modifiers: Modifiers, mode: KeyMode) -> Option<Action> 
             Key::H => Some(Action::ToggleHud),
             Key::S => Some(Action::Generate),
             Key::R => Some(Action::CycleRawOverlay),
+            Key::C if modifiers.shift => Some(Action::ResetPalette),
+            Key::C => Some(Action::CyclePalette),
             _ => None,
         },
         KeyMode::Grid => match key {
@@ -318,8 +324,12 @@ mod tests {
     }
 
     #[test]
-    fn ctrl_c_only_with_ctrl() {
-        assert_eq!(map(Key::C), None);
+    fn c_is_the_palette_and_ctrl_c_still_quits() {
+        assert_eq!(map(Key::C), Some(Action::CyclePalette));
+        assert_eq!(
+            map_key(Key::C, Modifiers::SHIFT, KeyMode::Presentation),
+            Some(Action::ResetPalette)
+        );
         assert_eq!(
             map_key(Key::C, Modifiers::CTRL, KeyMode::Presentation),
             Some(Action::CtrlC)

@@ -11,6 +11,8 @@ pub const SLIDE_DIRECTIVES: &[&str] = &[
     "art",
     "background",
     "background-opacity",
+    "thermal-window",
+    "zoom",
     "class",
 ];
 
@@ -31,6 +33,7 @@ pub const GLOBAL_DIRECTIVES: &[&str] = &[
     "logo-position",
     "logo-opacity",
     "logo-height",
+    "palette",
 ];
 
 /// A directive name mdeck knows, at slide or deck scope.

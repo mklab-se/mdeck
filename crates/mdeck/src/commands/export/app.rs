@@ -256,6 +256,13 @@ impl ExportApp {
     }
 
     fn draw_slide(&mut self, ui: &mut egui::Ui, origin: (u32, u32)) {
+        // export shows each block's palette as written
+        let palette = self.deck.presentation.meta.palette.as_deref();
+        render::thermal::set_deck_palette(
+            ui.ctx(),
+            palette.and_then(render::thermal::Palette::from_name),
+        );
+        render::thermal::set_live_palette(ui.ctx(), None);
         let bg = self.theme.background;
         ui.painter().rect_filled(ui.max_rect(), 0.0, bg);
 

@@ -22,6 +22,16 @@ pub struct ActiveTransition {
     pub kind: TransitionKind,
     pub direction: TransitionDirection,
     pub start: Instant,
+    /// Zoom into a spot of the outgoing slide's thermal image (`@zoom`).
+    pub zoom: Option<Zoom>,
+}
+
+/// A zoom into a named spot: the anchor is resolved to a fraction of the
+/// slide once the outgoing slide has drawn it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Zoom {
+    pub spot: String,
+    pub anchor: Option<(f32, f32)>,
 }
 
 impl ActiveTransition {
@@ -37,6 +47,7 @@ impl ActiveTransition {
             kind,
             direction,
             start: Instant::now(),
+            zoom: None,
         }
     }
 

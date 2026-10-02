@@ -57,6 +57,7 @@ default = [
     "chalkboard",
     "watercolour",
     "darkroom",
+    "thermal",
 ]
 # The particles engine: the particle field, editorial layouts, stories and the
 # built-in point cloud illustrations.
@@ -89,6 +90,10 @@ watercolour = ["art"]
 # The darkroom engine: generated photographs that develop under a red
 # safelight, and the `darkroom` theme.
 darkroom = ["art"]
+# The thermal engine: a heat field under the slides, headings that form in
+# heat (the cold opening), heat signatures and a heat-trace pen, and the
+# `thermal` theme.
+thermal = []
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/mdeck-v{ version }-{ target }.{ archive-format }"

@@ -85,11 +85,18 @@ impl Deck {
     ) -> Self {
         let dir = deck_dir(&file).to_path_buf();
         let stories = load_stories(&file, &presentation, quiet);
-        let max_steps = slide_max_steps(&presentation, &stories, theme.engine.plays_stories());
+        let mut image_cache = ImageCache::new(dir);
+        load_thermal(&mut image_cache, &presentation, quiet);
+        let max_steps = slide_max_steps(
+            &presentation,
+            &stories,
+            theme.engine.plays_stories(),
+            image_cache.thermal(),
+        );
         let mut art = DeckArt::new(Some(&file), background_art);
         art.sync(&presentation, theme);
         let mut deck = Self {
-            image_cache: ImageCache::new(dir),
+            image_cache,
             illustrations: Library::for_deck(file.parent()),
             presentation,
             file,
@@ -141,12 +148,13 @@ impl Deck {
     /// old one.
     pub fn replace(&mut self, presentation: Presentation, theme: &Theme) {
         self.presentation = presentation;
+        self.image_cache.clear();
+        load_thermal(&mut self.image_cache, &self.presentation, false);
         self.illustrations.reset();
         self.art.invalidate();
         self.reload_stories(theme);
         self.refresh_logos(theme);
         self.refresh_backgrounds(false);
-        self.image_cache.clear();
         self.background_fade.clear();
     }
 
@@ -155,6 +163,7 @@ impl Deck {
             &self.presentation,
             &self.stories,
             theme.engine.plays_stories(),
+            self.image_cache.thermal(),
         );
     }
 
@@ -294,6 +303,17 @@ impl Deck {
     }
 }
 
+/// Read the deck's thermal sources and tell the author what will not be
+/// shown as written (unless `quiet`).
+fn load_thermal(cache: &mut ImageCache, presentation: &Presentation, quiet: bool) {
+    let diagnostics = cache.thermal_mut().load(presentation);
+    if !quiet {
+        for d in diagnostics {
+            eprintln!("warning: {d}");
+        }
+    }
+}
+
 fn deck_dir(file: &Path) -> &Path {
     file.parent().unwrap_or(Path::new("."))
 }
@@ -325,13 +345,26 @@ fn slide_max_steps(
     presentation: &Presentation,
     stories: &[Option<Resolved>],
     plays_stories: bool,
+    thermal: &render::thermal::Library,
 ) -> Vec<usize> {
     presentation
         .slides
         .iter()
         .enumerate()
         .map(|(i, s)| {
-            let content = parser::compute_max_steps(&s.blocks);
+            // a thermal block's steps depend on what its source can show
+            let content = s
+                .blocks
+                .iter()
+                .map(|b| match b {
+                    parser::Block::Chart {
+                        kind: parser::Chart::Thermal,
+                        content,
+                    } => render::thermal::block_steps(content, thermal),
+                    other => parser::compute_max_steps(std::slice::from_ref(other)),
+                })
+                .max()
+                .unwrap_or(0);
             if !plays_stories {
                 return content;
             }
@@ -403,8 +436,9 @@ mod tests {
             source: story_sidecar::Source::Sidecar,
         })];
         // one `+` reveal on the slide; the story has four beats (three extra steps)
-        assert_eq!(slide_max_steps(&pres, &stories, false), vec![1]);
-        assert_eq!(slide_max_steps(&pres, &stories, true), vec![3]);
+        let lib = render::thermal::Library::default();
+        assert_eq!(slide_max_steps(&pres, &stories, false, &lib), vec![1]);
+        assert_eq!(slide_max_steps(&pres, &stories, true, &lib), vec![3]);
     }
 
     #[test]

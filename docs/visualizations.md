@@ -2,7 +2,7 @@
 
 # Visualizations
 
-Nineteen charts and diagrams from plain text. Every one animates in and supports
+Twenty charts and diagrams from plain text. Every one animates in and supports
 step-by-step reveal with the same `+` markers as lists. See all of them in the
 [Gallery](../GALLERY.md).
 
@@ -30,6 +30,7 @@ Fenced code blocks with an `@` tag become charts:
 | Git graph | `@gitgraph` | `- branch main -> develop` |
 | Flower | `@flower` | `- petal Payments: Takes the money` |
 | Artifact flow | `@artifactflow` | `- Build Team -> Registry: image v1.2` |
+| Thermal image | `@thermal` | `+ lens 76% 43% 16%` |
 | Architecture | `@architecture` | `- Client -> Server: requests` |
 
 Values may carry units and separators (`$4,200`, `12%`, `40 users`). Charts
@@ -54,3 +55,37 @@ per theme. Options such as `# x-label:`, `# orientation: horizontal`, or
 Grid or automatic placement, 20+ built-in icons, five arrow types
 (`->`, `<-`, `<->`, `--`, `-->`), colour-coded labels, and A* routed edges
 that avoid nodes and each other. Node icons can also be AI-generated.
+
+## Thermal images
+
+A `@thermal` block shows one thermal image and helps explain it. Ordinary
+images are never treated as thermal; only an image in the block is.
+
+````markdown
+```@thermal
+image: cabinet.png               # grayscale export, brighter is hotter
+visible: cabinet-visible.jpg     # the same scene as a photo
+label: Cabinet 4, breaker row B
++ lens 76% 43% 16%               # a lens finds the problem in the photo
++ reveal                         # the thermal image fills the frame
+* spot Hotspot 76% 43%
++ above 85%                      # colour only the hottest part
+```
+````
+
+- **Palettes:** iron (default), white-hot, black-hot, rainbow, arctic, lava;
+  `palette:` per block, `@palette` for the deck, `C` while presenting.
+- **What a picture can claim:** a plain export gets a *relative intensity*
+  legend and author spot text marked `†`. With `mapping: linear 18..92 °C`
+  or a `data:` file (16-bit PNG plus a `.yaml` sidecar with unit, scale and
+  offset), the legend shows values, spots are measured (`≈` for a mapping)
+  and thresholds can be in degrees.
+- **Comparisons:** two blocks on a slide with `@thermal-window: 25..90 °C`
+  share one scale, even with different mappings.
+- **Zoom:** `@zoom: Hotspot` on the next slide zooms into that spot.
+- **Colour exports** are shown as they are (with a warning); the lens still
+  works with them.
+
+`samples/features/thermal.md` shows every option, and the
+[format spec](../crates/mdeck/doc/mdeck-spec.md) (section 14.20) the full
+rules.

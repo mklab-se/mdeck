@@ -202,11 +202,35 @@ then the white light comes on:
 
 <img src="media/gallery/darkroom-title.jpg" width="720">
 
+### Thermal
+
+The `thermal` engine and theme: the deck seen through a thermal instrument.
+Title and section headings form in heat and settle with a faint contour halo:
+
+<img src="media/gallery/thermal-title.jpg" width="720">
+
+A `@thermal` block finds the problem: a lens over the ordinary photo,
+
+<img src="media/gallery/thermal-lens.jpg" width="720">
+
+a threshold that colours only the hottest metal,
+
+<img src="media/gallery/thermal-threshold.jpg" width="720">
+
+an illustration as a heat signature,
+
+<img src="media/gallery/thermal-signature.jpg" width="720">
+
+and before and after on one temperature scale (the pictures are synthetic
+examples):
+
+<img src="media/gallery/thermal-compare.jpg" width="720">
+
 ---
 
 ## Themes
 
-Seventeen built-in themes, all written as theme files, and your own in a few lines
+Eighteen built-in themes, all written as theme files, and your own in a few lines
 of YAML (spec section 9.4). These stills are from `samples/themes/`.
 
 ### The four seasons

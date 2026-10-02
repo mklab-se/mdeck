@@ -5,7 +5,7 @@ paints under the slides, and what it plays for the countdown and the end.
 MDeck ships `plain`, `particles` (the Ember theme), `led` (Marquee),
 `splitflap` (Departures), `laser` (Etch), `blocks` (Stack) and the art
 engines `blueprint`, `sketch` (Sketchbook), `chalkboard`, `watercolour` and
-`darkroom`. This guide is for adding one. Read spec sections 9.6
+`darkroom`, and `thermal` (the Thermal theme). This guide is for adding one. Read spec sections 9.6
 and 9.7 first for what users see.
 
 The rule that makes engines safe to add: **the core decides what a slide
@@ -60,13 +60,16 @@ slide (`EngineKind::end_caption_delay`).
 
 ```text
 host.frame(shot) ─┬─ build Stage (moment, figure + place, hints)
+                  ├─ engine.prepare(&Ui, &FrameCx, &Stage)          what needs the UI (optional)
                   ├─ engine.update(&FrameCx, &Stage, &mut Library)   advance by cx.dt
                   └─ engine.paint(&Ui, &FrameCx, &Stage)             under the slide
 ```
 
 `update` moves your state toward what the stage asks for; `paint` draws it.
 Keep them separate: a rehearsal (below) runs `update` many times and `paint`
-once.
+once. `prepare` (a no-op by default) runs before every `update`, rehearsals
+included, for what needs the UI: the thermal engine samples the heading's
+glyphs out of the font atlas there.
 
 ## The rules
 
@@ -107,6 +110,8 @@ once.
 | `end_act` | Plays an act of its own on the end slide. |
 | `art` | Draws generated art: the host fills `Stage::art`, and `EngineKind::medium` says which kind of picture to generate and how to draw it in. |
 | `numbers_slides` | Prints the slide number itself, so the editorial counter is left out (blueprint's title block). |
+| `cold_open` | Forms title and section headings itself: the editorial copy waits `render::ember::COLD_OPEN_HOLD` seconds and publishes the heading as `Hint::Text` (with its slide) for the engine to draw (thermal). |
+| `heat_trace` | Pen strokes are drawn as a heat trace in the theme's `heat.palette`: white-hot, cooling, gone after a few seconds (thermal). |
 
 What an engine cannot show is reported, never silently dropped:
 `engines::unsupported` names it per slide, `mdeck --check` lists it under the

@@ -140,6 +140,8 @@ impl PresentationApp {
             Action::EnterGrid => self.enter_grid(),
             Action::ToggleHud => self.show_hud = !self.show_hud,
             Action::Generate => self.generate(),
+            Action::CyclePalette => self.cycle_palette(),
+            Action::ResetPalette => self.reset_palette(),
             Action::CycleRawOverlay => {
                 self.raw_overlay_side = match self.raw_overlay_side {
                     RawOverlaySide::Off => RawOverlaySide::Left,

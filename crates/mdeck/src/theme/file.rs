@@ -40,6 +40,8 @@ pub struct ThemeFile {
     pub page: Page,
     #[serde(default)]
     pub art: Art,
+    #[serde(default)]
+    pub heat: Heat,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -68,6 +70,18 @@ pub struct Annotations {
     pub pen_outline: Option<String>,
     pub arrow: Option<String>,
     pub arrow_outline: Option<String>,
+}
+
+/// The heat field of the thermal engine.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Heat {
+    /// The palette the field glows in: iron, white-hot, black-hot, rainbow,
+    /// arctic or lava.
+    pub palette: Option<String>,
+    /// Embers drift through the dark on ordinary slides (off: a still,
+    /// dark background).
+    pub drift: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -242,6 +256,10 @@ impl ThemeFile {
                 shadow: pick(&self.page.shadow, &parent.page.shadow),
                 grain: pick(&self.page.grain, &parent.page.grain),
                 radius: pick(&self.page.radius, &parent.page.radius),
+            },
+            heat: Heat {
+                palette: pick(&self.heat.palette, &parent.heat.palette),
+                drift: pick(&self.heat.drift, &parent.heat.drift),
             },
             art: Art {
                 kind: pick(&self.art.kind, &parent.art.kind),

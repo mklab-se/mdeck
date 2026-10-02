@@ -13,6 +13,7 @@ mod look;
 mod navigation;
 mod overlays;
 mod overview;
+mod placement;
 mod reload;
 mod toast;
 
@@ -196,6 +197,11 @@ struct PresentationApp {
     pending_reveal_scroll: bool,
     /// Cached texture for the embedded logo (loaded once on first draw).
     end_logo_texture: Option<egui::TextureHandle>,
+    /// The thermal palette picked live with `C`; `None` keeps each block's.
+    pub(super) live_palette: Option<crate::render::thermal::Palette>,
+    /// `--reduced-motion` (or the config default): every slide and step in
+    /// its settled state, without transitions, entries or engine motion.
+    pub(super) reduced_motion: bool,
     /// Shared slide position for recovery after display errors.
     shared_slide: Option<Arc<AtomicUsize>>,
     /// Incident log for recording recovered and fatal errors.

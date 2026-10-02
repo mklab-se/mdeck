@@ -40,6 +40,7 @@ impl Theme {
         let logo = extras::logo(&f.logo, &mut warnings)?;
         let page = extras::page(&f.page)?;
         let art = extras::art(f)?;
+        let heat = extras::heat(&f.heat)?;
         let [h1_size, h2_size, h3_size, body_size, code_size] = settings::sizes(&f.sizes)?;
 
         let p = palette.flattened();
@@ -78,6 +79,7 @@ impl Theme {
             syntax,
             logo,
             page,
+            heat,
             art,
             source: None,
         };

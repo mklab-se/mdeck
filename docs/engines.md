@@ -9,7 +9,7 @@ like itself on every engine, and any deck switches with one line:
 ```yaml
 ---
 @engine: led        # plain, particles, led, splitflap, laser, blocks, blueprint, sketch,
-                    # chalkboard, watercolour or darkroom
+                    # chalkboard, watercolour, darkroom or thermal
 ---
 ```
 
@@ -194,3 +194,35 @@ is drawn in the medium: a technical pen, pencil, chalk, ink and wash, or a photo
 `mdeck talk.md --engine led` tries an engine without touching the deck, and
 `mdeck talk.md --check` lists anything the chosen engine does not show. Try
 `samples/engines/`.
+
+## Thermal: the deck through a thermal camera
+
+The `thermal` engine (theme `thermal`) shows the deck as a thermal instrument
+would: a heat field under the slides in the theme's heat palette, drawn in
+contour bands. It saves its motion for the moments that tell the story:
+
+- **The cold opening.** On title and section slides the heading forms in
+  heat: points of heat inside the letters spread into contours, the words are
+  readable within a second, then the crisp type rises into the settling heat,
+  which stays as a faint contour halo.
+- **Heat signatures.** An `@illustration` glows like a warm body (the built-in
+  `thermographer` fits); the countdown digits heat up and cool off.
+- **Calm evidence.** The field stays dark around charts, diagrams, images and
+  thermal images. `heat: { drift: true }` in a theme lets a few embers drift
+  through the dark on ordinary slides.
+- **The heat trace.** Pen strokes arrive white-hot and cool away.
+
+<p align="center">
+  <img src="../media/gallery/thermal-title.jpg" width="45%">&nbsp;&nbsp;
+  <img src="../media/gallery/thermal-signature.jpg" width="45%">
+</p>
+
+It pairs with `@thermal` blocks, which work on every engine: a thermal image
+in a palette (`C` cycles palettes live), a lens that finds the problem in an
+ordinary photo, threshold reveals, spots with measured values, and
+comparisons on one scale. See [Visualizations](visualizations.md#thermal-images).
+
+<p align="center">
+  <img src="../media/gallery/thermal-lens.jpg" width="45%">&nbsp;&nbsp;
+  <img src="../media/gallery/thermal-compare.jpg" width="45%">
+</p>

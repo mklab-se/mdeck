@@ -24,6 +24,9 @@ pub enum CheckCategory {
     Art,
     /// `@background` images that are missing or unreadable, bad opacities.
     Background,
+    /// `@thermal` blocks: unreadable sources, colour input, unsupported
+    /// settings, comparisons that cannot share a scale.
+    Thermal,
 }
 
 impl fmt::Display for CheckCategory {
@@ -39,6 +42,7 @@ impl fmt::Display for CheckCategory {
             CheckCategory::Engine => write!(f, "engine"),
             CheckCategory::Art => write!(f, "art"),
             CheckCategory::Background => write!(f, "background"),
+            CheckCategory::Thermal => write!(f, "thermal"),
         }
     }
 }

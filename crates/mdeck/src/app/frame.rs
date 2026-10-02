@@ -261,6 +261,9 @@ impl PresentationApp {
     }
 
     fn paint(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, bg: egui::Color32) {
+        render::thermal::set_deck_palette(ctx, self.deck_palette());
+        render::thermal::set_live_palette(ctx, self.live_palette);
+        self.resolve_zoom(ctx);
         let rect = ui.max_rect();
         ui.painter().rect_filled(rect, 0.0, bg);
 
@@ -368,7 +371,8 @@ impl PresentationApp {
                 reveal: self.view(target).reveal,
                 end: self.on_end_slide(),
                 countdown,
-                still: false,
+                // reduced motion: the engine's settled look, no movement
+                still: self.reduced_motion,
             },
             None,
         );

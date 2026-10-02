@@ -122,6 +122,7 @@ fn parse_frontmatter(yaml_str: &str) -> PresentationMeta {
             "@background" => meta.background = text,
             "@background-opacity" => meta.background_opacity = text,
             "@art" => meta.art = text,
+            "@palette" => meta.palette = text,
             _ => {}
         }
     }

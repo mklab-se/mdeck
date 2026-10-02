@@ -26,6 +26,14 @@ pub enum Hint {
     Point(Pos2),
     /// A box the field must stay out of: the content area, a node, a card.
     Frame(Rect),
+    /// A heading as laid out, at the place it settles: an engine that forms
+    /// titles itself (the thermal cold opening) draws it from the glyphs.
+    Text {
+        galley: std::sync::Arc<egui::Galley>,
+        pos: Pos2,
+        /// The slide it belongs to (during a transition two slides draw).
+        slide: usize,
+    },
 }
 
 fn store_id() -> egui::Id {
@@ -85,6 +93,12 @@ pub fn fingerprint(hints: &[Hint]) -> u64 {
             Hint::Point(p) => {
                 4u8.hash(&mut h);
                 (q(p.x), q(p.y)).hash(&mut h);
+            }
+            Hint::Text { galley, pos, slide } => {
+                5u8.hash(&mut h);
+                slide.hash(&mut h);
+                galley.text().hash(&mut h);
+                (q(pos.x), q(pos.y)).hash(&mut h);
             }
         }
     }

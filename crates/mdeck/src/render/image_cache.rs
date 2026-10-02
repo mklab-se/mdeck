@@ -57,6 +57,8 @@ pub enum ImageState {
 /// egui to repaint when the pixels are ready, and the next frame uploads them.
 pub struct ImageCache {
     base_path: PathBuf,
+    /// The deck's `@thermal` sources, read when the deck opens.
+    thermal: super::thermal::Library,
     textures: RefCell<HashMap<String, Option<egui::TextureHandle>>>,
     pending: RefCell<HashMap<String, Receiver<Option<DecodedImage>>>>,
 }
@@ -64,14 +66,25 @@ pub struct ImageCache {
 impl ImageCache {
     pub fn new(base_path: PathBuf) -> Self {
         Self {
+            thermal: super::thermal::Library::new(base_path.clone()),
             base_path,
             textures: RefCell::new(HashMap::new()),
             pending: RefCell::new(HashMap::new()),
         }
     }
 
+    /// The deck's thermal sources.
+    pub fn thermal(&self) -> &super::thermal::Library {
+        &self.thermal
+    }
+
+    pub fn thermal_mut(&mut self) -> &mut super::thermal::Library {
+        &mut self.thermal
+    }
+
     /// Clear all cached textures so images reload on next access.
     pub fn clear(&mut self) {
+        self.thermal.clear();
         self.textures.get_mut().clear();
         self.pending.get_mut().clear();
     }

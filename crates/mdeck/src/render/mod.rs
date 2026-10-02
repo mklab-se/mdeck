@@ -19,6 +19,7 @@ pub mod story;
 pub mod strokes;
 pub mod syntax;
 pub mod text;
+pub mod thermal;
 pub mod transition;
 pub mod visualizations;
 

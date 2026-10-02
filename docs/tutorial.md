@@ -146,8 +146,8 @@ A fenced block tagged `@barchart` becomes a chart. Each line is a bar:
   <img src="../media/tutorial/05-chart.jpg" width="80%" alt="A bar chart">
 </p>
 
-There are nineteen kinds, from line and pie charts to timelines, Gantt
-charts and artifact flows: see [Visualizations](visualizations.md).
+There are twenty kinds, from line and pie charts to timelines, Gantt
+charts, artifact flows and thermal images: see [Visualizations](visualizations.md).
 
 ## 7. Add a diagram
 
@@ -290,6 +290,6 @@ single slides and more.
 - [Writing slides](writing-slides.md): layouts, two columns, images, math
 - [Visualizations](visualizations.md): every chart and diagram
 - [Themes](themes.md): your brand as a theme, logos, design systems
-- [Engines](engines.md): stories, illustrations and all eleven engines
+- [Engines](engines.md): stories, illustrations and all twelve engines
 - [AI features](ai.md): a whole deck from a PDF, a document or one sentence
 - [Gallery](../GALLERY.md): what everything looks like

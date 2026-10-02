@@ -55,8 +55,8 @@ date: 2026-02-28
 
 | Field         | Type   | Default   | Description                                        |
 |---------------|--------|-----------|----------------------------------------------------|
-| `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`, `"marquee"`, `"departures"`, `"etch"`, `"stack"`, `"blueprint"`, `"sketchbook"`, `"chalkboard"`, `"watercolour"`, `"darkroom"`), a custom theme name, or a path to a theme file (section 9.4) |
-| `@engine`     | string | (theme's) | Run the deck on this engine instead of the theme's: `"plain"`, `"particles"`, `"led"`, `"splitflap"`, `"laser"`, `"blocks"`, `"blueprint"`, `"sketch"`, `"chalkboard"`, `"watercolour"`, `"darkroom"` (section 9.6) |
+| `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`, `"marquee"`, `"departures"`, `"etch"`, `"stack"`, `"blueprint"`, `"sketchbook"`, `"chalkboard"`, `"watercolour"`, `"darkroom"`, `"thermal"`), a custom theme name, or a path to a theme file (section 9.4) |
+| `@engine`     | string | (theme's) | Run the deck on this engine instead of the theme's: `"plain"`, `"particles"`, `"led"`, `"splitflap"`, `"laser"`, `"blocks"`, `"blueprint"`, `"sketch"`, `"chalkboard"`, `"watercolour"`, `"darkroom"`, `"thermal"` (section 9.6) |
 | `@transition` | string | `"slide"` | Default transition: `"fade"`, `"slide"`, `"spatial"`, `"none"` |
 | `@image-style` | string | none      | Default AI image generation style (name or description) |
 | `@icon-style`  | string | none      | Default AI icon generation style (name or description)  |
@@ -68,6 +68,7 @@ date: 2026-02-28
 | `@art`         | string | none       | The deck's world for generated art on an art engine: setting, era, recurring characters. A slide's own `@art` is its scene (section 9.7) |
 | `@background`  | string | none       | An image behind every slide (PNG, JPEG, WebP or SVG), relative to the deck. A slide's own `@background` replaces it there, `none` turns it off (section 9.8) |
 | `@background-opacity` | number | `0.3` | 0 to 1, or a percentage (`30%`) |
+| `@palette`     | string | `iron`     | The palette of `@thermal` images that name none: `iron`, `white-hot`, `black-hot`, `rainbow`, `arctic`, `lava` (section 14.20) |
 
 Reserved fields that are parsed but not yet applied: `@aspect`, `@code-theme`,
 `@footer`. They are accepted so that files stay forward compatible; see
@@ -594,7 +595,7 @@ Right side
 **Syntax:** `@name: value`
 
 In the frontmatter, directives apply to the whole deck. Inside a slide, a
-**slide directive** (`@layout`, `@illustration`, `@logo`, `@background`) applies to the slide
+**slide directive** (`@layout`, `@illustration`, `@logo`, `@background`, `@thermal-window`, `@zoom`) applies to the slide
 it is written in, wherever it stands at the top level of that slide: under the
 heading, at the start of the slide, or further down. It is removed from the
 slide's content. It is not recognised inside a list item, a blockquote, an
@@ -641,6 +642,9 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 | `@logo`        | global, slide  | PNG or SVG path, or `none` (section 9.5)  | the theme's    |
 | `@logo-position` / `@logo-opacity` / `@logo-height` | global | see section 9.5 | the theme's |
 | `@art`         | global, slide  | global: the deck's world; slide: this slide's scene, or `none` for no picture (section 9.7) | none |
+| `@palette`     | global         | a thermal palette (section 14.20)          | `iron` |
+| `@thermal-window` | slide       | a range like `25..90 °C`: one common scale for the slide's `@thermal` images (section 14.20) | none |
+| `@zoom`        | slide          | a spot name: enter this slide by zooming into that spot of the previous slide's `@thermal` image (section 14.20) | none |
 | `@background`  | global, slide  | PNG, JPEG, WebP or SVG path, or `none` (section 9.8) | none |
 | `@background-opacity` | global, slide | 0 to 1, or a percentage (section 9.8) | `0.3` |
 
@@ -936,6 +940,15 @@ of earlier drawings wiped off it; generated line art is drawn in chalk.
 | `watercolour` | cold-press paper on a pale table (`page:`), sepia-grey ink, an editorial serif; generated watercolours bloom onto the paper | watercolour | `#FBF8F1` | `#C8553D` |
 | `darkroom` | a darkroom under a red safelight (`accent`); generated black-and-white photographs develop as prints | darkroom | `#141011` | `#FF4B3A` |
 
+**`thermal`**
+
+| Theme | Feel | Engine | Background | Accent |
+|---|---|---|---|---|
+| `thermal` | the deck seen through a thermal instrument: cold indigo-black, white-hot headings, iron orange; headings form in heat on title and section slides | thermal | `#05030D` | `#F37A0C` |
+
+Thermal extends Ember's editorial layouts and type. It pairs with `@thermal`
+blocks for thermal images (section 14.20); the engine is in section 9.6.
+
 Every theme can draw the symbols text faces usually lack: circled numbers and letters (①②③, ⓐ), check marks, arrows, geometric shapes and stars. Noto Sans Symbols and DejaVu Sans are bundled as the last fallback of every font family, so such characters never render as boxes.
 
 Chinese, Japanese and Korean text draws with a font borrowed from the system, since a CJK face is too large to bundle: PingFang, Hiragino or Arial Unicode on macOS, Microsoft YaHei, Yu Gothic or Malgun Gothic on Windows, Noto Sans CJK, WenQuanYi or Droid Sans Fallback on Linux (`fonts-noto-cjk` on Debian and Ubuntu). It is added after the symbol faces in every family, on the family's own baseline. To use a specific file, set `MDECK_CJK_FONT=/path/to/font.ttc`. When no font on the machine covers a script the deck uses, `mdeck --check` warns (`fonts` category) and presenting or exporting prints the same warning; the text then draws as boxes.
@@ -1124,7 +1137,7 @@ match wins:
    `%APPDATA%\mdeck\themes\` on Windows
 3. the built-in themes (`dark`, `light`, `nord`, `ember`, `spring`, `summer`,
    `autumn`, `winter`, `marquee`, `departures`, `etch`, `stack`, `blueprint`,
-   `sketchbook`, `chalkboard`, `watercolour`, `darkroom`)
+   `sketchbook`, `chalkboard`, `watercolour`, `darkroom`, `thermal`)
 
 `@theme` may also be a path to a file (`@theme: brand/acme.yaml`), relative
 to the deck. A user or deck theme may reuse a built-in name to replace it.
@@ -1181,6 +1194,9 @@ annotations:               # the presenter's pen (drag) and arrow (Shift+drag) t
 particles:                 # particles and led engines: tints besides the accents
   light: "#d7d7e1"
   cool: "#afc3f0"
+heat:                      # thermal engine: the heat field
+  palette: iron            # iron | white-hot | black-hot | rainbow | arctic | lava
+  drift: false             # true: embers drift through the dark on ordinary slides
 fonts:                     # a bundled face, or a .ttf/.otf file in the theme folder
   display: fonts/Acme-Display.ttf   # headings
   body: hanken-regular     # body text and list items
@@ -1383,6 +1399,7 @@ from the theme, so every theme looks like itself on every engine.
 | `chalkboard` | a slate in a wooden frame: generated line art drawn in chalk, stroke by stroke (theme `chalkboard`, section 9.7) | yes, in chalk when a slide has no art | no | digits drawn in chalk; the words, then they fade |
 | `watercolour` | cold-press paper: generated watercolours bloom onto it, a pale wash first, then the colour spreading (theme `watercolour`, section 9.7) | yes, in ink with a loose wash when a slide has no art | no | digits in ink and wash; the words, then they fade |
 | `darkroom` | a darkroom under a red safelight: generated photographs develop as prints, then the white light comes on (theme `darkroom`, section 9.7) | yes, as a photogram when a slide has no art | no | digits glowing white like a photogram; the words, then they fade |
+| `thermal` | a heat field under the slides in the theme's heat palette; title and section headings form in heat (the cold opening), editorial copy layouts (theme `thermal`) | yes, as a heat signature | no | digits that heat up and cool off; the words glow, then cool |
 
 **The LED engine.** The slide sits on a wall of LEDs, a few pixels apart,
 their unlit lenses just visible. Nothing ever moves: pictures appear by
@@ -1508,6 +1525,30 @@ its true greys. On a title slide the photograph sits dim behind the title.
 Without art the slide's `@illustration` becomes a photogram: its shape left
 white on a black print. The countdown and the end words glow the same way.
 
+**The thermal engine.** The deck is seen through a thermal instrument: a
+heat field lies under the slides, drawn in the theme's heat palette
+(`heat: { palette: iron }`) in contour bands and transparent where it is
+cold. Its motion is kept for the story beats:
+
+- *The cold opening.* On title and section slides the heading forms in heat:
+  points of heat appear inside the letters, spread and join into contours,
+  and the words are readable in under a second. Then the crisp type rises
+  into it (the copy waits about 1.5 seconds) and the heat settles into a
+  faint contour halo that stays. Going back to the slide plays it again.
+- *Heat signatures.* An `@illustration` glows like a warm body; the
+  countdown digits heat up and cool off; the end words glow and fade.
+- *Calm evidence.* Where a slide shows a chart, a diagram, an image or a
+  `@thermal` block, the field stays dark. With `heat: { drift: true }` a few
+  embers drift through the dark on ordinary slides, cooling as they rise;
+  by default the background is still.
+- *Cooling between slides.* Nothing is cleared on a slide change: the old
+  slide's heat cools while the new one's builds.
+- *The heat trace.* Pen strokes (left drag) arrive white-hot, cool through
+  the palette and fade after about four seconds.
+
+Exports and reduced motion (section 15) show the settled field: the finished
+title with its faint halo.
+
 **Choosing one.** A theme names its engine (`engine:` in section 9.4). A deck
 can run on another engine without touching the theme:
 
@@ -1537,8 +1578,8 @@ Building MDeck with `--no-default-features` leaves them out (and with them
 the themes that run on them: `ember`, `autumn` and `winter` on particles,
 `marquee` on led, `departures` on splitflap, `etch` on laser, `stack` on
 blocks, `blueprint` on blueprint, `sketchbook` on sketch, `chalkboard` on
-chalkboard, `watercolour` on watercolour, `darkroom` on darkroom, and the
-built-in illustrations); themes and
+chalkboard, `watercolour` on watercolour, `darkroom` on darkroom, `thermal`
+on thermal, and the built-in illustrations); themes and
 decks that ask for one then use `plain`, with a warning.
 
 ### 9.7 Generated art
@@ -2385,6 +2426,122 @@ tall for the slide.
 **Progressive reveal:** `+` and `*` work on nodes and on edges; an edge
 appears (drawing itself toward its arrowhead) once both of its ends have.
 
+### 14.20 Thermal images (`@thermal`)
+
+A `@thermal` block shows one thermal image, coloured with a thermal palette,
+with a legend, spots, and reveals for telling what the image shows. The
+theme never changes how an image looks and MDeck never guesses: ordinary
+images (`![...](photo.jpg)`) are always shown as they are. Only an image in
+a `@thermal` block is read as thermal.
+
+````markdown
+```@thermal
+image: cabinet-4.png             # white-hot export: brighter is hotter
+visible: cabinet-4-visible.jpg   # optional registered photo for the lens
+palette: iron
+label: Cabinet 4, breaker row B
++ lens 76% 43% 16%
++ reveal
+* spot Hotspot 76% 43%
+* spot Reference 30% 52%
++ above 85%
+```
+````
+
+**Keys** (`key: value`, also written `# key: value`):
+
+| Key | Value |
+|---|---|
+| `image:` | the thermal image: a grayscale export, brighter is hotter (white-hot), with no palette, scale bar or text burned in. It may be stored as an RGB file; the pixel values decide |
+| `data:` | instead of `image:`, temperature data: a 16-bit (or 8-bit) grayscale PNG with a sidecar `<name>.yaml` beside it |
+| `visible:` | a visible-light photo of the same scene, registered (same framing) with the thermal image. The lens reveals the thermal image over it. Shown as it is |
+| `palette:` | `iron` (default), `white-hot`, `black-hot`, `rainbow`, `arctic`, `lava`; else the deck's `@palette` |
+| `mapping:` | `linear 18..92 °C`: the gray levels of `image:` run linearly over this range (units `°C`, `°F`, `K`, or any other unit, kept as written) |
+| `window:` | `40..90 °C`: the values the palette spans (level and span). Only with a mapping or data |
+| `polarity:` | `black-hot` for a source where darker is hotter (inverted before palette and thresholds); `white-hot` is the default |
+| `label:` | a caption under the image |
+
+**Steps** (with `-`, `+` and `*` like every visualization; the state at a
+step never depends on how it was reached, so going back shows that step
+exactly):
+
+| Step | What it does |
+|---|---|
+| `lens X% Y% R%` | a lens at the point (fractions of the image) with radius R (of the image's width) shows the thermal image over the visible photo (or over the thermal image in gray, without `visible:`). A later `lens` glides there; the first glides in. It stays put until the next click |
+| `reveal` | the lens opens until the thermal image fills its frame; the lens's edge dissolves |
+| `above 85%` | only what is above the threshold keeps the palette; the rest goes gray. A share of the displayed range; a later `above` changes the threshold (cross-fading) |
+| `above 60 °C` | the same in the source's unit: only with a mapping or data, converted between temperature units |
+| `spot Name X% Y%` | a crosshair with a label. With a mapping or data the label shows the value sampled there (`≈` for a linear mapping, exact for data, `≥`/`≤` when the source clipped there, `no data`) |
+| `spot Name X% Y%: text` | the label shows the author's text, marked `†` with the note "† value supplied by the author" |
+
+Without a `lens` or `reveal` line the thermal image shows from the start.
+The legend appears with the thermal image: a palette bar with a caption,
+reading **relative intensity** (high, low) for an image without a mapping,
+and values with round ticks for a mapping or data; the threshold is marked
+on it. Clipped or missing pixels are hatched and the legend notes them.
+
+**What the source can say.** The block's source decides what it may claim:
+
+| Source | Legend | Spots | Threshold |
+|---|---|---|---|
+| `image:` only (a display image) | relative intensity, no numbers | the author's text, marked `†` | relative (`above 85%`) |
+| `image:` with `mapping:` | values in the unit | sampled, shown with `≈` | relative or in the unit |
+| `data:` with its sidecar | values in the unit | sampled | relative or in the unit |
+
+A display export from a camera's histogram mode is not a temperature map,
+so it is never labelled in degrees. `mdeck --check` (category `thermal`) and
+presenting and exporting report what a source cannot honour: a `window:`
+or a `°C` threshold on a display image, a spot text that reads like a
+measurement on one, `mapping:` on a data file. Steps the source cannot show
+are left out of the slide's steps, so no click does nothing.
+
+**Colour input.** A colour image in a `@thermal` block (an export already in
+iron, or a photo) is detected from its pixel values (with a tolerance) and
+shown as it is, without palette, legend or threshold; the note "shown as
+exported" appears under it, and a diagnostic says "unsupported chromatic
+input" when presenting, exporting and in `--check`. Its threshold steps are
+left out; the lens still works, since it only lays one picture over the
+other.
+
+**The data sidecar.** `cabinet.thermal.png` is read with
+`cabinet.thermal.yaml`:
+
+```yaml
+unit: °C          # °C, °F, K, or another unit
+scale: 0.001526   # value = raw * scale + offset
+offset: 10
+nodata: 0         # optional: the raw code of pixels without a value
+clipped_low: 1    # optional: raw codes at or below this clipped
+clipped_high: 65535 # optional: raw codes at or above this clipped
+```
+
+**Comparing images.** Put two blocks on one slide (for example
+`@layout: two-column`) and give the slide one scale with
+`@thermal-window: 25..90 °C`. Every block on the slide then uses that window,
+converted into its own unit, so the same colour means the same value on both
+sides, even when the sources have different mappings. A source without a
+mapping or data cannot be compared (`--check` says so); clipped and missing
+values stay hatched, since a common window cannot recover them.
+
+**The palette key.** While presenting, `C` cycles every `@thermal` image and
+legend through the palettes, and `Shift+C` returns to the palettes as
+written. Headings, charts and the theme do not change. Export always uses the
+palettes as written.
+
+**Zoom into a spot.** `@zoom: Hotspot` on a slide makes the step into it a
+zoom into the spot named `Hotspot` on the previous slide's `@thermal` image:
+the old slide magnifies around the spot and fades as the new one settles. If
+the previous slide shows no such spot, the transition is the usual one.
+
+**Engines.** The block draws the same on every engine. The thermal engine
+keeps its field dark around it; a board engine (`splitflap`) shows the block,
+annotations included, in its image panel.
+
+**Palettes.** Iron, white-hot, black-hot and lava keep their order in
+lightness (hotter is lighter, darker for black-hot), so they read in gray and
+for colour-blind viewers. Rainbow and arctic trade that for hue; prefer
+iron for audiences you do not know.
+
 ---
 
 ## 15. Presenting: Keyboard and Mouse
@@ -2405,6 +2562,8 @@ in-app HUD (`H`) show the same table.
 | F | Toggle fullscreen |
 | M | Move the fullscreen window to the next monitor (remembered in config) |
 | H | Toggle the presenter HUD |
+| C | Next thermal palette for every `@thermal` image and legend (section 14.20) |
+| Shift+C | Thermal palettes as written |
 | S | AI for the current slide, in the background: a story on the particles engine (section 9.1), a picture on an art engine (section 9.7) |
 | `.` or B | Blackout |
 | R | Debug overlay (left, right, off) |
@@ -2418,8 +2577,18 @@ in-app HUD (`H`) show the same table.
 | Left drag | Freehand pen (blue) |
 | Right drag | Arrow (orange) |
 
-Drawings fade out after about eight seconds. Keys pressed during a transition
-are queued and applied when it finishes, so fast presses never lose a step.
+Drawings fade out after about eight seconds (on the thermal engine a pen
+stroke is a heat trace: white-hot, cooling, gone after about four). Keys
+pressed during a transition are queued and applied when it finishes, so fast
+presses never lose a step.
+
+**Reduced motion.** `mdeck deck.md --reduced-motion` (or
+`mdeck config set defaults.reduced_motion true`) presents every slide and
+reveal step in its settled state: no transitions, no entry or reveal
+animations, no countdown, and engines show their finished still, as in an
+export. Steps still arrive one click at a time, so a `@thermal` block goes
+photo, lens, full image on separate clicks; only the motion between them is
+left out.
 
 While presenting, the file is watched: saving it reloads the deck in place and
 keeps the current slide and reveal state.

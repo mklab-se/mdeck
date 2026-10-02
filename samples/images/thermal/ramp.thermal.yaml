@@ -1,0 +1,4 @@
+# A known scalar ramp for testing: 0 °C on the left to 100 °C on the right
+unit: °C
+scale: 0.0015259022
+offset: 0

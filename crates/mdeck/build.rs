@@ -17,6 +17,7 @@ const ENGINES: &[&str] = &[
     "CHALKBOARD",
     "WATERCOLOUR",
     "DARKROOM",
+    "THERMAL",
 ];
 
 fn main() {

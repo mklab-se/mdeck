@@ -75,6 +75,10 @@ pub struct DefaultsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start_mode: Option<String>,
 
+    /// Present with reduced motion by default (`--reduced-motion`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reduced_motion: Option<bool>,
+
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image_style: Option<String>,
 
@@ -284,6 +288,18 @@ impl Config {
                     .get_or_insert_with(DefaultsConfig::default)
                     .start_mode = Some(value.to_string());
             }
+            "defaults.reduced_motion" => {
+                let on = match value.to_ascii_lowercase().as_str() {
+                    "true" | "on" | "yes" => true,
+                    "false" | "off" | "no" => false,
+                    _ => {
+                        anyhow::bail!("Invalid reduced_motion: {value}. Must be 'true' or 'false'.")
+                    }
+                };
+                self.defaults
+                    .get_or_insert_with(DefaultsConfig::default)
+                    .reduced_motion = Some(on);
+            }
             "defaults.image_style" => {
                 if self.get_style(value).is_none() {
                     anyhow::bail!(
@@ -307,7 +323,7 @@ impl Config {
                     .icon_style = Some(value.to_string());
             }
             _ => anyhow::bail!(
-                "Unknown config key: {key}. Valid keys: defaults.theme, defaults.transition, defaults.aspect, defaults.start_mode, defaults.image_style, defaults.icon_style"
+                "Unknown config key: {key}. Valid keys: defaults.theme, defaults.transition, defaults.aspect, defaults.start_mode, defaults.reduced_motion, defaults.image_style, defaults.icon_style"
             ),
         }
         Ok(())
@@ -349,6 +365,8 @@ mod tests {
         assert_eq!(d.transition.as_deref(), Some("spatial"));
         assert_eq!(d.aspect.as_deref(), Some("4:3"));
         assert_eq!(d.start_mode.as_deref(), Some("7"));
+        cfg.set("defaults.reduced_motion", "true").unwrap();
+        assert_eq!(cfg.defaults.as_ref().unwrap().reduced_motion, Some(true));
     }
 
     #[test]
@@ -358,6 +376,7 @@ mod tests {
         assert!(cfg.set("defaults.transition", "zoom").is_err());
         assert!(cfg.set("defaults.aspect", "1:1").is_err());
         assert!(cfg.set("defaults.start_mode", "last").is_err());
+        assert!(cfg.set("defaults.reduced_motion", "sometimes").is_err());
         let err = cfg.set("defaults.nope", "x").unwrap_err().to_string();
         assert!(err.contains("Unknown config key"));
         assert!(err.contains("defaults.image_style"));

@@ -51,6 +51,23 @@ pub(super) fn logo(f: &file::Logo, warnings: &mut Vec<String>) -> Result<Option<
     }
 }
 
+/// `heat:`: the thermal engine's palette and drift.
+pub(super) fn heat(f: &file::Heat) -> Result<super::super::Heat, ThemeError> {
+    let mut heat = super::super::Heat::default();
+    if let Some(name) = &f.palette {
+        heat.palette = crate::render::thermal::Palette::from_name(name).ok_or_else(|| {
+            ThemeError::Invalid {
+                key: "heat.palette".to_string(),
+                reason: format!(
+                    "'{name}' is not one of iron, white-hot, black-hot, rainbow, arctic, lava"
+                ),
+            }
+        })?;
+    }
+    heat.drift = f.drift.unwrap_or(false);
+    Ok(heat)
+}
+
 /// `page:`; setting `surface` turns the page on.
 pub(super) fn page(f: &file::Page) -> Result<Option<Page>, ThemeError> {
     let Some(s) = &f.surface else { return Ok(None) };

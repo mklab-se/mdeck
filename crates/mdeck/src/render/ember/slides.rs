@@ -61,6 +61,13 @@ pub(super) fn render_title(f: &Frame, slide: &Slide) {
         Pos2::new(rect.center().x, top + total / 2.0),
         egui::vec2(copy_w, total),
     );
+    let centered = |g: &egui::Galley| rect.center().x - g.rect.width() / 2.0;
+    if let Some(g) = &title {
+        f.heading_hint(
+            g,
+            Pos2::new(centered(g), top + eyebrow.rect.height() + gap1),
+        );
+    }
     pillow(ui.painter(), copy, f.pillow_alpha(), theme);
     if f.age < 0.0 {
         ui.ctx().request_repaint();
@@ -68,7 +75,6 @@ pub(super) fn render_title(f: &Frame, slide: &Slide) {
     }
 
     let mut y = top;
-    let centered = |g: &egui::Galley| rect.center().x - g.rect.width() / 2.0;
 
     f.place(eyebrow.clone(), Pos2::new(centered(&eyebrow), y), 0);
     y += eyebrow.rect.height() + gap1;
@@ -133,7 +139,17 @@ pub(super) fn render_section(f: &Frame, slide: &Slide) {
     let top = rect.bottom() - rect.height() * 0.14 - total;
     let copy_w = title.as_ref().map(|g| g.rect.width()).unwrap_or(width);
     let copy = Rect::from_min_size(Pos2::new(column.left(), top), egui::vec2(copy_w, total));
+    if let Some(g) = &title {
+        f.heading_hint(
+            g,
+            Pos2::new(column.left(), top + eyebrow.rect.height() + gap),
+        );
+    }
     pillow(ui.painter(), copy, f.pillow_alpha(), theme);
+    if f.age < 0.0 {
+        ui.ctx().request_repaint();
+        return;
+    }
 
     f.place(eyebrow.clone(), Pos2::new(column.left(), top), 0);
     if let Some(g) = title {

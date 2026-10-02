@@ -55,9 +55,20 @@ impl PresentationApp {
         let arrow_size = 22.0 * scale;
         let arrow_outline_size = arrow_size + 3.0 * scale;
 
+        let heat_trace = self.theme.engine.capabilities().heat_trace;
         // Draw completed pen strokes
         for stroke in &self.ink.strokes {
             if stroke.slide_index != idx || stroke.points.len() < 2 {
+                continue;
+            }
+            if heat_trace {
+                let pts: Vec<egui::Pos2> = stroke
+                    .points
+                    .iter()
+                    .map(|p| self.local_to_screen(*p))
+                    .collect();
+                let age = stroke.start.elapsed().as_secs_f32();
+                self.draw_heat_trace(ui, &pts, |_| age, pen_width);
                 continue;
             }
             let opacity = Self::annotation_opacity(stroke.start);
@@ -111,6 +122,13 @@ impl PresentationApp {
 
         // Draw active drawing in progress
         match &self.ink.active {
+            ActiveDraw::PenDrawing { points } if points.len() >= 2 && heat_trace => {
+                let pts: Vec<egui::Pos2> =
+                    points.iter().map(|p| self.local_to_screen(*p)).collect();
+                // the newest stretch is white-hot, older stretches already cool
+                let n = pts.len();
+                self.draw_heat_trace(ui, &pts, |i| (n - 1 - i) as f32 / 60.0, pen_width);
+            }
             ActiveDraw::PenDrawing { points } if points.len() >= 2 => {
                 let outline_color = self.pen_outline_color(1.0);
                 let color = self.pen_color(1.0);
@@ -141,6 +159,38 @@ impl PresentationApp {
                 self.draw_arrow_shape(ui, screen_from, screen_to, arrow_width, arrow_size, color);
             }
             _ => {}
+        }
+    }
+
+    /// A heat-trace stroke: each segment coloured through the theme's heat
+    /// palette by `age_of(point)` (seconds), white-hot when new, cooling
+    /// through the palette, then gone after [`HEAT_TRACE_LIFE`]. A soft glow
+    /// under it keeps it legible as an annotation.
+    fn draw_heat_trace(
+        &self,
+        ui: &egui::Ui,
+        pts: &[egui::Pos2],
+        age_of: impl Fn(usize) -> f32,
+        width: f32,
+    ) {
+        let palette = self.theme.heat.palette;
+        let mut alive = false;
+        for i in 1..pts.len() {
+            let (heat, alpha) = heat_trace_look(age_of(i));
+            if alpha <= 0.0 {
+                continue;
+            }
+            alive = true;
+            let c = palette.lut()[(heat * 255.0) as usize];
+            let glow = Theme::with_opacity(c, alpha * 0.25);
+            let seg = [pts[i - 1], pts[i]];
+            ui.painter()
+                .line_segment(seg, egui::Stroke::new(width * 2.6, glow));
+            ui.painter()
+                .line_segment(seg, egui::Stroke::new(width, Theme::with_opacity(c, alpha)));
+        }
+        if alive {
+            ui.ctx().request_repaint();
         }
     }
 
@@ -371,5 +421,35 @@ pub(super) fn draw_raw_markdown_overlay(
             .layout(info.to_string(), font, text_color, text_width);
         let debug_pos = egui::pos2(overlay_rect.left() + padding, debug_content_top);
         ui.painter().galley(debug_pos, debug_galley, text_color);
+    }
+}
+
+/// Seconds a heat-trace stroke takes to cool and fade away.
+pub(super) const HEAT_TRACE_LIFE: f32 = 4.0;
+
+/// A heat-trace segment `age` seconds old: how hot (0..1, along the heat
+/// palette, never below a dull red) and how opaque it is.
+pub(super) fn heat_trace_look(age: f32) -> (f32, f32) {
+    let t = (age / HEAT_TRACE_LIFE).clamp(0.0, 1.0);
+    let heat = 1.0 - 0.7 * t.powf(0.6);
+    // full until 60% of its life, then fading to exactly nothing
+    let alpha = ((1.0 - t) / 0.4).clamp(0.0, 1.0);
+    (heat, alpha)
+}
+
+#[cfg(test)]
+mod heat_trace_tests {
+    use super::*;
+
+    #[test]
+    fn a_trace_arrives_white_hot_cools_and_fades_away() {
+        let (h0, a0) = heat_trace_look(0.0);
+        assert_eq!((h0, a0), (1.0, 1.0));
+        let (h1, a1) = heat_trace_look(1.5);
+        assert!(h1 < 0.8 && a1 == 1.0, "cooler, still fully there");
+        let (h2, a2) = heat_trace_look(3.4);
+        assert!(h2 < h1 && a2 < 1.0 && a2 > 0.0, "fading");
+        assert_eq!(heat_trace_look(HEAT_TRACE_LIFE).1, 0.0, "gone");
+        assert!(heat_trace_look(10.0).0 >= 0.3, "never black");
     }
 }

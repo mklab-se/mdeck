@@ -45,7 +45,19 @@ fn parse_slide(raw: String, source_lines: Vec<usize>) -> Slide {
     for d in &mut directives {
         d.line = source_lines.get(d.line).copied().unwrap_or(line + d.line);
     }
-    let (blocks, story_hint, scene_script) = take_story_blocks(blocks::parse(&content));
+    let (mut blocks, story_hint, scene_script) = take_story_blocks(blocks::parse(&content));
+    // A slide's @thermal-window is the common window of its thermal images.
+    if let Some(window) = trimmed_directive(&directives, "thermal-window") {
+        for b in &mut blocks {
+            if let Block::Chart {
+                kind: Chart::Thermal,
+                content,
+            } = b
+            {
+                content.push_str(&format!("\nslide-window: {window}\n"));
+            }
+        }
+    }
     let layout = classify_layout(&directives, &blocks);
     let illustration = trimmed_directive(&directives, "illustration").map(|v| v.to_lowercase());
     let logo = trimmed_directive(&directives, "logo").map(str::to_string);
@@ -107,6 +119,10 @@ pub fn compute_max_steps(blocks: &[Block]) -> usize {
         .map(|b| match b {
             Block::List { items, .. } => count_next_steps(items),
             Block::Diagram { content } => crate::render::diagram::count_diagram_steps(content),
+            Block::Chart {
+                kind: Chart::Thermal,
+                content,
+            } => crate::render::thermal::default_steps(content),
             Block::Chart { content, .. } => crate::render::visualizations::count_viz_steps(content),
             _ => 0,
         })

@@ -39,6 +39,8 @@ pub mod sketch;
 #[cfg(feature = "splitflap")]
 pub mod splitflap;
 pub mod stage;
+#[cfg(feature = "thermal")]
+pub mod thermal;
 #[cfg(feature = "watercolour")]
 pub mod watercolour;
 
@@ -78,6 +80,9 @@ pub enum EngineKind {
     Watercolour,
     /// A darkroom: generated photographs that develop under a safelight.
     Darkroom,
+    /// A thermal instrument: a heat field under the slides, headings that
+    /// form in heat, heat signatures and a heat-trace pen.
+    Thermal,
 }
 
 /// What an engine can show. The core uses it for fallbacks (an illustration
@@ -105,6 +110,12 @@ pub struct Capabilities {
     pub art: bool,
     /// Prints the slide number itself, so the editorial counter is left out.
     pub numbers_slides: bool,
+    /// Forms title and section headings itself (the thermal cold opening):
+    /// the editorial copy holds back for [`crate::render::ember::COLD_OPEN_HOLD`]
+    /// seconds while the engine draws the title in heat.
+    pub cold_open: bool,
+    /// Pen strokes arrive white-hot and cool away (the heat trace).
+    pub heat_trace: bool,
 }
 
 impl Capabilities {
@@ -119,6 +130,8 @@ impl Capabilities {
         end_act: false,
         art: false,
         numbers_slides: false,
+        cold_open: false,
+        heat_trace: false,
     };
 
     /// What most engines show: a layer under editorial slides, the slide's
@@ -174,6 +187,7 @@ impl EngineKind {
         EngineKind::Chalkboard,
         EngineKind::Watercolour,
         EngineKind::Darkroom,
+        EngineKind::Thermal,
     ];
 
     pub fn from_name(name: &str) -> Option<Self> {
@@ -194,6 +208,7 @@ impl EngineKind {
             EngineKind::Chalkboard => "chalkboard",
             EngineKind::Watercolour => "watercolour",
             EngineKind::Darkroom => "darkroom",
+            EngineKind::Thermal => "thermal",
         }
     }
 
@@ -222,6 +237,8 @@ impl EngineKind {
             EngineKind::Watercolour => Some(&watercolour::DEF),
             #[cfg(feature = "darkroom")]
             EngineKind::Darkroom => Some(&darkroom::DEF),
+            #[cfg(feature = "thermal")]
+            EngineKind::Thermal => Some(&thermal::DEF),
             #[allow(unreachable_patterns)]
             _ => None,
         }
@@ -318,6 +335,10 @@ pub fn hash01(i: u32) -> f32 {
 /// Painting happens under the slide; everything an engine draws must look
 /// finished when `cx.still` is set, because that is what export captures.
 pub trait Engine {
+    /// Read what needs the UI (the font atlas) before [`Engine::update`];
+    /// runs every step, rehearsals included. Most engines need nothing.
+    fn prepare(&mut self, _ui: &eframe::egui::Ui, _cx: &FrameCx, _stage: &Stage) {}
+
     /// Bring the state up to date with `stage` and advance its clock.
     fn update(&mut self, cx: &FrameCx, stage: &Stage, lib: &mut Library);
 
@@ -348,6 +369,9 @@ mod tests {
             "crate::render::particles",
             "crate::render::fonts",
             "crate::render::ember",
+            // thermal images and palettes: the board shows a `@thermal`
+            // block in its panel, the thermal engine glows in a palette
+            "crate::render::thermal",
             "crate::render::SlideContext",
             "crate::render::BlockCx",
             "crate::render::test_support",
@@ -396,7 +420,7 @@ mod tests {
         assert_eq!(EngineKind::from_name("fireworks"), None);
         assert_eq!(
             EngineKind::names(),
-            "plain, particles, led, splitflap, laser, blocks, blueprint, sketch, chalkboard, watercolour, darkroom"
+            "plain, particles, led, splitflap, laser, blocks, blueprint, sketch, chalkboard, watercolour, darkroom, thermal"
         );
     }
 

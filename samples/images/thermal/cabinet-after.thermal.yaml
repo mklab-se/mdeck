@@ -1,0 +1,4 @@
+# Synthetic example data: value = raw * scale + offset
+unit: °C
+scale: 0.0015259022
+offset: 10

@@ -20,6 +20,41 @@ All notable changes to this project will be documented in this file.
   Sample: `samples/visualizations/artifactflow.md`; spec section 14.19.
 - Three more built-in icons: `team`, `package` and `code`, for architecture diagrams too.
 
+## [Unreleased]
+
+### Added
+
+- Thermal images and a thermal look for infrared talks ([#20](https://github.com/mklab-se/mdeck/issues/20)).
+  - **`@thermal` blocks** show one thermal image and help explain it. A grayscale white-hot
+    export is coloured with a palette (`iron`, `white-hot`, `black-hot`, `rainbow`, `arctic`,
+    `lava`; `palette:` per block, `@palette` for the deck, `C` / `Shift+C` live), with a legend.
+    Steps reveal it: `lens X% Y% R%` over a registered `visible:` photo (it glides, then stays
+    put), `reveal` opens it to the full frame, `above 85%` colours only what is hotter, and
+    `spot Name X% Y%` marks points. Ordinary images are never treated as thermal.
+  - **What a picture may claim.** A plain export gets a *relative intensity* legend and author
+    spot text marked `†`. With `mapping: linear 18..92 °C` or a `data:` file (16-bit PNG and a
+    `.yaml` sidecar with unit, scale, offset, and codes for missing and clipped pixels), the
+    legend shows values, spots are measured (`≈` for a mapping), thresholds can be in degrees,
+    `window:` sets level and span, and clipped or missing pixels are hatched. Two blocks on a
+    slide with `@thermal-window: 25..90 °C` share one scale, converted from their own mappings.
+  - **Colour exports** are detected from their pixels and shown as they are, with a diagnostic
+    when presenting, exporting and in `--check` (new `thermal` category). Steps a source cannot
+    show are left out, so no click does nothing; the lens still works on colour exports.
+  - **`@zoom: Spot`** enters a slide by zooming into that spot of the previous slide's image.
+- The **`thermal` engine** and **`thermal` theme**: a heat field under the slides in the theme's
+  `heat.palette`, drawn in contour bands. Title and section headings form in heat (the cold
+  opening: readable within a second, then the crisp type rises into a settling contour halo),
+  illustrations glow as heat signatures, the countdown and end words heat up and cool, the
+  field stays dark around charts and images, `heat: { drift: true }` adds drifting embers, and
+  pen strokes become a heat trace that cools away. A board engine shows `@thermal` blocks,
+  annotations included, in its image panel.
+- `--reduced-motion` (and `mdeck config set defaults.reduced_motion true`): every slide and
+  reveal step in its settled state, with no transitions, entry or reveal animations, countdown
+  or engine motion; steps still arrive one click at a time.
+- Engines can implement `Engine::prepare` to read what needs the UI before each update.
+- Samples: `samples/engines/thermal.md`, `samples/features/thermal.md` (every option), with
+  synthetic example images in `samples/images/thermal/`; spec section 14.20.
+
 ## [1.18.0] - 2026-10-02
 
 ### Added

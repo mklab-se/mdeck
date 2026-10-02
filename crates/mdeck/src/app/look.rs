@@ -1,4 +1,5 @@
-//! Switching the theme (`Shift+T`, a reload) and the transition (`T`).
+//! Switching the theme (`Shift+T`, a reload), the transition (`T`) and
+//! the thermal palette (`C`, `Shift+C`).
 
 use crate::deck;
 use crate::render::transition::TransitionKind;
@@ -64,5 +65,54 @@ impl PresentationApp {
             TransitionKind::None => "None",
         };
         self.toast = Some(Toast::new(format!("Transition: {name}")));
+    }
+
+    /// The transition to use: the chosen one, or none with reduced motion.
+    pub(super) fn transition_kind(&self) -> TransitionKind {
+        if self.reduced_motion {
+            TransitionKind::None
+        } else {
+            self.default_transition
+        }
+    }
+
+    /// `C`: the next thermal palette for every `@thermal` image and legend.
+    pub(super) fn cycle_palette(&mut self) {
+        use crate::render::thermal::Palette;
+        if !self.has_thermal() {
+            self.toast = Some(Toast::new("No thermal images in this deck".to_string()));
+            return;
+        }
+        let next = match self.live_palette {
+            Some(p) => p.next(),
+            None => self.deck_palette().unwrap_or(Palette::DEFAULT).next(),
+        };
+        self.live_palette = Some(next);
+        self.toast = Some(Toast::new(format!("Thermal palette: {}", next.name())));
+    }
+
+    /// `Shift+C`: back to the palettes the deck was written with.
+    pub(super) fn reset_palette(&mut self) {
+        if self.live_palette.take().is_some() {
+            self.toast = Some(Toast::new("Thermal palette: as written".to_string()));
+        }
+    }
+
+    /// The deck's `@palette`, if it names a palette.
+    pub(super) fn deck_palette(&self) -> Option<crate::render::thermal::Palette> {
+        self.deck
+            .presentation
+            .meta
+            .palette
+            .as_deref()
+            .and_then(crate::render::thermal::Palette::from_name)
+    }
+
+    fn has_thermal(&self) -> bool {
+        self.deck
+            .presentation
+            .slides
+            .iter()
+            .any(|s| !crate::render::thermal::blocks(s).is_empty())
     }
 }

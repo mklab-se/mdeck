@@ -44,6 +44,11 @@ pub struct Cli {
     #[arg(long, global = false)]
     pub engine: Option<String>,
 
+    /// Show every slide and reveal step settled: no transitions, entry
+    /// animations or engine motion (also `defaults.reduced_motion`)
+    #[arg(long, global = false)]
+    pub reduced_motion: bool,
+
     /// Validate presentation and report problems without launching GUI
     #[arg(long, global = false)]
     pub check: bool,
@@ -344,6 +349,7 @@ impl Cli {
             self.overview,
             self.quiet,
             self.engine,
+            self.reduced_motion,
         )
     }
 }

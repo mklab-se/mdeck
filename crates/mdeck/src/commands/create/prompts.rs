@@ -145,6 +145,10 @@ Supported mdeck visualizations (use these when appropriate — set visualization
   infrastructure to consuming teams. Syntax: `- producer Build Team: ...`, \
   `- service Registry: ...`, `- consumer Product Team: ...`, \
   `- Build Team -> Registry: image v1.2 (icon: package)`)
+- thermal (a thermal/infrared image file the source material names: \
+  `image: file.png` (grayscale, brighter is hotter), optional \
+  `visible: photo.jpg`, then `+ lens 76% 43% 16%`, `+ reveal`, \
+  `+ above 85%`, `- spot Hotspot 76% 43%`; only with real image files)
 - gitgraph (git branch diagrams — USE THIS for any branching strategy, Git Flow, \
   merge workflows, etc. Syntax: `- lane main`, `- commit main`, \
   `- branch main -> develop`, `- merge feature -> develop: \"label\"`, \

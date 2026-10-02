@@ -8,14 +8,6 @@ use super::PresentationApp;
 use super::keys::{SCROLL_SMOOTH_RATE, scroll_target_to_show, smooth_factor};
 use super::overlays::draw_fade_gradient;
 
-/// One slide on screen: where, how opaque, and its scroll.
-pub(super) struct Placement {
-    pub index: usize,
-    pub rect: egui::Rect,
-    pub opacity: f32,
-    pub scroll: f32,
-}
-
 impl PresentationApp {
     /// Draw a slide at its current reveal step, scrolled by `scroll` pixels
     /// and clipped to `rect` when scrolled.
@@ -66,7 +58,7 @@ impl PresentationApp {
             deck_title: self.deck.presentation.meta.title.clone(),
             author: self.deck.presentation.meta.author.clone(),
             hold_copy: self.countdown_running(),
-            animate: true,
+            animate: !self.reduced_motion,
             beats: self
                 .story(index)
                 .filter(|s| s.beats.len() > 1)
@@ -274,85 +266,12 @@ impl PresentationApp {
         scale: f32,
     ) {
         for p in self.slide_placements(rect) {
-            self.draw_slide(ui, p.index, p.rect, p.opacity, scale, p.scroll);
+            self.draw_slide(ui, p.index, p.rect, p.opacity, scale * p.zoom, p.scroll);
         }
         if self.transition.is_some() {
             ctx.request_repaint();
         }
         self.draw_presentation_chrome(ui, rect, scale);
-    }
-
-    /// Where each slide on screen is drawn in `rect`: the current one, or
-    /// the outgoing and incoming slides mid-transition (outgoing first).
-    pub(super) fn slide_placements(&self, rect: egui::Rect) -> Vec<Placement> {
-        use crate::render::transition::{TransitionDirection, TransitionKind};
-        let at = |index, rect, opacity, scroll| Placement {
-            index,
-            rect,
-            opacity,
-            scroll,
-        };
-        let Some(t) = &self.transition else {
-            return vec![at(self.current_slide, rect, 1.0, 0.0)];
-        };
-        let (from, to) = (t.from, t.to);
-        let progress = t.progress();
-        // The outgoing slide keeps its scroll position while it leaves
-        let from_scroll = self.view(from).scroll;
-        // a board turns its own flaps from one slide to the next
-        let kind = if self.theme.engine.is_board() {
-            TransitionKind::None
-        } else {
-            t.kind
-        };
-        let (from_rect, to_rect) = match kind {
-            TransitionKind::Fade => {
-                return vec![
-                    at(from, rect, 1.0 - progress, from_scroll),
-                    at(to, rect, progress, 0.0),
-                ];
-            }
-            TransitionKind::None => return vec![at(to, rect, 1.0, 0.0)],
-            TransitionKind::SlideHorizontal => {
-                let w = rect.width();
-                let sign = match t.direction {
-                    TransitionDirection::Forward => -1.0,
-                    TransitionDirection::Backward => 1.0,
-                };
-                let from_offset = sign * progress * w;
-                let to_offset = from_offset - sign * w;
-                (
-                    rect.translate(egui::vec2(from_offset, 0.0)),
-                    rect.translate(egui::vec2(to_offset, 0.0)),
-                )
-            }
-            TransitionKind::Spatial => {
-                let (dx, dy) = t.spatial_direction(super::GridLayout::columns(self.slide_count()));
-                let (w, h) = (rect.width(), rect.height());
-                (
-                    rect.translate(egui::vec2(-dx * progress * w, -dy * progress * h)),
-                    rect.translate(egui::vec2(
-                        dx * (1.0 - progress) * w,
-                        dy * (1.0 - progress) * h,
-                    )),
-                )
-            }
-        };
-        vec![
-            at(from, from_rect, 1.0, from_scroll),
-            at(to, to_rect, 1.0, 0.0),
-        ]
-    }
-
-    /// The background images of the slides on screen, moving with their
-    /// slides and clipped to `rect` (the sheet on a page theme).
-    pub(super) fn draw_backgrounds(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
-        let painter = ui.painter().with_clip_rect(rect);
-        let radius = self.theme.page.as_ref().map_or(0.0, |p| p.radius * scale);
-        for p in self.slide_placements(rect) {
-            self.deck
-                .draw_background(&painter, p.rect, p.index, p.opacity, radius, true);
-        }
     }
 
     pub(super) fn draw_presentation_chrome(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {

@@ -170,6 +170,10 @@ pub fn draw_block(cx: &BlockCx, block: &Block, pos: Pos2, max_width: f32) -> f32
             };
             draw_diagram_sized(&cx, content, pos, max_width, 0.0)
         }
+        Block::Chart {
+            kind: crate::parser::Chart::Thermal,
+            content,
+        } => crate::render::thermal::draw(cx, content, pos, max_width, 0.0),
         Block::Chart { kind, content } => {
             let viz = VizCtx {
                 reveal_timestamp: None,

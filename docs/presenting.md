@@ -18,6 +18,7 @@ MDeck reloads it in place, staying on the current slide.
 | M | Move to the next monitor |
 | `.` or B | Blackout |
 | H | Presenter HUD with shortcuts (and the current story beat's line) |
+| C, Shift+C | Next thermal palette for every `@thermal` image; back to the palettes as written |
 | S | AI for this slide: a story on the particles engine, a picture on an art engine |
 | Esc | Clear drawings; press twice to quit (Q twice and Ctrl+C twice also quit) |
 
@@ -28,7 +29,8 @@ MDeck reloads it in place, staying on the current slide.
 | Left drag | Freehand pen |
 | Right drag | Arrow |
 
-Drawings fade away after a few seconds. Presentation clickers that send
+Drawings fade away after a few seconds (on the thermal engine a pen stroke
+arrives white-hot and cools away). Presentation clickers that send
 PageUp/PageDown or Enter work out of the box, and keys pressed during a
 transition are queued rather than lost.
 
@@ -39,4 +41,10 @@ mdeck talk.md --windowed     # in a window instead of fullscreen
 mdeck talk.md --slide 7      # start on slide 7
 mdeck talk.md --overview     # start in the grid overview
 mdeck talk.md --check        # validate the deck without opening a window
+mdeck talk.md --reduced-motion   # every slide and step settled, no motion
 ```
+
+**Reduced motion** shows every slide and reveal step in its settled state:
+no transitions, entry or reveal animations, countdown or engine motion, as in
+an export. Steps still arrive one click at a time. Make it the default with
+`mdeck config set defaults.reduced_motion true`.

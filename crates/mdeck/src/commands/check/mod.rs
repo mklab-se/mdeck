@@ -13,12 +13,14 @@ mod directives;
 mod engine;
 mod stories;
 mod theme;
+mod thermal;
 pub use background::background_warnings;
 pub use content::{cjk_font_warning, math_warnings, warn_missing_cjk_font};
 pub use directives::directive_warnings;
 pub use engine::{art_warnings, deck_theme, engine_warnings};
 pub use stories::illustration_warnings;
 pub use theme::theme_warnings;
+pub use thermal::thermal_warnings;
 
 pub fn run(file: PathBuf, verbose: u8, quiet: bool, engine: Option<String>) -> anyhow::Result<()> {
     let content = std::fs::read_to_string(&file)?;
@@ -100,6 +102,7 @@ fn collect(
         base_path,
     ));
     add(background_warnings(presentation, base_path, content));
+    add(thermal_warnings(presentation, base_path));
     let (theme, problems) = deck_theme(presentation, defaults.theme.as_deref(), base_path, engine)?;
     add(problems
         .into_iter()

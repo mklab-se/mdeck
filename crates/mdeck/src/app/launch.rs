@@ -39,6 +39,8 @@ pub(super) struct Launch {
     pub(super) defaults: DefaultsConfig,
     /// `--engine`.
     pub(super) cli_engine: Option<crate::engines::EngineKind>,
+    /// `--reduced-motion` or `defaults.reduced_motion`.
+    pub(super) reduced_motion: bool,
 }
 
 impl PresentationApp {
@@ -53,6 +55,7 @@ impl PresentationApp {
             incident_log,
             defaults,
             cli_engine,
+            reduced_motion,
         } = launch;
         let FileWatch {
             rx: watcher_rx,
@@ -124,6 +127,8 @@ impl PresentationApp {
             pending_nav: None,
             pending_reveal_scroll: false,
             end_logo_texture: None,
+            live_palette: None,
+            reduced_motion,
             shared_slide: None,
             incident_log,
             last_frame: now,
@@ -252,12 +257,14 @@ pub fn run(
     start_overview: bool,
     quiet: bool,
     engine: Option<String>,
+    reduced_motion: bool,
 ) -> anyhow::Result<()> {
     let file = file.canonicalize().unwrap_or(file);
 
     // Config defaults: start mode, theme/transition fallbacks, monitor position
     let config = Config::load_or_default();
     let defaults = config.defaults.clone().unwrap_or_default();
+    let reduced_motion = reduced_motion || defaults.reduced_motion == Some(true);
     let (cli_initial_slide, cli_initial_overview) =
         resolve_start(start_slide, start_overview, defaults.start_mode.as_deref());
 
@@ -322,6 +329,7 @@ pub fn run(
                 incident_log: log_clone,
                 defaults,
                 cli_engine,
+                reduced_motion,
             };
             let mut app = PresentationApp::new(file_clone, presentation, watch, launch);
             app.start_at(initial_slide, initial_overview, shared);
