@@ -1,4 +1,4 @@
-# Generated art for the art engines (blueprint, sketch, chalkboard, watercolour, darkroom), written by `mdeck ai art`.
+# Generated art for the art engines (like line), written by `mdeck ai art`.
 # Set `pinned: true` to keep a picture for its slide number whatever the slide says.
 version: 1
 slides:
@@ -32,7 +32,7 @@ slides:
   generated: 2026-09-28 12:26
 - slide: 7
   title: Thank you
-  hash: cefd438f3dbc7547
+  hash: e8d584f56e8284d9
   style: line-9b4b0041
   file: art/blueprint-07-line-438817.jpg
   scene: A lighthouse keeper waving from the gallery of a lighthouse at dusk, a small robot beside them holding a lantern.
