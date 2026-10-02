@@ -56,6 +56,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   program that reads the fence, theme colours and size as JSON on stdin and writes a PNG; its
   output is cached in `<deck>.assets/visuals/`, so presenting never runs it (see
   [Writing a visual kind](docs/sdk/visuals.md#visuals-in-any-language)).
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -130,6 +147,15 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   and `style` node keys and tree auto-layout, which never existed, are gone from it; the `scale:`
   setting is documented; the timeline no longer claims a vertical orientation. Every visual example
   in it is parsed by a test.
+- **Every built-in engine is written against `mdeck-sdk`**, exactly as an extension's engine is:
+  it draws through `mdeck_sdk::paint` and sees the slide only through the SDK's stage. Engines,
+  visual kinds and their names live in registries instead of closed lists, so an unknown engine
+  name in a theme or deck warns and falls back to `plain` instead of failing, and an unknown fence
+  tag shows as code.
+- Engine capabilities are only `picture`, `countdown`, `ending`, `board`, `transition` and
+  `medium`. The line sheet's slide number, the thermal cold opening and the heat trace are the
+  engines' own (through generic hooks), and whether copy slides use the editorial layouts no longer
+  depends on an engine capability.
 
 ### Removed
 
@@ -139,6 +165,8 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   pictures on art engines.
 - The laser engine and its `etch` theme. Their settled stills were a faint outline, and the line,
   sketch and particle engines cover drawn pictures.
+- Image options `@fit` (what every image does), `@left`, `@right` and `@center` (an image's place
+  is up to the slide's design); `--check` reports them.
 
 ### Fixed
 
@@ -237,6 +265,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   lane capacities and the configured routing weights), not a default configuration's.
 - A theme's `page.surface` given with alpha (`#80808080`) is painted in the colour written; it
   came out darker.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -268,6 +313,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
 - A line like `1 . x` (a number, a space, then a dot) no longer hangs the parser; it reads as
   plain text.
 - `mdeck export` reports problems in the story sidecar, as presenting does.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -349,6 +411,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   first, traced along the lines, then the shading laid in stroke by stroke in bands that sweep
   across the picture. Without art, the slide's `@illustration`, the countdown and the end
   words are drawn in pencil. Sample `samples/engines/sketch.md`.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -381,6 +460,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
 - Themes gain a `page:` block (the slide as a sheet on a surface, with shadow and paper grain,
   on any engine) and an `art:` block (the kind, style prompt and style swatches of generated
   art).
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -396,6 +492,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   commands, the config or the CLI ([#16](https://github.com/mklab-se/mdeck/issues/16)). The
   engine guide records why engines stay modules rather than crates.
 - `samples/introducing-mdeck.md` has a slide on the six engines.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -417,6 +530,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   into pieces that drop from above, bottom row first, land with a bounce and settle; the next
   slide flashes and clears the stack like a completed line. The countdown's digits fall in
   blocks and burst apart. Sample `samples/engines/blocks.md`.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -494,6 +624,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
 - `mdeck --check` has an `engine` category: content the deck's engine does not show (an
   `@illustration` or a story on the plain engine) and an unknown `@engine`. Presenting and
   exporting print one summary line when a deck has any.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -567,6 +714,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
 - `mdeck --check` reports theme problems under a new `theme` category: an unknown name, an
   invalid theme file (unknown keys are errors, so typos surface), a font or logo that fell
   back, and text with too little contrast against its background.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -591,6 +755,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   notes below, dark on white in every theme, in A4 proportions; long notes continue on the
   next page. `--slide`, `--range`, `--width`/`--height` and `--debug` (a page per reveal step)
   work with PDF too. Pages are images, so PDF text is not selectable.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -611,6 +792,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   Dollar amounts stay text (`$5 and $10`, `($K) and ($M)`), and `\$` is a literal dollar.
   A formula that does not parse shows as its source and `mdeck --check` reports it under a new
   `math` category. Sample: `samples/features/math.md`.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -638,6 +836,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   tables.
 
 ## [1.3.0] - 2026-09-22
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -650,6 +865,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   The release workflow's Windows build installs NASM via `ilammy/setup-nasm@v1`.
 
 ## [1.2.5] - 2026-09-22
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -666,6 +898,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   `lightbulb` (ideas) and `question` (a question mark), bringing the set to thirty-eight.
 
 ## [1.2.3] - 2026-09-16
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -747,6 +996,23 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   prefix of any length is a spread-out sketch of the whole subject.
 - `mdeck --check` warns on illustrations that do not resolve, on layouts that cannot show one,
   on slides where a story shadows the illustration, and on story casts with unknown kinds.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -797,6 +1063,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - **`mdeck export --slide N` and `--range A-B`** export one slide or a range with the deck's
   numbering kept in the file names; with `--debug` the quick way for a person or an agent to
   check one slide's reveal steps.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -814,6 +1097,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
   (dependency list embedded in the executable, readable with `cargo audit bin` or `syft`), and
   a per-target CycloneDX 1.5 SBOM (`mdeck-vX.Y.Z-<target>.cdx.json`) is attached to every
   GitHub release. See the README's "Software bill of materials" section.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -834,6 +1134,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - **Git graph in the gallery** — `samples/gallery.md` and `GALLERY.md` now include the `@gitgraph` visualization.
 - **`BACKLOG.md`** — a roadmap of larger ideas and open decisions collected during a full review of the product.
 - **Edge-case sample slides** in `samples/layouts/` and `samples/visualizations/` (wrapped titles, long quotes, overflowing lists, wide tables, long labels, star-shaped radar, thousands separators, legend overflow) for visual regression checks.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -887,6 +1204,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - Upgraded eframe/egui 0.33 → 0.36 (glow renderer), ailloy 1.0 → 2.0, colored 2 → 3, inquire 0.7 → 0.9, base64 0.22 → 0.23, pdf-extract 0.10 → 0.12, plus a full `cargo update`. `cargo audit` reports no known vulnerabilities (previously six advisories in lopdf, quick-xml, quinn-proto, webbrowser, crossbeam-epoch). MSRV is now Rust 1.88.
 
 ## [0.17.3] - 2026-07-07
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -900,6 +1234,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 ### Fixed
 
 - **AI config parse error** — `mdeck ai` no longer fails with `Failed to parse config from ~/.config/ailloy/config.yaml` when the config contains embedding nodes (`capabilities: [embedding]`) or a `defaults.embedding:` key. Caused by ailloy's embedding capability being absent in the 0.6 line and re-added in 0.7; configs written by newer ailloy CLIs were unreadable.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -909,6 +1260,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - **Internal: satisfy newer clippy lints** (`collapsible_match`, redundant `.max(0)` on unsigned arithmetic) surfaced by Rust 1.95. No behavior changes.
 
 ## [0.17.1] - 2026-03-29
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -929,6 +1297,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - **Atlassian-style `@gitgraph` visualization** — complete rewrite with new visual model: dotted gray lanes for declared branches, solid colored segments for active branches, proper S-curves for forks (bowing left) and merges (bowing right), vertical lines for simultaneous `*` events, tag boxes with arrows, and pill-shaped merge labels on S-curve midpoints. New syntax: `lane`, `branch A -> B`, `merge A -> B`, `tag`, `commit`.
 - **`--debug` flag for export** — `mdeck export --debug` exports every progressive reveal step as a separate PNG (e.g., `slide-01-step-00.png`), enabling systematic visual QA at full resolution.
 - **`test-visualization` skill** — reusable testing methodology for visual QA of any mdeck visualization, committed to `.claude/skills/`.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -950,6 +1335,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - **Git graph visualization** (`@gitgraph`) — new visualization type rendering precise git branching diagrams from text. Branches as horizontal lanes, commits as dots, forks and merges as S-curves. Color-coded per branch with pill-shaped labels. Supports Git Flow and any branching strategy. Progressive reveal builds the graph step by step.
 - **AI-driven interactive presentation creation** — `mdeck ai create -i` now features a true AI conversation (not fixed questions) that gathers context naturally, suggests a descriptive filename, and shows a confirmation before generating.
 - **Visualization opportunity logging** — when AI identifies missing visualization types, detailed GitHub-issue-ready feature requests are logged to `visualization-opportunities.md` with data models, rendering specs, ASCII mockups, and proposed syntax.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -973,6 +1375,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - **AI presentation creation** (`mdeck ai create`) — create complete presentations from any content source. Supports text prompts, PDF files, DOCX files, markdown, plain text, and piped stdin input. AI analyzes the content, identifies key points, and generates a structured presentation with speaker notes, visualizations, and image generation markers. Includes interactive mode (`-i`) for guided creation with audience/purpose context, and custom prompt support (`--prompt`) for tailored presentations.
 - **Speaker notes** (`???` separator) — add presenter-only notes to any slide. Notes are parsed and stored but never rendered in the presentation. Supports full markdown formatting. Designed to help presenters understand slide intent, especially valuable in AI-generated presentations where notes explain delivery guidance and talking points.
 - **Git graph visualization** (`@gitgraph`) — precise, data-driven branch diagrams showing branches as horizontal lanes with commits, forks, and merges. Supports Git Flow and any branching strategy. Progressive reveal builds the graph step by step.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -998,6 +1417,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - **Interactive AI config wizard** (`mdeck ai config`) — guided setup for AI providers and models, replacing the previous "open in editor" approach. Powered by ailloy's `config-tui` module.
 - **Interactive style creation** (`mdeck ai style add -i`) — AI-assisted style crafting with interactive prompts. `set` is now an alias for `add`.
 - **Color-coded edge labels** — architecture diagram edge labels now use the edge's color as background, making it easy to see which label belongs to which connection.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -1013,6 +1449,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - **Nord theme** — an arctic, blue-gray theme inspired by the polar landscape. Calm, muted, and professional. Theme cycling is now dark → light → nord → dark (press `D`).
 - **Standardized visualization design tokens** — all 15 visualization types now share centralized constants for font sizes, stroke widths, corner radii, opacities, and swatch sizes, ensuring visual consistency within each theme.
 - **Theme-aware trend colors** — KPI cards now use theme-appropriate green/red instead of hardcoded values, ensuring readability across all three themes.
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -1022,6 +1475,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - Timeline date/description fonts adjusted for better readability at distance.
 
 ## [0.12.1] - 2026-03-11
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -1057,6 +1527,15 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - **Gantt chart visualization (`@gantt`):** Project timelines with tasks, durations, dependencies, and automatic time scaling. Supports absolute dates (`YYYY-MM-DD`), calendar days (`Nd`), working days (`Nwd`), weeks (`Nw`), months (`Nm`), and dependency chains (`after Task`, `after Task + 3d`). Timeline auto-scales between days, weeks, and months based on project span.
 - **Gantt weekend shading:** Non-working days (Saturday/Sunday) are shown as subtle gray columns when the timeline is at day-level scale.
 - **Gantt labels inside bars (`# labels: inside`):** Option to render task names inside their bars instead of in a left column, giving the full width to the timeline.
+- **Every built-in engine is written against `mdeck-sdk`**, exactly as an extension's engine is:
+  it draws through `mdeck_sdk::paint` and sees the slide only through the SDK's stage. Engines,
+  visual kinds and their names live in registries instead of closed lists, so an unknown engine
+  name in a theme or deck warns and falls back to `plain` instead of failing, and an unknown fence
+  tag shows as code.
+- Engine capabilities are only `picture`, `countdown`, `ending`, `board`, `transition` and
+  `medium`. The line sheet's slide number, the thermal cold opening and the heat trace are the
+  engines' own (through generic hooks), and whether copy slides use the editorial layouts no longer
+  depends on an engine capability.
 
 ### Removed
 
@@ -1072,6 +1551,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - **Format specification command:** `mdeck spec` prints the full format spec, `mdeck spec --short` prints a quick reference card
 - **Per-visualization test files:** Individual test presentations for each visualization type
 - **MDeck intro presentation:** `introducing-mdeck.md` — a real presentation about MDeck itself
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -1089,6 +1585,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - **Bar chart grid labels:** Nice-number algorithm for clean axis labels (20, 40, 60 instead of 23.3, 46.7)
 - **Word cloud layout:** Dense spiral placement with area-proportional font sizing, cached for stable positions across frames
 - Sample presentation `test-visualizations.md` covering all visualization types
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -1102,6 +1615,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - **False time-jump warnings on Linux:** Raised the time-jump detection threshold from 200ms to 2000ms. The Linux repaint keepalive (500ms) was triggering spurious "power-state gap" incidents every frame cycle, flooding the incident log.
 
 ## [0.9.0] - 2026-03-06
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -1110,6 +1640,15 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - `ai` (no subcommand) now shows status directly
 - `ai test` supports interactive testing of both chat completion and image generation with inline terminal image display (iTerm2, Kitty)
 - `ai config` opens the ailloy configuration file in your editor
+- **Every built-in engine is written against `mdeck-sdk`**, exactly as an extension's engine is:
+  it draws through `mdeck_sdk::paint` and sees the slide only through the SDK's stage. Engines,
+  visual kinds and their names live in registries instead of closed lists, so an unknown engine
+  name in a theme or deck warns and falls back to `plain` instead of failing, and an unknown fence
+  tag shows as code.
+- Engine capabilities are only `picture`, `countdown`, `ending`, `board`, `transition` and
+  `medium`. The line sheet's slide number, the thermal cold opening and the heat trace are the
+  engines' own (through generic hooks), and whether copy slides use the editorial layouts no longer
+  depends on an engine capability.
 
 ### Removed
 
@@ -1138,6 +1677,15 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - File reload errors are now logged in addition to the existing toast notification
 
 ## [0.7.1] - 2026-03-02
+- **Every built-in engine is written against `mdeck-sdk`**, exactly as an extension's engine is:
+  it draws through `mdeck_sdk::paint` and sees the slide only through the SDK's stage. Engines,
+  visual kinds and their names live in registries instead of closed lists, so an unknown engine
+  name in a theme or deck warns and falls back to `plain` instead of failing, and an unknown fence
+  tag shows as code.
+- Engine capabilities are only `picture`, `countdown`, `ending`, `board`, `transition` and
+  `medium`. The line sheet's slide number, the thermal cold opening and the heat trace are the
+  engines' own (through generic hooks), and whether copy slides use the editorial layouts no longer
+  depends on an engine capability.
 
 ### Removed
 
@@ -1153,6 +1701,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - Structured warning system (`CheckReport`, `CheckWarning`, `CheckCategory`) for extensible presentation validation
 - Diagram route warnings collected once during background precache instead of per-frame `eprintln!` spam
 - Brief one-liner warning summary printed to stderr in GUI mode when routing issues are found
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -1167,6 +1732,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - Background pre-caching of diagram routes: all diagrams are pre-computed on a background thread at startup and after file reload, making transitions to diagram slides instant
 - Diagram scale-to-fit: large diagrams (3+ rows) that overflow the slide area are automatically scaled down to fit
 - `# scale:` directive in diagram blocks: `fit` (default), `scroll`, or a numeric factor (e.g. `0.7`)
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -1183,6 +1765,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - Crossing detection at junctions and empty cell centers for perpendicular and pass-through segments
 - Turn-conflict detection for lanes adjacent to turning routes
 - 37 new unit tests for crossing avoidance, routing weights, and file watcher
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -1206,6 +1805,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - Diagram debug overlay (press R) showing routing details
 - Gallery layout for image-heavy slides
 - 244 unit tests covering parsing, routing, and rendering
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
@@ -1220,6 +1836,23 @@ MDeck 1.0: the Ember theme, a living particle field, stories, and the countdown.
 - Debug overlay route format now shows lane labels between coordinates per routing spec
 
 ## [0.3.0] - 2026-02-28
+- **mdeck is a library.** `mdeck::builtins(&mut registry)` registers mdeck's engines, visuals,
+  themes and point clouds, and `mdeck::run(registry)` runs the command line with them: the
+  `mdeck` binary is exactly that, and `mdeck build` makes a custom build the same way. Engines,
+  visuals, themes and point clouds an extension registers are used like the built-ins (by name
+  in `engine:`, as a fence tag, as `theme:`, as `picture:`), and `mdeck extensions list` shows
+  each one's origin.
+- **Engine settings are checked.** Each engine declares its settings; `--check` (category
+  `engine`) and `mdeck theme check` report a value of the wrong type and a key the engine does not
+  read.
+- `--check` reports a `picture:` on a slide whose design has no stage for one.
+- **External visual programs are wired in**: a configured tag is a fence tag, its image is made
+  when the deck opens (window and export) and drawn on the slide; when no image could be made
+  the fence's source shows instead.
+- A slide's `picture:` can name an image file; engines that show pictures get it after a
+  generated artwork and a point cloud of that name.
+- Image options use the settings grammar: `@width: 60%` and `@height: 400px` (the space is
+  optional) and `@fill`. `@height` now sizes the image (with `@width`, the image fits both).
 
 ### Changed
 
