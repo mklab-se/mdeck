@@ -161,7 +161,7 @@ pub fn validate_name(name: &str) -> Result<()> {
 pub enum Source {
     /// `<deck dir>/illustrations/<name>.mdpc`.
     Deck(PathBuf),
-    /// `~/.config/mdeck/illustrations/<name>.mdpc`.
+    /// `illustrations/<name>.mdpc` in the user folder ([`user_dir`]).
     User(PathBuf),
     /// `<pack>/point-clouds/<name>.mdpc` of an installed pack (EXT-09).
     Pack(PathBuf),

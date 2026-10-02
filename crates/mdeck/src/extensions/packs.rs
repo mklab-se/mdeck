@@ -2,7 +2,7 @@
 //! is a folder (or a zip of one) with a manifest, `mdeck-pack.yaml`, and any
 //! of the folders in [`Folder`].
 //!
-//! Packs install into the user folder (`~/.config/mdeck/packs/<name>/`) or a
+//! Packs install into the user folder (`packs/<name>/` under `dirs::config_dir()/mdeck/`) or a
 //! deck's own `packs/<name>/`. Lookups that take files from packs ask
 //! [`theme_dirs`], [`point_cloud_dirs`] or [`dirs_for`]: deck packs first,
 //! then user packs, each in name order. They come after the deck's and the

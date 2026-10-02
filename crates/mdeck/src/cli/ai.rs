@@ -133,7 +133,8 @@ pub struct PointCloudArgs {
     /// description for every missing name; the name itself otherwise)
     #[arg(long)]
     pub description: Option<String>,
-    /// One-off: save to the user library (~/.config/mdeck/illustrations) instead of ./illustrations
+    /// One-off: save to the user library (illustrations/ in the user folder: ~/.config/mdeck on
+    /// Linux, ~/Library/Application Support/mdeck on macOS) instead of ./illustrations
     #[arg(long, requires = "name")]
     pub user: bool,
 }
