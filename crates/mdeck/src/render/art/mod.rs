@@ -62,9 +62,14 @@ impl Medium {
                 mdeck_sdk::engine::MediumKind::Tonal => ArtKind::Tonal,
             },
             tonal: match m.name {
+                #[cfg(feature = "watercolour")]
                 "watercolour" => &style::WATERCOLOUR,
+                #[cfg(feature = "darkroom")]
                 "darkroom" => &style::DARKROOM,
+                #[cfg(any(feature = "sketch", feature = "line"))]
                 _ => &style::SKETCH,
+                #[cfg(not(any(feature = "sketch", feature = "line")))]
+                _ => &style::LINE,
             },
             tonal_strategy: m.strategy,
         }
