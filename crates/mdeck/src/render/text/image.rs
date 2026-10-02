@@ -81,10 +81,22 @@ fn compute_image_rect(
     let factor = if directives.fill {
         // Cover: scale to fill, center, may crop
         (avail_w / tex_size.x).max(avail_h / tex_size.y)
-    } else if let Some(ref width_str) = directives.width {
-        // Explicit width, still bounded by the available height
-        let target_w = parse_size(width_str, avail_w, scale);
-        (target_w / tex_size.x).min(avail_h / tex_size.y)
+    } else if directives.width.is_some() || directives.height.is_some() {
+        // Explicit width and/or height, still bounded by the available area
+        let by_w = directives
+            .width
+            .as_deref()
+            .map(|w| parse_size(w, avail_w, scale) / tex_size.x);
+        let by_h = directives
+            .height
+            .as_deref()
+            .map(|h| parse_size(h, avail_h, scale) / tex_size.y);
+        let wanted = match (by_w, by_h) {
+            (Some(w), Some(h)) => w.min(h),
+            (Some(k), None) | (None, Some(k)) => k,
+            (None, None) => unreachable!("one of them is set"),
+        };
+        wanted.min(avail_w / tex_size.x).min(avail_h / tex_size.y)
     } else {
         // Contain: fit within available area, preserve aspect ratio
         (avail_w / tex_size.x).min(avail_h / tex_size.y).min(scale)
@@ -249,5 +261,30 @@ mod tests {
         let tex = egui::vec2(600.0, 300.0);
         let area = egui::Rect::from_min_size(Pos2::ZERO, egui::vec2(2000.0, 2000.0));
         assert_eq!(compute_image_rect(&d, tex, area, 2.0).width(), 600.0);
+    }
+
+    #[test]
+    fn height_directive_sizes_the_image_and_both_keep_the_aspect() {
+        let tex = egui::vec2(600.0, 300.0);
+        let area = egui::Rect::from_min_size(Pos2::ZERO, egui::vec2(2000.0, 1000.0));
+        let h = ImageDirectives {
+            height: Some("50%".into()),
+            ..Default::default()
+        };
+        let r = compute_image_rect(&h, tex, area, 1.0);
+        assert_eq!((r.width(), r.height()), (1000.0, 500.0));
+        // both: the smaller wins, so the image keeps its aspect
+        let both = ImageDirectives {
+            width: Some("300px".into()),
+            height: Some("50%".into()),
+            ..Default::default()
+        };
+        assert_eq!(compute_image_rect(&both, tex, area, 1.0).width(), 300.0);
+        // never beyond the available area
+        let big = ImageDirectives {
+            height: Some("5000px".into()),
+            ..Default::default()
+        };
+        assert_eq!(compute_image_rect(&big, tex, area, 1.0).height(), 1000.0);
     }
 }

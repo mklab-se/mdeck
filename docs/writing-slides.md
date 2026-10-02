@@ -83,7 +83,7 @@ Emphasise that this was about letting teams ship independently, not scale.
 ## Images
 
 Standard markdown images work, with options in the alt text:
-`@fill`, `@fit`, `@width:80%`, `@left`, `@right`. A slide with one image
+`@fill`, `@width: 80%` and `@height: 400px`. A slide with one image
 becomes a full-screen image slide, two to four become a gallery, and bullets
 plus an image become a split layout. Images decode in the background, so big
 photos never stall a transition.

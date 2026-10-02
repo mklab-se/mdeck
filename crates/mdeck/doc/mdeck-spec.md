@@ -361,25 +361,24 @@ Standard markdown image syntax:
 ![Alt text](path/to/image.png)
 ```
 
-Sizing options can be placed in the alt text with the `@` prefix:
+Size options go in the alt text, in the settings grammar (`@key: value`, the space after the
+colon is optional):
 
 ```markdown
-![Architecture @width:80%](arch.png)
-![Logo @height:100px](logo.png)
+![Architecture @width: 80%](arch.png)
+![Logo @height: 100px](logo.png)
 ![Photo @fill](photo.jpg)
-![Diagram @fit](diagram.svg)
-![Banner @left](banner.png)
 ```
 
-| Option        | Description                                     |
-|---------------|-------------------------------------------------|
-| `@width:VAL`  | Set width: `%` of the slide, or pixels at the 1920×1080 reference size (scaled on other resolutions) |
-| `@height:VAL` | Set height (same units as `@width`)              |
-| `@fill`       | Fill the entire slide as background              |
-| `@fit`        | Fit within available space, preserve aspect ratio (default) |
-| `@left`       | Align left                                       |
-| `@right`      | Align right                                      |
-| `@center`     | Align center (default)                           |
+| Option          | Description                                     |
+|-----------------|-------------------------------------------------|
+| `@width: VAL`   | Width: `%` of the space, or pixels at the 1920×1080 reference size (scaled on other resolutions) |
+| `@height: VAL`  | Height (same units as `@width`); with both, the image keeps its aspect and fits both |
+| `@fill`         | Cover the space, cropping                       |
+
+Without options an image fits its space and keeps its aspect. Where an image goes (left, right,
+full bleed) is up to the slide's design, not an option. Any other `@` word in an image's alt
+text (including v1's `@fit`, `@left`, `@right` and `@center`) is reported by `--check`.
 
 When rendered in a standard markdown viewer, the `@` options appear as alt text, which is acceptable degradation.
 

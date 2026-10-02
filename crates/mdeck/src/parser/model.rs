@@ -312,11 +312,14 @@ pub enum Align {
 
 #[derive(Debug, Clone, Default)]
 pub struct ImageDirectives {
+    /// `@width: 60%`: a share of the space, or pixels at 1920x1080.
     pub width: Option<String>,
+    /// `@height: 400px`: likewise.
     pub height: Option<String>,
+    /// `@fill`: cover the space, cropping.
     pub fill: bool,
-    pub fit: bool,
-    pub align: Option<String>,
+    /// Options that were not understood, for `--check`.
+    pub problems: Vec<String>,
 }
 
 #[derive(Debug, Clone)]

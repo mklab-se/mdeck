@@ -115,8 +115,8 @@ fn block(b: &parser::Block) -> sdk::Block {
                 width: directives.width.clone(),
                 height: directives.height.clone(),
                 fill: directives.fill,
-                fit: directives.fit,
-                align: directives.align.clone(),
+                fit: false,
+                align: None,
             },
         },
         B::CodeBlock {
