@@ -9,16 +9,16 @@ use crate::render;
 
 mod background;
 mod content;
-mod directives;
 mod engine;
 mod illustration;
+mod settings;
 mod theme;
 mod thermal;
 pub use background::background_warnings;
-pub use content::{cjk_font_warning, math_warnings, warn_missing_cjk_font};
-pub use directives::directive_warnings;
+pub use content::{cjk_font_warning, content_warnings, math_warnings, warn_missing_cjk_font};
 pub use engine::{art_warnings, deck_theme, engine_warnings};
 pub use illustration::illustration_warnings;
+pub use settings::{fence_warnings, settings_warnings};
 pub use theme::theme_warnings;
 pub use thermal::thermal_warnings;
 
@@ -42,9 +42,13 @@ pub fn run(file: PathBuf, verbose: u8, quiet: bool, engine: Option<String>) -> a
     }
 
     // -v: per-slide overview (layout, block count, reveal steps, title)
+    // and the settings that apply to each slide
     if verbose > 0 && !quiet {
         for (i, slide) in presentation.slides.iter().enumerate() {
             eprintln!("{}", slide_summary(i, slide));
+            if let Some(settings) = applied_settings(&presentation.meta, slide) {
+                eprintln!("{settings}");
+            }
         }
         eprintln!();
     }
@@ -86,7 +90,9 @@ fn collect(
             .into_iter()
             .collect(),
     );
-    add(directive_warnings(presentation));
+    add(settings_warnings(presentation));
+    add(fence_warnings(presentation));
+    add(content_warnings(presentation));
     add(math_warnings(presentation));
 
     let defaults = crate::config::Config::load_or_default()
@@ -120,7 +126,7 @@ fn diagram_warnings(presentation: &parser::Presentation) -> Vec<CheckWarning> {
     for (i, slide) in presentation.slides.iter().enumerate() {
         let mut fences = fence_lines(slide, "@architecture").into_iter();
         for block in &slide.blocks {
-            if let parser::Block::Diagram { content } = block {
+            if let parser::Block::Diagram { content, .. } = block {
                 let line = fences.next().unwrap_or(slide.line);
                 for message in render::diagram::check_diagram_routes(content) {
                     out.push(CheckWarning {
@@ -153,9 +159,32 @@ fn fence_lines(slide: &parser::Slide, tag: &str) -> Vec<usize> {
     out
 }
 
+/// The settings that apply to a slide, for `--check -v`: its own, then
+/// the deck's values of settings a slide can override that it does not.
+/// `None` when nothing applies.
+fn applied_settings(meta: &parser::PresentationMeta, slide: &parser::Slide) -> Option<String> {
+    let mut parts: Vec<String> = Vec::new();
+    for s in &slide.settings {
+        if crate::language::setting(&s.name).is_some_and(|d| d.scope.in_slide())
+            && parser::setting(&slide.settings, &s.name) == Some(s.value.trim())
+            && !parts.iter().any(|p| p.starts_with(&format!("{}:", s.name)))
+        {
+            parts.push(format!("{}: {}", s.name, s.value.trim()));
+        }
+    }
+    for s in &meta.settings {
+        let shared = crate::language::setting(&s.name)
+            .is_some_and(|d| d.scope == crate::language::Scope::Both);
+        if shared && parser::setting(&slide.settings, &s.name).is_none() {
+            parts.push(format!("{}: {} (deck)", s.name, s.value.trim()));
+        }
+    }
+    (!parts.is_empty()).then(|| format!("               {}", parts.join(", ")))
+}
+
 /// One-line description of a slide for `--check -v`.
 fn slide_summary(index: usize, slide: &parser::Slide) -> String {
-    let steps = parser::compute_max_steps(&slide.blocks);
+    let steps = slide.steps;
     let title = slide
         .blocks
         .iter()
@@ -187,21 +216,32 @@ fn slide_summary(index: usize, slide: &parser::Slide) -> String {
 mod tests {
     use super::*;
 
-    use crate::parser::{Block, Inline, Layout, ListItem, ListMarker, Slide};
+    use crate::parser::{Block, Layout, Slide};
 
     fn slide(blocks: Vec<Block>, layout: Layout, notes: Option<&str>) -> Slide {
         Slide {
-            directives: vec![],
             blocks,
             layout,
             raw_source: String::new(),
-            line: 0,
-            source_lines: Vec::new(),
             notes: notes.map(String::from),
-            illustration: None,
-            logo: None,
-            art: None,
+            ..Default::default()
         }
+    }
+
+    #[test]
+    fn verbose_lists_the_settings_that_apply() {
+        let p = parser::parse(
+            "---\ntransition: fade\nlogo: a.png\ntheme: dark\n---\n# A\n<!-- design: quote\nlogo: none -->\n\n> q\n\n# B\n\nx\n",
+        );
+        let a = applied_settings(&p.meta, &p.slides[0]).unwrap();
+        assert_eq!(
+            a.trim(),
+            "design: quote, logo: none, transition: fade (deck)"
+        );
+        let b = applied_settings(&p.meta, &p.slides[1]).unwrap();
+        assert_eq!(b.trim(), "transition: fade (deck), logo: a.png (deck)");
+        let none = parser::parse("# A\n");
+        assert_eq!(applied_settings(&none.meta, &none.slides[0]), None);
     }
 
     #[test]
@@ -209,34 +249,16 @@ mod tests {
         let md = "---\ntitle: T\n---\n# A\n\n```@architecture\na -> b\n```\n\n```text\n```@architecture\n```\n\n~~~ @architecture\nc\n~~~\n";
         let p = parser::parse(md);
         assert_eq!(fence_lines(&p.slides[0], "@architecture"), [6, 14]);
-        assert_eq!(fence_lines(&p.slides[0], "@barchart"), Vec::<usize>::new());
+        assert_eq!(fence_lines(&p.slides[0], "@bar"), Vec::<usize>::new());
     }
 
     #[test]
     fn summary_includes_layout_blocks_steps_and_title() {
-        let blocks = vec![
-            Block::Heading {
-                level: 1,
-                inlines: vec![Inline::Text("Räksmörgås & friends".into())],
-            },
-            Block::List {
-                ordered: false,
-                items: vec![
-                    ListItem {
-                        marker: ListMarker::NextStep,
-                        inlines: vec![],
-                        children: vec![],
-                    },
-                    ListItem {
-                        marker: ListMarker::NextStep,
-                        inlines: vec![],
-                        children: vec![],
-                    },
-                ],
-            },
-        ];
-        let s = slide(blocks, Layout::Bullet, Some("remember to smile"));
-        let line = slide_summary(4, &s);
+        let s = &parser::parse(
+            "# Räksmörgås & friends\n\n+ a\n+ b\n\n```@notes\nremember to smile\n```",
+        )
+        .slides[0];
+        let line = slide_summary(4, s);
         assert!(line.contains("slide   5:"), "{line}");
         assert!(line.contains("bullet"), "{line}");
         assert!(line.contains("2 blocks"), "{line}");

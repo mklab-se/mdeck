@@ -33,3 +33,30 @@ pub(super) fn inline_text_len(inline: &Inline) -> usize {
         Inline::Math { tex, .. } => tex.chars().count().div_ceil(2),
     }
 }
+
+/// Call `f` with every inline run in `blocks`: headings, paragraphs, list
+/// items, table cells, and the blocks inside quotes and callouts.
+pub fn for_each_inlines(blocks: &[super::Block], f: &mut impl FnMut(&[Inline])) {
+    use super::{Block, ListItem};
+    fn items(list: &[ListItem], f: &mut impl FnMut(&[Inline])) {
+        for item in list {
+            f(&item.inlines);
+            items(&item.children, f);
+        }
+    }
+    for block in blocks {
+        match block {
+            Block::Heading { inlines, .. } | Block::Paragraph { inlines } => f(inlines),
+            Block::BlockQuote { blocks } | Block::Callout { blocks, .. } => {
+                for_each_inlines(blocks, f)
+            }
+            Block::List { items: list, .. } => items(list, f),
+            Block::Table { headers, rows, .. } => {
+                for cell in headers.iter().chain(rows.iter().flatten()) {
+                    f(cell);
+                }
+            }
+            _ => {}
+        }
+    }
+}

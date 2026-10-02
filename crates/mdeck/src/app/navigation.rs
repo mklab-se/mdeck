@@ -42,13 +42,13 @@ impl PresentationApp {
         let mut t = ActiveTransition::new(
             idx,
             idx + 1,
-            self.transition_kind(),
+            self.slide_transition(idx + 1),
             TransitionDirection::Forward,
         );
-        // `@zoom: Spot` on the next slide zooms into that spot of this one
+        // `zoom-to: Spot` on the next slide zooms into that spot of this one
         if !self.reduced_motion
             && let Some(spot) =
-                crate::parser::directive(&self.deck.presentation.slides[idx + 1].directives, "zoom")
+                crate::parser::setting(&self.deck.presentation.slides[idx + 1].settings, "zoom-to")
         {
             t.zoom = Some(crate::render::transition::Zoom {
                 spot: spot.trim().to_string(),
@@ -92,7 +92,7 @@ impl PresentationApp {
         self.transition = Some(ActiveTransition::new(
             idx,
             prev,
-            self.transition_kind(),
+            self.slide_transition(idx),
             TransitionDirection::Backward,
         ));
     }

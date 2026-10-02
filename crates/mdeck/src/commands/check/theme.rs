@@ -65,7 +65,7 @@ mod tests {
         )
         .unwrap();
         std::fs::write(dir.join("themes/typo.yaml"), "colours: {}\n").unwrap();
-        let deck = |theme: &str| parser::parse(&format!("---\n@theme: {theme}\n---\n# A\n"));
+        let deck = |theme: &str| parser::parse(&format!("---\ntheme: {theme}\n---\n# A\n"));
 
         assert!(theme_warnings(&deck("dark"), None, &dir).is_empty());
         let unknown = theme_warnings(&deck("solarized"), None, &dir);

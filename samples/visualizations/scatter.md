@@ -1,6 +1,6 @@
 ---
 title: "Scatter Plot Tests"
-@theme: dark
+theme: dark
 ---
 
 # Scatter Plot — Basic
@@ -49,5 +49,5 @@ title: "Scatter Plot Tests"
 - Static B: 40, 30
 + Revealed C: 70, 80
 + Revealed D: 90, 20
-* With E: 55, 65
++ With E: 55, 65
 ```

@@ -40,10 +40,14 @@ pub(super) fn parse_code_block(lines: &[&str], start: usize, fence_char: char) -
     let code = code_lines.join("\n");
 
     let block = match viz_kind {
-        VizKind::Diagram => Block::Diagram { content: code },
+        VizKind::Diagram => Block::Diagram {
+            content: code,
+            step_base: 0,
+        },
         VizKind::Chart(kind) => Block::Chart {
             kind,
             content: code,
+            step_base: 0,
         },
         VizKind::None => Block::CodeBlock {
             language,
@@ -68,7 +72,7 @@ fn parse_code_info(info: &str) -> (Option<String>, Vec<usize>, VizKind) {
     }
 
     // Check for visualization language tags
-    if info.starts_with("@architecture") {
+    if info.split_whitespace().next() == Some("@architecture") {
         return (None, vec![], VizKind::Diagram);
     }
     if let Some(chart) = Chart::from_info(info) {

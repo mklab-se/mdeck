@@ -1,6 +1,6 @@
 ---
 title: "Custom themes: from a design system"
-@theme: mdeck-co
+theme: mdeck-co
 ---
 
 # From a design system to a theme
@@ -21,7 +21,7 @@ Written by mdeck theme new --from, from a design system
 
 ## The data palette
 
-```@barchart
+```@bar
 - Q1: 42
 - Q2: 68
 - Q3: 55

@@ -60,6 +60,15 @@ impl<'a> BlockCx<'a> {
         BlockCx { theme, ..*self }
     }
 
+    /// This context as a visual whose steps follow `base` earlier steps on
+    /// the slide sees it: its own step count starts after them.
+    pub fn after_steps(&self, base: usize) -> BlockCx<'a> {
+        BlockCx {
+            reveal_step: self.reveal_step.saturating_sub(base),
+            ..*self
+        }
+    }
+
     /// The text half of this context.
     pub fn text(&self) -> TextCx<'a> {
         TextCx {

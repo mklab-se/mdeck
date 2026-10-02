@@ -6,7 +6,11 @@ use super::Inline;
 /// - `**bold**` / `__bold__`, `*italic*` / `_italic_`, `***bold italic***`
 /// - `~~strikethrough~~`
 /// - `` `code` ``, with longer backtick runs to embed backticks (``` ``a`b`` ```)
-/// - `[text](url)`; inline `![alt](url)` renders as link text
+/// - `[text](url)`, reference links `[text][label]`, `[text][]` and
+///   `[label]` (resolved against the deck's definitions), autolinks
+///   `<https://...>`; inline `![alt](url)` renders as link text
+/// - footnote markers `[^1]` are hidden (their text goes to the notes)
+/// - raw HTML tags are dropped and their text kept; `<br>` breaks the line
 /// - backslash escapes (`\*`, `\_`, `\[`, `\$`, ...)
 /// - `$math$` inline and `$$math$$` display LaTeX (rules in `parser::math`:
 ///   `$5 and $10` and `($K) and ($M)` stay text)
@@ -20,7 +24,9 @@ pub fn parse(text: &str) -> Vec<Inline> {
     let mut current_text = String::new();
 
     while i < chars.len() {
-        if let Some((inline, end)) = try_span(&chars, i) {
+        if let Some(end) = try_hidden(&chars, i) {
+            i = end;
+        } else if let Some((inline, end)) = try_span(&chars, i) {
             flush_text(&mut current_text, &mut result);
             result.push(inline);
             i = end;
@@ -45,13 +51,273 @@ fn try_span(chars: &[char], i: usize) -> Option<(Inline, usize)> {
         c @ ('*' | '_') => try_emphasis(chars, i, c),
         // Strikethrough: ~~text~~
         '~' => try_strikethrough(chars, i),
-        // Link: [text](url)
-        '[' => parse_link(chars, i),
+        // Link: [text](url), or a reference link
+        '[' => parse_link(chars, i).or_else(|| reference_link(chars, i)),
         // Inline image: ![alt](url). No inline image rendering exists, so
         // show the alt text as a link rather than a stray `!` + link.
-        '!' if peek(chars, i + 1) == Some('[') => parse_link(chars, i + 1),
+        '!' if peek(chars, i + 1) == Some('[') => {
+            parse_link(chars, i + 1).or_else(|| reference_link(chars, i + 1))
+        }
+        // Autolink `<https://...>`, `<br>`, `<img>`
+        '<' => autolink(chars, i).or_else(|| html_span(chars, i)),
         _ => None,
     }
+}
+
+/// Markup at `chars[i]` that shows nothing, and the index just past it: a
+/// footnote marker `[^1]` (its text goes to the slide's notes) or an HTML
+/// tag (its text is kept, the tag dropped).
+fn try_hidden(chars: &[char], i: usize) -> Option<usize> {
+    match chars[i] {
+        '[' if peek(chars, i + 1) == Some('^') => {
+            let close = (i + 2..chars.len()).find(|&j| chars[j] == ']')?;
+            let id: String = chars[i + 2..close].iter().collect();
+            if id.is_empty() || id.contains(char::is_whitespace) {
+                return None;
+            }
+            super::references::use_footnote(&id);
+            Some(close + 1)
+        }
+        '<' => {
+            let (name, _, end) = html_tag(chars, i)?;
+            (!matches!(name.as_str(), "br" | "img")).then_some(end)
+        }
+        _ => None,
+    }
+}
+
+/// The HTML tags whose markup is dropped (and text kept). Others, such as
+/// `Vec<T>` in prose, stay text.
+const HTML_TAGS: &[&str] = &[
+    "a",
+    "abbr",
+    "article",
+    "aside",
+    "b",
+    "big",
+    "blockquote",
+    "br",
+    "center",
+    "cite",
+    "code",
+    "dd",
+    "del",
+    "details",
+    "dfn",
+    "div",
+    "dl",
+    "dt",
+    "em",
+    "figcaption",
+    "figure",
+    "font",
+    "footer",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "header",
+    "hr",
+    "i",
+    "img",
+    "ins",
+    "kbd",
+    "li",
+    "main",
+    "mark",
+    "nav",
+    "ol",
+    "p",
+    "picture",
+    "pre",
+    "q",
+    "s",
+    "samp",
+    "section",
+    "small",
+    "source",
+    "span",
+    "strike",
+    "strong",
+    "sub",
+    "summary",
+    "sup",
+    "table",
+    "tbody",
+    "td",
+    "th",
+    "thead",
+    "tr",
+    "tt",
+    "u",
+    "ul",
+    "var",
+    "video",
+    "wbr",
+];
+
+/// An HTML tag at `chars[i]`: its lowercase name, its attribute text and
+/// the index just past its `>`.
+pub(super) fn html_tag(chars: &[char], i: usize) -> Option<(String, String, usize)> {
+    if chars.get(i) != Some(&'<') {
+        return None;
+    }
+    let mut j = i + 1;
+    if chars.get(j) == Some(&'/') {
+        j += 1;
+    }
+    let name_start = j;
+    while j < chars.len() && chars[j].is_ascii_alphanumeric() {
+        j += 1;
+    }
+    let name: String = chars[name_start..j]
+        .iter()
+        .collect::<String>()
+        .to_lowercase();
+    if !HTML_TAGS.contains(&name.as_str()) {
+        return None;
+    }
+    // After the name: whitespace and attributes, `/`, or the end.
+    if !matches!(chars.get(j), Some(c) if c.is_whitespace() || *c == '>' || *c == '/') {
+        return None;
+    }
+    let close = (j..chars.len()).find(|&k| chars[k] == '>')?;
+    let attrs: String = chars[j..close].iter().collect();
+    Some((name, attrs, close + 1))
+}
+
+/// The value of attribute `name` in an HTML tag's attribute text.
+pub(super) fn html_attr(attrs: &str, name: &str) -> Option<String> {
+    let lower = attrs.to_ascii_lowercase();
+    let mut from = 0;
+    while let Some(pos) = lower[from..].find(name) {
+        let at = from + pos;
+        let before_ok = at == 0 || !lower.as_bytes()[at - 1].is_ascii_alphanumeric();
+        let rest = attrs[at + name.len()..].trim_start();
+        if before_ok && let Some(value) = rest.strip_prefix('=') {
+            let value = value.trim_start();
+            return Some(match value.chars().next() {
+                Some(q @ ('"' | '\'')) => value[1..].split(q).next().unwrap_or("").to_string(),
+                _ => value
+                    .split(|c: char| c.is_whitespace() || c == '>' || c == '/')
+                    .next()
+                    .unwrap_or("")
+                    .to_string(),
+            });
+        }
+        from = at + name.len();
+    }
+    None
+}
+
+/// `<br>` as a line break, `<img alt=... src=...>` as its alt text.
+fn html_span(chars: &[char], i: usize) -> Option<(Inline, usize)> {
+    let (name, attrs, end) = html_tag(chars, i)?;
+    match name.as_str() {
+        "br" => Some((Inline::Text("\n".into()), end)),
+        "img" => {
+            let alt = html_attr(&attrs, "alt").unwrap_or_default();
+            let url = html_attr(&attrs, "src").unwrap_or_default();
+            Some((
+                Inline::Link {
+                    text: parse(&alt),
+                    url,
+                },
+                end,
+            ))
+        }
+        _ => None,
+    }
+}
+
+/// `<https://example.com>` or `<name@example.com>`: a link showing its target.
+fn autolink(chars: &[char], i: usize) -> Option<(Inline, usize)> {
+    let close = (i + 1..chars.len())
+        .find(|&j| chars[j] == '>' || chars[j] == '<' || chars[j].is_whitespace())?;
+    if chars[close] != '>' {
+        return None;
+    }
+    let target: String = chars[i + 1..close].iter().collect();
+    let scheme = target.split_once(':').map(|(s, _)| s);
+    let is_uri = scheme.is_some_and(|s| {
+        (2..=32).contains(&s.len())
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || "+.-".contains(c))
+    });
+    let is_email = !is_uri
+        && target
+            .split_once('@')
+            .is_some_and(|(a, b)| !a.is_empty() && b.contains('.') && !b.starts_with('.'));
+    if !is_uri && !is_email {
+        return None;
+    }
+    let url = if is_email {
+        format!("mailto:{target}")
+    } else {
+        target.clone()
+    };
+    let shown = target
+        .strip_prefix("mailto:")
+        .unwrap_or(&target)
+        .to_string();
+    Some((
+        Inline::Link {
+            text: vec![Inline::Text(shown)],
+            url,
+        },
+        close + 1,
+    ))
+}
+
+/// `[text][label]`, `[text][]` or `[label]`, when the label is defined.
+fn reference_link(chars: &[char], start: usize) -> Option<(Inline, usize)> {
+    let close = bracket_close(chars, start)?;
+    let text: String = chars[start + 1..close].iter().collect();
+    let (label, end) = if chars.get(close + 1) == Some(&'[') {
+        let label_close = bracket_close(chars, close + 1)?;
+        let label: String = chars[close + 2..label_close].iter().collect();
+        (
+            if label.trim().is_empty() {
+                text.clone()
+            } else {
+                label
+            },
+            label_close + 1,
+        )
+    } else {
+        (text.clone(), close + 1)
+    };
+    let url = super::references::resolve(&label)?;
+    Some((
+        Inline::Link {
+            text: parse(&text),
+            url,
+        },
+        end,
+    ))
+}
+
+/// The index of the `]` closing the `[` at `start`.
+fn bracket_close(chars: &[char], start: usize) -> Option<usize> {
+    let mut depth = 0;
+    let mut i = start;
+    while i < chars.len() {
+        match chars[i] {
+            '\\' => i += 1,
+            '[' => depth += 1,
+            ']' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
 }
 
 /// Append the literal text at `chars[i]` to `out` and return the index after
@@ -329,6 +595,51 @@ mod tests {
         assert_eq!(push_literal(&chars("```x"), 0, &mut out), 3);
         assert_eq!(push_literal(&chars("é"), 0, &mut out), 1);
         assert_eq!(out, "*\\```é");
+    }
+
+    #[test]
+    fn html_tags_are_dropped_and_text_kept() {
+        let r = parse("Press <kbd>Ctrl</kbd> + <b>C</b>");
+        assert_eq!(inlines_to_text(&r), "Press Ctrl + C");
+        let r = parse("one<br>two<br/>three");
+        assert_eq!(inlines_to_text(&r), "one\ntwo\nthree");
+        // Not HTML: stays text.
+        assert_eq!(
+            inlines_to_text(&parse("Vec<T> and a < b")),
+            "Vec<T> and a < b"
+        );
+        let r = parse(r#"<img src="logo.png" alt="Logo" width=40>"#);
+        assert!(matches!(&r[0], Inline::Link { url, .. } if url == "logo.png"));
+        assert_eq!(
+            html_attr(r#" src='a.png' alt=b"#, "alt").as_deref(),
+            Some("b")
+        );
+    }
+
+    #[test]
+    fn autolinks_and_reference_links_are_links() {
+        let r = parse("See <https://mdeck.dev> or <me@x.org>.");
+        assert!(matches!(&r[1], Inline::Link { url, .. } if url == "https://mdeck.dev"));
+        assert!(matches!(&r[3], Inline::Link { url, .. } if url == "mailto:me@x.org"));
+        let (_, defs) = super::super::references::collect("[docs]: https://d.dev");
+        super::super::references::with(defs, || {
+            for md in ["[the docs][docs]", "[Docs][]", "[docs]"] {
+                let r = parse(md);
+                assert!(
+                    matches!(&r[0], Inline::Link { url, .. } if url == "https://d.dev"),
+                    "{md}: {r:?}"
+                );
+            }
+            // Undefined labels stay text.
+            assert_eq!(inlines_to_text(&parse("[x][nope] [y]")), "[x][nope] [y]");
+        });
+    }
+
+    #[test]
+    fn footnote_markers_are_hidden() {
+        let r = parse("Fines rose[^1] sharply.");
+        assert_eq!(inlines_to_text(&r), "Fines rose sharply.");
+        let _ = super::super::references::take_footnotes();
     }
 
     #[test]

@@ -112,9 +112,9 @@ pub fn write_opportunities(path: &Path, opportunities: &[VisualizationOpportunit
         content.push_str("### Implementation Notes\n\n");
         content.push_str(
             "MDeck renders visualizations from fenced code blocks with `@` language tags \
-             (e.g., `@barchart`, `@timeline`, `@architecture`). Each visualization type \
+             (e.g., `@bar`, `@timeline`, `@architecture`). Each visualization type \
              is implemented as a Rust rendering function in `crates/mdeck/src/render/`. \
-             The parser detects the `@` tag in `crates/mdeck/src/parser/blocks.rs` and \
+             The parser detects the `@` tag in `crates/mdeck/src/language/mod.rs` (FENCES) and `crates/mdeck/src/parser/model.rs` (`Chart::TAGS`) and \
              creates a corresponding `Block` variant. Progressive reveal is supported \
              via `+` and `*` list markers.\n\n",
         );

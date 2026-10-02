@@ -29,7 +29,7 @@ pub fn thermal_warnings(presentation: &parser::Presentation, base: &Path) -> Vec
             line: 0,
             category: CheckCategory::Thermal,
             message: format!(
-                "@palette: '{p}' is not one of iron, white-hot, black-hot, rainbow, arctic, lava"
+                "palette: '{p}' is not one of iron, white-hot, black-hot, rainbow, arctic, lava"
             ),
         });
     }
@@ -57,7 +57,7 @@ mod tests {
     #[test]
     fn colour_input_and_unsupported_settings_are_reported_on_their_line() {
         let d = deck_dir("lines");
-        let md = "---\n@palette: plasma\n---\n\n# A\n\n```@thermal\nimage: iron.png\n+ above 80%\n```\n\n# B\n\n```@thermal\nimage: gray.png\nwindow: 40..90 °C\n+ above 60 °C\n- spot Sp1 50% 50%: 86 °C\n```\n\n# C\n\n```@thermal\nimage: gone.png\n```\n";
+        let md = "---\npalette: plasma\n---\n\n# A\n\n```@thermal\nimage: iron.png\n+ above 80%\n```\n\n# B\n\n```@thermal\nimage: gray.png\nwindow: 40..90 °C\n+ above 60 °C\n- spot Sp1 50% 50%: 86 °C\n```\n\n# C\n\n```@thermal\nimage: gone.png\n```\n";
         let pres = parser::parse(md);
         let w = thermal_warnings(&pres, &d);
         let found: Vec<(usize, usize)> = w.iter().map(|w| (w.slide, w.line)).collect();
@@ -98,7 +98,7 @@ mod tests {
     #[test]
     fn a_comparison_needs_mapped_sources() {
         let d = deck_dir("compare");
-        let md = "# Before and after\n@thermal-window: 30..90 °C\n\n```@thermal\nimage: gray.png\nmapping: linear 20..100 °C\n```\n\n```@thermal\nimage: gray.png\n```\n";
+        let md = "# Before and after\n<!-- thermal-window: 30..90 °C -->\n\n```@thermal\nimage: gray.png\nmapping: linear 20..100 °C\n```\n\n```@thermal\nimage: gray.png\n```\n";
         let pres = parser::parse(md);
         let w = thermal_warnings(&pres, &d);
         assert_eq!(w.len(), 1, "{w:?}");

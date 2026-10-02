@@ -44,9 +44,15 @@ pub(super) fn slide_text(slide: &Slide) -> String {
             Block::Heading { inlines: v, .. } => {
                 out.push_str(&format!("# {}\n", inlines(v)));
             }
-            Block::Paragraph { inlines: v } | Block::BlockQuote { inlines: v } => {
+            Block::Paragraph { inlines: v } => {
                 out.push_str(&inlines(v));
                 out.push('\n');
+            }
+            Block::BlockQuote { blocks } | Block::Callout { blocks, .. } => {
+                for p in Block::quote_paragraphs(blocks) {
+                    out.push_str(&inlines(&p));
+                    out.push('\n');
+                }
             }
             Block::List { items, .. } => {
                 for it in items {
@@ -65,7 +71,7 @@ pub fn scene_request(pres: &Presentation, slides: &[usize]) -> String {
     if let Some(t) = &pres.meta.title {
         msg.push_str(&format!("Deck: {t}\n"));
     }
-    if let Some(world) = &pres.meta.art {
+    if let Some(world) = &pres.meta.art_world {
         msg.push_str(&format!("The deck's world: {world}\n"));
     }
     msg.push('\n');
@@ -281,7 +287,7 @@ pub(super) async fn draw_one(
     )
 }
 
-/// Scenes for `slides`: a slide's own `@art:`, or written by the chat model.
+/// Scenes for `slides`: a slide's own `picture-prompt`, or written by the chat model.
 pub(super) async fn scenes(
     pres: &Presentation,
     slides: &[usize],
@@ -341,7 +347,7 @@ mod tests {
 
     fn deck() -> Presentation {
         crate::parser::parse(
-            "---\ntitle: Harbour\n@art: a Victorian harbour town that builds software\n---\n# Launch\n\nWe ship today\n\n# Why\n@art: a lighthouse keeper with a laptop\n\n- one\n\n???\nTell the story of the storm.\n",
+            "---\ntitle: Harbour\nart-world: a Victorian harbour town that builds software\n---\n# Launch\n\nWe ship today\n\n# Why\n<!-- picture-prompt: a lighthouse keeper with a laptop -->\n\n- one\n\n```@notes\nTell the story of the storm.\n```\n",
         )
     }
 

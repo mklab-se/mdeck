@@ -1,8 +1,8 @@
 ---
 title: "Introducing MDeck"
 author: "MDeck Team"
-@theme: dark
-@transition: slide
+theme: dark
+transition: slide
 ---
 
 # Introducing MDeck
@@ -64,7 +64,6 @@ Content below the heading.
 An explicit separator also works.
 
 
-
 Three blank lines create a break too.
 ```
 
@@ -85,7 +84,7 @@ MDeck detects what kind of slide you're writing:
 - **Diagram** -- architecture diagrams from text
 - **Visualization** -- charts and data from text
 
-No `@layout` directive needed in most cases.
+No `design` setting needed in most cases.
 
 ---
 
@@ -122,7 +121,7 @@ MDeck renders charts directly from your markdown. Here's project status at a gla
 
 # Visualizations: Charts
 
-```@barchart
+```@bar
 # orientation: horizontal
 # x-label: Stars
 - Ease of Use: 92
@@ -183,7 +182,7 @@ Set a theme globally in frontmatter:
 
 ```markdown
 ---
-@theme: dark
+theme: dark
 ---
 ```
 
@@ -209,7 +208,7 @@ The same slides, a whole different show:
 - **chalkboard**: the same drawings in chalk on a slate
 - **watercolour** and **darkroom**: paintings that bloom, photographs that develop
 
-One line switches, `@engine: led`, or try one with `mdeck deck.md --engine laser`.
+One line switches, `engine: led`, or try one with `mdeck deck.md --engine laser`.
 
 ---
 
@@ -225,7 +224,7 @@ logo:
   file: logo.svg
 ```
 
-Add a logo to any deck with `@logo: logo.svg`, or turn a design system into a
+Add a logo to any deck with `logo: logo.svg`, or turn a design system into a
 theme with `mdeck theme new acme --from ./brand`.
 
 ---

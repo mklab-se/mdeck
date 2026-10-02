@@ -275,9 +275,11 @@ pub fn render_slide(
         Some(Block::Chart {
             kind: crate::parser::Chart::Thermal,
             content,
+            step_base,
         }) => {
             let panel = panel_rect(&geo).shrink(8.0 * scale);
-            crate::render::thermal::draw(block, content, panel.min, panel.width(), panel.height());
+            let block = block.after_steps(*step_base);
+            crate::render::thermal::draw(&block, content, panel.min, panel.width(), panel.height());
         }
         _ => {}
     }

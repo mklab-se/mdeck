@@ -85,6 +85,7 @@ pub fn blocks(slide: &Slide) -> Vec<(&str, usize)> {
             Block::Chart {
                 kind: Chart::Thermal,
                 content,
+                ..
             } => Some((content.as_str(), fences.next().unwrap_or(slide.line))),
             _ => None,
         })
@@ -217,7 +218,7 @@ impl Library {
         if source.kind == Kind::Display && spec.slide_window {
             out.push((
                 0,
-                "@thermal: the slide's @thermal-window compares sources on one scale, but this image has no mapping: or data:; it is shown by relative intensity and cannot be compared".into(),
+                "@thermal: the slide's thermal-window compares sources on one scale, but this image has no mapping: or data:; it is shown by relative intensity and cannot be compared".into(),
             ));
         } else if source.kind == Kind::Display && spec.window.is_some() {
             out.push((

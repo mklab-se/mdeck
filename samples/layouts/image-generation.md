@@ -1,10 +1,10 @@
 ---
 title: "Image Generation Test"
 author: "mdeck"
-@theme: dark
-@transition: fade
-@image-style: "Vibrant, cinematic lighting with rich colors and dramatic composition. No text."
-@icon-style: "Clean flat icon, solid colors, no gradients, no text."
+theme: dark
+transition: fade
+image-style: "Vibrant, cinematic lighting with rich colors and dramatic composition. No text."
+icon-style: "Clean flat icon, solid colors, no gradients, no text."
 ---
 
 # AI Image Generation

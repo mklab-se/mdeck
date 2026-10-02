@@ -158,7 +158,7 @@ struct PresentationApp {
     /// `--engine` from the command line (wins over everything).
     cli_engine: Option<crate::engines::EngineKind>,
     /// The engine every theme runs on for this deck (`--engine`, then
-    /// `@engine`); `None` keeps each theme's own.
+    /// `engine`); `None` keeps each theme's own.
     engine_override: Option<crate::engines::EngineKind>,
     /// Keeps the context's fonts in step with theme font files.
     font_sync: render::fonts::FontSync,

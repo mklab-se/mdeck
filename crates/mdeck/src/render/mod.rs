@@ -126,16 +126,11 @@ mod tests {
 
     fn slide(layout: Layout, blocks: Vec<Block>) -> Slide {
         Slide {
-            directives: vec![],
             blocks,
             layout,
             raw_source: String::new(),
-            line: 0,
-            source_lines: Vec::new(),
             notes: None,
-            illustration: None,
-            logo: None,
-            art: None,
+            ..Default::default()
         }
     }
 
@@ -145,13 +140,13 @@ mod tests {
             let theme = Theme::dark();
             let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1920.0, 1080.0));
             let items = (0..10)
-                .map(|i| ListItem {
-                    marker: ListMarker::Static,
-                    inlines: vec![Inline::Text(format!(
+                .map(|i| ListItem::new(
+                    ListMarker::Static,
+                    vec![Inline::Text(format!(
                         "Bullet {i} is long enough to wrap onto a second row at seventy percent width of the slide"
                     ))],
-                    children: vec![],
-                })
+                    vec![],
+                ))
                 .collect();
             let s = slide(
                 Layout::Bullet,
@@ -162,6 +157,7 @@ mod tests {
                     },
                     Block::List {
                         ordered: false,
+                        start: 1,
                         items,
                     },
                 ],

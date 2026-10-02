@@ -2,7 +2,7 @@
 //! theme's `page:`), with the ghosts of earlier drawings wiped off it. The
 //! slide's generated line art (`mdeck ai art`) is drawn in chalk, stroke by
 //! stroke, the chalk breaking up on the slate and shedding dust as it goes.
-//! Without art, the slide's `@illustration` is drawn in chalk; the
+//! Without art, the slide's `picture` is drawn in chalk; the
 //! countdown and the end words are drawn the same way. Exports show the
 //! finished board.
 

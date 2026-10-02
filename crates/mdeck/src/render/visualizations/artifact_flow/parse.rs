@@ -314,7 +314,7 @@ mod tests {
         assert_eq!(e.label.as_deref(), Some("Container image v1.2.3"));
         assert_eq!(e.icon.as_deref(), Some("package"));
         assert_eq!(e.step, 2);
-        assert_eq!(f.edges[1].step, 2, "* joins the previous step");
+        assert_eq!(f.edges[1].step, 0, "`*` is static, like `-`");
         assert_eq!(f.edges[1].label, None);
         assert_eq!(f.edges[2].step, 1, "waits for Product Team");
     }

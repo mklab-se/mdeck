@@ -3,7 +3,7 @@
 //! on white fibre paper that develops in place, the shadows first and the
 //! highlights last, under the safelight's red; when it is done the white
 //! light comes on and the print shows its true greys. Without art, the
-//! slide's `@illustration` becomes a photogram: its shape left white on a
+//! slide's `picture` becomes a photogram: its shape left white on a
 //! black print. The countdown and the end words glow the same way. Exports
 //! show the finished print.
 

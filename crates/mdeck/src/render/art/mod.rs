@@ -49,14 +49,19 @@ pub struct Medium {
     pub tonal_strategy: prepare::Strategy,
 }
 
-/// Whether a slide gets a picture: its layout has a stage for one (the
-/// editorial layouts: title, section, quote, bullet and copy slides) and it
-/// did not say `@art: none`.
+/// Whether a slide gets a generated picture: its layout has a stage for one
+/// (the editorial layouts: title, section, quote, bullet and copy slides),
+/// it did not say `picture: none`, and it did not choose a point cloud for
+/// its picture without a `picture-prompt` (phase 2 makes the picture one
+/// source: an artwork when there is one, else the point cloud).
 pub fn wants_art(slide: &Slide) -> bool {
-    slide.art.as_deref().map(str::trim) != Some("none") && crate::render::ember::handles(slide)
+    let art = slide.art.as_deref().map(str::trim);
+    art != Some("none")
+        && (slide.illustration.is_none() || art.is_some())
+        && crate::render::ember::handles(slide)
 }
 
-/// The scene a slide's own `@art:` describes, if it does.
+/// The scene a slide's own `picture-prompt` describes, if it does.
 pub fn slide_scene(slide: &Slide) -> Option<&str> {
     slide
         .art
@@ -71,10 +76,10 @@ mod tests {
 
     #[test]
     fn copy_slides_want_art_unless_they_say_none() {
-        let md = "# Title\n\nA talk\n\n# Copy\n\n- one\n\n# No art\n@art: none\n\n- two\n\n# Code\n\n```rust\nfn main() {}\n```\n\n# Scene\n@art: a lighthouse at dawn\n\n- three\n";
+        let md = "# Title\n\nA talk\n\n# Copy\n\n- one\n\n# No art\n<!-- picture: none -->\n\n- two\n\n# Code\n\n```rust\nfn main() {}\n```\n\n# Scene\n<!-- picture-prompt: a lighthouse at dawn -->\n\n- three\n\n# Cloud\n<!-- picture: gear -->\n\n- four\n";
         let pres = crate::parser::parse(md);
         let wants: Vec<bool> = pres.slides.iter().map(wants_art).collect();
-        assert_eq!(wants, [true, true, false, false, true]);
+        assert_eq!(wants, [true, true, false, false, true, false]);
         assert_eq!(slide_scene(&pres.slides[4]), Some("a lighthouse at dawn"));
         assert_eq!(slide_scene(&pres.slides[1]), None);
     }

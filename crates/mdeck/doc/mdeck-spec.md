@@ -1,6 +1,6 @@
 # MDeck Markdown Syntax Specification
 
-**Version:** 0.1
+**Version:** 2.0 (in progress)
 **Status:** Draft
 
 MDeck is a markdown-based presentation tool. Authors write standard markdown; MDeck infers slide layout from content structure and renders it as a presentation.
@@ -13,9 +13,9 @@ MDeck is a markdown-based presentation tool. Authors write standard markdown; MD
 
 2. **Inference over configuration.** MDeck determines slide layout from content structure. Authors should almost never need to specify a layout explicitly.
 
-3. **Standard markdown first.** Every feature uses standard CommonMark markdown when possible. The `@` directive system exists only for things markdown cannot express.
+3. **Standard markdown first.** Every feature uses standard CommonMark markdown when possible. What mdeck adds is either invisible on other renderers (frontmatter, HTML comments, alt text) or reads as meaningful markdown there (a fenced block of chart data, a `+` bullet, a notes block).
 
-4. **Graceful degradation.** When rendered in a standard markdown viewer, a MDeck document should still be readable. Directives degrade to visible text; separators degrade to horizontal rules.
+4. **Graceful degradation.** When rendered in a standard markdown viewer, a MDeck document should still be readable. Settings are HTML comments and vanish; slide breaks render as horizontal rules; notes show as a code block under the slide.
 
 ---
 
@@ -24,114 +24,55 @@ MDeck is a markdown-based presentation tool. Authors write standard markdown; MD
 A MDeck document has two parts:
 
 ```
-[frontmatter]       (optional, YAML metadata)
-[slides]            (content separated by slide breaks)
+[frontmatter]       (optional, YAML deck settings)
+[slides]            (content split at headings and explicit breaks)
 ```
 
-### 2.1 Frontmatter
+### 2.1 Deck settings (frontmatter)
 
-Standard YAML frontmatter, delimited by `---` on the first line and `---` on a subsequent line. Must be the very first content in the file (no preceding blank lines).
+Plain YAML frontmatter, delimited by `---` on the first line and `---` on a subsequent line. Must be the very first content in the file (no preceding blank lines). Keys are plain YAML keys.
 
 ```yaml
 ---
 title: "Building Resilient Systems"
 author: "Jane Doe"
-date: 2026-02-28
-@theme: dark
-@transition: slide
-@aspect: 16:9
+theme: dark
+transition: slide
 ---
 ```
 
-#### Standard fields
-
-| Field    | Type   | Description                                     |
-|----------|--------|-------------------------------------------------|
-| `title`  | string | Presentation title (window title bar, metadata) |
-| `author` | string | Author name                                     |
-| `date`   | string | Presentation date                               |
-
-#### MDeck fields (prefixed with `@`)
-
-| Field         | Type   | Default   | Description                                        |
-|---------------|--------|-----------|----------------------------------------------------|
-| `@theme`      | string | `"light"` | Theme: a built-in (`"light"`, `"dark"`, `"nord"`, `"ember"`, `"spring"`, `"summer"`, `"autumn"`, `"winter"`, `"marquee"`, `"departures"`, `"etch"`, `"stack"`, `"blueprint"`, `"sketchbook"`, `"chalkboard"`, `"watercolour"`, `"darkroom"`, `"thermal"`), a custom theme name, or a path to a theme file (section 9.4) |
-| `@engine`     | string | (theme's) | Run the deck on this engine instead of the theme's: `"plain"`, `"particles"`, `"led"`, `"splitflap"`, `"laser"`, `"blocks"`, `"blueprint"`, `"sketch"`, `"chalkboard"`, `"watercolour"`, `"darkroom"`, `"thermal"` (section 9.6) |
-| `@transition` | string | `"slide"` | Default transition: `"fade"`, `"slide"`, `"spatial"`, `"none"` |
-| `@image-style` | string | none      | Default AI image generation style (name or description) |
-| `@icon-style`  | string | none      | Default AI icon generation style (name or description)  |
-| `@slide-level` | integer | (inferred) | Heading level that triggers slide breaks (1–6). E.g., `2` means H1 and H2 both split. When omitted, inferred from content. |
-| `@logo`        | string | (theme's)  | A PNG or SVG shown in a corner of every slide, relative to the deck; `none` hides the theme's logo. A slide's own `@logo` overrides it there (section 9.5) |
-| `@logo-position` | string | `top-right` | `top-left`, `top-right`, `bottom-left`, `bottom-right` |
-| `@logo-opacity` | number | `0.6` | 0 to 1, or a percentage (`40%`) |
-| `@logo-height` | number | `56` | Height in px on a 1920x1080 slide (8 to 400) |
-| `@art`         | string | none       | The deck's world for generated art on an art engine: setting, era, recurring characters. A slide's own `@art` is its scene (section 9.7) |
-| `@background`  | string | none       | An image behind every slide (PNG, JPEG, WebP or SVG), relative to the deck. A slide's own `@background` replaces it there, `none` turns it off (section 9.8) |
-| `@background-opacity` | number | `0.3` | 0 to 1, or a percentage (`30%`) |
-| `@palette`     | string | `iron`     | The palette of `@thermal` images that name none: `iron`, `white-hot`, `black-hot`, `rainbow`, `arctic`, `lava` (section 14.20) |
-
-Reserved fields that are parsed but not yet applied: `@aspect`, `@code-theme`,
-`@footer`. They are accepted so that files stay forward compatible; see
-`BACKLOG.md` for their status.
+Every key is a **setting** (section 7). A key in the frontmatter is the deck's value; the same key in a slide's settings comment overrides it for that slide. Keys that only make sense for the whole deck (such as `theme`) are errors in a slide. Unknown keys, invalid values and v1 keys (`theme`) are reported by `mdeck --check` with a "did you mean" or the v2 form; they are never honoured silently.
 
 #### Transitions
 
 | Transition | Effect |
 |------------|--------|
-| `slide`    | The next slide pushes the current one horizontally (default) |
+| `slide`    | The next slide pushes the current one horizontally |
 | `fade`     | Cross-fade between slides |
 | `spatial`  | Slides pan in the direction they sit in the grid overview, so `G` and navigation feel like one continuous space |
+| `zoom`     | On a slide with `zoom-to`: enter it by zooming into a thermal spot of the slide before (section 14.20) |
 | `none`     | Instant switch |
 
 All transitions use smooth easing and last about a third of a second. Cycle
-them while presenting with `T`.
+the deck's transition while presenting with `T`. A slide's own `transition`
+says how that slide is entered (and left again going back).
 
-**Parser rule:** If the document starts with a line that is exactly `---`, begin parsing YAML until a closing `---` line. If no closing `---` is found before invalid YAML, treat the opening `---` as a slide separator instead (graceful recovery).
+**Parser rule:** If the document starts with a line that is exactly `---`, begin parsing YAML until a closing `---` line. If no closing `---` is found, there is no frontmatter and the whole file is slides. If the YAML is invalid, each `key: value` line is still read on its own.
 
 ---
 
 ## 3. Slide Separation
 
-Three mechanisms create slide breaks. When multiple overlap, a single break is produced (not multiple).
+Two things start a slide: a heading at the slide level, and an explicit break. Nothing else does. Lines inside fenced code blocks (including notes blocks) and HTML comments never start a slide.
 
-### 3.1 Explicit separator: `---`
+### 3.1 Headings
 
-A line of three or more dashes, with a blank line above and below:
+Headings start new slides when the current slide already has content. ATX headings (`# Title`) and setext headings (`Title` underlined with `===` or `---`) split alike. Which heading levels split depends on the **slide level**:
 
-```markdown
-Content of slide one.
-
----
-
-Content of slide two.
-```
-
-**Parser rule:** Pattern is `\n\n-{3,}\n\n`. The `---` line is consumed and not rendered as content.
-
-### 3.2 Blank line gap: 3+ blank lines
-
-Three or more consecutive blank lines create a slide break:
-
-```markdown
-Content of slide one.
-
-
-
-Content of slide two.
-```
-
-**Parser rule:** Pattern is `\n{4,}` (three blank lines = four newline characters). Chosen over two blank lines because two blank lines are common in normal markdown formatting and would cause accidental breaks.
-
-### 3.3 Heading inference
-
-Headings start new slides when the current slide already has content. Which heading levels trigger splits depends on the **slide level**, determined as follows:
-
-1. **Explicit:** Set `@slide-level: N` in frontmatter. Headings at level 1 through N all trigger splits.
-2. **Inferred:** If `@slide-level` is not set:
-   - **Single H1 (or no H1):** Infer slide level 2: both `#` and `##` trigger splits. This handles "proper" markdown files where H1 is the title and H2s are sections. An H2 that directly follows an H1 (nothing but blank lines between them) and has no content of its own (the next thing after it is another heading, a `---`, or the end of the file) stays on the same slide and becomes its subtitle, giving a title slide. An H2 followed by its own paragraphs, lists or other blocks is a section and starts its own slide, so a README shaped `# Title` + `## Section` + content gets a title slide and one slide per section.
-   - **Multiple H1s:** Infer slide level 1 — only `#` triggers splits.
-
-Separators (`---`, blank-line gaps, headings) inside fenced code blocks never split a slide.
+1. **Explicit:** Set `slide-level: N` in the frontmatter. Headings at level 1 through N all split.
+2. **Inferred:** If `slide-level` is not set:
+   - **Single H1 (or no H1):** slide level 2: both `#` and `##` split. This handles "proper" markdown files where H1 is the title and H2s are sections. An H2 that directly follows an H1 (nothing but blank lines and comments between them) and has no content of its own (the next thing after it is another heading, a break, or the end of the file) stays on the same slide and becomes its subtitle, giving a title slide. An H2 followed by its own paragraphs, lists or other blocks is a section and starts its own slide, so a README shaped `# Title` + `## Section` + content gets a title slide and one slide per section.
+   - **Multiple H1s:** slide level 1: only `#` splits.
 
 ```markdown
 # Title Slide
@@ -140,53 +81,62 @@ A subtitle
 
 ## First Topic
 
-Content here — this is a separate slide because there's only one H1.
+Content here: this is a separate slide because there's only one H1.
 
 ## Second Topic
 
-More content — also a separate slide.
+More content: also a separate slide.
 ```
 
-**Parser rule:** When a heading at or above the slide level is encountered and the current slide already contains rendered elements, insert a slide break before the heading.
+### 3.2 Explicit break: `---`
 
-### 3.4 Precedence
-
-All three split mechanisms coexist and combine. When multiple overlap, a single break is produced.
-
-- `---` within 3+ blank lines = single break, not two.
-- Heading after `---` = the `---` creates the break, the heading belongs to the new slide.
-- Frontmatter `---` delimiters are never treated as slide separators.
-- `@slide-level` controls heading splits but does not affect `---` or blank-line splits.
-
-### 3.5 Speaker Notes
-
-Speaker notes can be added to any slide using the `???` separator. Everything after `???` until the next slide break is treated as notes — parsed but not rendered in the presentation.
+A line of three or more dashes with a blank line (or the start or end of the file) above and below is an explicit slide break. It is optional: use it for slides without a heading, such as a full-screen image or a quote. A heading never requires it.
 
 ```markdown
+![Our team @fill](team.jpg)
+
+---
+
+> The best way to predict the future is to invent it.
+```
+
+A `---` directly under a line of text is a setext heading underline, as in standard markdown, never a break. Blank lines never split a slide, however many there are.
+
+### 3.3 Settings belong to their slide
+
+A slide begins at its heading (or at an explicit break) and ends where the next one begins. A setting written in a slide applies to that slide, and never moves to another one: a settings comment above a slide's heading belongs to the slide before it (section 7). Frontmatter `---` delimiters are never slide breaks.
+
+### 3.4 Speaker Notes
+
+Speaker notes are a fenced block tagged `@notes`, holding markdown. It can stand anywhere in the slide; several notes blocks on one slide are joined in order. Nothing inside a notes block ever splits the slide or shows on it, so notes may hold headings, lists, `---` and code (with a longer outer fence).
+
+`````markdown
 # Key Architecture Decisions
 
 - Microservices over monolith
 - Event-driven communication
 + gRPC for internal APIs
 
-???
-
+````@notes
 This slide sets the stage for the technical deep-dive. Emphasize that
 the microservices decision was driven by **team autonomy**, not scale.
-Ask the audience: "How many of you have migrated from a monolith?"
 
----
+## If there is time
+- Ask: "How many of you have migrated from a monolith?"
+
+```sh
+kubectl get pods
+```
+````
 
 # Next Slide
-```
+`````
 
-**Parser rule:** A line whose trimmed content is three or more `?` characters (`???`, `????`, etc.) acts as a notes separator. The `???` line inside a fenced code block is ignored (not treated as a separator).
+Footnotes (`text[^1]` with `[^1]: the note` anywhere in the deck) are notes too: the marker is hidden on the slide and the footnote's text is added to that slide's notes.
 
-Notes content supports full markdown formatting (bold, italic, code, links) and is stored as raw text on the slide. Notes are stripped before layout classification, so they do not affect the inferred layout.
+**Printing notes:** `mdeck export deck.md --format pdf --notes` writes `deck-notes.pdf` with one notes page per slide: the slide on top and its notes below, dark text on white in any theme, in A4 proportions. Notes are rendered as markdown: headings, paragraphs, emphasis, lists, code, quotes, tables and math are printed; charts, diagrams and images in notes are left out. Notes that do not fit continue on the next page. Without `--notes`, `--format pdf` writes `deck.pdf` with one page per slide.
 
-**Printing notes:** `mdeck export deck.md --format pdf --notes` writes `deck-notes.pdf` with one notes page per slide: the slide on top and its notes below, dark text on white in any theme, in A4 proportions. Notes that do not fit continue on the next page. Headings, paragraphs, lists, code, quotes, tables and math in notes are printed; charts, diagrams and images in notes are left out. Without `--notes`, `--format pdf` writes `deck.pdf` with one page per slide.
-
-**Graceful degradation:** In a standard markdown viewer, `???` renders as visible text, acting as a natural separator between slide content and notes. This keeps notes readable in raw form — important for AI-generated presentations where notes explain slide intent and delivery guidance.
+**Graceful degradation:** In a standard markdown viewer, a notes block renders as a code block under the slide's content: visible and readable, clearly set apart.
 
 ---
 
@@ -305,13 +255,13 @@ pub struct Pool {
 **Match:** Anything not matching the above.
 **Rendering:** Elements top-to-bottom in source order with reasonable spacing. Optional heading at top.
 
-### 4.1 Explicit layout override
+### 4.1 Choosing a design
 
-When inference produces the wrong result, force a layout with the `@layout` directive:
+When inference produces the wrong result, choose the slide's design with the `design` setting:
 
 ```markdown
 # Comparison
-@layout: two-column
+<!-- design: columns -->
 
 Left column content...
 
@@ -320,7 +270,7 @@ Left column content...
 Right column content...
 ```
 
-Available layout names: `title`, `section`, `bullets`, `image`, `gallery`, `quote`, `code`, `diagram`, `two-column`, `blank`, `content`.
+Design names: `title`, `section`, `statement`, `points`, `split`, `media`, `gallery`, `quote`, `code`, `visual`, `columns`, `table`, `content`. Until the v2 designs land, `statement` and `table` draw as content, `points` as a bullet slide, `split` as a bullet slide (or content without a list), `media` as an image slide, `visual` as a chart or diagram slide and `columns` as two columns. An unknown name keeps the inferred layout and is reported by `mdeck --check`.
 
 ---
 
@@ -358,12 +308,29 @@ by a space (`#hashtag`, `#include`) is ordinary text, as in CommonMark.
 
 Emphasis follows CommonMark flanking rules: `snake_case_name` and `5 * 3 * 2`
 stay literal. Links are rendered visually but are not clickable during
-presentation. HTML comments (`<!-- ... -->`, single or multi-line) are skipped.
-Lines that continue a list item (indented or not) belong to that item.
+presentation. Lines that continue a list item (indented or not) belong to that item.
+
+Everything else from CommonMark and GitHub markdown either renders well or
+degrades invisibly:
+
+- **Reference links** (`[text][label]`, `[text][]`, `[label]` with
+  `[label]: url` anywhere in the deck) resolve, and their definition lines are
+  never shown.
+- **Autolinks** (`<https://example.com>`, `<name@example.com>`) are links.
+- **Footnotes**: markers are hidden and the footnote text goes to the slide's
+  notes (section 3.4).
+- **Raw HTML**: tags are removed and their text kept. `<img src>` becomes an
+  image, `<h1>`..`<h6>` a heading, `<br>` a line break, and `<details>` /
+  `<summary>` keep their text. HTML comments that are not settings
+  (section 7) are skipped.
+- **Indented code** (four spaces or a tab) is a code block.
+
+`mdeck --check` names anything it cannot present (category `content`), such
+as an image inside running text, a remote image or an HTML `<video>`.
 
 ### 5.3 Lists
 
-Both ordered and unordered lists with nesting up to 3 levels. List marker choice controls reveal behavior (see [Section 6](#6-incremental-reveal)).
+Both ordered and unordered lists with nesting up to 3 levels. The `+` marker makes an item a step (see [Section 6](#6-incremental-reveal)). An ordered list counts from its first number, and task list items show their box.
 
 ```markdown
 - First item
@@ -371,9 +338,12 @@ Both ordered and unordered lists with nesting up to 3 levels. List marker choice
     - Deep nested
 - Second item
 
-1. First step
-2. Second step
+3. Third step
+4. Fourth step
    1. Sub-step
+
+- [x] Parser
+- [ ] Presenter view
 ```
 
 ### 5.4 Images
@@ -384,7 +354,7 @@ Standard markdown image syntax:
 ![Alt text](path/to/image.png)
 ```
 
-Sizing directives can be placed in the alt text with the `@` prefix:
+Sizing options can be placed in the alt text with the `@` prefix:
 
 ```markdown
 ![Architecture @width:80%](arch.png)
@@ -394,7 +364,7 @@ Sizing directives can be placed in the alt text with the `@` prefix:
 ![Banner @left](banner.png)
 ```
 
-| Directive     | Description                                     |
+| Option        | Description                                     |
 |---------------|-------------------------------------------------|
 | `@width:VAL`  | Set width: `%` of the slide, or pixels at the 1920×1080 reference size (scaled on other resolutions) |
 | `@height:VAL` | Set height (same units as `@width`)              |
@@ -404,7 +374,7 @@ Sizing directives can be placed in the alt text with the `@` prefix:
 | `@right`      | Align right                                      |
 | `@center`     | Align center (default)                           |
 
-When rendered in a standard markdown viewer, the `@` directives appear as visible alt text, which is acceptable degradation.
+When rendered in a standard markdown viewer, the `@` options appear as alt text, which is acceptable degradation.
 
 #### AI Image Generation
 
@@ -422,7 +392,7 @@ The alt text serves as the image prompt. Leave it empty for auto-prompting from 
 
 Run `mdeck ai generate <file.md>` to generate all marked images. The command:
 - Detects orientation automatically (horizontal for full-slide, vertical for side-panel layouts)
-- Applies the configured image style (via `@image-style` frontmatter, config default, or hardcoded fallback)
+- Applies the configured image style (via `image-style` frontmatter, config default, or hardcoded fallback)
 - Rewrites the markdown file, replacing `image-generation` with actual file paths
 
 ### 5.5 Code blocks
@@ -466,7 +436,24 @@ Standard markdown blockquotes:
 > rendered prominently on the slide.
 ```
 
-Nested blockquotes are supported and rendered with increasing indentation.
+A quote keeps its structure: several paragraphs, lists and nested quotes stay
+as written, inside the quote's accent bar. On a quote slide, a quote of
+several paragraphs whose last paragraph is short ends in its attribution:
+
+```markdown
+> The negative is the score, the print is the performance.
+>
+> Ansel Adams
+```
+
+**GitHub alerts** render as callouts: a tinted panel with the alert's label.
+
+```markdown
+> [!WARNING]
+> Back up the database before migrating.
+```
+
+The alerts are `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]` and `[!CAUTION]`.
 
 ### 5.7 Tables
 
@@ -479,7 +466,7 @@ Standard pipe-delimited tables:
 | Rendering | WIP     |
 ```
 
-Tables are rendered with theme-appropriate styling. They do not trigger a special layout; they are block elements within whatever layout the slide otherwise matches. The second line must be a separator row (`|---|`, alignment colons allowed). Escape a pipe inside a cell as `\|`; pipes inside inline code are kept as text. A lone `| text |` line without a separator row is a paragraph.
+Tables are rendered with theme-appropriate styling. They do not trigger a special layout; they are block elements within whatever layout the slide otherwise matches. The second line must be a separator row (`|---|`); its colons set each column's alignment (`|:--|` left, `|:-:|` centre, `|--:|` right). Escape a pipe inside a cell as `\|`; pipes inside inline code are kept as text. A lone `| text |` line without a separator row is a paragraph.
 
 ### 5.8 Horizontal rules within slides
 
@@ -529,15 +516,14 @@ $$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
 
 ---
 
-## 6. Incremental Reveal
+## 6. Steps (incremental reveal)
 
-MDeck uses the three standard markdown list markers to control how content is revealed during a presentation:
+A slide can reveal its content one press at a time. The list marker says what is a step:
 
-| Marker | Name           | Behavior                                                    |
-|--------|----------------|-------------------------------------------------------------|
-| `-`    | Static         | Visible immediately when the slide appears                  |
-| `+`    | Next step      | Appears on the next forward press; advances the step counter |
-| `*`    | Keep with previous | Appears at the same step as the preceding `+` item       |
+| Marker      | Behavior                                                    |
+|-------------|-------------------------------------------------------------|
+| `-` or `*`  | Static: visible when the slide appears                      |
+| `+`         | A step: appears on the next forward press, with its children |
 
 ### 6.1 In slide lists
 
@@ -547,77 +533,86 @@ MDeck uses the three standard markdown list markers to control how content is re
 - Always visible context
 + First reveal
 + Second reveal
-* Also part of second reveal
+  - shown with the second reveal
+  - and so is this
 + Third reveal
 ```
 
 Presentation behavior:
 1. Slide appears with "Always visible context" shown
 2. Forward press: "First reveal" appears
-3. Forward press: "Second reveal" and "Also part of second reveal" appear together
+3. Forward press: "Second reveal" and its two children appear together
 4. Forward press: "Third reveal" appears
 5. Forward press: advance to next slide
 
-### 6.2 In diagrams
+To reveal several items in one step, nest them under a `+` item. A nested `+` item takes a step of its own.
 
-The same markers control diagram element reveal. See [Section 8](#8-diagram-syntax) for full details.
+### 6.2 In visuals
+
+The same markers control the items of charts and diagrams (section 8, section 14).
 
 ### 6.3 Rules
 
+- Steps are counted across the whole slide in reading order. The second `+` list on a slide continues after the first, and a chart's steps follow the steps before it.
 - On a slide with steps, pressing forward reveals the next step rather than advancing to the next slide. Only after all steps have been revealed does forward advance to the next slide.
-- A `*` without a preceding `+` on the same slide is treated as `-` (static).
-- Ordered lists (`1.`, `2.`, etc.) are always static — they do not support incremental reveal.
-- The step counter is per-slide and resets for each new slide.
+- Hidden items keep their space: revealing never moves what is already on screen, and revealed items slide and fade in.
+- Ordered list items (`1.`, `2.`, etc.) are always static.
+- `reveal: none` in the frontmatter turns steps off for the deck (a slide's own `reveal: steps` turns them back on there), so imported markdown that happens to use `+` bullets presents without clicks.
 
 ---
 
-## 7. Directives
+## 7. Settings
 
-Directives use the `@` prefix. They come in two forms:
+Everything mdeck adds on top of markdown is a **setting**, written `key: value`
+with the same key names wherever it appears:
 
-### 7.1 Block directives
+- in the frontmatter, a setting is the **deck's value** (section 2.1);
+- in a slide's **settings comment**, it is **that slide's value**, overriding the deck's.
 
-A line holding only `@name: value`. Write slide directives directly under the
-slide's heading:
+### 7.1 Slide settings
+
+Slide settings are written in an HTML comment inside the slide, invisible on
+any markdown renderer. The comment holds one or more `key: value` lines:
 
 ```markdown
-# Compare
-@layout: two-column
-@illustration: server
+## Why now
 
-Left side
+<!-- design: statement -->
 
-+++
-
-Right side
+The market moved, and we are the only ones ready.
 ```
 
-**Syntax:** `@name: value`
+```markdown
+## Our platform
+<!--
+design: split
+picture: rocket
+-->
 
-In the frontmatter, directives apply to the whole deck. Inside a slide, a
-**slide directive** (`@layout`, `@illustration`, `@logo`, `@background`, `@thermal-window`, `@zoom`) applies to the slide
-it is written in, wherever it stands at the top level of that slide: under the
-heading, at the start of the slide, or further down. It is removed from the
-slide's content. It is not recognised inside a list item, a blockquote, an
-indented block or a code block. Directive lines directly above a heading that
-starts a slide (only blank lines in between) belong to that heading's slide,
-so `@layout: two-column` written on the line before `# Compare` also works.
-`---` is never needed for a directive. If a slide directive is written twice
-on one slide, the last one wins.
+- Fast
+- Private
+```
 
-Only known names are directives past the start of a slide, so prose such as
-`@team: see you at five` stays text. `mdeck --check` warns about unknown names
-(with a "did you mean"), directives that were not applied because of where
-they stand, deck directives such as `@theme` inside a slide (ignored there),
-and duplicates. Each warning names the slide and the line in the file, for
-example `slide 5 (line 37): [directive] @ilustration is not a directive and
-shows as text; did you mean @illustration?`. A warning about a directive or
-an `@architecture` diagram gives that line, any other the slide's first line;
-warnings about the whole deck (theme, missing art) give no line.
+A comment whose first line is `key: value` with a known setting key is a
+settings comment, and every line in it is a setting. Any other comment is an
+ordinary comment. A settings comment applies to the slide it is in, wherever
+in the slide it is written, and never moves to another slide (section 3.3).
+If a setting is written twice on one slide, the last one wins.
 
-### 7.2 Fenced directives
+`mdeck --check` reports unknown keys (with a "did you mean"), invalid values,
+deck settings written in a slide (and slide settings in the frontmatter),
+duplicates, lines in a settings comment that are not `key: value`, and
+ordinary comments that look like a misspelt setting. It also recognises v1
+syntax and names the v2 form, for example
+`slide 4 (line 37): [settings] "@layout: quote" is v1 syntax; write <!-- design: quote -->`.
+Each warning names the slide and the line in the file. `mdeck --check -v`
+lists, per slide, the settings that apply to it.
 
-For complex content, the fenced code block syntax with `@` on the language tag:
+### 7.2 Fences
+
+mdeck's own fenced blocks carry an `@` tag on the info string: the visuals
+(sections 8 and 14) and notes (section 3.4). Tags match exactly; each kind
+has exactly one name.
 
 ````markdown
 ```@architecture
@@ -625,35 +620,15 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 ```
 ````
 
-### 7.3 Directive reference
+An `@` tag that names no mdeck fence shows as a code block, and `mdeck --check`
+reports it (category `visual`) with a suggestion.
 
-| Directive      | Scope          | Values                                    | Default        |
-|----------------|----------------|-------------------------------------------|----------------|
-| `@theme`       | global         | a built-in or custom theme (section 9)    | `light`        |
-| `@engine`      | global         | an engine (section 9.6)                   | the theme's    |
-| `@countdown`   | global         | `true`, `false`: the 3-2-1 opener (themes with a `countdown`) | `true`   |
-| `@transition`  | global         | `fade`, `slide`, `spatial`, `none`        | `slide`        |
-| `@layout`      | slide          | layout name (see Section 4.1)             | auto-inferred  |
-| `@illustration`| slide          | point cloud illustration name (Ember)     | none           |
-| `@slide-level` | global         | `1`–`6`                                   | inferred       |
-| `@image-style` | global         | style name or description                 | none           |
-| `@icon-style`  | global         | style name or description                 | none           |
-| `@logo`        | global, slide  | PNG or SVG path, or `none` (section 9.5)  | the theme's    |
-| `@logo-position` / `@logo-opacity` / `@logo-height` | global | see section 9.5 | the theme's |
-| `@art`         | global, slide  | global: the deck's world; slide: this slide's scene, or `none` for no picture (section 9.7) | none |
-| `@palette`     | global         | a thermal palette (section 14.20)          | `iron` |
-| `@thermal-window` | slide       | a range like `25..90 °C`: one common scale for the slide's `@thermal` images (section 14.20) | none |
-| `@zoom`        | slide          | a spot name: enter this slide by zooming into that spot of the previous slide's `@thermal` image (section 14.20) | none |
-| `@background`  | global, slide  | PNG, JPEG, WebP or SVG path, or `none` (section 9.8) | none |
-| `@background-opacity` | global, slide | 0 to 1, or a percentage (section 9.8) | `0.3` |
+### 7.3 Setting reference
 
-**Reserved directives** are parsed and accepted but not applied yet:
-`@footer`, `@class`, `@code-theme`, `@aspect`, and per-slide
-`@theme` / `@transition`. Using them is harmless; they are listed in
-`BACKLOG.md` as candidates for a future release.
+These tables are generated from mdeck's language table, so they always match
+what the parser accepts.
 
-**Unknown directives** at the start of a slide are ignored and not rendered.
-Further down a slide they stay text (see 7.1); `--check` reports likely typos.
+<!-- generated: settings -->
 
 ---
 
@@ -971,17 +946,17 @@ In Ember the particles form the digits 3, 2 and 1 in the display face, morph
 from one to the next, and the 1 bursts outward into black before the first
 slide's scene assembles; in Nord the numerals simply fade. Any key or click
 cancels it, starting on a chosen slide (`--slide`, `--overview`) skips it, and
-`@countdown: false` in the frontmatter turns it off for a deck.
+`countdown: off` in the frontmatter turns it off for a deck.
 
 #### Illustrations
 
 The field can draw a thing: a **point cloud illustration**, a named file of
-points the particles settle into. Ask for one on a slide with a block
-directive:
+points the particles settle into. Ask for one on a slide with the `picture`
+setting:
 
 ```markdown
 ## Our new server
-@illustration: server
+<!-- picture: server -->
 
 - 5 TB of RAM
 - 100 cores
@@ -993,7 +968,7 @@ step. Title slides put it behind the centred copy, large, dim and slow: a
 backdrop rather than a picture. Code, chart, diagram, table, image and
 two-column slides never show one, and `mdeck --check` warns when a slide asks
 for an illustration it cannot show, or one that does not exist.
-Other themes ignore the directive.
+Engines that cannot draw a picture ignore the setting, and `--check` says so.
 
 A name resolves through three places, first match wins: the deck's
 `illustrations/<name>.mdpc` next to the deck, the user library at
@@ -1046,12 +1021,11 @@ A theme is data: colours, type roles, sizes and a syntax theme, plus the
 **engine** that draws it (section 9.6). The built-in themes are written in
 exactly the format of section 9.4, which lists every key.
 
-### 9.3 Per-slide theme override (reserved)
+### 9.3 One theme per deck
 
-A per-slide `@theme:` override is reserved syntax: the directive is accepted
-and ignored today, and is tracked in `BACKLOG.md`. Use the global `@theme` in
-frontmatter, or `Shift+T` while presenting. To change a slide's look, give it
-its own background image (section 9.8).
+The theme is a deck setting: `theme` in a slide is reported by `--check` and
+ignored. Use `theme` in the frontmatter, or `Shift+T` while presenting. To
+change a slide's look, give it its own background image (section 9.8).
 
 ### 9.4 Custom themes
 
@@ -1062,7 +1036,7 @@ only; a theme can never make MDeck run code.
 
 ```markdown
 ---
-@theme: acme
+theme: acme
 ---
 ```
 
@@ -1078,7 +1052,7 @@ match wins:
    `autumn`, `winter`, `marquee`, `departures`, `etch`, `stack`, `blueprint`,
    `sketchbook`, `chalkboard`, `watercolour`, `darkroom`, `thermal`)
 
-`@theme` may also be a path to a file (`@theme: brand/acme.yaml`), relative
+`theme` may also be a path to a file (`theme: brand/acme.yaml`), relative
 to the deck. A user or deck theme may reuse a built-in name to replace it.
 Theme names are lowercase letters, digits, `-` and `_`. `defaults.theme` in
 the config accepts built-in and user themes. An unknown name or an invalid
@@ -1188,7 +1162,7 @@ reference images). Pictures made in one style are never shown in another.
 
 **Engines.** The engine decides what a theme does beyond colours and type
 (section 9.6). A theme picks one by name with `engine:`; a deck can run on
-another with `@engine`.
+another with `engine`.
 
 **Fonts.** Fonts are named by *role*, not weight, because a slide draws each
 role with one face. A value is either a bundled face or a TTF/OTF file inside
@@ -1292,30 +1266,30 @@ theme, or replace or hide the theme's:
 
 ```markdown
 ---
-@theme: dark
-@logo: brand/logo-white.svg     # relative to the deck
-@logo-position: bottom-right    # top-left | top-right (default) | bottom-left | bottom-right
-@logo-opacity: 40%              # 0 to 1, or a percentage (default 0.6)
-@logo-height: 48                # px on a 1920x1080 slide (default 56)
+theme: dark
+logo: brand/logo-white.svg     # relative to the deck
+logo-position: bottom-right    # top-left | top-right (default) | bottom-left | bottom-right
+logo-opacity: 40%              # 0 to 1, or a percentage (default 0.6)
+logo-height: 48                # px on a 1920x1080 slide (default 56)
 ---
 ```
 
-The deck's keys override the theme's one by one, so `@logo-opacity` alone
-tones down a theme's logo. `@logo: none` hides it for the whole deck. Use a
+The deck's keys override the theme's one by one, so `logo-opacity` alone
+tones down a theme's logo. `logo: none` hides it for the whole deck. Use a
 light logo on dark themes and a dark one on light themes. A missing or
 unreadable file is reported by `--check` and the slides show no logo.
 
-A **slide** can override the deck with its own `@logo` under its heading:
+A **slide** can override the deck with its own `logo` under its heading:
 `none` hides the logo on that slide, and a file shows that logo there instead
 (or adds one to a deck that has none), in the deck's position, size and
 opacity:
 
 ```markdown
 # Our partners
-@logo: brand/partner.svg
+<!-- logo: brand/partner.svg -->
 
 # A full-bleed photo
-@logo: none
+<!-- logo: none -->
 ```
 
 ### 9.6 Engines
@@ -1342,7 +1316,7 @@ from the theme, so every theme looks like itself on every engine.
 
 **The LED engine.** The slide sits on a wall of LEDs, a few pixels apart,
 their unlit lenses just visible. Nothing ever moves: pictures appear by
-lighting LEDs. An `@illustration` powers on from its centre outward, each LED
+lighting LEDs. An `picture` powers on from its centre outward, each LED
 flickering as it strikes, and then shimmers slowly between the theme's
 `accent`, `accent-soft` and `particles.cool`; the hottest cores whiten toward
 `particles.light`. Brightness follows the point cloud's density, so strokes
@@ -1385,13 +1359,13 @@ flap by flap.
 A board never scrolls. What it cannot show is reported by `mdeck --check`,
 never typeset outside the board: text that needs more rows than the board has
 (the last row then ends in `…`), code blocks, charts and diagrams,
-formulas, a second image, `@illustration`, table cells cut to fit, and
+formulas, a second image, `picture`, table cells cut to fit, and
 characters the flaps do not carry (Chinese, Japanese and Korean, emoji and
 most symbols show as blank flaps). The board says what a timetable says:
 agendas, schedules, status and numbers read best.
 
 **The laser engine.** A beam enters from below the screen, as if from a
-projector in the room, and etches each picture: an `@illustration` is
+projector in the room, and etches each picture: an `picture` is
 ordered into a drawing path through its points (the pen lifts on long jumps,
 as a real laser's does) and traced in about two seconds. Fresh marks burn
 white-hot (`particles.light`) and cool through `secondary` and `accent` to a
@@ -1400,7 +1374,7 @@ smoke drifts up. On charts and diagrams the beam traces the lines, edges,
 circles and bar tops the renderers drew. Slides without either stay a calm,
 finely grained surface. Exports show the finished, cooled etching.
 
-**The blocks engine.** An `@illustration` is cut into a grid of blocks,
+**The blocks engine.** An `picture` is cut into a grid of blocks,
 grouped into pieces of two to four, and the pieces drop from above the slide,
 bottom row first, land with a small bounce and settle into the picture. The
 blocks are bevelled, in `accent`, `secondary`, `particles.cool`,
@@ -1418,7 +1392,7 @@ construction lines in `rule` run ahead, the ink follows stroke by stroke,
 large shapes first and details after, under the crosshair of a drafting
 machine, and dimension lines are ruled under and beside the finished drawing.
 On a title slide the drawing sits large and dim behind the title. Without
-art, the slide's `@illustration` is drawn as technical pen lines, and the
+art, the slide's `picture` is drawn as technical pen lines, and the
 countdown and the end words are drawn the same way. The `blueprint` theme
 lays the sheet on a drafting table (`page:` in section 9.4). Exports show the
 finished sheet.
@@ -1432,7 +1406,7 @@ the picture while the pencil zigzags along them. The pencil's body is
 `particles.cool`; its lead and line art are the `heading` colour. Line art
 (`art: { kind: line }` in a theme) is drawn with a faint underdrawing first.
 On a title slide the drawing sits large and faint behind the title. Without
-art, the slide's `@illustration` is drawn in pencil, and so are the
+art, the slide's `picture` is drawn in pencil, and so are the
 countdown and the end words. Exports show the finished drawing.
 
 **The chalkboard engine.** Every slide is a slate (`background`) with soft
@@ -1442,7 +1416,7 @@ and the coloured chalks (`accent`, `accent-soft`, `secondary`); the
 (section 9.7) is drawn in white chalk (`heading`) along its strokes, the
 chalk breaking up in clumps on the slate, a stick of chalk at the point and
 dust falling from it. On a title slide the drawing sits large and faint
-behind the title. Without art, the slide's `@illustration` is drawn in
+behind the title. Without art, the slide's `picture` is drawn in
 chalk, and so are the countdown and the end words. Line art is shared with
 the blueprint, so a deck switches between the two without new pictures.
 
@@ -1451,7 +1425,7 @@ sheet of cold-press paper on a table. A slide's generated watercolour
 (section 9.7) blooms onto the paper: a pale first wash over the whole
 picture, then the colour spreading outward from where the paint is heaviest,
 wet edges arriving softly, the dark accents dropped in last. Without art the
-slide's `@illustration` is drawn in ink (`heading`) with loose washes of
+slide's `picture` is drawn in ink (`heading`) with loose washes of
 `accent`, `secondary` and `accent-soft` laid along it a moment later, and so
 are the countdown and the end words. Line art is drawn as an ink drawing.
 
@@ -1461,7 +1435,7 @@ print on white fibre paper with a border and a shadow; it develops in place,
 the shadows first and the highlights last, everything red under the
 safelight, and when it is done the white light comes on and the print shows
 its true greys. On a title slide the photograph sits dim behind the title.
-Without art the slide's `@illustration` becomes a photogram: its shape left
+Without art the slide's `picture` becomes a photogram: its shape left
 white on a black print. The countdown and the end words glow the same way.
 
 **The thermal engine.** The deck is seen through a thermal instrument: a
@@ -1474,7 +1448,7 @@ cold. Its motion is kept for the moments that matter:
   and the words are readable in under a second. Then the crisp type rises
   into it (the copy waits about 1.5 seconds) and the heat settles into a
   faint contour halo that stays. Going back to the slide plays it again.
-- *Heat signatures.* An `@illustration` glows like a warm body; the
+- *Heat signatures.* An `picture` glows like a warm body; the
   countdown digits heat up and cool off; the end words glow and fade.
 - *Calm evidence.* Where a slide shows a chart, a diagram, an image or a
   `@thermal` block, the field stays dark. With `heat: { drift: true }` a few
@@ -1493,15 +1467,15 @@ can run on another engine without touching the theme:
 
 ```markdown
 ---
-@theme: winter
-@engine: plain
+theme: winter
+engine: plain
 ---
 ```
 
 `mdeck deck.md --engine <name>`, `mdeck export deck.md --engine <name>` and
 `mdeck deck.md --check --engine <name>` try an engine without editing the deck.
-Precedence: `--engine`, then `@engine`, then the theme's `engine:`. An unknown
-`@engine` is reported and the theme's engine is used; an unknown `--engine`
+Precedence: `--engine`, then `engine`, then the theme's `engine:`. An unknown
+`engine` is reported and the theme's engine is used; an unknown `--engine`
 stops with the list of engines. A theme's `countdown: burst` becomes the plain
 countdown on an engine that has no countdown of its own.
 
@@ -1509,7 +1483,7 @@ countdown on an engine that has no countdown of its own.
 the plain engine draws no illustrations, and the
 split-flap board shows text only. `mdeck --check`
 lists every such slide under the `engine` category (for example
-`slide 4 (line 31): [engine] @illustration: server is not shown by the plain engine`),
+`slide 4 (line 31): [engine] picture: server is not shown by the plain engine`),
 and presenting or exporting prints one summary line when a deck has any.
 
 Engines are part of MDeck and each one is a cargo feature, on by default.
@@ -1539,32 +1513,32 @@ cost, and it works offline.
 
 **Which slides get a picture.** The slides with room for one: title,
 section, quote, bullet and copy slides (the editorial layouts; not slides
-with code, tables, charts, diagrams or images). `@art: none` on a slide
+with code, tables, charts, diagrams or images). `picture: none` on a slide
 leaves it without.
 
-**Scenes.** `@art:` under a slide's heading says what its picture shows.
-Without it, the chat model writes a scene from the slide's copy and speaker
-notes: one concrete visual metaphor with a single focal subject. `@art:` in
-the frontmatter is the deck's world (setting, era, recurring characters),
+**Scenes.** `picture-prompt:` in a slide's settings says what its picture
+shows. Without it, the chat model writes a scene from the slide's copy and
+speaker notes: one concrete visual metaphor with a single focal subject.
+`art-world:` in the frontmatter is the deck's world (setting, era, recurring characters),
 and every scene keeps to it. Pictures never contain text; the slide's own
 words stay typeset.
 
 ```markdown
 ---
 title: The Harbour Bridge
-@theme: blueprint
-@art: A Victorian harbour town where a small team builds modern machines.
+theme: blueprint
+art-world: A Victorian harbour town where a small team builds modern machines.
 ---
 
 # The Harbour Bridge
-@art: A great iron suspension bridge under construction across a harbour.
+<!-- picture-prompt: A great iron suspension bridge under construction across a harbour. -->
 
 # Every slide gets its own drawing
 
 - The chat model writes this slide's scene from its copy
 
 # Numbers stay typeset
-@art: none
+<!-- picture: none -->
 
 - No picture here
 ```
@@ -1593,7 +1567,7 @@ to models that accept them. A theme's `art:` block (section 9.4) replaces
 either.
 
 **Without art.** An art engine never needs the AI to present: a slide with
-no picture shows its `@illustration` in the medium, or just the page and its
+no picture shows its `picture` in the medium, or just the page and its
 typography. `mdeck --check` and the line printed when presenting name the
 slides without a picture and the command that draws them.
 
@@ -1605,10 +1579,10 @@ A background image sits behind a slide's content: a brand texture or a photo
 behind every slide, or one striking picture behind a key slide. Set it once
 in the frontmatter for the whole deck:
 
-```markdown
+```yaml
 ---
-@background: images/texture.jpg   # relative to the deck
-@background-opacity: 25%          # 0 to 1, or a percentage (default 0.3)
+background: images/texture.jpg   # relative to the deck
+background-opacity: 25%          # 0 to 1, or a percentage (default 0.3)
 ---
 ```
 
@@ -1616,19 +1590,24 @@ A **slide** can change it under its heading:
 
 ```markdown
 # Welcome
-@background: images/stage.jpg     # this slide shows its own image
-@background-opacity: 60%          # and its own opacity
+<!--
+background: images/stage.jpg
+background-opacity: 60%
+-->
 
 # The code
-@background: none                 # no background on this slide
+<!-- background: none -->
 
 # The quiet one
-@background-opacity: 10%          # the deck's image, fainter
+<!-- background-opacity: 10% -->
 ```
 
-- One image per slide. A slide's `@background` replaces the deck's (or adds
+`Welcome` shows its own image at its own opacity, `The code` shows no
+background, and `The quiet one` shows the deck's image, fainter.
+
+- One image per slide. A slide's `background` replaces the deck's (or adds
   one to a deck without a default); nothing stacks.
-- `@background-opacity` works the same at both levels. A slide's own image
+- `background-opacity` works the same at both levels. A slide's own image
   keeps the deck's opacity unless the slide sets one; a slide that sets only
   the opacity shows the deck's image with it.
 - The image **covers** the slide: scaled to fill, centred, cropped on the
@@ -1646,7 +1625,7 @@ A **slide** can change it under its heading:
 - PNG and PDF export show exactly what the window shows.
 - PNG, JPEG, WebP and SVG files work. `--check` reports a file that is
   missing, is not an image or cannot be read, an opacity that does not
-  parse, and a slide `@background-opacity` with no image to apply to, each
+  parse, and a slide `background-opacity` with no image to apply to, each
   with its line.
 
 An image with `@fill` (section 3) is different: it is content and takes the
@@ -1654,11 +1633,10 @@ slide over. A background stays behind the heading and the text.
 
 ## 10. Two-Column Layout
 
-The two-column layout requires the `@layout: two-column` directive and uses `+++` as the column separator:
+A `+++` line splits a slide into two columns (the `columns` design); it is recognised without a setting:
 
 ```markdown
 # Comparison
-@layout: two-column
 
 **Before:**
 
@@ -1686,10 +1664,10 @@ Text is never truncated silently. If content overflows, MDeck reduces font size 
 A slide with no content renders as a blank slide with the theme's background. This is intentional, not an error.
 
 ### Adjacent separators
-Multiple `---` separators in a row create empty slides between them.
+Several `---` breaks in a row produce no empty slides: a slide needs content.
 
 ### Frontmatter parse failures
-If YAML in the frontmatter is malformed, MDeck warns and treats the entire frontmatter block as content on the first slide.
+If YAML in the frontmatter is malformed, each `key: value` line is still read on its own.
 
 ### Missing images
 If an image path cannot be resolved, a placeholder box with the alt text is rendered, and a warning is emitted.
@@ -1697,11 +1675,11 @@ If an image path cannot be resolved, a placeholder box with the alt text is rend
 ### Code blocks without language
 Rendered as plain monospace text with no syntax highlighting.
 
-### `+`/`*` markers inside code blocks
+### `+` markers inside code blocks
 List markers are never interpreted inside fenced code blocks. This is standard markdown behavior: fenced block content is literal.
 
-### `*` without preceding `+`
-A `*` item with no preceding `+` on the same slide is treated as `-` (static).
+### `*` items
+`*` is an ordinary bullet, the same as `-`: always visible.
 
 ---
 
@@ -1711,16 +1689,15 @@ A `*` item with no preceding `+` on the same slide is treated as `-` (static).
 ---
 title: "Scaling Our Platform"
 author: "Jane Doe"
-date: 2026-02-28
-@theme: dark
-@transition: slide
+theme: dark
+transition: slide
 ---
 
 # Scaling Our Platform
 
 Engineering deep-dive, February 2026
 
-
+---
 
 # The Problem
 
@@ -1728,7 +1705,7 @@ Engineering deep-dive, February 2026
 + P99 latency spiked from 50ms to 800ms
 + Database connection pool exhausted daily
 
-
+---
 
 # Architecture Before
 
@@ -1736,7 +1713,7 @@ Engineering deep-dive, February 2026
 
 A monolith struggling under load.
 
-
+---
 
 # The New Architecture
 
@@ -1752,12 +1729,12 @@ A monolith struggling under load.
 # Flow
 + User -> Gateway: Request
 + Gateway -> Service A: Route
-* Gateway -> Service B: Route
++ Gateway -> Service B: Route
 + Service A -> Cache: Check cache
 + Service A -> Database: Query
 ```
 
-
+---
 
 # Key Code Change
 
@@ -1773,7 +1750,7 @@ pub async fn handle_request(req: Request) -> Response {
 }
 ```
 
-
+---
 
 # Results
 
@@ -1781,7 +1758,7 @@ pub async fn handle_request(req: Request) -> Response {
 + Connection pool usage: 95% to 12%
 + Zero downtime during the migration
 
-
+---
 
 > The best optimization is the one you don't have to make.
 
@@ -1790,7 +1767,7 @@ pub async fn handle_request(req: Request) -> Response {
 ---
 
 # Before and After
-@layout: two-column
+<!-- design: columns -->
 
 **Before:**
 
@@ -1808,14 +1785,14 @@ pub async fn handle_request(req: Request) -> Response {
 - Redis cache layer
 - Auto-scaling
 
-
+---
 
 # Questions?
 
 Thank you for listening.
 ```
 
-This example demonstrates: frontmatter, title slide, bullet slide with `+` reveal, image slide, diagram with `-`/`+`/`*` reveal, code slide with line highlighting, result slide with incremental reveal, quote slide with attribution, two-column layout, and a closing section divider.
+This example demonstrates: frontmatter, title slide, bullet slide with `+` reveal, image slide, diagram with `-`/`+` reveal, code slide with line highlighting, result slide with incremental reveal, quote slide with attribution, two-column layout, and a closing section divider.
 
 ---
 
@@ -1831,46 +1808,51 @@ Document     = Frontmatter? Slide (SlideSep Slide)*
 Frontmatter  = "---\n" YAML_CONTENT "---\n"
                (only valid at document start, line 1)
 
-SlideSep     = BlankGap | RuleSep | HeadingSep
-
-BlankGap     = /\n{4,}/
-               (3+ blank lines)
+SlideSep     = RuleSep | HeadingSep
 
 RuleSep      = /\n\n-{3,}\n\n/
                (--- with blank lines on both sides)
 
-HeadingSep   = /^# /
-               (H1 heading when current slide already has content)
+HeadingSep   = a heading (ATX or setext) at or above the slide level,
+               when the current slide already has content
+               (never inside a fenced block or an HTML comment)
 ```
+
+Reference link definitions (`[label]: url`) and footnote definitions
+(`[^id]: text`) are taken out of the whole document before it is split.
 
 ### 13.2 Phase 2: Parse each slide into blocks
 
 ```
-Slide        = Directive* (Block | SlideDirective)*
+Slide        = (Block | SettingsComment | NotesBlock)*
 
-Directive    = /^@\w[\w-]*:\s*.+$/
+SettingsComment = "<!--" SettingLine+ "-->"
+               (the first line's key is a known setting; section 7)
+SettingLine  = /^\s*[a-z][a-z0-9-]*\s*:\s*.*$/
 
-SlideDirective = Directive whose name is known (section 7.3), at column 0,
-               outside code fences (applies to the slide, removed from content)
+NotesBlock   = /^`{3,}@notes/ MARKDOWN /^`{3,}$/
 
 Block        = Heading | Paragraph | List | Image | CodeBlock
-             | BlockQuote | DiagramBlock | Table | HRule
+             | BlockQuote | Callout | VisualBlock | Table | HRule
 
-Heading      = /^#{1,6}\s+.+$/
+Heading      = /^#{1,6}\s+.+$/ | TEXT_LINE /^(={3,}|-{3,})$/
 
-Image        = /^!\[([^\]]*)\]\(([^)]+)\)$/
+Image        = /^!\[([^\]]*)\]\(([^)]+)\)$/ | /^<img\s[^>]*src=.../
 
 CodeBlock    = /^`{3,}(\w+)?(\s*\{[^}]+\})?\n/ CONTENT /\n`{3,}$/
+             | INDENTED_LINES (four spaces or a tab)
 
-DiagramBlock = /^`{3,}@architecture(\s+\w+)?\n/ CONTENT /\n`{3,}$/
+VisualBlock  = /^`{3,}@TAG\n/ CONTENT /\n`{3,}$/
+               (TAG is exactly one of the visual kinds, section 14)
 
-BlockQuote   = /^>\s+.+$/  (one or more consecutive lines)
+BlockQuote   = /^>/ BLOCKS   (one or more consecutive lines)
+Callout      = /^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]$/ BLOCKS
 
 HRule        = /^(\*{3,}|_{3,})$/
 
 List         = ListItem+
-ListItem     = /^[-+*]\s+/ CONTENT        (unordered)
-             | /^\d+\.\s+/ CONTENT         (ordered)
+ListItem     = /^[-+*]\s+(\[[ xX]\]\s+)?/ CONTENT   (unordered, task box)
+             | /^\d+\.\s+/ CONTENT        (ordered; the first number counts)
 ```
 
 ### 13.3 Phase 3: Parse diagram blocks
@@ -1884,7 +1866,7 @@ Relationship = MARKER NAME ARROW NAME (":" LABEL)? Attrs?
 
 Component    = MARKER NAME Attrs
 
-MARKER       = /^[-+*]\s+/
+MARKER       = /^[-+*]\s+/   (`+` is a step; `-` and `*` are static)
 
 ARROW        = "->" | "<-" | "<->" | "--" | "-->"
 
@@ -1933,12 +1915,12 @@ All visualization types share these features:
 
 **Labels:** Category labels, legend entries and KPI values shrink to a shared minimum size and are then truncated with an ellipsis instead of overflowing. Crowded axis labels (many line-chart points, long Gantt timelines) are thinned automatically.
 
-### 14.2 Bar Chart (`@barchart`)
+### 14.2 Bar Chart (`@bar`)
 
 Vertical or horizontal bar chart with category labels and values.
 
 ````markdown
-```@barchart
+```@bar
 # orientation: vertical
 # x-label: Programming Language
 # y-label: Popularity Index
@@ -1959,12 +1941,12 @@ Vertical or horizontal bar chart with category labels and values.
 
 **Data format:** `- Label: value` or `- Label: value%` (the `%` suffix is stripped).
 
-### 14.3 Line Chart (`@linechart`)
+### 14.3 Line Chart (`@line`)
 
 Line chart with one or more data series plotted over shared X-axis categories.
 
 ````markdown
-```@linechart
+```@line
 # x-labels: Jan, Feb, Mar, Apr, May, Jun
 # x-label: Month
 # y-label: Temperature (°C)
@@ -2037,12 +2019,12 @@ Stacked bar chart showing multiple series stacked on top of each other for each 
 
 Each series provides one value per category. Values are stacked vertically. A legend is displayed at the top.
 
-### 14.6 Pie Chart (`@piechart`)
+### 14.6 Pie Chart (`@pie`)
 
 Pie chart showing proportional segments. Values are automatically normalized to 100%.
 
 ````markdown
-```@piechart
+```@pie
 - Frontend: 35%
 - Backend: 30%
 + DevOps: 20%
@@ -2052,12 +2034,12 @@ Pie chart showing proportional segments. Values are automatically normalized to 
 
 **Data format:** `- Label: value%` or `- Label: value`
 
-### 14.7 Donut Chart (`@donutchart`)
+### 14.7 Donut Chart (`@donut`)
 
 Like a pie chart but with a hollow center that can display a label.
 
 ````markdown
-```@donutchart
+```@donut
 # center: Total
 - Completed: 65%
 - In Progress: 25%
@@ -2394,7 +2376,7 @@ label: Cabinet 4, breaker row B
 | `image:` | the thermal image: a grayscale export, brighter is hotter (white-hot), with no palette, scale bar or text burned in. It may be stored as an RGB file; the pixel values decide |
 | `data:` | instead of `image:`, temperature data: a 16-bit (or 8-bit) grayscale PNG with a sidecar `<name>.yaml` beside it |
 | `visible:` | a visible-light photo of the same scene, registered (same framing) with the thermal image. The lens reveals the thermal image over it. Shown as it is |
-| `palette:` | `iron` (default), `white-hot`, `black-hot`, `rainbow`, `arctic`, `lava`; else the deck's `@palette` |
+| `palette:` | `iron` (default), `white-hot`, `black-hot`, `rainbow`, `arctic`, `lava`; else the deck's `palette` |
 | `mapping:` | `linear 18..92 °C`: the gray levels of `image:` run linearly over this range (units `°C`, `°F`, `K`, or any other unit, kept as written) |
 | `window:` | `40..90 °C`: the values the palette spans (level and span). Only with a mapping or data |
 | `polarity:` | `black-hot` for a source where darker is hotter (inverted before palette and thresholds); `white-hot` is the default |
@@ -2455,8 +2437,8 @@ clipped_high: 65535 # optional: raw codes at or above this clipped
 ```
 
 **Comparing images.** Put two blocks on one slide (for example
-`@layout: two-column`) and give the slide one scale with
-`@thermal-window: 25..90 °C`. Every block on the slide then uses that window,
+`design: columns`) and give the slide one scale with
+`thermal-window: 25..90 °C`. Every block on the slide then uses that window,
 converted into its own unit, so the same colour means the same value on both
 sides, even when the sources have different mappings. A source without a
 mapping or data cannot be compared (`--check` says so); clipped and missing
@@ -2467,7 +2449,7 @@ legend through the palettes, and `Shift+C` returns to the palettes as
 written. Headings, charts and the theme do not change. Export always uses the
 palettes as written.
 
-**Zoom into a spot.** `@zoom: Hotspot` on a slide makes the step into it a
+**Zoom into a spot.** `zoom-to: Hotspot` on a slide makes the step into it a
 zoom into the spot named `Hotspot` on the previous slide's `@thermal` image:
 the old slide magnifies around the spot and fades as the new one settles. If
 the previous slide shows no such spot, the transition is the usual one.

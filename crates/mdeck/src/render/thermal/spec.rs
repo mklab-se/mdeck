@@ -103,7 +103,7 @@ pub struct Spec {
     /// `mapping: linear 18..92 °C`.
     pub mapping: Option<Range>,
     pub window: Option<Range>,
-    /// The window comes from the slide's `@thermal-window` (a comparison).
+    /// The window comes from the slide's `thermal-window` (a comparison).
     pub slide_window: bool,
     pub label: Option<String>,
     pub lines: Vec<Line>,
@@ -168,7 +168,7 @@ impl Spec {
                         Err(e) => spec.problems.push(problem(format!("window: {e}"))),
                     },
                     "window" => {}
-                    // added by the parser from the slide's @thermal-window
+                    // added by the parser from the slide's thermal-window
                     "slide-window" => match Range::parse(value) {
                         Ok(r) => {
                             spec.window = Some(r);
@@ -176,7 +176,7 @@ impl Spec {
                         }
                         Err(e) => spec
                             .problems
-                            .push(problem(format!("@thermal-window: {e}"))),
+                            .push(problem(format!("thermal-window: {e}"))),
                     },
                     other if t.starts_with('#') => {
                         let _ = other; // a comment that happens to have a colon
@@ -337,8 +337,8 @@ palette: lava
 + lens 76% 43% 18%
 + reveal
 + above 85%
-* spot Hotspot 76% 43%
-* spot Reference 30% 52%: 31.2 °C
++ spot Hotspot 76% 43%
++ spot Reference 30% 52%: 31.2 °C
 ";
 
     #[test]
@@ -358,8 +358,8 @@ palette: lava
             }
         );
         let steps: Vec<usize> = s.steps(&Support::DISPLAY).iter().map(|(_, n)| *n).collect();
-        assert_eq!(steps, [1, 2, 3, 3, 3]);
-        assert_eq!(s.step_count(&Support::DISPLAY), 3);
+        assert_eq!(steps, [1, 2, 3, 4, 5]);
+        assert_eq!(s.step_count(&Support::DISPLAY), 5);
         match &s.lines[4].action {
             Action::Spot { name, text, .. } => {
                 assert_eq!(name, "Reference");
@@ -377,9 +377,9 @@ palette: lava
             unit: None,
         };
         let steps: Vec<usize> = s.steps(&colour).iter().map(|(_, n)| *n).collect();
-        // the threshold is gone; its spots join the reveal's step
-        assert_eq!(steps, [1, 2, 2, 2]);
-        assert_eq!(s.step_count(&colour), 2);
+        // the threshold is gone; the spots follow the reveal
+        assert_eq!(steps, [1, 2, 3, 4]);
+        assert_eq!(s.step_count(&colour), 4);
     }
 
     #[test]

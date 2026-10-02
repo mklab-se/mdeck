@@ -2,8 +2,8 @@
 
 use eframe::egui::{self, Pos2, Stroke};
 
-use super::inline::{draw_inlines, inlines_to_job, measure_inlines};
-use crate::parser::Inline;
+use super::inline::{inlines_to_job, measure_inlines};
+use crate::parser::{Align, Inline};
 use crate::render::TextCx;
 use crate::theme::Theme;
 
@@ -132,14 +132,37 @@ pub fn measure_table_height(
     table_height(ui, headers, rows, &layout, theme, scale)
 }
 
+/// Draw a cell's text in its column, aligned as the column asks.
+fn draw_cell(
+    cx: &TextCx,
+    cell: &[Inline],
+    pos: Pos2,
+    font_size: f32,
+    color: egui::Color32,
+    width: f32,
+    align: Align,
+) {
+    let job = inlines_to_job(cell, font_size, color, width, cx.theme);
+    let galley = cx.ui.painter().layout_job(job);
+    let slack = (width - galley.rect.width()).max(0.0);
+    let dx = match align {
+        Align::Left => 0.0,
+        Align::Center => slack / 2.0,
+        Align::Right => slack,
+    };
+    crate::render::math::galley(cx.ui.painter(), pos + egui::vec2(dx, 0.0), galley, color);
+}
+
 /// Draw a table. Returns height used.
 pub fn draw_table(
     cx: &TextCx,
     headers: &[Vec<Inline>],
+    align: &[Align],
     rows: &[Vec<Vec<Inline>>],
     pos: Pos2,
     max_width: f32,
 ) -> f32 {
+    let col_align = |col: usize| align.get(col).copied().unwrap_or_default();
     let (ui, theme, opacity, scale) = (cx.ui, cx.theme, cx.opacity, cx.scale);
     let color = Theme::with_opacity(theme.foreground, opacity);
     let heading_color = Theme::with_opacity(theme.heading_color, opacity);
@@ -165,13 +188,14 @@ pub fn draw_table(
     ui.painter().rect_filled(header_rect, rounding, header_bg);
     for (col, header) in headers.iter().enumerate().take(num_cols) {
         let cell_pos = Pos2::new(pos.x + layout.col_offset(col), y + pad);
-        draw_inlines(
+        draw_cell(
             cx,
             header,
             cell_pos,
             layout.font_size,
             heading_color,
             layout.text_width(col),
+            col_align(col),
         );
     }
     y += header_h + pad * 2.0;
@@ -201,13 +225,14 @@ pub fn draw_table(
         }
         for (col, cell) in row.iter().enumerate().take(num_cols) {
             let cell_pos = Pos2::new(pos.x + layout.col_offset(col), y + pad * 0.75);
-            draw_inlines(
+            draw_cell(
                 cx,
                 cell,
                 cell_pos,
                 layout.font_size,
                 color,
                 layout.text_width(col),
+                col_align(col),
             );
         }
         y += band_h;

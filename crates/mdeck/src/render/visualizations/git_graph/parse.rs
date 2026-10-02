@@ -225,7 +225,7 @@ mod tests {
             _ => panic!(),
         }
         match &items[3] {
-            GitGraphItem::Commit { reveal, .. } => assert_eq!(*reveal, VizReveal::WithPrev),
+            GitGraphItem::Commit { reveal, .. } => assert_eq!(*reveal, VizReveal::Static),
             _ => panic!(),
         }
     }

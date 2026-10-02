@@ -1,6 +1,6 @@
-//! A background image behind a slide: the deck's (`@background` in the
-//! frontmatter) on every slide, or a slide's own `@background`, which
-//! replaces it there (`none` turns it off). `@background-opacity` tones it
+//! A background image behind a slide: the deck's (`background` in the
+//! frontmatter) on every slide, or a slide's own `background`, which
+//! replaces it there (`none` turns it off). `background-opacity` tones it
 //! down at either level. The image covers the slide over the theme's
 //! background colour and under the engine layer and the content, so a low
 //! opacity blends it toward the theme's own colour. Drawn the same way when
@@ -74,8 +74,8 @@ impl Backgrounds {
 }
 
 /// Resolve the deck's background and each slide's over it. A slide's
-/// `@background` replaces the deck's image, `none` removes it, and a slide's
-/// `@background-opacity` applies to whichever image the slide shows. A file
+/// `background` replaces the deck's image, `none` removes it, and a slide's
+/// `background-opacity` applies to whichever image the slide shows. A file
 /// that cannot be used falls back to the deck's image; an opacity that does
 /// not parse falls back to the deck's or the default.
 pub fn resolve(presentation: &Presentation, deck_dir: &Path) -> (Backgrounds, Vec<Problem>) {
@@ -109,7 +109,7 @@ pub fn resolve(presentation: &Presentation, deck_dir: &Path) -> (Backgrounds, Ve
         .enumerate()
         .map(|(i, slide)| {
             let value = |name| {
-                parser::directive(&slide.directives, name)
+                parser::setting(&slide.settings, name)
                     .map(str::trim)
                     .filter(|v| !v.is_empty())
             };
@@ -117,7 +117,7 @@ pub fn resolve(presentation: &Presentation, deck_dir: &Path) -> (Backgrounds, Ve
                 opacity(
                     o,
                     i + 1,
-                    slide.directive_line("background-opacity"),
+                    slide.setting_line("background-opacity"),
                     &mut problems,
                 )
             });
@@ -129,7 +129,7 @@ pub fn resolve(presentation: &Presentation, deck_dir: &Path) -> (Backgrounds, Ve
                     Err(message) => {
                         problems.push(Problem {
                             slide: i + 1,
-                            line: slide.directive_line("background"),
+                            line: slide.setting_line("background"),
                             message,
                         });
                         deck.as_ref().map(|d| d.path.clone())
@@ -139,8 +139,8 @@ pub fn resolve(presentation: &Presentation, deck_dir: &Path) -> (Backgrounds, Ve
             if path.is_none() && own_opacity.is_some() && value("background") != Some("none") {
                 problems.push(Problem {
                     slide: i + 1,
-                    line: slide.directive_line("background-opacity"),
-                    message: "@background-opacity has no background image to apply to".into(),
+                    line: slide.setting_line("background-opacity"),
+                    message: "background-opacity has no background image to apply to".into(),
                 });
             }
             path.map(|path| Background {
@@ -159,7 +159,7 @@ fn opacity(value: &str, slide: usize, line: usize, problems: &mut Vec<Problem>) 
         problems.push(Problem {
             slide,
             line,
-            message: format!("@background-opacity: '{value}' must be 0 to 1 (or 0% to 100%)"),
+            message: format!("background-opacity: '{value}' must be 0 to 1 (or 0% to 100%)"),
         });
     }
     parsed
@@ -174,10 +174,10 @@ fn image_file(deck_dir: &Path, file: &str) -> Result<(), String> {
         .map(str::to_ascii_lowercase);
     if !ext.is_some_and(|e| EXTENSIONS.contains(&e.as_str())) {
         Err(format!(
-            "@background: '{file}' must be a .png, .jpg, .webp or .svg file"
+            "background: '{file}' must be a .png, .jpg, .webp or .svg file"
         ))
     } else if !path.is_file() {
-        Err(format!("@background: {} was not found", path.display()))
+        Err(format!("background: {} was not found", path.display()))
     } else {
         Ok(())
     }
@@ -260,12 +260,12 @@ mod tests {
     #[test]
     fn a_slide_replaces_or_removes_the_deck_background() {
         let d = tmp("slides");
-        let md = "---\n@background: deck.jpg\n@background-opacity: 25%\n---\n\n\
+        let md = "---\nbackground: deck.jpg\nbackground-opacity: 25%\n---\n\n\
                   # One\n\n- a\n\n\
-                  # Two\n@background: own.png\n\n- b\n\n\
-                  # Three\n@background: none\n\n- c\n\n\
-                  # Four\n@background-opacity: 0.8\n\n- d\n\n\
-                  # Five\n@background: own.png\n@background-opacity: 100%\n\n- e\n";
+                  # Two\n<!-- background: own.png -->\n\n- b\n\n\
+                  # Three\n<!-- background: none -->\n\n- c\n\n\
+                  # Four\n<!-- background-opacity: 0.8 -->\n\n- d\n\n\
+                  # Five\n<!-- background: own.png -->\n<!-- background-opacity: 100% -->\n\n- e\n";
         let pres = crate::parser::parse(md);
         let (bgs, problems) = resolve(&pres, &d);
         assert!(problems.is_empty(), "{problems:?}");
@@ -300,7 +300,7 @@ mod tests {
     #[test]
     fn a_slide_can_have_a_background_without_a_deck_default() {
         let d = tmp("own");
-        let md = "# One\n\n- a\n\n# Two\n@background: own.png\n\n- b\n";
+        let md = "# One\n\n- a\n\n# Two\n<!-- background: own.png -->\n\n- b\n";
         let (bgs, problems) = resolve(&crate::parser::parse(md), &d);
         assert!(problems.is_empty());
         assert_eq!(bgs.get(0), None);
@@ -317,10 +317,10 @@ mod tests {
     #[test]
     fn problems_name_their_slide_and_line_and_fall_back() {
         let d = tmp("problems");
-        let md = "---\n@background: deck.jpg\n@background-opacity: lots\n---\n\n\
-                  # One\n@background: gone.png\n\n- a\n\n\
-                  # Two\n@background: notes.txt\n\n- b\n\n\
-                  # Three\n@background-opacity: 2\n\n- c\n";
+        let md = "---\nbackground: deck.jpg\nbackground-opacity: lots\n---\n\n\
+                  # One\n<!-- background: gone.png -->\n\n- a\n\n\
+                  # Two\n<!-- background: notes.txt -->\n\n- b\n\n\
+                  # Three\n<!-- background-opacity: 2 -->\n\n- c\n";
         let pres = crate::parser::parse(md);
         let (bgs, problems) = resolve(&pres, &d);
         let deck = Background {
@@ -333,14 +333,14 @@ mod tests {
         let found: Vec<(usize, usize)> = problems.iter().map(|p| (p.slide, p.line)).collect();
         assert_eq!(found, [(0, 0), (1, 7), (2, 12), (3, 17)], "{problems:?}");
         assert!(problems[1].message.contains("gone.png"));
-        assert!(problems[2].to_string().starts_with("slide 2: @background:"));
+        assert!(problems[2].to_string().starts_with("slide 2: background:"));
         std::fs::remove_dir_all(&d).ok();
     }
 
     #[test]
     fn opacity_without_an_image_is_reported() {
         let d = tmp("orphan");
-        let md = "# One\n@background-opacity: 50%\n\n- a\n";
+        let md = "# One\n<!-- background-opacity: 50% -->\n\n- a\n";
         let (bgs, problems) = resolve(&crate::parser::parse(md), &d);
         assert_eq!(bgs.get(0), None);
         assert_eq!(problems.len(), 1);

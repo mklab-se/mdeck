@@ -80,6 +80,7 @@ pub fn blocks(notes: Option<&str>) -> Vec<Block> {
                     | Block::List { .. }
                     | Block::CodeBlock { .. }
                     | Block::BlockQuote { .. }
+                    | Block::Callout { .. }
                     | Block::Table { .. }
                     | Block::HorizontalRule
             )
@@ -316,7 +317,7 @@ mod tests {
     #[test]
     fn notes_keep_text_blocks_and_drop_visuals() {
         let b = blocks(Some(
-            "Say **this**.\n\n- one\n- two\n\n```@barchart\n- A: 1\n```\n\n![x](y.png)\n",
+            "Say **this**.\n\n- one\n- two\n\n```@bar\n- A: 1\n```\n\n![x](y.png)\n",
         ));
         assert_eq!(b.len(), 2, "{b:?}");
         assert!(blocks(None).is_empty());

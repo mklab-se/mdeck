@@ -1,11 +1,11 @@
 ---
 title: "Pie Chart Tests"
-@theme: dark
+theme: dark
 ---
 
 # Pie Chart — Basic
 
-```@piechart
+```@pie
 - React: 35%
 - Vue: 25%
 - Angular: 20%
@@ -17,7 +17,7 @@ title: "Pie Chart Tests"
 
 # Pie Chart — Many Slices
 
-```@piechart
+```@pie
 - Chrome: 33%
 - Safari: 18%
 - Edge: 12%
@@ -34,11 +34,11 @@ title: "Pie Chart Tests"
 
 # Pie Chart — Progressive Reveal
 
-```@piechart
+```@pie
 - Salaries: 45%
 + Infrastructure: 25%
 + Marketing: 15%
-* R&D: 10%
++ R&D: 10%
 + Legal: 5%
 ```
 
@@ -47,7 +47,7 @@ title: "Pie Chart Tests"
 
 # Pie Chart — Many Long Legend Entries
 
-```@piechart
+```@pie
 - Enterprise Software Licensing Revenue: 1,250
 - Professional Services and Consulting: 840
 - Cloud Infrastructure Subscriptions: 2,100

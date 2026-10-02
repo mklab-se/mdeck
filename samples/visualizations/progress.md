@@ -1,6 +1,6 @@
 ---
 title: "Progress Bar Tests"
-@theme: dark
+theme: dark
 ---
 
 # Progress Bars — Basic
@@ -35,7 +35,7 @@ title: "Progress Bar Tests"
 - Sprint 1: 100%
 + Sprint 2: 100%
 + Sprint 3: 85%
-* Sprint 4: 40%
++ Sprint 4: 40%
 + Sprint 5: 10%
 ```
 

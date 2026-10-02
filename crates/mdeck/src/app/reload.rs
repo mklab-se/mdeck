@@ -132,7 +132,7 @@ impl PresentationApp {
             .enumerate()
             .flat_map(|(i, s)| {
                 s.blocks.iter().filter_map(move |b| {
-                    if let parser::Block::Diagram { content } = b {
+                    if let parser::Block::Diagram { content, .. } = b {
                         Some((i + 1, content.clone()))
                     } else {
                         None

@@ -3,7 +3,7 @@
 use super::backdrop::backdrop;
 use super::formation::{formation_for, formation_points};
 use super::{bokeh, dust};
-use crate::parser::{Block, Layout, ListMarker, Slide};
+use crate::parser::{Block, Layout, Slide};
 use crate::render::particles::{Drift, Group, Home, Palette, Rng, Scene, Tint};
 
 /// The site's homepage: clusters hugging the flanks, copy in the dark middle.
@@ -179,21 +179,9 @@ fn quiet(seed: u64) -> Scene {
     scene
 }
 
-/// Reveal step of each top-level list item, in order, using the same rule as
-/// the text renderer (`+` starts a step, `*` joins the previous one).
+/// Reveal step of each top-level list item, in order.
 fn item_steps(items: &[crate::parser::ListItem]) -> Vec<usize> {
-    let mut counter = 0usize;
-    items
-        .iter()
-        .map(|item| match item.marker {
-            ListMarker::Static | ListMarker::Ordered => 0,
-            ListMarker::NextStep => {
-                counter += 1;
-                counter
-            }
-            ListMarker::WithPrev => counter,
-        })
-        .collect()
+    items.iter().map(|item| item.step).collect()
 }
 
 /// Bullet and content slides: one cluster per item on the right flank, each
@@ -251,39 +239,18 @@ pub fn for_slide(slide: &Slide, seed: u64) -> Scene {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::{Inline, ListItem};
+    use crate::parser::{Inline, ListItem, ListMarker};
     use crate::render::particles::scenes::backdrop::backdrop_for;
 
     fn item(marker: ListMarker) -> ListItem {
-        ListItem {
-            marker,
-            inlines: vec![Inline::Text("x".into())],
-            children: vec![],
-        }
+        ListItem::new(marker, vec![Inline::Text("x".into())], vec![])
     }
 
     #[test]
     fn bullet_scene_has_one_cluster_per_item_with_its_step() {
-        let slide = Slide {
-            directives: vec![],
-            blocks: vec![Block::List {
-                ordered: false,
-                items: vec![
-                    item(ListMarker::Static),
-                    item(ListMarker::NextStep),
-                    item(ListMarker::WithPrev),
-                    item(ListMarker::NextStep),
-                ],
-            }],
-            layout: Layout::Bullet,
-            raw_source: String::new(),
-            line: 0,
-            source_lines: Vec::new(),
-            notes: None,
-            illustration: None,
-            logo: None,
-            art: None,
-        };
+        let slide = crate::parser::parse("# A\n\n- a\n+ b\n  - b1\n+ c\n- d")
+            .slides
+            .remove(0);
         let scene = for_slide(&slide, 3);
         let steps: Vec<Option<usize>> = scene
             .groups
@@ -292,24 +259,20 @@ mod tests {
             .filter(|g| matches!(g.home, Home::Cluster { .. }) && g.step.is_some())
             .map(|g| g.step)
             .collect();
-        assert_eq!(steps, vec![Some(0), Some(1), Some(1), Some(2)]);
+        assert_eq!(steps, vec![Some(0), Some(1), Some(2), Some(0)]);
     }
 
     fn bullets(n: usize) -> Slide {
         Slide {
-            directives: vec![],
             blocks: vec![Block::List {
                 ordered: false,
+                start: 1,
                 items: (0..n).map(|_| item(ListMarker::Static)).collect(),
             }],
             layout: Layout::Bullet,
             raw_source: String::new(),
-            line: 0,
-            source_lines: Vec::new(),
             notes: None,
-            illustration: None,
-            logo: None,
-            art: None,
+            ..Default::default()
         }
     }
 
@@ -360,16 +323,11 @@ mod tests {
             Layout::Visualization,
         ] {
             let slide = Slide {
-                directives: vec![],
                 blocks: vec![],
                 layout,
                 raw_source: String::new(),
-                line: 0,
-                source_lines: Vec::new(),
                 notes: None,
-                illustration: None,
-                logo: None,
-                art: None,
+                ..Default::default()
             };
             let scene = for_slide(&slide, 1);
             assert!(scene.groups.len() >= 2, "{layout:?} has too few groups");

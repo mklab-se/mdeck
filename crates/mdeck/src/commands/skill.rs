@@ -4,7 +4,6 @@
 //! `mdeck ai skill --emit`      — print skill markdown file to stdout
 //! `mdeck ai skill --reference` — print full reference documentation
 
-const SPEC: &str = include_str!("../../doc/mdeck-spec.md");
 const SUPPLEMENT: &str = include_str!("../../doc/ai-reference-supplement.md");
 
 pub fn run(emit: bool, reference: bool) {
@@ -89,6 +88,6 @@ types, and incremental reveal that you need to write correct presentations.
 fn print_reference() {
     println!("# mdeck Reference Documentation\n");
     println!("## Format Specification\n");
-    println!("{SPEC}");
+    println!("{}", super::spec::full_reference());
     println!("\n{SUPPLEMENT}");
 }

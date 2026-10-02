@@ -1,6 +1,6 @@
 ---
 title: "Funnel Chart Tests"
-@theme: dark
+theme: dark
 ---
 
 # Funnel — Basic Sales Pipeline
@@ -34,7 +34,7 @@ title: "Funnel Chart Tests"
 - Awareness: 50000
 + Interest: 18000
 + Consideration: 7500
-* Intent: 3200
++ Intent: 3200
 + Purchase: 1400
 + Loyalty: 800
 ```

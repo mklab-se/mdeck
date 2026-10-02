@@ -1,7 +1,7 @@
 ---
 title: "Layout Test: Content Slides"
-@theme: dark
-@transition: fade
+theme: dark
+transition: fade
 ---
 
 # Layout Test: Content Slides

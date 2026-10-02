@@ -32,9 +32,9 @@ pub struct Deck {
     pub illustrations: Library,
     /// Generated art for the art engines.
     pub art: DeckArt,
-    /// The logo on each slide (theme `logo:`, the deck's `@logo`, the slide's `@logo`).
+    /// The logo on each slide (theme `logo:`, the deck's `logo`, the slide's `logo`).
     pub logos: Logos,
-    /// The background image on each slide (the deck's `@background`, the slide's).
+    /// The background image on each slide (the deck's `background`, the slide's).
     pub backgrounds: Backgrounds,
     /// When each background image appeared, so it fades in once loaded.
     background_fade: FadeIn,
@@ -72,7 +72,7 @@ impl Deck {
     /// (export). Problems are printed unless `quiet`.
     pub fn open(
         file: PathBuf,
-        presentation: Presentation,
+        mut presentation: Presentation,
         theme: &Theme,
         background_art: bool,
         quiet: bool,
@@ -80,7 +80,7 @@ impl Deck {
         let dir = deck_dir(&file).to_path_buf();
         let mut image_cache = ImageCache::new(dir);
         load_thermal(&mut image_cache, &presentation, quiet);
-        let max_steps = slide_max_steps(&presentation, image_cache.thermal());
+        let max_steps = slide_max_steps(&mut presentation, image_cache.thermal());
         let mut art = DeckArt::new(Some(&file), background_art);
         art.sync(&presentation, theme);
         let mut deck = Self {
@@ -117,7 +117,7 @@ impl Deck {
         load_thermal(&mut self.image_cache, &self.presentation, false);
         self.illustrations.reset();
         self.art.invalidate();
-        self.max_steps = slide_max_steps(&self.presentation, self.image_cache.thermal());
+        self.max_steps = slide_max_steps(&mut self.presentation, self.image_cache.thermal());
         self.refresh_logos(theme);
         self.refresh_backgrounds(false);
         self.background_fade.clear();
@@ -244,6 +244,34 @@ impl Deck {
         render::render_slide(&block, slide, frame.rect, cx);
     }
 
+    /// Draw the deck's `footer`, if it has one, at the foot of the slide.
+    /// Board engines print their own labels and draw no footer.
+    pub fn draw_footer(
+        &self,
+        painter: &egui::Painter,
+        theme: &Theme,
+        rect: egui::Rect,
+        scale: f32,
+    ) {
+        if theme.engine.is_board() {
+            return;
+        }
+        let Some(footer) = self.presentation.meta.footer.as_deref() else {
+            return;
+        };
+        let color = Theme::with_opacity(theme.foreground, 0.4);
+        let galley = painter.layout_no_wrap(
+            footer.to_string(),
+            egui::FontId::proportional(14.0 * scale),
+            color,
+        );
+        let pos = egui::pos2(
+            rect.center().x - galley.rect.width() / 2.0,
+            rect.bottom() - 30.0 * scale,
+        );
+        painter.galley(pos, galley, color);
+    }
+
     /// Draw slide `index`'s logo, if it has one.
     pub fn draw_logo(&self, painter: &egui::Painter, rect: egui::Rect, index: usize, scale: f32) {
         if let Some(logo) = self.logos.get(index) {
@@ -267,29 +295,32 @@ fn deck_dir(file: &Path) -> &Path {
     file.parent().unwrap_or(Path::new("."))
 }
 
-/// Reveal steps per slide.
-fn slide_max_steps(presentation: &Presentation, thermal: &render::thermal::Library) -> Vec<usize> {
+/// Reveal steps per slide. A thermal block's steps depend on what its
+/// source can show, so with the sources read every slide is numbered again
+/// (the steps after a thermal block follow its real count).
+fn slide_max_steps(
+    presentation: &mut Presentation,
+    thermal: &render::thermal::Library,
+) -> Vec<usize> {
+    let visual_steps = |block: &parser::Block| match block {
+        parser::Block::Chart {
+            kind: parser::Chart::Thermal,
+            content,
+            ..
+        } => render::thermal::block_steps(content, thermal),
+        other => parser::steps::default_visual_steps(other),
+    };
     presentation
         .slides
-        .iter()
+        .iter_mut()
         .map(|s| {
-            // a thermal block's steps depend on what its source can show
-            s.blocks
-                .iter()
-                .map(|b| match b {
-                    parser::Block::Chart {
-                        kind: parser::Chart::Thermal,
-                        content,
-                    } => render::thermal::block_steps(content, thermal),
-                    other => parser::compute_max_steps(std::slice::from_ref(other)),
-                })
-                .max()
-                .unwrap_or(0)
+            s.steps = parser::steps::number(&mut s.blocks, s.reveal, &visual_steps);
+            s.steps
         })
         .collect()
 }
 
-/// The theme a deck asks for: its `@theme`, then the config default, then
+/// The theme a deck asks for: its `theme`, then the config default, then
 /// the built-in default. Returns the theme and the name it was looked up by.
 pub fn deck_theme(
     themes: &lookup::Lookup,
@@ -302,7 +333,7 @@ pub fn deck_theme(
     (theme, key)
 }
 
-/// The engine override for a deck: `--engine`, then its `@engine` (whose
+/// The engine override for a deck: `--engine`, then its `engine` (whose
 /// problems are printed unless quiet). `None` keeps the theme's own.
 pub fn deck_engine(
     cli: Option<EngineKind>,
@@ -336,7 +367,7 @@ mod tests {
 
     #[test]
     fn a_cli_engine_wins_over_the_deck() {
-        let pres = parser::parse("---\n@engine: led\n---\n# A\n");
+        let pres = parser::parse("---\nengine: led\n---\n# A\n");
         assert_eq!(
             deck_engine(Some(EngineKind::Plain), &pres, true),
             Some(EngineKind::Plain)

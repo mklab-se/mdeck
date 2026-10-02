@@ -1,7 +1,7 @@
 ---
 title: "Layout Test: Section Slides"
-@theme: dark
-@transition: fade
+theme: dark
+transition: fade
 ---
 
 # Layout Test: Section Slides

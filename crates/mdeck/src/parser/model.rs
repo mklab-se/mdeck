@@ -12,41 +12,45 @@ pub struct Presentation {
 pub struct PresentationMeta {
     pub title: Option<String>,
     pub author: Option<String>,
-    pub date: Option<String>,
     pub theme: Option<String>,
     pub transition: Option<String>,
-    pub aspect: Option<String>,
-    pub code_theme: Option<String>,
     pub footer: Option<String>,
     pub image_style: Option<String>,
     pub icon_style: Option<String>,
     pub slide_level: Option<u8>,
-    /// `@countdown: false` turns off the opening countdown (Ember and Nord).
+    /// `countdown: on|off`: the engine's opening countdown.
     pub countdown: Option<bool>,
-    /// `@engine`: run the deck on this engine instead of the theme's.
+    /// `reveal: none` shows every `+` item at once.
+    pub reveal: Option<bool>,
+    /// `engine`: run the deck on this engine instead of the theme's.
     pub engine: Option<String>,
-    /// `@logo`: a PNG or SVG shown on every slide (`none` hides a theme's logo).
+    /// `logo`: a PNG or SVG shown on every slide (`none` hides a theme's logo).
     pub logo: Option<String>,
-    /// `@logo-position`: top-left, top-right, bottom-left or bottom-right.
+    /// `logo-position`: top-left, top-right, bottom-left or bottom-right.
     pub logo_position: Option<String>,
-    /// `@logo-opacity`: 0 to 1, or a percentage.
+    /// `logo-opacity`: 0 to 1, or a percentage.
     pub logo_opacity: Option<String>,
-    /// `@logo-height`: height in px on a 1920x1080 slide.
+    /// `logo-height`: height in px on a 1920x1080 slide.
     pub logo_height: Option<String>,
-    /// `@background`: an image behind every slide (`none` for no image).
+    /// `background`: an image behind every slide (`none` for no image).
     pub background: Option<String>,
-    /// `@background-opacity`: 0 to 1, or a percentage.
+    /// `background-opacity`: 0 to 1, or a percentage.
     pub background_opacity: Option<String>,
-    /// `@art` in the frontmatter: the deck's world for generated art
-    /// (setting, era, recurring characters).
-    pub art: Option<String>,
-    /// `@palette`: the palette of `@thermal` blocks that name none.
+    /// `art-world`: the deck's world for generated art (setting, era,
+    /// recurring characters).
+    pub art_world: Option<String>,
+    /// `palette`: the palette of `@thermal` blocks that name none.
     pub palette: Option<String>,
+    /// Every frontmatter key as written, known or not, with its line (for
+    /// `--check`).
+    pub settings: Vec<Setting>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Slide {
-    pub directives: Vec<Directive>,
+    /// The slide's settings as written in its settings comments, known or
+    /// not, in order.
+    pub settings: Vec<Setting>,
     pub blocks: Vec<Block>,
     pub layout: Layout,
     /// The original raw markdown source text for this slide.
@@ -54,25 +58,32 @@ pub struct Slide {
     /// 1-based line in the deck file where the slide starts (its first
     /// `raw_source` line), frontmatter included; 0 when not parsed from a file.
     pub line: usize,
-    /// 1-based line in the deck file of each `raw_source` line. Not always
-    /// `line` plus the offset: blank lines between directives moved to the
-    /// next heading's slide are dropped from `raw_source`.
+    /// 1-based line in the deck file of each `raw_source` line.
     pub source_lines: Vec<usize>,
-    /// Speaker notes for this slide (content after `???` separator).
+    /// Speaker notes for this slide: the markdown of its ```` ```@notes ````
+    /// blocks, joined in order, then the text of its footnotes.
     pub notes: Option<String>,
-    /// Name of the point cloud illustration for this slide (`@illustration`).
+    /// Whether `+` items are steps on this slide (`reveal: none` turns them off).
+    pub reveal: bool,
+    /// The slide's steps: the last step any item or visual on it is shown at.
+    pub steps: usize,
+    /// Name of the point cloud picture for this slide (`picture:`).
     pub illustration: Option<String>,
-    /// This slide's `@logo`: a PNG or SVG path, or `none` to hide the logo here.
+    /// This slide's `logo`: a PNG or SVG path, or `none` to hide the logo here.
     pub logo: Option<String>,
-    /// This slide's `@art`: the scene to draw, or `none` for no art here.
+    /// What generated art draws for this slide (`picture-prompt`), or `none`
+    /// when `picture: none` keeps the slide empty.
     pub art: Option<String>,
+    /// What the parser could not take as written: malformed settings lines,
+    /// content that will not show as meant. `--check` reports them.
+    pub problems: Vec<Problem>,
 }
 
 impl Slide {
-    /// The deck file line of the slide directive `name` (the last one when
-    /// it is written twice, as in [`super::directive`]), else the slide's.
-    pub fn directive_line(&self, name: &str) -> usize {
-        self.directives
+    /// The deck file line of the slide setting `name` (the last one when
+    /// it is written twice, as in [`super::setting`]), else the slide's.
+    pub fn setting_line(&self, name: &str) -> usize {
+        self.settings
             .iter()
             .rev()
             .find(|d| d.name == name)
@@ -104,13 +115,31 @@ impl Slide {
     }
 }
 
+/// One `key: value` setting as written.
 #[derive(Debug, Clone)]
-pub struct Directive {
+pub struct Setting {
     pub name: String,
     pub value: String,
-    /// 1-based line in the deck file ([`super::parse`] maps it; from
-    /// `extract_directives` alone it is the 0-based line within the slide).
+    /// 1-based line in the deck file ([`super::parse`] maps it; from the
+    /// settings reader alone it is the 0-based line within the slide).
     pub line: usize,
+}
+
+/// Something in a slide the parser could not take as written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Problem {
+    pub kind: ProblemKind,
+    /// 1-based deck file line (0-based within the slide before mapping).
+    pub line: usize,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProblemKind {
+    /// A settings comment line that is not `key: value`.
+    Setting,
+    /// Markdown that will not show as meant.
+    Content,
 }
 
 #[derive(Debug, Clone)]
@@ -125,6 +154,8 @@ pub enum Block {
     },
     List {
         ordered: bool,
+        /// The number of an ordered list's first item.
+        start: u32,
         items: Vec<ListItem>,
     },
     Image {
@@ -137,23 +168,146 @@ pub enum Block {
         code: String,
         highlight_lines: Vec<usize>,
     },
+    /// A quote with its own blocks: paragraphs, lists, nested quotes.
     BlockQuote {
-        inlines: Vec<Inline>,
+        blocks: Vec<Block>,
+    },
+    /// A GitHub alert (`> [!NOTE]`), drawn as a callout.
+    Callout {
+        kind: Alert,
+        blocks: Vec<Block>,
     },
     Table {
         headers: Vec<Vec<Inline>>,
+        /// Each column's alignment from the separator row.
+        align: Vec<Align>,
         rows: Vec<Vec<Vec<Inline>>>,
     },
     HorizontalRule,
     Diagram {
         content: String,
+        /// Steps on the slide before this diagram's own (they follow on).
+        step_base: usize,
     },
     /// A ```@chart fence: one of the [`Chart`] visualizations.
     Chart {
         kind: Chart,
         content: String,
+        /// Steps on the slide before this chart's own (they follow on).
+        step_base: usize,
     },
     ColumnSeparator,
+}
+
+impl Block {
+    /// The paragraphs of a quote, as inline runs; lists and nested quotes
+    /// inside it give their text.
+    pub fn quote_paragraphs(blocks: &[Block]) -> Vec<Vec<Inline>> {
+        let mut out = Vec::new();
+        for b in blocks {
+            match b {
+                Block::Paragraph { inlines } | Block::Heading { inlines, .. } => {
+                    out.push(inlines.clone())
+                }
+                Block::BlockQuote { blocks } | Block::Callout { blocks, .. } => {
+                    out.extend(Block::quote_paragraphs(blocks))
+                }
+                Block::List { items, .. } => {
+                    for item in items {
+                        out.push(item.inlines.clone());
+                    }
+                }
+                _ => {}
+            }
+        }
+        out
+    }
+
+    /// A quote slide's quotation and attribution. With no paragraph after
+    /// the quote (`after` false), a quote of several paragraphs ends in its
+    /// attribution (`> text`, `>`, `> Who`), which never runs into the
+    /// quotation (D25).
+    pub fn quote_parts(blocks: &[Block], after: bool) -> (Vec<Inline>, Option<Vec<Inline>>) {
+        // The attribution is a short last paragraph of the quote's own.
+        let own = match blocks {
+            [rest @ .., Block::Paragraph { inlines }]
+                if !after
+                    && !rest.is_empty()
+                    && super::text::inlines_to_text(inlines).chars().count() <= 80 =>
+            {
+                Some((rest, inlines.clone()))
+            }
+            _ => None,
+        };
+        let (blocks, attribution) = match own {
+            Some((rest, a)) => (rest, Some(a)),
+            None => (blocks, None),
+        };
+        let paragraphs = Block::quote_paragraphs(blocks);
+        let mut quote = Vec::new();
+        for (i, p) in paragraphs.into_iter().enumerate() {
+            if i > 0 {
+                quote.push(Inline::Text("\n".into()));
+            }
+            quote.extend(p);
+        }
+        (quote, attribution)
+    }
+
+    /// A quote's text as one run, paragraphs separated by line breaks.
+    pub fn quote_inlines(blocks: &[Block]) -> Vec<Inline> {
+        let mut out = Vec::new();
+        for (i, p) in Block::quote_paragraphs(blocks).into_iter().enumerate() {
+            if i > 0 {
+                out.push(Inline::Text("\n".into()));
+            }
+            out.extend(p);
+        }
+        out
+    }
+}
+
+/// The kind of a GitHub alert.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Alert {
+    Note,
+    Tip,
+    Important,
+    Warning,
+    Caution,
+}
+
+impl Alert {
+    /// The alert a `[!NOTE]` marker names (case-insensitive).
+    pub fn from_marker(marker: &str) -> Option<Alert> {
+        match marker.to_ascii_uppercase().as_str() {
+            "NOTE" => Some(Alert::Note),
+            "TIP" => Some(Alert::Tip),
+            "IMPORTANT" => Some(Alert::Important),
+            "WARNING" => Some(Alert::Warning),
+            "CAUTION" => Some(Alert::Caution),
+            _ => None,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Alert::Note => "Note",
+            Alert::Tip => "Tip",
+            Alert::Important => "Important",
+            Alert::Warning => "Warning",
+            Alert::Caution => "Caution",
+        }
+    }
+}
+
+/// A table column's alignment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Align {
+    #[default]
+    Left,
+    Center,
+    Right,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -219,14 +373,14 @@ pub enum Chart {
 }
 
 impl Chart {
-    /// Fence tags and their charts. A fence matches the first tag its info
-    /// string starts with (`@donut` also covers `@donutchart`).
+    /// Fence tags and their charts. A fence's tag is the first word of its
+    /// info string and matches exactly (see [`crate::language::FENCES`]).
     pub const TAGS: &[(&str, Chart)] = &[
         ("@wordcloud", Chart::WordCloud),
         ("@timeline", Chart::Timeline),
-        ("@piechart", Chart::Pie),
-        ("@barchart", Chart::Bar),
-        ("@linechart", Chart::Line),
+        ("@pie", Chart::Pie),
+        ("@bar", Chart::Bar),
+        ("@line", Chart::Line),
         ("@donut", Chart::Donut),
         ("@kpi", Chart::KpiCards),
         ("@funnel", Chart::Funnel),
@@ -243,11 +397,12 @@ impl Chart {
         ("@thermal", Chart::Thermal),
     ];
 
-    /// The chart a fence info string (```` ```@barchart ````) names.
+    /// The chart a fence info string (```` ```@bar ````) names.
     pub fn from_info(info: &str) -> Option<Chart> {
+        let tag = info.split_whitespace().next()?;
         Self::TAGS
             .iter()
-            .find(|(tag, _)| info.starts_with(tag))
+            .find(|(t, _)| *t == tag)
             .map(|&(_, chart)| chart)
     }
 }
@@ -257,12 +412,30 @@ pub struct ListItem {
     pub marker: ListMarker,
     pub inlines: Vec<Inline>,
     pub children: Vec<ListItem>,
+    /// The slide step the item appears at (0: from the start). Set by
+    /// [`super::steps::number`].
+    pub step: usize,
+    /// A task list item's box: `Some(true)` for `[x]`, `Some(false)` for `[ ]`.
+    pub checked: Option<bool>,
+}
+
+impl ListItem {
+    pub fn new(marker: ListMarker, inlines: Vec<Inline>, children: Vec<ListItem>) -> Self {
+        ListItem {
+            marker,
+            inlines,
+            children,
+            step: 0,
+            checked: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ListMarker {
+    /// `-` or `*`: always shown.
     Static,
+    /// `+`: shown at its own step.
     NextStep,
-    WithPrev,
     Ordered,
 }

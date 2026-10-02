@@ -1,11 +1,11 @@
 ---
 title: "Bar Chart Tests"
-@theme: dark
+theme: dark
 ---
 
 # Bar Chart — Vertical
 
-```@barchart
+```@bar
 - JavaScript: 65
 - Python: 48
 - TypeScript: 38
@@ -16,7 +16,7 @@ title: "Bar Chart Tests"
 
 # Bar Chart — Vertical with Axis Labels
 
-```@barchart
+```@bar
 # x-label: Programming Language
 # y-label: Popularity Index
 - JavaScript: 65
@@ -30,7 +30,7 @@ title: "Bar Chart Tests"
 
 # Bar Chart — Horizontal
 
-```@barchart
+```@bar
 # orientation: horizontal
 - Revenue: 420
 - Expenses: 310
@@ -41,7 +41,7 @@ title: "Bar Chart Tests"
 
 # Bar Chart — Horizontal with Axis Labels
 
-```@barchart
+```@bar
 # orientation: horizontal
 # x-label: Amount ($M)
 # y-label: Category
@@ -55,19 +55,19 @@ title: "Bar Chart Tests"
 
 # Bar Chart — Progressive Reveal
 
-```@barchart
+```@bar
 # y-label: Performance Score
 - Rust: 95
 + C++: 90
 + Go: 72
-* Java: 60
++ Java: 60
 + Python: 35
 ```
 
 
 # Bar Chart — Many Items
 
-```@barchart
+```@bar
 # x-label: Country
 # y-label: GDP ($T)
 - USA: 25.5
@@ -85,7 +85,7 @@ title: "Bar Chart Tests"
 
 # Bar Chart — Long Labels and Decorated Values
 
-```@barchart
+```@bar
 # y-label: Revenue
 - Enterprise Software Licensing: $1,250,000
 - Professional Services and Consulting: $840,500
@@ -100,7 +100,7 @@ title: "Bar Chart Tests"
 
 # Bar Chart — Horizontal with Long Labels
 
-```@barchart
+```@bar
 # orientation: horizontal
 - Customer Acquisition Cost per Enterprise Segment: 48 units
 - Net Revenue Retention: 112%

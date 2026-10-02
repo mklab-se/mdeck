@@ -1,9 +1,11 @@
-//! Which layout a slide gets: the `@layout` directive, or inferred from its blocks.
+//! Which layout a slide gets: the `design:` setting, or inferred from its
+//! blocks. Phase 1 maps the v2 design names onto the v1 layouts; phase 3
+//! replaces layouts with designs.
 
+use super::Block;
 use super::text::inline_text_len;
-use super::{Block, Directive, directive};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum Layout {
     Title,
     Section,
@@ -15,44 +17,48 @@ pub enum Layout {
     Diagram,
     Visualization,
     TwoColumn,
+    #[default]
     Content,
 }
 
-impl Layout {
-    /// `@layout` values and their layouts. Aliases share a layout.
-    pub const NAMES: &[(&str, Layout)] = &[
-        ("title", Layout::Title),
-        ("section", Layout::Section),
-        ("image", Layout::Image),
-        ("gallery", Layout::Gallery),
-        ("quote", Layout::Quote),
-        ("code", Layout::Code),
-        ("bullets", Layout::Bullet),
-        ("bullet", Layout::Bullet),
-        ("diagram", Layout::Diagram),
-        ("architecture", Layout::Diagram),
-        ("visualization", Layout::Visualization),
-        ("two-column", Layout::TwoColumn),
-        ("content", Layout::Content),
-    ];
-
-    /// The layout an `@layout` value names (exact, case-sensitive).
-    pub fn from_name(name: &str) -> Option<Layout> {
-        Self::NAMES
-            .iter()
-            .find(|(n, _)| *n == name)
-            .map(|&(_, layout)| layout)
-    }
+/// The layout a slide gets: the one its `design` names, else the inferred one.
+pub(super) fn classify_layout(design: Option<&str>, blocks: &[Block]) -> Layout {
+    design
+        .and_then(|d| design_layout(d, blocks))
+        .unwrap_or_else(|| infer_layout(blocks))
 }
 
-pub(super) fn classify_layout(directives: &[Directive], blocks: &[Block]) -> Layout {
-    explicit_layout(directives).unwrap_or_else(|| infer_layout(blocks))
-}
-
-/// The layout the slide's `@layout` asks for (the last one wins). A value
-/// that names no layout gives [`Layout::Content`].
-fn explicit_layout(directives: &[Directive]) -> Option<Layout> {
-    directive(directives, "layout").map(|value| Layout::from_name(value).unwrap_or(Layout::Content))
+/// The layout that draws the design `name` until designs exist (phase 3).
+/// An unknown name gives `None` (the slide's layout is inferred, and
+/// `--check` reports the name).
+fn design_layout(name: &str, blocks: &[Block]) -> Option<Layout> {
+    let has = |f: fn(&Block) -> bool| blocks.iter().any(f);
+    Some(match name.trim() {
+        "title" => Layout::Title,
+        "section" => Layout::Section,
+        "statement" | "table" | "content" => Layout::Content,
+        "points" => Layout::Bullet,
+        "split" => {
+            if has(|b| matches!(b, Block::List { .. })) {
+                Layout::Bullet
+            } else {
+                Layout::Content
+            }
+        }
+        "media" => Layout::Image,
+        "gallery" => Layout::Gallery,
+        "quote" => Layout::Quote,
+        "code" => Layout::Code,
+        "visual" => {
+            if has(|b| matches!(b, Block::Diagram { .. })) {
+                Layout::Diagram
+            } else {
+                Layout::Visualization
+            }
+        }
+        "columns" => Layout::TwoColumn,
+        _ => return None,
+    })
 }
 
 /// How many blocks of each kind a slide holds.
@@ -67,6 +73,8 @@ struct Counts {
     diagrams: usize,
     visualizations: usize,
     tables: usize,
+    /// GitHub alerts; they also count as paragraphs.
+    callouts: usize,
     column_separators: usize,
 }
 
@@ -81,6 +89,10 @@ impl Counts {
                 Block::Image { .. } => c.images += 1,
                 Block::CodeBlock { .. } => c.code_blocks += 1,
                 Block::BlockQuote { .. } => c.quotes += 1,
+                Block::Callout { .. } => {
+                    c.paragraphs += 1;
+                    c.callouts += 1;
+                }
                 Block::Diagram { .. } => c.diagrams += 1,
                 Block::Chart { .. } => c.visualizations += 1,
                 Block::Table { .. } => c.tables += 1,
@@ -146,6 +158,11 @@ fn infer_layout(blocks: &[Block]) -> Layout {
         return Layout::Gallery;
     }
 
+    // A callout is drawn in the generic flow, which no layout below has.
+    if c.callouts > 0 {
+        return Layout::Content;
+    }
+
     // 7. Quote slide (allow one image for side-panel rendering)
     if c.quotes > 0 && c.lists == 0 && c.code_blocks == 0 && c.images <= 1 && c.tables == 0 {
         return Layout::Quote;
@@ -201,60 +218,20 @@ mod tests {
     use super::*;
     use crate::parser::{blocks, parse};
 
-    fn layout_directive(value: &str) -> Vec<Directive> {
-        vec![Directive {
-            name: "layout".into(),
-            value: value.into(),
-            line: 0,
-        }]
-    }
-
     #[test]
-    fn every_layout_name_round_trips() {
-        let all = [
-            Layout::Title,
-            Layout::Section,
-            Layout::Image,
-            Layout::Gallery,
-            Layout::Quote,
-            Layout::Code,
-            Layout::Bullet,
-            Layout::Diagram,
-            Layout::Visualization,
-            Layout::TwoColumn,
-            Layout::Content,
-        ];
-        for layout in all {
-            assert!(
-                Layout::NAMES.iter().any(|&(_, l)| l == layout),
-                "{layout:?} has no @layout name"
-            );
+    fn every_design_name_maps_to_a_layout() {
+        for &name in crate::language::DESIGNS {
+            assert!(design_layout(name, &[]).is_some(), "{name}");
         }
-        for &(name, layout) in Layout::NAMES {
-            assert_eq!(Layout::from_name(name), Some(layout), "{name}");
-            assert_eq!(explicit_layout(&layout_directive(name)), Some(layout));
-            let md = format!("@layout: {name}\n\n# A\n\n- one\n");
-            assert_eq!(parse(&md).slides[0].layout, layout, "{name}");
-        }
-        assert_eq!(Layout::from_name("bullets"), Some(Layout::Bullet));
-        assert_eq!(Layout::from_name("architecture"), Some(Layout::Diagram));
-    }
-
-    #[test]
-    fn unknown_layout_names_fall_back_to_content() {
-        assert_eq!(Layout::from_name("sideways"), None);
-        assert_eq!(Layout::from_name("Title"), None, "names are case-sensitive");
-        for value in ["sideways", "Title", ""] {
-            assert_eq!(
-                explicit_layout(&layout_directive(value)),
-                Some(Layout::Content)
-            );
-        }
-        assert_eq!(explicit_layout(&[]), None);
-        // The last @layout wins
-        let mut two = layout_directive("code");
-        two.extend(layout_directive("quote"));
-        assert_eq!(explicit_layout(&two), Some(Layout::Quote));
+        assert_eq!(design_layout("sideways", &[]), None);
+        let list = blocks::parse("- a");
+        assert_eq!(design_layout("split", &list), Some(Layout::Bullet));
+        assert_eq!(design_layout("split", &[]), Some(Layout::Content));
+        let md = "# A\n<!-- design: quote -->\n\n- one\n";
+        assert_eq!(parse(md).slides[0].layout, Layout::Quote);
+        // An unknown design is inferred (and reported by --check).
+        let md = "# A\n<!-- design: sideways -->\n\n- one\n";
+        assert_eq!(parse(md).slides[0].layout, Layout::Bullet);
     }
 
     #[test]
@@ -312,7 +289,7 @@ mod tests {
 
     #[test]
     fn test_two_column_layout() {
-        let content = "@layout: two-column\n\n# Compare\n\nLeft side\n\n+++\n\nRight side";
+        let content = "# Compare\n<!-- design: columns -->\n\nLeft side\n\n+++\n\nRight side";
         let pres = parse(content);
         assert_eq!(pres.slides.len(), 1);
         assert!(matches!(pres.slides[0].layout, Layout::TwoColumn));
@@ -358,14 +335,14 @@ mod tests {
     #[test]
     fn test_h1_h2_blocks_classify_as_title() {
         let blocks = blocks::parse("# Title\n\n## Subtitle");
-        assert!(matches!(classify_layout(&[], &blocks), Layout::Title));
+        assert!(matches!(classify_layout(None, &blocks), Layout::Title));
         // H1 + H3, or H1 + H2 + more content, are not title slides
         let blocks = blocks::parse("# Title\n\n### Deep");
-        assert!(!matches!(classify_layout(&[], &blocks), Layout::Title));
+        assert!(!matches!(classify_layout(None, &blocks), Layout::Title));
         let blocks = blocks::parse("# Title\n\n## Subtitle\n\nA paragraph");
-        assert!(!matches!(classify_layout(&[], &blocks), Layout::Title));
+        assert!(!matches!(classify_layout(None, &blocks), Layout::Title));
         // Lone H1 remains a section
         let blocks = blocks::parse("# Title");
-        assert!(matches!(classify_layout(&[], &blocks), Layout::Section));
+        assert!(matches!(classify_layout(None, &blocks), Layout::Section));
     }
 }

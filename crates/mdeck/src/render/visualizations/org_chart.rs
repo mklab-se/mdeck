@@ -401,12 +401,12 @@ mod tests {
 
     #[test]
     fn test_reveal_steps_introduce_nodes_at_their_first_edge() {
-        let (roots, edges) = parse_org_chart("- CEO\n+ CEO -> CTO\n+ CTO -> Dev\n* CEO -> CFO");
+        let (roots, edges) = parse_org_chart("- CEO\n+ CEO -> CTO\n+ CTO -> Dev\n+ CEO -> CFO");
         let (edge_steps, node_step) = reveal_steps(&roots, &edges);
-        assert_eq!(edge_steps, vec![1, 2, 2]);
+        assert_eq!(edge_steps, vec![1, 2, 3]);
         assert_eq!(node_step["CEO"], 0);
         assert_eq!(node_step["CTO"], 1);
         assert_eq!(node_step["Dev"], 2);
-        assert_eq!(node_step["CFO"], 2);
+        assert_eq!(node_step["CFO"], 3);
     }
 }

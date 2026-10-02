@@ -1,12 +1,12 @@
 ---
 title: "The Night Shift"
 author: "MDeck"
-@theme: darkroom
-@art: A harbour town at night in the 1950s: dock workers, fishing boats, streetlights and rain.
+theme: darkroom
+art-world: A harbour town at night in the 1950s: dock workers, fishing boats, streetlights and rain.
 ---
 
 # The Night Shift
-@art: A lone dock worker walking along a wet quay at night under a streetlight, fishing boats moored beside him.
+<!-- picture-prompt: A lone dock worker walking along a wet quay at night under a streetlight, fishing boats moored beside him. -->
 
 A darkroom deck, developed as it opens
 
@@ -17,7 +17,7 @@ A darkroom deck, developed as it opens
 - Then the white light comes on
 
 # The boats come in
-@art: A fishing boat coming into harbour at dawn, gulls following it, mist on the water.
+<!-- picture-prompt: A fishing boat coming into harbour at dawn, gulls following it, mist on the water. -->
 
 + Before first light the harbour wakes
 + The catch is sorted on the quay
@@ -31,7 +31,7 @@ A darkroom deck, developed as it opens
 
 # The catch, by weight
 
-```@barchart
+```@bar
 title: Tonnes landed
 - Cod: 42
 - Herring: 67
@@ -39,13 +39,12 @@ title: Tonnes landed
 ```
 
 # No photograph? A photogram
-@art: none
-@illustration: camera
+<!-- picture: camera -->
 
-- Without a photograph, the `@illustration` becomes a photogram
-- `@art: none` keeps a slide free of generated art
+- Without a photograph, the point cloud named by `picture` becomes a photogram
+- A slide that names a point cloud gets no generated art; `picture: none` keeps it empty
 
 # Lights on
-@art: A harbour café at dawn, a waiter setting out chairs, the first sunlight on the wet cobbles.
+<!-- picture-prompt: A harbour café at dawn, a waiter setting out chairs, the first sunlight on the wet cobbles. -->
 
 - The engine is `darkroom`, the theme is `darkroom`

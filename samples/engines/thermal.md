@@ -1,16 +1,17 @@
 ---
 title: What your eyes can't see
 author: Field Applications
-@theme: thermal
+theme: thermal
 ---
 
 # What your eyes can't see
 
 Thermal imaging in the field
 
-???
+```@notes
 The cold opening: the title forms in heat before the type settles. The
 pictures in this deck are synthetic examples, made for the MDeck samples.
+```
 
 # An ordinary cabinet
 
@@ -20,16 +21,18 @@ visible: ../images/thermal/cabinet-visible.jpg
 label: Cabinet 4, breaker row B (synthetic example images)
 + lens 76% 43% 16%
 + reveal
-* spot Hotspot 76% 43%
-* spot Reference 30% 52%
++ spot Hotspot 76% 43%
++ spot Reference 30% 52%
 ```
 
-???
-Click 1: the lens finds something. Click 2: the whole picture. The next
+```@notes
+Click 1: the lens finds something. Click 2: the whole picture. Clicks 3
+and 4 mark the hotspot and the reference. The next
 slide zooms into the hotspot.
+```
 
 # The hotspot, up close
-@zoom: Hotspot
+<!-- zoom-to: Hotspot -->
 
 ```@thermal
 image: ../images/thermal/cabinet-closeup.jpg
@@ -39,13 +42,14 @@ label: Breaker B3, terminal 2 (synthetic example image)
 + above 45%
 ```
 
-???
+```@notes
 Each click colours a wider band, from the hottest metal outward.
+```
 
 # The method
 
 # Seeing heat
-@illustration: thermographer
+<!-- picture: thermographer -->
 
 - Every surface gives off infrared radiation
 + Hotter surfaces give off more of it
@@ -54,7 +58,7 @@ Each click colours a wider band, from the hottest metal outward.
 
 # Where the heat goes
 
-```@barchart
+```@bar
 # y-label: Temperature rise (K)
 - Breaker B3: 55
 - Breaker B2: 12
@@ -63,8 +67,10 @@ Each click colours a wider band, from the hottest metal outward.
 ```
 
 # Before and after the repair
-@layout: two-column
-@thermal-window: 25..90 °C
+<!--
+design: columns
+thermal-window: 25..90 °C
+-->
 
 ```@thermal
 image: ../images/thermal/cabinet-before.png
@@ -81,7 +87,8 @@ label: After (synthetic example)
 - spot B3 76% 43%
 ```
 
-???
+```@notes
 One common scale, so the colours mean the same on both sides. The
 before image is a linear export (values are approximate, ≈); the after
 image is temperature data with a sidecar.
+```

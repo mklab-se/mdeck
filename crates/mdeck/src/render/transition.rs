@@ -22,7 +22,7 @@ pub struct ActiveTransition {
     pub kind: TransitionKind,
     pub direction: TransitionDirection,
     pub start: Instant,
-    /// Zoom into a spot of the outgoing slide's thermal image (`@zoom`).
+    /// Zoom into a spot of the outgoing slide's thermal image (`zoom-to`).
     pub zoom: Option<Zoom>,
 }
 

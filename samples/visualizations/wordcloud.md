@@ -1,6 +1,6 @@
 ---
 title: "Word Cloud Tests"
-@theme: dark
+theme: dark
 ---
 
 # Word Cloud — Large
@@ -108,8 +108,8 @@ title: "Word Cloud Tests"
 - Core (size: 50)
 + Frontend (size: 35)
 + Backend (size: 35)
-* API (size: 30)
++ API (size: 30)
 + DevOps (size: 25)
-* Docker (size: 20)
-* Kubernetes (size: 22)
++ Docker (size: 20)
++ Kubernetes (size: 22)
 ```

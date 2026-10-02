@@ -1,12 +1,12 @@
 ---
 title: "A Year in the Garden"
 author: "MDeck"
-@theme: watercolour
-@art: A small cottage garden by the sea, with a greenhouse, a wooden bench and a gardener in a straw hat, through the seasons.
+theme: watercolour
+art-world: A small cottage garden by the sea, with a greenhouse, a wooden bench and a gardener in a straw hat, through the seasons.
 ---
 
 # A Year in the Garden
-@art: A cottage garden in full summer bloom, a greenhouse glinting behind it and the sea beyond.
+<!-- picture-prompt: A cottage garden in full summer bloom, a greenhouse glinting behind it and the sea beyond. -->
 
 A watercolour deck, painted as it opens
 
@@ -17,7 +17,7 @@ A watercolour deck, painted as it opens
 - Everything planted out by May
 
 # Summer
-@art: The gardener in a straw hat resting on a wooden bench among tall hollyhocks and sunflowers on a hot afternoon.
+<!-- picture-prompt: The gardener in a straw hat resting on a wooden bench among tall hollyhocks and sunflowers on a hot afternoon. -->
 
 + Water at dawn, before the heat
 + Pick often, and the plants keep giving
@@ -31,7 +31,7 @@ A watercolour deck, painted as it opens
 
 # The harvest
 
-```@barchart
+```@bar
 title: Baskets picked
 - June: 4
 - July: 11
@@ -40,13 +40,12 @@ title: Baskets picked
 ```
 
 # No painting? Still watercolour
-@art: none
-@illustration: globe
+<!-- picture: globe -->
 
-- Without a painting, the `@illustration` is drawn in ink with a wash
-- `@art: none` keeps a slide free of generated art
+- Without a painting, the point cloud named by `picture` is drawn in ink with a wash
+- A slide that names a point cloud gets no generated art; `picture: none` keeps it empty
 
 # Until next spring
-@art: The garden under a light snow at dusk, a warm light in the cottage window and a robin on the garden gate.
+<!-- picture-prompt: The garden under a light snow at dusk, a warm light in the cottage window and a robin on the garden gate. -->
 
 - The engine is `watercolour`, the theme is `watercolour`

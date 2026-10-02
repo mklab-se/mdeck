@@ -88,7 +88,7 @@ impl Moment {
     }
 }
 
-/// A slide's `@illustration`, resolved.
+/// A slide's `picture`, resolved.
 #[derive(Clone, Debug)]
 pub struct Figure {
     pub cloud: Arc<Cloud>,

@@ -1,6 +1,6 @@
 ---
 title: "Stacked Bar Chart Tests"
-@theme: dark
+theme: dark
 ---
 
 # Stacked Bar — Basic
@@ -31,7 +31,7 @@ title: "Stacked Bar Chart Tests"
 # y-label: Headcount
 - Engineering: 50, 80, 120
 + Sales: 30, 45, 60
-* Marketing: 20, 30, 40
++ Marketing: 20, 30, 40
 + Support: 15, 25, 35
 ```
 

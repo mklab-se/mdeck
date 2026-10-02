@@ -1,4 +1,4 @@
-//! `@illustration` checks: names that do not resolve, layouts that never
+//! `picture` checks: names that do not resolve, layouts that never
 //! show one, and unreadable cloud files.
 
 use crate::check::{CheckCategory, CheckWarning};
@@ -18,7 +18,7 @@ pub fn illustration_warnings(
             continue;
         };
         let message = if let Err(e) = render::illustration::validate_name(name) {
-            format!("@illustration: {e}")
+            format!("picture: {e}")
         } else if !lib.has(name) {
             format!(
                 "no illustration named `{name}` (run `mdeck illustration list`, or \
@@ -34,7 +34,7 @@ pub fn illustration_warnings(
         };
         out.push(CheckWarning {
             slide: i + 1,
-            line: slide.directive_line("illustration"),
+            line: slide.setting_line("picture"),
             category: CheckCategory::Illustration,
             message,
         });
@@ -69,7 +69,7 @@ mod tests {
         };
         std::fs::write(tmp.join("illustrations/kettle.mdpc"), cloud.to_json()).unwrap();
         std::fs::write(tmp.join("illustrations/broken.mdpc"), "{").unwrap();
-        let md = "@illustration: kettle\n\n## Fine\n\n- a\n\n---\n\n@illustration: nothing\n\n## Missing\n\n- a\n\n---\n\n@illustration: kettle\n\n## Code\n\n```rust\nfn main() {}\n```\n\n---\n\n@illustration: Bad Name\n\n## Bad\n\n- a\n\n---\n\n@illustration: broken\n\n## Broken\n\n- a\n";
+        let md = "\n## Fine\n<!-- picture: kettle -->\n\n- a\n\n---\n\n\n## Missing\n<!-- picture: nothing -->\n\n- a\n\n---\n\n\n## Code\n<!-- picture: kettle -->\n\n```rust\nfn main() {}\n```\n\n---\n\n\n## Bad\n<!-- picture: Bad Name -->\n\n- a\n\n---\n\n\n## Broken\n<!-- picture: broken -->\n\n- a\n";
         let pres = parser::parse(md);
         let warnings = illustration_warnings(&pres, &tmp);
         let by_slide: Vec<(usize, String)> = warnings

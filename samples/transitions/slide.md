@@ -1,7 +1,7 @@
 ---
 title: "Transition Test: Slide"
-@theme: dark
-@transition: slide
+theme: dark
+transition: slide
 ---
 
 # Slide Transition

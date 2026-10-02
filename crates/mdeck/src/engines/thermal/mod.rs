@@ -7,7 +7,7 @@
 //!   and the words are readable within a second. Then the crisp type rises
 //!   into it (the copy waits [`COLD_OPEN_HOLD`]) and the heat settles into a
 //!   faint contour halo that stays.
-//! - **Heat signatures.** An `@illustration` glows like a warm body; the
+//! - **Heat signatures.** An `picture` glows like a warm body; the
 //!   countdown digits heat up and cool off; the end words glow and fade.
 //! - **Calm evidence.** Where a slide shows charts, images or diagrams the
 //!   field stays dark. With `heat: { drift: true }` a few embers drift

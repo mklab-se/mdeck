@@ -4,7 +4,7 @@
 //! a draughtsman works: faint construction lines run ahead, the ink follows
 //! stroke by stroke under a drafting machine's crosshair, and dimension
 //! lines are ruled around the finished drawing. Without art, the slide's
-//! `@illustration` is drawn as technical pen lines; the countdown and the
+//! `picture` is drawn as technical pen lines; the countdown and the
 //! end words are drawn the same way. Exports show the finished sheet.
 
 use eframe::egui;

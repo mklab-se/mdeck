@@ -124,11 +124,11 @@ pub enum Commands {
         #[arg(long)]
         range: Option<String>,
 
-        /// Theme to export with, overriding @theme and the config default
+        /// Theme to export with, overriding theme and the config default
         #[arg(long)]
         theme: Option<String>,
 
-        /// Engine to export with, overriding @engine and the theme's (plain, particles, ...)
+        /// Engine to export with, overriding engine and the theme's (plain, particles, ...)
         #[arg(long)]
         engine: Option<String>,
     },

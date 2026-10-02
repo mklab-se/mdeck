@@ -37,7 +37,7 @@ impl PresentationApp {
         };
         if !render::art::wants_art(slide) {
             self.toast = Some(Toast::new(
-                "This slide takes no art (its layout has no room, or it says @art: none)".into(),
+                "This slide takes no art (its layout has no room, or it says picture: none)".into(),
             ));
             return;
         }

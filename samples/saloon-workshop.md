@@ -1,20 +1,18 @@
 ---
 title: "The Art of Presentation"
 author: "MDeck Demo"
-date: 2026-02-28
-@theme: light
-@transition: fade
-@footer: "mdeck sample presentation"
+theme: light
+transition: fade
+footer: "mdeck sample presentation"
 ---
 
 # The Art of Presentation
 
 Lessons from a frontier saloon
 
-
+---
 
 ![The presenter @fill](images/saloon-horizontal.png)
-
 
 
 # Why Presentations Matter
@@ -23,10 +21,9 @@ Lessons from a frontier saloon
 + A great talk can change minds in 20 minutes
 + A bad one can waste an hour of everyone's time
 
-
+---
 
 ## Part One: Structure
-
 
 
 # The Three-Act Structure
@@ -40,7 +37,6 @@ Lessons from a frontier saloon
 Every great presentation tells a story.
 
 
-
 # Slide Economy
 
 + One idea per slide
@@ -48,7 +44,6 @@ Every great presentation tells a story.
 + Slides are *scaffolding* for your words, not a transcript
 
 > Your slides should make the audience want to hear what you say next — not read ahead.
-
 
 
 # The Opening
@@ -67,16 +62,15 @@ Last quarter, we bet everything on a hunch.
 Here's what happened.
 ```
 
-
+---
 
 ## Part Two: Design
 
-
+---
 
 ![A crowd learns @width:80%](images/saloon-vertical.png)
 
 A good presenter commands the room — not the screen.
-
 
 
 # Typography
@@ -88,10 +82,9 @@ A good presenter commands the room — not the screen.
 + **Rule of thumb:** if you can't read it from 3 meters away, it's too small.
 
 
-
 # Color and Contrast
 
-@layout: two-column
+<!-- design: columns -->
 
 **Light themes:**
 
@@ -110,7 +103,6 @@ A good presenter commands the room — not the screen.
 - Colors pop more
 
 
-
 # Images
 
 + Use images that *add meaning*, not decoration
@@ -127,7 +119,6 @@ A good presenter commands the room — not the screen.
 ```
 
 
-
 # Data Visualization
 
 | Chart Type | Best For |
@@ -139,10 +130,9 @@ A good presenter commands the room — not the screen.
 
 + Keep it simple. If your chart needs a legend with 12 entries, simplify.
 
-
+---
 
 ## Part Three: Delivery
-
 
 
 # Pacing
@@ -159,7 +149,6 @@ A good presenter commands the room — not the screen.
 ```
 
 
-
 # Handling Nerves
 
 + Preparation kills anxiety — rehearse out loud at least twice
@@ -171,7 +160,6 @@ A good presenter commands the room — not the screen.
 *Nobody notices your nerves as much as you do.*
 
 
-
 # The Q&A
 
 - Repeat every question before answering
@@ -181,7 +169,6 @@ A good presenter commands the room — not the screen.
 + Plant a question with a colleague if you're worried about dead air.
 
 
-
 # Common Mistakes
 
 + Reading slides word-for-word
@@ -189,10 +176,9 @@ A good presenter commands the room — not the screen.
 + Cramming 40 slides into a 20-minute slot
 + Apologizing for your own slides
 
-
+---
 
 > The secret of a good presentation is simple: know your story, respect your audience, and get out of their way.
-
 
 
 # Thank You

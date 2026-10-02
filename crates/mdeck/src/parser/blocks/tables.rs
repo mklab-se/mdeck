@@ -1,6 +1,6 @@
 //! Pipe tables with a `|---|` separator row.
 
-use crate::parser::{Block, Inline};
+use crate::parser::{Align, Block, Inline};
 
 /// Whether a (trimmed) line looks like a table row: `| ... |`.
 pub(super) fn is_table_line(trimmed: &str) -> bool {
@@ -42,7 +42,26 @@ pub(super) fn parse_table(lines: &[&str], start: usize) -> Option<(Block, usize)
         .map(|line| parse_table_row(line))
         .collect();
 
-    Some((Block::Table { headers, rows }, i))
+    let align = split_table_cells(table_lines[1])
+        .iter()
+        .map(|cell| {
+            let cell = cell.trim();
+            match (cell.starts_with(':'), cell.ends_with(':')) {
+                (true, true) => Align::Center,
+                (false, true) => Align::Right,
+                _ => Align::Left,
+            }
+        })
+        .collect();
+
+    Some((
+        Block::Table {
+            headers,
+            align,
+            rows,
+        },
+        i,
+    ))
 }
 
 /// A separator row: every cell is `---`, `:--`, `--:` or `:-:` (1+ dashes).
@@ -123,12 +142,18 @@ mod tests {
 
     #[test]
     fn test_parse_table() {
-        let input = "| A | B |\n|---|---|\n| 1 | 2 |";
+        let input = "| A | B | C |\n|---|:-:|--:|\n| 1 | 2 | 3 |";
         let blocks = parse(input);
         assert_eq!(blocks.len(), 1);
-        if let Block::Table { headers, rows } = &blocks[0] {
-            assert_eq!(headers.len(), 2);
+        if let Block::Table {
+            headers,
+            rows,
+            align,
+        } = &blocks[0]
+        {
+            assert_eq!(headers.len(), 3);
             assert_eq!(rows.len(), 1);
+            assert_eq!(align, &[Align::Left, Align::Center, Align::Right]);
         } else {
             panic!("Expected Table");
         }
@@ -158,7 +183,7 @@ mod tests {
         let input = "| Expr | Result |\n|---|---|\n| `a \\|\\| b` | x \\| y |\n| `c|d` | ``e|f`` |";
         let blocks = parse(input);
         assert_eq!(blocks.len(), 1, "{blocks:?}");
-        if let Block::Table { headers, rows } = &blocks[0] {
+        if let Block::Table { headers, rows, .. } = &blocks[0] {
             assert_eq!(headers.len(), 2);
             assert_eq!(rows.len(), 2);
             assert_eq!(rows[0].len(), 2);

@@ -56,7 +56,6 @@ pub(super) fn reveal_steps(
                 step_counter += 1;
                 step_counter
             }
-            DiagramReveal::WithPrev => step_counter,
         };
     }
     (node_steps, edge_steps)
@@ -122,9 +121,9 @@ mod tests {
 + Build  (icon: container, pos: 2,1)
 + Source -> Build: triggers
 + Test   (icon: function, pos: 3,1)
-* Build -> Test: on success
++ Build -> Test: on success
 + Deploy (icon: cloud, pos: 4,1)
-* Test -> Deploy: all green";
++ Test -> Deploy: all green";
 
         let (nodes, edges, _) = parse_diagram(content);
         assert_eq!(nodes.len(), 4); // Source, Build, Test, Deploy
@@ -140,15 +139,12 @@ mod tests {
         assert_eq!(edge_steps[0], 2, "Source->Build should be step 2");
         // + Test → step 3
         assert_eq!(node_steps[2], 3, "Test should be step 3");
-        // * Build -> Test → step 3 (with prev)
-        assert_eq!(edge_steps[1], 3, "Build->Test should be step 3 (with prev)");
-        // + Deploy → step 4
-        assert_eq!(node_steps[3], 4, "Deploy should be step 4");
-        // * Test -> Deploy → step 4 (with prev)
-        assert_eq!(
-            edge_steps[2], 4,
-            "Test->Deploy should be step 4 (with prev)"
-        );
+        // + Build -> Test → step 4
+        assert_eq!(edge_steps[1], 4, "Build->Test should be step 4");
+        // + Deploy → step 5
+        assert_eq!(node_steps[3], 5, "Deploy should be step 5");
+        // + Test -> Deploy → step 6
+        assert_eq!(edge_steps[2], 6, "Test->Deploy should be step 6");
     }
 
     #[test]
@@ -164,8 +160,8 @@ mod tests {
 + Cache -> DB: fills
 
 + Monitor (icon: monitor, pos: 2,2)
-* Monitor -- Server: observes
-* Monitor -- DB: observes";
+  - Monitor -- Server: observes
+  - Monitor -- DB: observes";
 
         let (nodes, edges, _) = parse_diagram(content);
         let (node_steps, edge_steps) = reveal_steps(&nodes, &edges);
@@ -184,10 +180,9 @@ mod tests {
 
         // + Monitor → step 4
         assert_eq!(node_steps[3], 4, "Monitor = 4");
-        // * Monitor -- Server → step 4
-        assert_eq!(edge_steps[3], 4, "Monitor--Server = 4");
-        // * Monitor -- DB → step 4
-        assert_eq!(edge_steps[4], 4, "Monitor--DB = 4");
+        // `*` (and `-`) items are static: they show from the start
+        assert_eq!(edge_steps[3], 0, "Monitor--Server = 0");
+        assert_eq!(edge_steps[4], 0, "Monitor--DB = 0");
     }
 
     #[test]

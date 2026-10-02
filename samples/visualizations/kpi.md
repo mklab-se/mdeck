@@ -1,6 +1,6 @@
 ---
 title: "KPI Card Tests"
-@theme: dark
+theme: dark
 ---
 
 # KPI Cards — Basic
@@ -32,7 +32,7 @@ title: "KPI Card Tests"
 - Deployments: 342 (trend: +28%)
 + Avg Build Time: 4.2m (trend: -15%)
 + Test Coverage: 87% (trend: +3%)
-* Incidents: 2 (trend: -60%)
++ Incidents: 2 (trend: -60%)
 ```
 
 

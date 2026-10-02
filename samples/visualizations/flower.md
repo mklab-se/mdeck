@@ -1,6 +1,6 @@
 ---
 title: "Flower Tests"
-@theme: light
+theme: light
 ---
 
 # Flower: a platform and its teams
@@ -60,7 +60,7 @@ title: "Flower Tests"
 + petal Checkout: Contributes the payment SDK
 + petal Search: Contributes the indexing pipeline
 + petal Mobile: Contributes the release train
-* petal Web: Contributes the design tokens
++ petal Web: Contributes the design tokens
 + Checkout -> Search: uses
 ```
 

@@ -1,6 +1,6 @@
 ---
 title: Thermal images
-@theme: dark
+theme: dark
 ---
 
 # Thermal images
@@ -30,7 +30,7 @@ visible: ../images/thermal/cabinet-visible.jpg
 + lens 30% 60% 14%
 + lens 76% 43% 16%
 + reveal
-* spot Hotspot 76% 43%
++ spot Hotspot 76% 43%
 ```
 
 # A lens without a photo
@@ -99,8 +99,10 @@ palette: white-hot
 ```
 
 # Before and after, on one scale
-@layout: two-column
-@thermal-window: 25..90 °C
+<!--
+design: columns
+thermal-window: 25..90 °C
+-->
 
 ```@thermal
 image: ../images/thermal/cabinet-before.png

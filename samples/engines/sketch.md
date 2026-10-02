@@ -1,12 +1,12 @@
 ---
 title: "The Workshop"
 author: "MDeck"
-@theme: sketchbook
-@art: A small workshop in a Victorian harbour town where a team of craftspeople builds modern machines. The same three people recur: an older clockmaker with a beard and apron, a young engineer with rolled sleeves and goggles on her forehead, and a small brass robot.
+theme: sketchbook
+art-world: A small workshop in a Victorian harbour town where a team of craftspeople builds modern machines. The same three people recur: an older clockmaker with a beard and apron, a young engineer with rolled sleeves and goggles on her forehead, and a small brass robot.
 ---
 
 # The Workshop
-@art: The clockmaker, the young engineer and the brass robot standing proudly in their workshop doorway, a harbour and masts behind them.
+<!-- picture-prompt: The clockmaker, the young engineer and the brass robot standing proudly in their workshop doorway, a harbour and masts behind them. -->
 
 A sketchbook deck, drawn as it opens
 
@@ -17,7 +17,7 @@ A sketchbook deck, drawn as it opens
 - Drawn in with a pencil: outlines first, then the shading
 
 # Tools we trust
-@art: The clockmaker at his bench repairing a laptop with watchmaker's tools, a loupe in his eye, the brass robot handing him a tiny screwdriver.
+<!-- picture-prompt: The clockmaker at his bench repairing a laptop with watchmaker's tools, a loupe in his eye, the brass robot handing him a tiny screwdriver. -->
 
 + Hand tools for the fine work
 + Machines for the heavy lifting
@@ -31,7 +31,7 @@ A sketchbook deck, drawn as it opens
 
 # The numbers stay typeset
 
-```@barchart
+```@bar
 title: Machines built
 - 2024: 12
 - 2025: 31
@@ -39,13 +39,12 @@ title: Machines built
 ```
 
 # No picture? Still a sketch
-@art: none
-@illustration: lightbulb
+<!-- picture: lightbulb -->
 
-- Without a picture, the `@illustration` is drawn in pencil
-- `@art: none` keeps a slide free of generated art
+- Without a picture, the point cloud named by `picture` is drawn in pencil
+- A slide that names a point cloud gets no generated art; `picture: none` keeps it empty
 
 # Thank you
-@art: The young engineer and the brass robot waving goodbye from a small steam launch leaving the harbour at sunset.
+<!-- picture-prompt: The young engineer and the brass robot waving goodbye from a small steam launch leaving the harbour at sunset. -->
 
 - The engine is `sketch`, the theme is `sketchbook`

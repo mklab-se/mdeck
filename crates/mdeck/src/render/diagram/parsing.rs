@@ -54,9 +54,7 @@ fn scale_directive(line: &str) -> Option<DiagramScale> {
 fn split_reveal(line: &str) -> (&str, DiagramReveal) {
     if let Some(rest) = line.strip_prefix("+ ") {
         (rest, DiagramReveal::NextStep)
-    } else if let Some(rest) = line.strip_prefix("* ") {
-        (rest, DiagramReveal::WithPrev)
-    } else if let Some(rest) = line.strip_prefix("- ") {
+    } else if let Some(rest) = line.strip_prefix("- ").or_else(|| line.strip_prefix("* ")) {
         (rest, DiagramReveal::Static)
     } else {
         (line, DiagramReveal::Static)
@@ -304,7 +302,7 @@ mod tests {
         let (nodes, _, _) = parse_diagram(content);
         assert_eq!(nodes[0].reveal, DiagramReveal::Static);
         assert_eq!(nodes[1].reveal, DiagramReveal::NextStep);
-        assert_eq!(nodes[2].reveal, DiagramReveal::WithPrev);
+        assert_eq!(nodes[2].reveal, DiagramReveal::Static);
     }
 
     #[test]
@@ -313,7 +311,7 @@ mod tests {
         let (_, edges, _) = parse_diagram(content);
         assert_eq!(edges[0].reveal, DiagramReveal::Static);
         assert_eq!(edges[1].reveal, DiagramReveal::NextStep);
-        assert_eq!(edges[2].reveal, DiagramReveal::WithPrev);
+        assert_eq!(edges[2].reveal, DiagramReveal::Static);
     }
 
     #[test]

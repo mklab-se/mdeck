@@ -1,6 +1,6 @@
 ---
 title: "Donut Chart Tests"
-@theme: dark
+theme: dark
 ---
 
 # Donut Chart — With Center Text
@@ -33,7 +33,7 @@ title: "Donut Chart Tests"
 - North America: 42
 + Europe: 28
 + Asia Pacific: 18
-* Latin America: 8
++ Latin America: 8
 + Africa: 4
 ```
 
@@ -42,7 +42,7 @@ title: "Donut Chart Tests"
 
 # Donut Chart — Long Center Text
 
-```@donutchart
+```@donut
 # center: $4,250,000 Annual Recurring Revenue
 - Enterprise: 2,400,000
 - Mid-market: 1,150,000

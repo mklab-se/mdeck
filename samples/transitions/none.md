@@ -1,7 +1,7 @@
 ---
 title: "Transition Test: None"
-@theme: dark
-@transition: none
+theme: dark
+transition: none
 ---
 
 # No Transition

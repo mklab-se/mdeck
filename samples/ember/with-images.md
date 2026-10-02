@@ -1,8 +1,8 @@
 ---
 title: "Saloon night"
 author: "MKLab"
-@theme: ember
-@transition: fade
+theme: ember
+transition: fade
 ---
 
 # Saloon night

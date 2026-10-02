@@ -1,7 +1,7 @@
 ---
 title: "Layout Test: Gallery Slides"
-@theme: dark
-@transition: fade
+theme: dark
+transition: fade
 ---
 
 # Layout Test: Gallery Slides

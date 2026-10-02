@@ -1,5 +1,5 @@
 //! A logo in a corner of every slide: from the theme (`logo:`), from the
-//! deck (`@logo:`), or both (the deck wins). A slide's own `@logo` hides it
+//! deck (`logo:`), or both (the deck wins). A slide's own `logo` hides it
 //! there (`none`) or shows another file. PNG and SVG; drawn the same way
 //! when presenting and when exporting.
 
@@ -76,9 +76,9 @@ fn is_logo_file(path: &Path) -> bool {
     )
 }
 
-/// The logo a deck shows: `@logo` (relative to the deck) over the theme's,
-/// with `@logo-position`, `@logo-opacity` and `@logo-height` over the
-/// theme's settings. `@logo: none` hides the theme's logo. Returns the logo
+/// The logo a deck shows: `logo` (relative to the deck) over the theme's,
+/// with `logo-position`, `logo-opacity` and `logo-height` over the
+/// theme's settings. `logo: none` hides the theme's logo. Returns the logo
 /// and any problems (a bad value falls back to the default).
 pub fn resolve(
     theme: &Theme,
@@ -109,7 +109,7 @@ pub fn resolve(
     (logo, problems)
 }
 
-/// The logo on every slide: the deck's, unless a slide's own `@logo` hides it
+/// The logo on every slide: the deck's, unless a slide's own `logo` hides it
 /// (`none`) or shows another file, placed like the deck's logo.
 #[derive(Debug, Clone, Default)]
 pub struct Logos {
@@ -134,7 +134,7 @@ impl Logos {
     }
 }
 
-/// Resolve the deck's logo ([`resolve`]) and each slide's `@logo` over it.
+/// Resolve the deck's logo ([`resolve`]) and each slide's `logo` over it.
 /// Problems name the slide they come from.
 pub fn resolve_slides(
     theme: &Theme,
@@ -169,16 +169,16 @@ pub fn resolve_slides(
 fn logo_file(deck_dir: &Path, file: &str) -> anyhow::Result<PathBuf> {
     let path = deck_dir.join(file);
     if !is_logo_file(&path) {
-        Err(anyhow!("@logo: '{file}' must be a .png or .svg file"))
+        Err(anyhow!("logo: '{file}' must be a .png or .svg file"))
     } else if !path.is_file() {
-        Err(anyhow!("@logo: {} was not found", path.display()))
+        Err(anyhow!("logo: {} was not found", path.display()))
     } else {
         Ok(path)
     }
 }
 
 /// Where and how a logo is drawn: the theme's settings (or the defaults) with
-/// the deck's `@logo-position`, `@logo-opacity` and `@logo-height` over them.
+/// the deck's `logo-position`, `logo-opacity` and `logo-height` over them.
 /// The path is left empty.
 fn style(theme: &Theme, meta: &PresentationMeta, problems: &mut Vec<String>) -> Logo {
     let mut logo = match &theme.logo {
@@ -197,7 +197,7 @@ fn style(theme: &Theme, meta: &PresentationMeta, problems: &mut Vec<String>) -> 
         match Corner::from_name(p) {
             Some(c) => logo.corner = c,
             None => problems.push(format!(
-                "@logo-position: '{p}' is not top-left, top-right, bottom-left or bottom-right"
+                "logo-position: '{p}' is not top-left, top-right, bottom-left or bottom-right"
             )),
         }
     }
@@ -205,7 +205,7 @@ fn style(theme: &Theme, meta: &PresentationMeta, problems: &mut Vec<String>) -> 
         match parse_opacity(o) {
             Some(v) => logo.opacity = v,
             None => problems.push(format!(
-                "@logo-opacity: '{o}' must be 0 to 1 (or 0% to 100%)"
+                "logo-opacity: '{o}' must be 0 to 1 (or 0% to 100%)"
             )),
         }
     }
@@ -213,7 +213,7 @@ fn style(theme: &Theme, meta: &PresentationMeta, problems: &mut Vec<String>) -> 
         match h.trim().trim_end_matches("px").parse::<f32>() {
             Ok(v) if valid_height(v) => logo.height = v,
             _ => problems.push(format!(
-                "@logo-height: '{h}' must be 8 to 400 (px at 1920x1080)"
+                "logo-height: '{h}' must be 8 to 400 (px at 1920x1080)"
             )),
         }
     }
@@ -452,13 +452,13 @@ mod tests {
         let d = tmp("slides");
         std::fs::write(d.join("deck.svg"), SVG).unwrap();
         std::fs::write(d.join("partner.svg"), SVG).unwrap();
-        let md = "---\n@logo: deck.svg\n@logo-position: bottom-left\n---\n\n\
-                  # One\n\n- a\n\n# Two\n@logo: none\n\n- b\n\n\
-                  # Three\n@logo: partner.svg\n\n- c\n\n# Four\n@logo: gone.svg\n\n- d\n";
+        let md = "---\nlogo: deck.svg\nlogo-position: bottom-left\n---\n\n\
+                  # One\n\n- a\n\n# Two\n<!-- logo: none -->\n\n- b\n\n\
+                  # Three\n<!-- logo: partner.svg -->\n\n- c\n\n# Four\n<!-- logo: gone.svg -->\n\n- d\n";
         let pres = crate::parser::parse(md);
         let (logos, problems) = resolve_slides(&Theme::light(), &pres, &d);
         assert_eq!(logos.get(0).unwrap().path, d.join("deck.svg"));
-        assert!(logos.get(1).is_none(), "@logo: none hides it on that slide");
+        assert!(logos.get(1).is_none(), "logo: none hides it on that slide");
         let partner = logos.get(2).unwrap();
         assert_eq!(partner.path, d.join("partner.svg"));
         assert_eq!(
@@ -471,12 +471,13 @@ mod tests {
             d.join("deck.svg"),
             "bad file falls back"
         );
-        assert!(problems[0].starts_with("slide 4: @logo:"), "{problems:?}");
+        assert!(problems[0].starts_with("slide 4: logo:"), "{problems:?}");
         assert!(logos.get(4).is_none(), "no logo past the last slide");
         assert_eq!(logos.distinct().len(), 2);
 
         // A deck that hides the theme's logo can still show one on a slide.
-        let md = "---\n@logo: none\n---\n\n# One\n\n- a\n\n# Two\n@logo: partner.svg\n\n- b\n";
+        let md =
+            "---\nlogo: none\n---\n\n# One\n\n- a\n\n# Two\n<!-- logo: partner.svg -->\n\n- b\n";
         let pres = crate::parser::parse(md);
         let (logos, _) = resolve_slides(&Theme::light(), &pres, &d);
         assert!(logos.get(0).is_none());

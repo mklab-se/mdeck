@@ -41,12 +41,10 @@ pub fn reveal_anim_progress(
 /// Reveal marker for visualization elements (mirrors diagram semantics).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum VizReveal {
-    /// Always visible (prefix `-` or no prefix).
+    /// Always visible (prefix `-`, `*` or no prefix).
     Static,
     /// Appears on the next reveal step (prefix `+`).
     NextStep,
-    /// Appears together with the previous `+` element (prefix `*`).
-    WithPrev,
 }
 
 /// Parse a line's reveal prefix, returning the trimmed content and its reveal marker.
@@ -54,9 +52,10 @@ pub fn parse_reveal_prefix(line: &str) -> (&str, VizReveal) {
     let trimmed = line.trim();
     if let Some(rest) = trimmed.strip_prefix("+ ") {
         (rest, VizReveal::NextStep)
-    } else if let Some(rest) = trimmed.strip_prefix("* ") {
-        (rest, VizReveal::WithPrev)
-    } else if let Some(rest) = trimmed.strip_prefix("- ") {
+    } else if let Some(rest) = trimmed
+        .strip_prefix("- ")
+        .or_else(|| trimmed.strip_prefix("* "))
+    {
         (rest, VizReveal::Static)
     } else {
         (trimmed, VizReveal::Static)
@@ -86,7 +85,6 @@ pub fn assign_steps(reveals: &[VizReveal]) -> Vec<usize> {
                 step_counter += 1;
                 step_counter
             }
-            VizReveal::WithPrev => step_counter,
         })
         .collect()
 }
@@ -99,7 +97,7 @@ mod tests {
     fn test_parse_reveal_prefix() {
         assert_eq!(parse_reveal_prefix("- foo"), ("foo", VizReveal::Static));
         assert_eq!(parse_reveal_prefix("+ bar"), ("bar", VizReveal::NextStep));
-        assert_eq!(parse_reveal_prefix("* baz"), ("baz", VizReveal::WithPrev));
+        assert_eq!(parse_reveal_prefix("* baz"), ("baz", VizReveal::Static));
         assert_eq!(parse_reveal_prefix("plain"), ("plain", VizReveal::Static));
     }
 
@@ -121,10 +119,10 @@ mod tests {
             VizReveal::Static,
             VizReveal::NextStep,
             VizReveal::NextStep,
-            VizReveal::WithPrev,
+            VizReveal::Static,
             VizReveal::NextStep,
         ];
-        assert_eq!(assign_steps(&reveals), vec![0, 1, 2, 2, 3]);
+        assert_eq!(assign_steps(&reveals), vec![0, 1, 2, 0, 3]);
     }
 
     #[test]

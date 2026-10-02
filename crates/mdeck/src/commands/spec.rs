@@ -4,79 +4,67 @@ pub fn run(short: bool) {
     if short {
         print_short_reference();
     } else {
-        println!("{SPEC}");
+        println!("{}", full_reference());
     }
 }
+
+/// The format reference, with its settings tables generated from the
+/// language table.
+pub fn full_reference() -> String {
+    SPEC.replace(
+        SETTINGS_MARKER,
+        crate::language::settings_reference().trim_end(),
+    )
+}
+
+/// Where the format reference takes the generated settings tables.
+const SETTINGS_MARKER: &str = "<!-- generated: settings -->";
 
 fn print_short_reference() {
     print!("{}", short_reference());
 }
 
-/// The quick reference card up to its keyboard section.
+/// The quick reference card up to its settings section.
 const CARD_HEAD: &str = r#"MDeck Quick Reference
 =====================
 
-SLIDE SEPARATION
-  ---              Explicit separator (blank lines above and below)
-  3+ blank lines   Automatic slide break
-  # Heading        Starts new slide when current slide has content
+SLIDES
+  # Heading        A heading at the slide level starts a new slide (ATX or
+                   setext). Level: 2 with zero or one H1, else 1
+  ---              Explicit break (blank lines above and below)
+  # Title + ## Sub An H2 directly under a lone H1 is its subtitle
 
-FRONTMATTER (YAML at top of file)
-  title, author, date     Standard metadata
-  @theme: name            Theme: dark, light, nord, ember, spring, summer,
-                          autumn, winter, marquee, departures, etch, stack,
-                          blueprint, sketchbook, chalkboard, watercolour,
-                          darkroom, thermal, or a custom one (see THEMES)
-  @engine: name           Run on this engine instead of the theme's: plain,
-                          particles, led, splitflap, laser, blocks, blueprint,
-                          sketch, chalkboard, watercolour, darkroom, thermal
-                          (try one with --engine name)
-  @art: "..."             The deck's world for generated art (art engines)
-  @transition: slide|fade|spatial|none
-  @aspect: 16:9|4:3|16:10
-  @footer: "text"         Footer on every slide
-  @background: file       Image behind every slide (png, jpg, webp, svg)
-  @background-opacity: 30%  How strongly it shows (0-1 or %, default 30%)
-  @palette: iron          Palette of @thermal images (iron, white-hot,
-                          black-hot, rainbow, arctic, lava)
+"#;
 
-SLIDE DIRECTIVES (on their own line, under the slide's heading)
-  @layout: name         Override the inferred layout
-  @illustration: name   Point cloud illustration (particles engine)
-  @logo: file|none      This slide's logo, or none to hide it
-  @art: "..."|none      This slide's picture on an art engine, or none
-  @background: file|none  This slide's background image, or none
-  @background-opacity: 50%  This slide's background opacity
-  @thermal-window: 25..90 °C  One scale for the slide's @thermal images
-  @zoom: Spot           Enter by zooming into a spot of the last slide
-
-LAYOUTS (auto-inferred, override with @layout: name)
+/// The quick reference card between its settings and its keyboard section.
+const CARD_MIDDLE: &str = r#"DESIGNS (recognised from the content, or chosen with <!-- design: name -->)
   title        H1 + optional subtitle
   section      Lone heading, centered
-  bullet       Heading + list
+  points       Heading + list
   quote        Blockquote + optional attribution
   code         Code block + optional heading
-  image        Single image + optional heading/caption
+  media        Single image + optional heading/caption
   gallery      2+ images
-  diagram      @architecture fenced block
-  two-column   @layout: two-column with +++ separator
-  content      Fallback
+  visual       A chart or diagram
+  columns      Two columns split by +++
+  statement, split, table, content   (drawn as content until phase 3)
 
-INCREMENTAL REVEAL (list markers)
-  -   Static (always visible)
-  +   Next step (appears on forward press)
-  *   Same step as previous +
+STEPS (list markers)
+  -  *  Static (always visible)
+  +     Its own step; its children appear with it
+  Steps count across the slide in reading order, visuals included.
+  `reveal: none` (deck or slide) shows everything at once.
 
 MATH (LaTeX, KaTeX syntax)
   $E = mc^2$            Inline, on the text baseline
   $$\frac{a}{b}$$       Display: own line, centred
   \$5                   Literal dollar sign ($5 and $10 stay text anyway)
 
-IMAGE DIRECTIVES (in alt text)
-  @fill  @fit  @width:80%  @height:100px  @left  @right  @center
+IMAGE OPTIONS (in alt text)
+  @fill  @width:80%
 
-PARTICLES ENGINE (ember, autumn, winter, and custom themes on it)
-  @illustration: name   Point cloud beside the copy (title: behind it)
+POINT CLOUDS (pictures for the particles engine and others)
+  <!-- picture: name -->  Point cloud beside the copy (title: behind it)
                         deck illustrations/ > ~/.config/mdeck/illustrations > built-in
   mdeck illustration generate --name NAME --description "..."   New cloud via AI
   mdeck illustration import IMAGE --name NAME | list | show NAME | contribute NAME
@@ -85,7 +73,7 @@ ART ENGINES (blueprint, sketch, chalkboard, watercolour, darkroom; spec 9.7)
   mdeck ai art deck.md  Draw a picture per slide (--slide N, --stale, --force,
                         --dry-run, --engine, --node); kept in art/ and deck.art.yaml
   S                     While presenting: draw this slide's picture
-  Without art           The slide's @illustration is drawn in the medium
+  Without art           The slide's picture (point cloud) is drawn in the medium
 
 THERMAL IMAGES (```@thermal; spec 14.20)
   image: file.png       Grayscale, white-hot (brighter is hotter)
@@ -101,37 +89,16 @@ THERMAL IMAGES (```@thermal; spec 14.20)
 KEYBOARD & MOUSE
 "#;
 
-/// The quick reference card after its keyboard section.
+/// The quick reference card after its keyboard section, before its fences.
 const CARD_TAIL: &str = r#"  Drawings fade out after 8 seconds
 
 COLUMN SEPARATOR
-  +++   Separates left and right columns in two-column layout
+  +++   Separates left and right columns (the columns design)
 
 SPEAKER NOTES
-  ???   Notes separator (3+ question marks)
-        Everything after ??? is presenter-only notes (not rendered)
-        Supports full markdown formatting in notes content
-
-VISUALIZATIONS (fenced code blocks with @ language tag)
-  @barchart      Bar chart (vertical/horizontal, # orientation:, # x-label:, # y-label:)
-  @linechart     Line chart (# x-labels:, # x-label:, # y-label:, multiple series)
-  @scatter       Scatter plot (# x-label:, # y-label:, optional size per point)
-  @stackedbar    Stacked bar (# categories:, # x-label:, # y-label:)
-  @piechart      Pie chart (- Label: value%)
-  @donutchart    Donut chart (# center: text)
-  @wordcloud     Word cloud (- Word (size: N), auto-rotation)
-  @timeline      Timeline (- Year: Event)
-  @funnel        Funnel chart (- Stage: value)
-  @kpi           KPI cards (- Metric: value (trend: up, change: +N%))
-  @progress      Progress bars (- Label: value%)
-  @radar         Radar chart (# axes: A, B, C)
-  @venn          Venn diagram (- Set: item1, item2)
-  @orgchart      Org chart (- Name (parent: Parent))
-  @gantt         Gantt chart (- Task: date, duration, after Dep; # labels: inside)
-  @gitgraph      Git branch graph (lane, commit, branch/merge with ->, tag)
-  @flower        Platform and teams (- center Name, - petal Name: what, A -> B)
-  @artifactflow  Artifact supply chain (producer/service/consumer, A -> B: artifact)
-  @thermal       Thermal image: palette, lens, reveal, threshold, spots (spec 14.20)
+  ```@notes      A fenced block of markdown notes, anywhere in the slide;
+  ...            several are joined in order. Nothing in them splits the
+  ```            slide. Shown in PDF export with --notes
 
 GANTT CHART DURATION FORMATS
   Nd             Calendar days (e.g. 10d)
@@ -144,7 +111,7 @@ GANTT CHART DURATION FORMATS
 CHART AXIS LABELS
   # x-label: text    Horizontal axis label (centered below)
   # y-label: text    Vertical axis label (rotated 90° CCW)
-  Supported by: @barchart, @linechart, @scatter, @stackedbar
+  Supported by: @bar, @line, @scatter, @stackedbar
 
 THEMES (custom themes are YAML files; mdeck spec, section 9.4)
   themes/<name>.yaml     Next to the deck (or <name>/theme.yaml with fonts)
@@ -157,11 +124,26 @@ THEMES (custom themes are YAML files; mdeck spec, section 9.4)
   mdeck theme new <n> [--from <design system folder>]
 "#;
 
-/// Build the quick reference card. The keyboard section is generated from
-/// the same shortcut table the in-app HUD uses, so the two cannot drift.
+/// Build the quick reference card. The settings and fences are generated
+/// from the language table and the keyboard section from the shortcut table
+/// the in-app HUD uses, so none of them can drift.
 pub fn short_reference() -> String {
-    let card = crate::app::keys::shortcut_card();
-    format!("{CARD_HEAD}{card}{CARD_TAIL}")
+    let settings = crate::language::settings_card();
+    let keys = crate::app::keys::shortcut_card();
+    let fences = fences_card();
+    format!("{CARD_HEAD}{settings}{CARD_MIDDLE}{keys}{CARD_TAIL}{fences}")
+}
+
+/// The mdeck fences, from the language table.
+fn fences_card() -> String {
+    use crate::language::{FENCES, FenceKind};
+    let mut out = String::from("\nFENCES (```@tag; tags match exactly, one name per kind)\n");
+    for kind in [FenceKind::Visual, FenceKind::Notes] {
+        for f in FENCES.iter().filter(|f| f.kind == kind) {
+            out.push_str(&format!("  {:<15}{}\n", f.tag, f.summary));
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -187,24 +169,50 @@ mod tests {
         let card = short_reference();
         assert!(card.starts_with("MDeck Quick Reference\n"));
         assert!(card.contains("KEYBOARD & MOUSE\n"));
-        assert!(card.ends_with("[--from <design system folder>]\n"));
-        assert_eq!(
-            card.len(),
-            CARD_HEAD.len() + crate::app::keys::shortcut_card().len() + CARD_TAIL.len()
-        );
+        assert!(card.ends_with("Speaker notes, in markdown\n"));
+        let keys = card.find("KEYBOARD & MOUSE").unwrap();
+        assert!(card.find("DECK SETTINGS").unwrap() < keys);
+        assert!(card.find("FENCES").unwrap() > keys);
+    }
+
+    #[test]
+    fn the_format_reference_takes_the_generated_settings() {
+        assert!(SPEC.contains(SETTINGS_MARKER));
+        let full = full_reference();
+        assert!(!full.contains(SETTINGS_MARKER));
+        assert!(full.contains("| `picture-prompt` |"));
+    }
+
+    #[test]
+    fn short_reference_shows_no_v1_syntax() {
+        let card = short_reference();
+        for v1 in [
+            "@theme",
+            "@layout",
+            "@illustration",
+            "???",
+            "@barchart",
+            "@piechart",
+        ] {
+            assert!(!card.contains(v1), "{v1} is v1 syntax");
+        }
+        for s in crate::language::SETTINGS {
+            assert!(card.contains(s.name), "{}", s.name);
+        }
     }
 
     #[test]
     fn short_reference_keeps_other_sections() {
         let card = short_reference();
         for section in [
-            "SLIDE SEPARATION",
-            "FRONTMATTER",
-            "LAYOUTS",
-            "INCREMENTAL REVEAL",
+            "SLIDES",
+            "DECK SETTINGS",
+            "SLIDE SETTINGS",
+            "DESIGNS",
+            "STEPS",
             "KEYBOARD & MOUSE",
             "SPEAKER NOTES",
-            "VISUALIZATIONS",
+            "FENCES",
             "GANTT CHART DURATION FORMATS",
             "CHART AXIS LABELS",
         ] {

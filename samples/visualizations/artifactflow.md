@@ -1,6 +1,6 @@
 ---
 title: "Artifact Flow Tests"
-@theme: light
+theme: light
 ---
 
 # Artifact flow: a shared registry
@@ -69,9 +69,9 @@ title: "Artifact Flow Tests"
 - service Artifact Store: Versioned and signed (icon: database)
 + CI Pipeline -> Artifact Store: build v2.0 (icon: package)
 + consumer Staging: Deploys every build
-* Artifact Store -> Staging: latest
++ Artifact Store -> Staging: latest
 + consumer Production: Deploys approved builds
-* Artifact Store -> Production: approved
++ Artifact Store -> Production: approved
 ```
 
 ---

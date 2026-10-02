@@ -1,23 +1,23 @@
 ---
 title: "Stack"
 author: "MDeck"
-@theme: stack
+theme: stack
 ---
 
 # Building Blocks
-@illustration: robot
+<!-- picture: robot -->
 
 Every picture, one block at a time
 
 # Pictures fall into place
-@illustration: rocket
+<!-- picture: rocket -->
 
 - Illustrations are cut into blocks
 - The pieces drop from above, bottom row first
 - They land with a small bounce and settle
 
 # Clearing the board
-@illustration: lightbulb
+<!-- picture: lightbulb -->
 
 + Leaving a slide, the stack flashes and clears
 + The next picture falls into its place
@@ -28,6 +28,6 @@ Every picture, one block at a time
 Slides without an illustration keep the playfield calm, so the copy has the stage.
 
 # Thank you
-@illustration: globe
+<!-- picture: globe -->
 
 - The engine is `blocks`, the theme is `stack`

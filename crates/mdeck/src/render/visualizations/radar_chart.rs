@@ -335,7 +335,7 @@ mod tests {
         let data = parse_radar_chart(content);
         assert_eq!(data.series[0].reveal, VizReveal::Static);
         assert_eq!(data.series[1].reveal, VizReveal::NextStep);
-        assert_eq!(data.series[2].reveal, VizReveal::WithPrev);
+        assert_eq!(data.series[2].reveal, VizReveal::Static);
     }
 
     #[test]

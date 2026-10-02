@@ -1,6 +1,6 @@
 ---
 title: "Timeline Tests"
-@theme: dark
+theme: dark
 ---
 
 # Timeline — Basic
@@ -38,6 +38,6 @@ title: "Timeline Tests"
 - Jan: Kickoff and planning
 + Mar: Alpha release
 + Jun: Beta with 500 testers
-* Sep: Public launch
++ Sep: Public launch
 + Dec: 50K active users
 ```

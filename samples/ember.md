@@ -1,8 +1,8 @@
 ---
 title: "Ember"
 author: "MKLab"
-@theme: ember
-@transition: fade
+theme: ember
+transition: fade
 ---
 
 # Light, held quietly
@@ -79,7 +79,7 @@ fn scene_for(slide: &Slide) -> Scene {
 
 ## Where the time goes
 
-```@barchart
+```@bar
 # y-label: Hours
 - Writing: 12
 - Design: 3
@@ -119,4 +119,4 @@ Any deck you already have can switch to this theme with one line of frontmatter.
 
 # Thank you
 
-Switch the theme with `Shift+T`, or set `@theme: ember` in your frontmatter.
+Switch the theme with `Shift+T`, or set `theme: ember` in your frontmatter.

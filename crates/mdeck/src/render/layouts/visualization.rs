@@ -65,14 +65,27 @@ pub fn render(cx: &BlockCx, slide: &Slide, rect: egui::Rect) {
             if let Block::Chart {
                 kind: crate::parser::Chart::Thermal,
                 content,
+                step_base,
             } = block
             {
-                crate::render::thermal::draw(cx, content, viz_pos, content_width, remaining_height);
-            } else if let Block::Chart { kind, content } = block {
+                let cx = cx.after_steps(*step_base);
+                crate::render::thermal::draw(
+                    &cx,
+                    content,
+                    viz_pos,
+                    content_width,
+                    remaining_height,
+                );
+            } else if let Block::Chart {
+                kind,
+                content,
+                step_base,
+            } = block
+            {
                 visualizations::draw(
                     *kind,
                     content,
-                    &cx.viz(),
+                    &cx.after_steps(*step_base).viz(),
                     viz_pos,
                     content_width,
                     remaining_height,

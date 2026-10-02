@@ -40,6 +40,7 @@ fn render_quote_content(cx: &TextCx, slide: &Slide, content_rect: egui::Rect) {
         quote: quote_inlines,
         attribution,
     } = QuoteParts::of(slide);
+    let (quote_inlines, attribution) = (quote_inlines.as_ref(), attribution.as_ref());
 
     let quote_size = theme.body_size * 1.3 * scale;
     let quote_gap = 30.0 * scale;
@@ -115,27 +116,33 @@ fn render_quote_content(cx: &TextCx, slide: &Slide, content_rect: egui::Rect) {
     }
 }
 
-/// A quote slide's parts: its heading, the quote, and the paragraph after
-/// the quote as its attribution.
+/// A quote slide's parts: its heading, the quote, and its attribution (the
+/// paragraph after the quote, or the quote's own last paragraph).
 #[derive(Debug, Default)]
 struct QuoteParts<'a> {
     heading: Option<(u8, &'a Vec<Inline>)>,
-    quote: Option<&'a Vec<Inline>>,
-    attribution: Option<&'a Vec<Inline>>,
+    quote: Option<Vec<Inline>>,
+    attribution: Option<Vec<Inline>>,
 }
 
 impl<'a> QuoteParts<'a> {
     fn of(slide: &'a Slide) -> Self {
         let mut parts = QuoteParts::default();
+        let mut quote_blocks = None;
         for block in &slide.blocks {
             match block {
                 Block::Heading { level, inlines } => parts.heading = Some((*level, inlines)),
-                Block::BlockQuote { inlines } => parts.quote = Some(inlines),
-                Block::Paragraph { inlines } if parts.quote.is_some() => {
-                    parts.attribution = Some(inlines);
+                Block::BlockQuote { blocks } => quote_blocks = Some(blocks),
+                Block::Paragraph { inlines } if quote_blocks.is_some() => {
+                    parts.attribution = Some(inlines.clone());
                 }
                 _ => {}
             }
+        }
+        if let Some(blocks) = quote_blocks {
+            let (quote, own) = Block::quote_parts(blocks, parts.attribution.is_some());
+            parts.quote = Some(quote);
+            parts.attribution = parts.attribution.take().or(own);
         }
         parts
     }
@@ -225,8 +232,21 @@ mod tests {
         let parts = QuoteParts::of(slide);
         assert_eq!(parts.heading.map(|(l, _)| l), Some(2));
         assert!(parts.quote.is_some());
-        let attr = crate::parser::inlines_to_text(parts.attribution.unwrap());
+        let attr = crate::parser::inlines_to_text(&parts.attribution.unwrap());
         assert!(attr.contains("Steve"), "{attr}");
+    }
+
+    #[test]
+    fn a_last_quote_paragraph_is_the_attribution() {
+        // D25: `> text`, `>`, `> Who` keeps Who out of the quotation.
+        let slide =
+            &crate::parser::parse("# Patience\n\n> The negative is the score.\n>\n> Ansel Adams\n")
+                .slides[0];
+        let parts = QuoteParts::of(slide);
+        let quote = crate::parser::inlines_to_text(&parts.quote.unwrap());
+        assert_eq!(quote, "The negative is the score.");
+        let attr = crate::parser::inlines_to_text(&parts.attribution.unwrap());
+        assert_eq!(attr, "Ansel Adams");
     }
 
     #[test]

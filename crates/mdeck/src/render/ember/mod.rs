@@ -378,16 +378,11 @@ mod tests {
     #[test]
     fn handles_text_slides_only() {
         let mk = |layout, blocks| Slide {
-            directives: vec![],
             blocks,
             layout,
             raw_source: String::new(),
-            line: 0,
-            source_lines: Vec::new(),
             notes: None,
-            illustration: None,
-            logo: None,
-            art: None,
+            ..Default::default()
         };
         assert!(handles(&mk(Layout::Title, vec![])));
         assert!(handles(&mk(Layout::Bullet, vec![])));
@@ -397,6 +392,7 @@ mod tests {
             Layout::Content,
             vec![Block::Table {
                 headers: vec![],
+                align: vec![],
                 rows: vec![],
             }],
         );

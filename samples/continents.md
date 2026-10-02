@@ -1,9 +1,9 @@
 ---
 title: "The Seven Continents"
 author: "mdeck"
-@theme: dark
-@transition: spatial
-@image-style: "Cinematic landscape photography style. Vivid colors, dramatic lighting, sweeping vistas. No text, no labels, no watermarks."
+theme: dark
+transition: spatial
+image-style: "Cinematic landscape photography style. Vivid colors, dramatic lighting, sweeping vistas. No text, no labels, no watermarks."
 ---
 
 # The Seven Continents

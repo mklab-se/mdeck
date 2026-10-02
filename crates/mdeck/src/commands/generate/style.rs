@@ -11,7 +11,7 @@ pub(super) struct Styles {
     pub icon: String,
 }
 
-/// `--style` > the deck's `@image-style` / `@icon-style` > config default > hardcoded.
+/// `--style` > the deck's `image-style` / `icon-style` > config default > hardcoded.
 pub(super) fn resolve_styles(
     config: &Config,
     meta: &PresentationMeta,
@@ -58,7 +58,7 @@ fn resolve_style<'a>(
         }
         return s.to_string();
     }
-    // @image-style frontmatter
+    // image-style frontmatter
     if let Some(s) = frontmatter {
         if let Some(desc) = lookup(s) {
             return desc.to_string();

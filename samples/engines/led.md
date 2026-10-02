@@ -1,23 +1,23 @@
 ---
 title: "Marquee"
 author: "MDeck"
-@theme: marquee
+theme: marquee
 ---
 
 # Lights On
-@illustration: rocket
+<!-- picture: rocket -->
 
 A wall of LEDs behind every slide
 
 # Every picture is lit, not drawn
-@illustration: server
+<!-- picture: server -->
 
 - Illustrations light up LED by LED
 - Nothing moves: only colour and brightness change
 - Unlit lenses stay faintly visible
 
 # Ideas
-@illustration: lightbulb
+<!-- picture: lightbulb -->
 
 + A new picture powers on from its centre
 + Each LED flickers as it strikes
@@ -35,7 +35,7 @@ Slides without an illustration get a slow aurora on the right, far from the copy
 
 # Numbers
 
-```@barchart
+```@bar
 title: Visitors per night
 Mon: 120
 Tue: 180
@@ -45,6 +45,6 @@ Fri: 520
 ```
 
 # Thank you
-@illustration: globe
+<!-- picture: globe -->
 
 - The engine is `led`, the theme is `marquee`

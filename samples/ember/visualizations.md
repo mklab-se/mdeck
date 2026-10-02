@@ -1,8 +1,8 @@
 ---
 title: "A year in numbers"
 author: "MKLab"
-@theme: ember
-@transition: fade
+theme: ember
+transition: fade
 ---
 
 # A year in numbers
@@ -13,7 +13,7 @@ What the platform team shipped, measured, and learned in twelve months.
 
 ## Where the time went
 
-```@barchart
+```@bar
 # y-label: Weeks
 - Platform: 18
 - Features: 14
@@ -26,7 +26,7 @@ What the platform team shipped, measured, and learned in twelve months.
 
 ## Deploys per week
 
-```@linechart
+```@line
 # x-label: Quarter
 - Deploys: 12, 19, 27, 41
 - Rollbacks: 3, 2, 2, 1
@@ -56,7 +56,7 @@ What the platform team shipped, measured, and learned in twelve months.
 
 ## Who owns what
 
-```@piechart
+```@pie
 - Platform: 40
 - Product A: 30
 - Product B: 20

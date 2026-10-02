@@ -142,7 +142,7 @@ mod tests {
         let names: Vec<&str> = f.petals.iter().map(|p| p.text.name.as_str()).collect();
         assert_eq!(names, ["Payments", "Identity", "Data Team", "Mobile"]);
         let steps: Vec<usize> = f.petals.iter().map(|p| p.step).collect();
-        assert_eq!(steps, [0, 1, 2, 2]);
+        assert_eq!(steps, [0, 1, 2, 0], "`*` is static, like `-`");
         assert_eq!(f.petals[0].text.detail.as_deref(), Some("Takes the money"));
         assert_eq!(f.links.len(), 1, "a link to an unknown name is left out");
         assert_eq!(f.links[0].from, 0);

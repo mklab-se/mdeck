@@ -2,7 +2,7 @@
 //! theme's `page:`), and the slide's generated watercolour (`mdeck ai art`)
 //! blooms onto it: a pale first wash over the whole picture, then the
 //! colour spreading outward from where the paint is heaviest, the dark
-//! accents dropped in last. Without art, the slide's `@illustration` is
+//! accents dropped in last. Without art, the slide's `picture` is
 //! drawn in ink with a loose wash beside it; the countdown and the end
 //! words are painted the same way. Exports show the dry painting.
 

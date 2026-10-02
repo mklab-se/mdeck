@@ -5,7 +5,7 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum CheckCategory {
     DiagramRouting,
-    /// `@illustration` names that do not resolve or layouts that cannot show one.
+    /// `picture` names that do not resolve or layouts that cannot show one.
     Illustration,
     /// Text the available fonts cannot draw (CJK without a system CJK face).
     Fonts,
@@ -13,14 +13,19 @@ pub enum CheckCategory {
     Math,
     /// The deck's theme: unknown name, invalid file, fallbacks, weak contrast.
     Theme,
-    /// `@name: value` lines: unknown names, lines not applied, global
-    /// directives inside a slide, duplicates.
-    Directive,
-    /// Content the deck's engine does not show, and `@engine` problems.
+    /// Deck and slide settings: unknown names (with a suggestion), invalid
+    /// values, deck settings in a slide, duplicates, and v1 syntax with its
+    /// v2 form.
+    Settings,
+    /// Markdown that will not show as written.
+    Content,
+    /// mdeck fences: unknown or renamed visual tags.
+    Visual,
+    /// Content the deck's engine does not show, and `engine` problems.
     Engine,
     /// Generated art for the art engines: missing, stale, unreadable.
     Art,
-    /// `@background` images that are missing or unreadable, bad opacities.
+    /// `background` images that are missing or unreadable, bad opacities.
     Background,
     /// `@thermal` blocks: unreadable sources, colour input, unsupported
     /// settings, comparisons that cannot share a scale.
@@ -35,7 +40,9 @@ impl fmt::Display for CheckCategory {
             CheckCategory::Fonts => write!(f, "fonts"),
             CheckCategory::Math => write!(f, "math"),
             CheckCategory::Theme => write!(f, "theme"),
-            CheckCategory::Directive => write!(f, "directive"),
+            CheckCategory::Settings => write!(f, "settings"),
+            CheckCategory::Content => write!(f, "content"),
+            CheckCategory::Visual => write!(f, "visual"),
             CheckCategory::Engine => write!(f, "engine"),
             CheckCategory::Art => write!(f, "art"),
             CheckCategory::Background => write!(f, "background"),

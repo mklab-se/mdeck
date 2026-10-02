@@ -1,7 +1,7 @@
 ---
 title: "Departures"
 author: "MDeck"
-@theme: departures
+theme: departures
 ---
 
 # Departures

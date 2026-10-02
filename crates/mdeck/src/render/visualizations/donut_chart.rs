@@ -192,7 +192,7 @@ mod tests {
         let (entries, _) = parse_donut_chart(content);
         assert_eq!(entries[0].reveal, VizReveal::Static);
         assert_eq!(entries[1].reveal, VizReveal::NextStep);
-        assert_eq!(entries[2].reveal, VizReveal::WithPrev);
+        assert_eq!(entries[2].reveal, VizReveal::Static);
     }
 
     #[test]

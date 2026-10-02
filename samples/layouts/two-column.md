@@ -1,7 +1,7 @@
 ---
 title: "Layout Test: Two-Column Slides"
-@theme: dark
-@transition: fade
+theme: dark
+transition: fade
 ---
 
 # Layout Test: Two-Column Slides
@@ -9,7 +9,7 @@ Focused tests for the two-column layout
 
 
 # Pros and Cons
-@layout: two-column
+<!-- design: columns -->
 
 **Advantages:**
 
@@ -27,7 +27,7 @@ Focused tests for the two-column layout
 
 
 # Before and After
-@layout: two-column
+<!-- design: columns -->
 
 ```python
 # Old approach
@@ -45,7 +45,7 @@ for item in items:
 
 
 # Languages We Love
-@layout: two-column
+<!-- design: columns -->
 
 1. Rust
 2. Python

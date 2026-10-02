@@ -153,27 +153,13 @@ impl Writer {
         }
     }
 
-    fn list(
-        &mut self,
-        items: &[ListItem],
-        ordered: bool,
-        depth: usize,
-        width: usize,
-        counter: &mut usize,
-    ) {
+    fn list(&mut self, items: &[ListItem], ordered: bool, depth: usize, start: u32, width: usize) {
         for (k, item) in items.iter().enumerate() {
-            let step = match item.marker {
-                ListMarker::Static | ListMarker::Ordered => 0,
-                ListMarker::NextStep => {
-                    *counter += 1;
-                    *counter
-                }
-                ListMarker::WithPrev => *counter,
-            };
+            let step = item.step;
             let indent = depth * 2;
             let mut prefix = vec![Cell::BLANK; indent];
             if ordered {
-                for ch in format!("{}.", k + 1).chars() {
+                for ch in format!("{}.", start as usize + k).chars() {
                     prefix.push(Cell {
                         ch,
                         style: Style::Accent,
@@ -190,7 +176,11 @@ impl Writer {
             let mut cells = Vec::new();
             self.styled(&item.inlines, Style::Normal, &mut cells);
             self.wrap(prefix, cells, hang, width, step);
-            self.list(&item.children, ordered, depth + 1, width, counter);
+            let child_ordered = item
+                .children
+                .first()
+                .is_some_and(|c| c.marker == ListMarker::Ordered);
+            self.list(&item.children, child_ordered, depth + 1, 1, width);
         }
     }
 
@@ -347,13 +337,7 @@ impl Writer {
         }
     }
 
-    pub(super) fn blocks(
-        &mut self,
-        blocks: &[Block],
-        width: usize,
-        title: bool,
-        counter: &mut usize,
-    ) {
+    pub(super) fn blocks(&mut self, blocks: &[Block], width: usize, title: bool) {
         let mut first_heading = true;
         for (i, block) in blocks.iter().enumerate() {
             match block {
@@ -379,16 +363,27 @@ impl Writer {
                     self.blank(0);
                     self.wrap(Vec::new(), cells, 0, width, 0);
                 }
-                Block::List { ordered, items } => {
+                Block::List {
+                    ordered,
+                    start,
+                    items,
+                } => {
                     self.blank(0);
-                    self.list(items, *ordered, 0, width, counter);
+                    self.list(items, *ordered, 0, *start, width);
                 }
-                Block::BlockQuote { inlines } => {
+                Block::BlockQuote { blocks } | Block::Callout { blocks, .. } => {
                     let mut cells = vec![Cell {
                         ch: '"',
                         style: Style::Accent,
                     }];
-                    self.styled(inlines, Style::Normal, &mut cells);
+                    let mut text = Vec::new();
+                    for (i, p) in Block::quote_paragraphs(blocks).into_iter().enumerate() {
+                        if i > 0 {
+                            text.push(Inline::Text(" ".into()));
+                        }
+                        text.extend(p);
+                    }
+                    self.styled(&text, Style::Normal, &mut cells);
                     cells.push(Cell {
                         ch: '"',
                         style: Style::Accent,
@@ -396,13 +391,14 @@ impl Writer {
                     self.blank(0);
                     self.wrap(Vec::new(), cells, 1, width, 0);
                 }
-                Block::Table { headers, rows } => {
+                Block::Table { headers, rows, .. } => {
                     self.blank(0);
                     self.table(headers, rows, width);
                 }
                 Block::Chart {
                     kind: Chart::KpiCards,
                     content,
+                    ..
                 } => {
                     self.blank(0);
                     self.figures(content, width);
@@ -410,6 +406,7 @@ impl Writer {
                 Block::Chart {
                     kind: Chart::ProgressBars,
                     content,
+                    ..
                 } => {
                     self.blank(0);
                     self.progress(content, width);

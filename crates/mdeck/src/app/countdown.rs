@@ -69,7 +69,7 @@ impl Countdown {
 
 impl PresentationApp {
     /// Start the opening countdown if the theme has one and the deck did not
-    /// turn it off (`@countdown: false`).
+    /// turn it off (`countdown: off`).
     pub(super) fn start_countdown(&mut self) {
         if self.deck.presentation.meta.countdown == Some(false) || self.reduced_motion {
             return;

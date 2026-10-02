@@ -1,19 +1,19 @@
 ---
 title: "Illustrations"
 author: "MKLab"
-@theme: ember
-@transition: fade
+theme: ember
+transition: fade
 ---
 
 # Industrial Robots
-@illustration: robot
+<!-- picture: robot -->
 
 What the particles can draw
 
 ---
 
 ## Our New Server
-@illustration: server
+<!-- picture: server -->
 
 - 5 TB of RAM
 - 100 cores
@@ -22,7 +22,7 @@ What the particles can draw
 ---
 
 ## Where the work happens
-@illustration: laptop
+<!-- picture: laptop -->
 
 Every illustration is a point cloud: a few hundred points the particles settle
 into, warm and breathing, beside the copy.
@@ -34,11 +34,11 @@ into, warm and breathing, beside the copy.
 ---
 
 ## Launch
-@illustration: rocket
+<!-- picture: rocket -->
 
 ---
 
-@illustration: globe
+<!-- picture: globe -->
 
 > "The particles hint at the thing. They never impersonate it."
 
@@ -49,7 +49,7 @@ into, warm and breathing, beside the copy.
 ## Code slides keep their field
 
 ```rust
-// an @illustration on this slide would be ignored,
+// a picture on this slide would be ignored,
 // and `mdeck --check` would say so
 fn main() {}
 ```

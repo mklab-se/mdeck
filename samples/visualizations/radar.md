@@ -1,6 +1,6 @@
 ---
 title: "Radar Chart Tests"
-@theme: dark
+theme: dark
 ---
 
 # Radar Chart — Two Series
@@ -28,7 +28,7 @@ title: "Radar Chart Tests"
 # axes: Strength, Endurance, Flexibility, Balance, Coordination
 - Baseline: 40, 45, 50, 55, 35
 + After 3 Months: 60, 65, 55, 70, 50
-* After 6 Months: 80, 82, 70, 85, 72
++ After 6 Months: 80, 82, 70, 85, 72
 ```
 
 ---

@@ -70,29 +70,10 @@ pub fn math_warnings(presentation: &parser::Presentation) -> Vec<CheckWarning> {
             }
         }
     }
-    fn items(list: &[parser::ListItem], out: &mut Vec<(String, bool)>) {
-        for item in list {
-            walk(&item.inlines, out);
-            items(&item.children, out);
-        }
-    }
     let mut warnings = Vec::new();
     for (i, slide) in presentation.slides.iter().enumerate() {
         let mut found = Vec::new();
-        for block in &slide.blocks {
-            match block {
-                parser::Block::Heading { inlines, .. }
-                | parser::Block::Paragraph { inlines }
-                | parser::Block::BlockQuote { inlines } => walk(inlines, &mut found),
-                parser::Block::List { items: list, .. } => items(list, &mut found),
-                parser::Block::Table { headers, rows } => {
-                    for cell in headers.iter().chain(rows.iter().flatten()) {
-                        walk(cell, &mut found);
-                    }
-                }
-                _ => {}
-            }
-        }
+        parser::for_each_inlines(&slide.blocks, &mut |inlines| walk(inlines, &mut found));
         for (tex, display) in found {
             if let Err(e) = render::math::lay_out(&tex, display).1 {
                 let delim = if display { "$$" } else { "$" };
@@ -116,6 +97,62 @@ pub fn warn_missing_cjk_font(presentation: &parser::Presentation) {
         use colored::Colorize;
         eprintln!("{} {}", "Warning:".yellow().bold(), w.message);
     }
+}
+
+/// Markdown that will not show as written (MD-13): what the parser could
+/// not take (a footnote without its text), images inside running text,
+/// remote images, and HTML media mdeck does not play.
+pub fn content_warnings(presentation: &parser::Presentation) -> Vec<CheckWarning> {
+    let inline_image = regex::Regex::new(r"!\[[^\]]*\]\([^)]*\)").expect("valid regex");
+    let mut out = Vec::new();
+    for (i, slide) in presentation.slides.iter().enumerate() {
+        let mut warn = |line: usize, message: String| {
+            out.push(CheckWarning {
+                slide: i + 1,
+                line,
+                category: CheckCategory::Content,
+                message,
+            })
+        };
+        for p in &slide.problems {
+            if p.kind == parser::ProblemKind::Content {
+                warn(p.line, p.message.clone());
+            }
+        }
+        for (offset, line) in super::settings::body_lines(&slide.raw_source) {
+            let at = slide.line_at(offset);
+            let t = line.trim();
+            let images: Vec<_> = inline_image.find_iter(t).collect();
+            if !images.is_empty() && !(images.len() == 1 && images[0].as_str() == t) {
+                warn(
+                    at,
+                    "an image inside text shows as its alt text; put it on a line of its own"
+                        .into(),
+                );
+            }
+            for m in &images {
+                let url = m.as_str().rsplit_once("](").map_or("", |(_, u)| u);
+                if url.starts_with("http://") || url.starts_with("https://") {
+                    warn(
+                        at,
+                        format!(
+                            "remote image {} is not shown; download it next to the deck",
+                            url.trim_end_matches(')')
+                        ),
+                    );
+                }
+            }
+            let lower = t.to_ascii_lowercase();
+            for tag in [
+                "video", "audio", "iframe", "script", "style", "object", "embed", "canvas", "svg",
+            ] {
+                if lower.contains(&format!("<{tag}")) {
+                    warn(at, format!("raw HTML <{tag}> is not shown"));
+                }
+            }
+        }
+    }
+    out
 }
 
 #[cfg(test)]

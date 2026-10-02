@@ -387,7 +387,7 @@ pub fn resolve_or_default(lookup: &Lookup, name: &str) -> (Theme, Vec<String>) {
     }
 }
 
-/// The theme name a deck asks for: `@theme`, then the config default, then
+/// The theme name a deck asks for: `theme`, then the config default, then
 /// the built-in default. Blank values count as unset.
 pub fn select(frontmatter: Option<&str>, config_default: Option<&str>) -> String {
     frontmatter

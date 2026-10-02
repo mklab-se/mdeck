@@ -1,6 +1,6 @@
 ---
 title: "Venn Diagram Tests"
-@theme: dark
+theme: dark
 ---
 
 # Venn — Two Sets
@@ -32,5 +32,5 @@ title: "Venn Diagram Tests"
 ```@venn
 - Python (size: 50)
 + R (size: 30)
-* Python & R: Data Science, Statistics, ML
++ Python & R: Data Science, Statistics, ML
 ```

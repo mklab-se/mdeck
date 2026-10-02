@@ -1,7 +1,7 @@
 ---
 title: "Git Graph Visualization"
-@theme: dark
-@transition: slide
+theme: dark
+transition: slide
 ---
 
 # Git Graph — Basic
@@ -56,7 +56,7 @@ title: "Git Graph Visualization"
 + branch develop -> release
 + commit release
 + merge release -> main: "v1.0"
-* merge release -> develop
++ merge release -> develop
 + tag main: "v1.0"
 ```
 
@@ -74,7 +74,7 @@ title: "Git Graph Visualization"
 + branch main -> hotfix
 + commit hotfix
 + merge hotfix -> main: "v1.0.1"
-* merge hotfix -> develop
++ merge hotfix -> develop
 + tag main: "v1.0.1"
 ```
 
@@ -91,13 +91,13 @@ title: "Git Graph Visualization"
 - commit main
 - branch main -> develop
 + branch develop -> feature/ui
-* branch develop -> feature/api
++ branch develop -> feature/api
 + commit feature/ui
 + commit feature/api
 + merge feature/ui -> develop: "PR #1"
 + merge feature/api -> develop: "PR #2"
 + branch develop -> release
 + merge release -> main: "v2.0"
-* merge release -> develop
++ merge release -> develop
 + tag main: "v2.0"
 ```

@@ -1,7 +1,7 @@
 ---
 title: "Layout Test: Diagram Slides"
-@theme: dark
-@transition: fade
+theme: dark
+transition: fade
 ---
 
 # Layout Test: Diagram Slides
@@ -165,8 +165,8 @@ Focused tests for the diagram layout
 
 # Step 2: Add monitoring
 + Monitor (icon: monitor, pos: 2,2)
-* Monitor -- Server: observes
-* Monitor -- DB: observes
++ Monitor -- Server: observes
++ Monitor -- DB: observes
 ```
 
 
@@ -177,9 +177,9 @@ Focused tests for the diagram layout
 + Build  (icon: container, pos: 2,1)
 + Source -> Build: triggers
 + Test   (icon: function, pos: 3,1)
-* Build -> Test: on success
++ Build -> Test: on success
 + Deploy (icon: cloud, pos: 4,1)
-* Test -> Deploy: all green
++ Test -> Deploy: all green
 ```
 
 

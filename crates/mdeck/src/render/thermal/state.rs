@@ -88,7 +88,7 @@ mod tests {
     use super::super::spec::{Spec, Support};
     use super::*;
 
-    const DECK: &str = "image: a.png\nvisible: b.jpg\n+ lens 20% 30% 10%\n+ lens 70% 40% 15%\n+ reveal\n+ above 85%\n+ above 60%\n* spot Hot 70% 40%\n";
+    const DECK: &str = "image: a.png\nvisible: b.jpg\n+ lens 20% 30% 10%\n+ lens 70% 40% 15%\n+ reveal\n+ above 85%\n+ above 60%\n+ spot Hot 70% 40%\n";
 
     fn at(step: usize) -> State {
         let spec = Spec::parse(DECK);
@@ -119,17 +119,18 @@ mod tests {
         assert_eq!(t, Threshold::Relative(0.6));
         assert_eq!(prev, Some(Threshold::Relative(0.85)));
         assert_eq!(step, 5);
-        assert_eq!(s5.spots.len(), 1);
+        assert!(s5.spots.is_empty());
+        assert_eq!(at(6).spots.len(), 1);
     }
 
     #[test]
     fn going_back_rebuilds_the_earlier_state_exactly() {
         // the state at a step never depends on where we came from
-        for step in 0..6 {
+        for step in 0..7 {
             assert_eq!(at(step), at(step));
         }
-        assert_eq!(at(5).spots[0].step, 5);
-        assert!(at(4).spots.is_empty());
+        assert_eq!(at(6).spots[0].step, 6);
+        assert!(at(5).spots.is_empty());
         assert!(at(2).threshold.is_none());
     }
 

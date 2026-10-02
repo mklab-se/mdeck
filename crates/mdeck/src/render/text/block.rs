@@ -5,11 +5,9 @@ use eframe::egui::{self, Pos2, Stroke};
 
 use super::code::{draw_code_block, measure_code_block_height};
 use super::image::{IMAGE_MAX_HEIGHT, draw_image};
-use super::inline::{
-    QUOTE_BAR_PADDING, QUOTE_BAR_WIDTH, draw_blockquote, draw_heading, draw_paragraph, heading_job,
-    measure_inlines,
-};
-use super::list::{draw_list, measure_list_height};
+use super::inline::{draw_heading, draw_paragraph, heading_job, measure_inlines};
+use super::list::{Reveal, draw_list, measure_list_height};
+use super::quote::{draw_callout, draw_quote, measure_callout, measure_quote};
 use super::table::{draw_table, measure_table_height};
 use crate::parser::Block;
 use crate::render::BlockCx;
@@ -107,21 +105,15 @@ pub fn measure_single_block_height(
         Block::Paragraph { inlines } => {
             measure_inlines(ui, inlines, theme.body_size * scale, max_width, theme)
         }
-        Block::BlockQuote { inlines } => {
-            let text_width = max_width - (QUOTE_BAR_WIDTH + QUOTE_BAR_PADDING) * scale;
-            measure_inlines(
-                ui,
-                inlines,
-                theme.body_size * 1.1 * scale,
-                text_width,
-                theme,
-            )
+        Block::BlockQuote { blocks } => measure_quote(ui, blocks, theme, max_width, scale),
+        Block::Callout { kind, blocks } => {
+            measure_callout(ui, *kind, blocks, theme, max_width, scale)
         }
         Block::List { items, .. } => measure_list_height(ui, items, theme, max_width, 0, scale),
         Block::CodeBlock { code, language, .. } => {
             measure_code_block_height(ui, code, language.as_deref(), theme, max_width, scale)
         }
-        Block::Table { headers, rows } => {
+        Block::Table { headers, rows, .. } => {
             measure_table_height(ui, headers, rows, theme, max_width, scale)
         }
         Block::HorizontalRule => 20.0 * scale,
@@ -140,9 +132,22 @@ pub fn draw_block(cx: &BlockCx, block: &Block, pos: Pos2, max_width: f32) -> f32
     match block {
         Block::Heading { level, inlines } => draw_heading(&text, inlines, *level, pos, max_width),
         Block::Paragraph { inlines } => draw_paragraph(&text, inlines, pos, max_width),
-        Block::List { ordered, items } => {
-            draw_list(&text, items, *ordered, pos, max_width, cx.reveal_step)
-        }
+        Block::List {
+            ordered,
+            start,
+            items,
+        } => draw_list(
+            &text,
+            items,
+            *ordered,
+            *start,
+            pos,
+            max_width,
+            Reveal {
+                shown: cx.reveal_step,
+                at: cx.reveal_timestamp,
+            },
+        ),
         Block::CodeBlock {
             language,
             code,
@@ -155,28 +160,40 @@ pub fn draw_block(cx: &BlockCx, block: &Block, pos: Pos2, max_width: f32) -> f32
             pos,
             max_width,
         ),
-        Block::BlockQuote { inlines } => draw_blockquote(&text, inlines, pos, max_width),
-        Block::Table { headers, rows } => draw_table(&text, headers, rows, pos, max_width),
+        Block::BlockQuote { blocks } => draw_quote(cx, blocks, pos, max_width),
+        Block::Callout { kind, blocks } => draw_callout(cx, *kind, blocks, pos, max_width),
+        Block::Table {
+            headers,
+            align,
+            rows,
+        } => draw_table(&text, headers, align, rows, pos, max_width),
         Block::Image {
             alt,
             path,
             directives,
         } => draw_image(cx, path, alt, directives, pos, max_width),
-        Block::Diagram { content } => {
+        Block::Diagram { content, step_base } => {
             let cx = BlockCx {
                 reveal_timestamp: None,
-                ..*cx
+                ..cx.after_steps(*step_base)
             };
             draw_diagram_sized(&cx, content, pos, max_width, 0.0)
         }
         Block::Chart {
             kind: crate::parser::Chart::Thermal,
             content,
-        } => crate::render::thermal::draw(cx, content, pos, max_width, 0.0),
-        Block::Chart { kind, content } => {
+            step_base,
+        } => {
+            crate::render::thermal::draw(&cx.after_steps(*step_base), content, pos, max_width, 0.0)
+        }
+        Block::Chart {
+            kind,
+            content,
+            step_base,
+        } => {
             let viz = VizCtx {
                 reveal_timestamp: None,
-                ..cx.viz()
+                ..cx.after_steps(*step_base).viz()
             };
             visualizations::draw(*kind, content, &viz, pos, max_width, 0.0)
         }
@@ -205,11 +222,7 @@ mod tests {
     }
 
     fn item(s: &str, children: Vec<ListItem>) -> ListItem {
-        ListItem {
-            marker: ListMarker::Static,
-            inlines: text(s),
-            children,
-        }
+        ListItem::new(ListMarker::Static, text(s), children)
     }
 
     fn block_cx<'a>(ui: &'a egui::Ui, theme: &'a Theme, cache: &'a ImageCache) -> BlockCx<'a> {
@@ -239,6 +252,7 @@ mod tests {
             ];
             let block = Block::List {
                 ordered: false,
+                start: 1,
                 items,
             };
             let width = 700.0;
@@ -268,6 +282,7 @@ mod tests {
                 },
                 Block::List {
                     ordered: true,
+                    start: 1,
                     items: vec![item(LONG, vec![]), item("two", vec![])],
                 },
                 Block::CodeBlock {
@@ -277,10 +292,24 @@ mod tests {
                 },
                 Block::Table {
                     headers: vec![text("Name"), text("Value")],
+                    align: vec![],
                     rows: vec![vec![text("a"), text(LONG)], vec![text("b"), text("2")]],
                 },
                 Block::BlockQuote {
-                    inlines: text(LONG),
+                    blocks: vec![
+                        Block::Paragraph {
+                            inlines: text(LONG),
+                        },
+                        Block::Paragraph {
+                            inlines: text("Someone"),
+                        },
+                    ],
+                },
+                Block::Callout {
+                    kind: crate::parser::Alert::Tip,
+                    blocks: vec![Block::Paragraph {
+                        inlines: text(LONG),
+                    }],
                 },
                 Block::HorizontalRule,
             ];
@@ -288,6 +317,34 @@ mod tests {
             let measured = measure_blocks_height(ui, &blocks, &theme, width, 1.0);
             let drawn = draw_blocks(&block_cx(ui, &theme, &cache), &blocks, Pos2::ZERO, width);
             assert!((measured - drawn).abs() < 0.01, "{measured} vs {drawn}");
+        });
+    }
+
+    #[test]
+    fn hidden_items_keep_their_space() {
+        // MD-19, D11: a list measures and draws the same height whatever
+        // its reveal, so nothing below moves when items appear.
+        with_ui(|ui| {
+            let theme = Theme::dark();
+            let cache = ImageCache::new(std::path::PathBuf::new());
+            let mut blocks = crate::parser::blocks::parse("+ one\n+ two\n  - child\n+ three");
+            crate::parser::steps::number(
+                &mut blocks,
+                true,
+                &crate::parser::steps::default_visual_steps,
+            );
+            let full = measure_single_block_height(ui, &blocks[0], &theme, 600.0, 1.0);
+            for step in 0..=3 {
+                let cx = BlockCx {
+                    reveal_step: step,
+                    ..block_cx(ui, &theme, &cache)
+                };
+                let drawn = draw_block(&cx, &blocks[0], Pos2::ZERO, 600.0);
+                assert!(
+                    (drawn - full).abs() < 0.01,
+                    "step {step}: {drawn} vs {full}"
+                );
+            }
         });
     }
 

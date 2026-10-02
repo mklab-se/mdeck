@@ -163,31 +163,29 @@ mod tests {
 
     fn slide(layout: Layout, blocks: Vec<Block>) -> Slide {
         Slide {
-            directives: vec![],
             blocks,
             layout,
             raw_source: String::new(),
-            line: 0,
-            source_lines: Vec::new(),
             notes: None,
-            illustration: None,
-            logo: None,
-            art: None,
+            ..Default::default()
         }
     }
 
     fn long_list() -> Block {
         Block::List {
             ordered: false,
+            start: 1,
             items: (0..12)
-                .map(|i| ListItem {
-                    marker: ListMarker::Static,
-                    // Varying lengths so the row count differs between column widths
-                    inlines: vec![Inline::Text(format!(
-                        "Item {i}: {}",
-                        "lorem ipsum ".repeat(6 + i)
-                    ))],
-                    children: vec![],
+                .map(|i| {
+                    ListItem::new(
+                        ListMarker::Static,
+                        // Varying lengths so the row count differs between column widths
+                        vec![Inline::Text(format!(
+                            "Item {i}: {}",
+                            "lorem ipsum ".repeat(6 + i)
+                        ))],
+                        vec![],
+                    )
                 })
                 .collect(),
         }

@@ -1,7 +1,7 @@
 //! `mdeck ai art`: draw a picture for every slide that takes one, in the
 //! style of the deck's art engine, with the configured image model. Scenes
-//! come from a slide's own `@art:`, or the chat model writes one from the
-//! slide's copy, its notes and the deck's `@art` world. Pictures go into
+//! come from a slide's own `picture-prompt`, or the chat model writes one from the
+//! slide's copy, its notes and the deck's `art-world`. Pictures go into
 //! `art/` next to the deck and are recorded in `<deck>.art.yaml`.
 
 use std::path::{Path, PathBuf};
@@ -23,7 +23,7 @@ mod generate;
 /// Pictures generated at once; the image services throttle beyond this.
 const PARALLEL: usize = 4;
 
-/// The deck's theme on the engine it runs on (`--engine`, `@engine`, the theme's).
+/// The deck's theme on the engine it runs on (`--engine`, `engine`, the theme's).
 fn deck_theme(pres: &Presentation, base: &Path, engine: Option<&str>) -> Result<Theme> {
     let defaults = crate::config::Config::load_or_default()
         .defaults
@@ -61,7 +61,7 @@ fn targets(
         Some(n) => {
             if !art::wants_art(&pres.slides[n - 1]) {
                 bail!(
-                    "slide {n} takes no art (it says `@art: none`, or its layout has no room for a picture)"
+                    "slide {n} takes no art (it says `picture: none`, or its layout has no room for a picture)"
                 );
             }
             vec![n - 1]
@@ -114,7 +114,7 @@ pub async fn run(file: PathBuf, opts: Options) -> Result<()> {
     let theme = deck_theme(&pres, &base, opts.engine.as_deref())?;
     let Some(medium) = theme.engine.medium() else {
         bail!(
-            "the deck runs on the {} engine, which draws no art. Choose an engine that does ({}) with `@engine:` in the frontmatter, a theme on one, or --engine",
+            "the deck runs on the {} engine, which draws no art. Choose an engine that does ({}) with `engine:` in the frontmatter, a theme on one, or --engine",
             theme.engine.name(),
             art_engines()
         );
@@ -294,7 +294,7 @@ fn empty_sidecar() -> Sidecar {
 fn print_dry_run(pres: &Presentation, todo: &[usize]) {
     for &i in todo {
         let from = match art::slide_scene(&pres.slides[i]) {
-            Some(s) => format!("@art: {s}"),
+            Some(s) => format!("picture-prompt: {s}"),
             None => "scene written from the slide".dimmed().to_string(),
         };
         eprintln!(
@@ -365,7 +365,7 @@ mod tests {
 
     fn deck() -> Presentation {
         parser::parse(
-            "---\ntitle: Harbour\n@art: a Victorian harbour town that builds software\n---\n# Launch\n\nWe ship today\n\n# Why\n@art: a lighthouse keeper with a laptop\n\n- one\n\n???\nTell the story of the storm.\n\n# Code\n\n```rust\nfn main() {}\n```\n\n# None\n@art: none\n\n- two\n",
+            "---\ntitle: Harbour\nart-world: a Victorian harbour town that builds software\n---\n# Launch\n\nWe ship today\n\n# Why\n<!-- picture-prompt: a lighthouse keeper with a laptop -->\n\n- one\n\n```@notes\nTell the story of the storm.\n```\n\n# Code\n\n```rust\nfn main() {}\n```\n\n# None\n<!-- picture: none -->\n\n- two\n",
         )
     }
 

@@ -1,7 +1,7 @@
 //! What the art engines share: a generated picture being drawn in (the
 //! reveal runs on the CPU into a texture, a frame at a time, and stops
 //! uploading once the picture is finished), and the pen strokes a medium
-//! draws when a slide has no picture (its `@illustration`, the countdown,
+//! draws when a slide has no picture (its `picture`, the countdown,
 //! the end words).
 
 #![cfg_attr(
@@ -395,7 +395,7 @@ pub fn to_rect(place: Place, rect: Rect) -> Rect {
 }
 
 /// The pen strokes for a moment without a picture: the slide's
-/// `@illustration`, a countdown digit or the end words. `None` when there is
+/// `picture`, a countdown digit or the end words. `None` when there is
 /// nothing to draw.
 pub fn fallback_strokes(cx: &FrameCx, stage: &Stage, now: f32) -> Option<Picture> {
     let rect = cx.rect;

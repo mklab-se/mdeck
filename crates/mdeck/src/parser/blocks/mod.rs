@@ -1,16 +1,15 @@
 mod code;
+mod html;
 mod image;
 mod lists;
 mod tables;
 
-use super::Block;
+use super::{Alert, Block};
 use code::{is_fence_start, parse_code_block};
+use html::{is_html_line, parse_html_line};
 use image::parse_image;
 use lists::{is_list_start, is_ordered_list_start, parse_list};
 use tables::{is_table_line, parse_table};
-
-pub use super::directives::extract_directives;
-pub(crate) use super::directives::parse_directive_line;
 
 /// Parse a slide's content string into a Vec<Block>.
 pub fn parse(content: &str) -> Vec<Block> {
@@ -18,8 +17,8 @@ pub fn parse(content: &str) -> Vec<Block> {
     let mut blocks = Vec::new();
     let mut i = 0;
     while i < lines.len() {
-        let (block, end) = parse_block(&lines, i);
-        blocks.extend(block);
+        let (found, end) = parse_block(&lines, i);
+        blocks.extend(found);
         i = end;
     }
     blocks
@@ -28,81 +27,152 @@ pub fn parse(content: &str) -> Vec<Block> {
 /// Parse the block that starts at `lines[i]`. Returns it (`None` for blank
 /// lines and comments, which hold no block) and the index of the first line
 /// after it, which is always past `i`.
-fn parse_block(lines: &[&str], i: usize) -> (Option<Block>, usize) {
+fn parse_block(lines: &[&str], i: usize) -> (Vec<Block>, usize) {
     let trimmed = lines[i].trim();
 
     // Skip blank lines
     if trimmed.is_empty() {
-        return (None, i + 1);
+        return (vec![], i + 1);
+    }
+
+    // Indented code: four spaces (or a tab) in
+    if indent_width(lines[i]) >= 4 {
+        let (block, end) = parse_indented_code(lines, i);
+        return (vec![block], end);
+    }
+
+    // Raw HTML lines: tags dropped, text and images kept
+    if is_html_line(trimmed) {
+        return (parse_html_line(trimmed), i + 1);
     }
 
     // Column separator: +++
     if trimmed == "+++" {
-        return (Some(Block::ColumnSeparator), i + 1);
+        return (vec![Block::ColumnSeparator], i + 1);
     }
 
     // HTML comment: <!-- ... --> (possibly spanning lines), never rendered
     if trimmed.starts_with("<!--") {
-        return (None, skip_html_comment(lines, i));
+        return (vec![], skip_html_comment(lines, i));
     }
 
     // Horizontal rule: *** or ___
     if is_horizontal_rule(trimmed) {
-        return (Some(Block::HorizontalRule), i + 1);
+        return (vec![Block::HorizontalRule], i + 1);
     }
 
     // Heading: # ...
     if let Some(heading) = parse_heading(trimmed) {
-        return (Some(heading), i + 1);
+        return (vec![heading], i + 1);
     }
 
     // Fenced code block: ``` or ~~~
     if is_fence_start(trimmed) {
         let fence_char = if trimmed.starts_with("```") { '`' } else { '~' };
         let (block, end) = parse_code_block(lines, i, fence_char);
-        return (Some(block), end);
+        return (vec![block], end);
     }
 
     // Image: ![alt](path)
     if let Some(img) = parse_image(trimmed) {
-        return (Some(img), i + 1);
+        return (vec![img], i + 1);
     }
 
     // Blockquote: > ...
     if is_blockquote_start(trimmed) {
         let (block, end) = parse_blockquote(lines, i);
-        return (Some(block), end);
+        return (vec![block], end);
     }
 
     // Table: | ... |
     if is_table_line(trimmed)
         && let Some((table, end)) = parse_table(lines, i)
     {
-        return (Some(table), end);
+        return (vec![table], end);
     }
     // Pipe lines that don't form a table fall through to a paragraph
 
     // Unordered list: - or + or *  (but not --- or ***)
     if is_list_start(trimmed) {
         let (block, end) = parse_list(lines, i, false);
-        return (Some(block), end);
+        return (vec![block], end);
     }
 
     // Ordered list: 1. ...
     if is_ordered_list_start(trimmed) {
         let (block, end) = parse_list(lines, i, true);
-        return (Some(block), end);
+        return (vec![block], end);
     }
 
     // Paragraph: collect consecutive non-blank, non-special lines.
     // parse_paragraph always consumes at least one line, so the loop
     // can never stall on a line no other branch accepted.
     let (block, end) = parse_paragraph(lines, i);
-    (Some(block), end.max(i + 1))
+    (vec![block], end.max(i + 1))
 }
 
 fn is_blockquote_start(trimmed: &str) -> bool {
-    trimmed.starts_with("> ") || trimmed == ">"
+    trimmed.starts_with('>')
+}
+
+/// The width of a line's leading whitespace, a tab reaching the next stop
+/// of four.
+fn indent_width(line: &str) -> usize {
+    let mut w = 0;
+    for c in line.chars() {
+        match c {
+            ' ' => w += 1,
+            '\t' => w += 4 - w % 4,
+            _ => break,
+        }
+    }
+    w
+}
+
+/// Drop up to `n` columns of leading whitespace.
+fn dedent(line: &str, n: usize) -> &str {
+    let mut w = 0;
+    for (at, c) in line.char_indices() {
+        if w >= n {
+            return &line[at..];
+        }
+        match c {
+            ' ' => w += 1,
+            '\t' => w += 4 - w % 4,
+            _ => return &line[at..],
+        }
+    }
+    ""
+}
+
+/// An indented code block: lines four columns in, and blank lines between
+/// them.
+fn parse_indented_code(lines: &[&str], start: usize) -> (Block, usize) {
+    let mut end = start;
+    let mut i = start;
+    while i < lines.len() {
+        if lines[i].trim().is_empty() {
+            i += 1;
+        } else if indent_width(lines[i]) >= 4 {
+            i += 1;
+            end = i;
+        } else {
+            break;
+        }
+    }
+    let code = lines[start..end]
+        .iter()
+        .map(|l| dedent(l, 4))
+        .collect::<Vec<_>>()
+        .join("\n");
+    (
+        Block::CodeBlock {
+            language: None,
+            code,
+            highlight_lines: vec![],
+        },
+        end,
+    )
 }
 
 /// True if a (trimmed) line begins a block that a paragraph or a list item's
@@ -111,6 +181,7 @@ fn is_blockquote_start(trimmed: &str) -> bool {
 fn is_block_start(trimmed: &str) -> bool {
     trimmed == "+++"
         || trimmed.starts_with("<!--")
+        || is_html_line(trimmed)
         || is_horizontal_rule(trimmed)
         || parse_heading(trimmed).is_some()
         || is_fence_start(trimmed)
@@ -208,30 +279,47 @@ fn setext_level(trimmed: &str) -> Option<u8> {
     }
 }
 
+/// A quote: its `>` lines (and lazy continuation lines of its text) with
+/// one `>` taken off, parsed as blocks of their own, so paragraphs, lists
+/// and nested quotes keep their structure. A first line `[!NOTE]` (or TIP,
+/// IMPORTANT, WARNING, CAUTION) makes it a GitHub alert.
 fn parse_blockquote(lines: &[&str], start: usize) -> (Block, usize) {
-    let mut quote_text = String::new();
+    let mut inner: Vec<&str> = Vec::new();
     let mut i = start;
-
+    let mut in_text = false;
     while i < lines.len() {
         let trimmed = lines[i].trim();
-        if let Some(rest) = trimmed.strip_prefix("> ") {
-            if !quote_text.is_empty() {
-                quote_text.push(' ');
-            }
-            quote_text.push_str(rest);
-            i += 1;
-        } else if trimmed == ">" {
-            if !quote_text.is_empty() {
-                quote_text.push(' ');
-            }
-            i += 1;
+        if let Some(rest) = trimmed.strip_prefix('>') {
+            let rest = rest.strip_prefix(' ').unwrap_or(rest);
+            in_text = !rest.trim().is_empty();
+            inner.push(rest);
+        } else if in_text && !trimmed.is_empty() && !is_block_start(trimmed) {
+            inner.push(trimmed);
         } else {
             break;
         }
+        i += 1;
     }
-
-    let inlines = super::inline::parse(&quote_text);
-    (Block::BlockQuote { inlines }, i)
+    let alert = inner
+        .first()
+        .and_then(|l| l.trim().strip_prefix("[!"))
+        .and_then(|l| l.strip_suffix(']'))
+        .and_then(Alert::from_marker);
+    match alert {
+        Some(kind) => (
+            Block::Callout {
+                kind,
+                blocks: parse(&inner[1..].join("\n")),
+            },
+            i,
+        ),
+        None => (
+            Block::BlockQuote {
+                blocks: parse(&inner.join("\n")),
+            },
+            i,
+        ),
+    }
 }
 
 /// Parse a paragraph starting at `lines[start]`.
@@ -291,6 +379,50 @@ mod tests {
         let blocks = parse("> This is a quote\n> with multiple lines");
         assert_eq!(blocks.len(), 1);
         assert!(matches!(&blocks[0], Block::BlockQuote { .. }));
+    }
+
+    #[test]
+    fn quotes_keep_paragraphs_and_nesting() {
+        // D25: the attribution in a later paragraph stays its own paragraph.
+        let blocks = parse("> Measure twice, cut once.\n>\n> Every workshop");
+        let Block::BlockQuote { blocks: inner } = &blocks[0] else {
+            panic!("{blocks:?}");
+        };
+        assert_eq!(inner.len(), 2, "{inner:?}");
+        assert_eq!(paragraph_text(&inner[1]), "Every workshop");
+        let blocks = parse("> outer\n>\n> > inner\nlazy");
+        let Block::BlockQuote { blocks: inner } = &blocks[0] else {
+            panic!("{blocks:?}");
+        };
+        assert!(
+            matches!(&inner[1], Block::BlockQuote { blocks } if paragraph_text(&blocks[0]) == "inner lazy")
+        );
+    }
+
+    #[test]
+    fn github_alerts_are_callouts() {
+        let blocks = parse("> [!WARNING]\n> Mind the gap.");
+        assert!(
+            matches!(&blocks[0], Block::Callout { kind: Alert::Warning, blocks } if paragraph_text(&blocks[0]) == "Mind the gap."),
+            "{blocks:?}"
+        );
+        // An unknown marker is an ordinary quote.
+        assert!(matches!(
+            parse("> [!NOPE]\n> x")[0],
+            Block::BlockQuote { .. }
+        ));
+    }
+
+    #[test]
+    fn indented_code_is_code() {
+        let blocks = parse("Text\n\n    fn main() {\n\n        x\n    }\n\nAfter");
+        assert_eq!(blocks.len(), 3, "{blocks:?}");
+        assert!(
+            matches!(&blocks[1], Block::CodeBlock { code, language: None, .. } if code == "fn main() {\n\n    x\n}"),
+            "{blocks:?}"
+        );
+        // A lazy continuation line is not code.
+        assert_eq!(parse("Text\n    more").len(), 1);
     }
 
     #[test]
@@ -426,11 +558,6 @@ mod tests {
         // Unterminated comment swallows the rest without hanging
         let blocks = parse("<!-- oops\nText");
         assert!(blocks.is_empty(), "{blocks:?}");
-
-        // Comments before directives don't end the directive prelude
-        let (dirs, content) = extract_directives("<!-- c -->\n@layout: quote\n> q");
-        assert_eq!(dirs.len(), 1);
-        assert!(content.contains("> q"));
     }
 
     #[test]
@@ -453,7 +580,7 @@ mod tests {
         while i < lines.len() {
             let (block, end) = parse_block(&lines, i);
             assert!(end > i, "stalled at line {i}");
-            steps.push((i, block.is_some()));
+            steps.push((i, !block.is_empty()));
             i = end;
         }
         assert_eq!(

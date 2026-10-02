@@ -1,8 +1,5 @@
 //! System prompts for AI-driven presentation creation.
 
-/// The full mdeck format specification, embedded at compile time.
-pub const MDECK_SPEC: &str = include_str!("../../../doc/mdeck-spec.md");
-
 pub const INTERACTIVE_SYSTEM_PROMPT: &str = "\
 You are a presentation design consultant for mdeck, a markdown-based presentation tool. \
 You're having a conversation with someone who wants to create a presentation. \
@@ -161,7 +158,7 @@ IMPORTANT: Always prefer a supported visualization over bullet points. For examp
 if the topic involves git branches, merges, or branching strategies, USE @gitgraph. \
 If the topic involves timelines or processes over time, USE @timeline or @gantt. \
 When COMPARING items across multiple dimensions, USE @radar. \
-When showing proportional breakdowns, USE @piechart or @donut. \
+When showing proportional breakdowns, USE @pie or @donut. \
 Only add to opportunities if NONE of the above types can represent the concept.
 
 If a visualization would be useful but is NOT in the list above, add it to `opportunities`. \
@@ -184,16 +181,19 @@ pub fn generation_system_prompt(style: &Option<String>) -> String {
         String::new()
     };
 
+    let spec = crate::commands::spec::full_reference();
     format!(
         "You are a presentation content generator for mdeck. \
         Generate a complete, VISUALLY STUNNING presentation in mdeck markdown format \
         that uses the FULL range of mdeck's layout capabilities.\n\n\
-        MDECK FORMAT SPECIFICATION:\n{MDECK_SPEC}\n\n\
+        MDECK FORMAT SPECIFICATION:\n{spec}\n\n\
         CRITICAL RULES:\n\
         - Generate valid mdeck markdown.\n\
-        - Start with YAML frontmatter (title, author, @theme, @transition).\n\
-        - Use `---` to separate slides.\n\
-        - Include DETAILED speaker notes after `???` on EVERY slide. Speaker notes must be \
+        - Start with YAML frontmatter with plain keys (title, author, theme, transition).\n\
+        - Start each slide with a heading; use `---` only before a slide without one.\n\
+        - Write slide settings in an HTML comment under the heading \
+          (`<!-- design: quote -->`), never as `@key: value` lines.\n\
+        - Include DETAILED speaker notes in a ```@notes fenced block on EVERY slide. Speaker notes must be \
           thorough enough for someone who has NEVER seen the source material to present \
           effectively. Each note should include:\n\
           • The core message of the slide (what the audience should understand)\n\

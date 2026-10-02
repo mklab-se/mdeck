@@ -77,8 +77,8 @@ pub fn draw_gitgraph(
                 source,
                 target,
                 label,
-                reveal,
-            } => paint.merge(x, source, target, label, *reveal),
+                ..
+            } => paint.merge(x, source, target, label),
             GitGraphItem::Tag { branch, label, .. } => paint.tag(x, branch, label),
         }
     }
@@ -215,10 +215,8 @@ impl GitPaint<'_> {
         self.dot(end, target_color);
     }
 
-    /// A merge: a dot on the target and a curve from the source's last event,
-    /// or a straight line when the merge happens together with the previous
-    /// step (`*`).
-    fn merge(&self, x: f32, source: &str, target: &str, label: &str, reveal: VizReveal) {
+    /// A merge: a dot on the target and a curve from the source's last event.
+    fn merge(&self, x: f32, source: &str, target: &str, label: &str) {
         let opacity = self.cx.opacity;
         let source_y = self.layout.lane_y(source);
         let target_y = self.layout.lane_y(target);
@@ -229,25 +227,11 @@ impl GitPaint<'_> {
             .activity
             .last_x(source)
             .unwrap_or(x - self.layout.event_spacing);
-        if reveal == VizReveal::WithPrev {
-            self.dot(Pos2::new(x, source_y), merge_color);
-            let dot_radius = self.dot_radius;
-            let (y_top, y_bot) = if source_y < target_y {
-                (source_y + dot_radius, target_y - dot_radius)
-            } else {
-                (target_y + dot_radius, source_y - dot_radius)
-            };
-            self.painter.line_segment(
-                [Pos2::new(x, y_top), Pos2::new(x, y_bot)],
-                Stroke::new(self.curve_width, merge_color),
-            );
-        } else {
-            self.s_curve(
-                Pos2::new(source_last_x, source_y),
-                Pos2::new(x, target_y),
-                merge_color,
-            );
-        }
+        self.s_curve(
+            Pos2::new(source_last_x, source_y),
+            Pos2::new(x, target_y),
+            merge_color,
+        );
 
         // Label on the curve's midpoint
         if !label.is_empty() {

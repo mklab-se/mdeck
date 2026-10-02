@@ -20,7 +20,7 @@ pub struct Entry {
     pub slide: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
-    /// Hash of the slide source and the deck's `@art` world.
+    /// Hash of the slide source and the deck's `art-world`.
     pub hash: String,
     /// The style it was made in (see [`super::style::Style::id`]).
     pub style: String,
@@ -79,7 +79,7 @@ pub fn save(deck: &Path, sidecar: &Sidecar) -> Result<PathBuf> {
 }
 
 /// Stable hash of what a slide's picture depends on: the slide source and
-/// the deck's `@art` world.
+/// the deck's `art-world`.
 pub fn slide_hash(slide: &Slide, world: Option<&str>) -> String {
     shared::slide_hash(slide, world)
 }
@@ -113,7 +113,7 @@ pub fn resolve(
     style: &str,
 ) -> Vec<Option<Resolved>> {
     let base = deck.parent().unwrap_or(Path::new("."));
-    let world = presentation.meta.art.as_deref();
+    let world = presentation.meta.art_world.as_deref();
     presentation
         .slides
         .iter()
@@ -178,7 +178,7 @@ pub fn upsert(
     let entry = Entry {
         slide: index + 1,
         title: slide.title(),
-        hash: slide_hash(slide, presentation.meta.art.as_deref()),
+        hash: slide_hash(slide, presentation.meta.art_world.as_deref()),
         style: style.to_string(),
         file,
         scene,

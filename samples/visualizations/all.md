@@ -118,7 +118,7 @@ A showcase of every visualization type in MDeck
 
 ## Pie Chart
 
-```@piechart
+```@pie
 - Frontend: 35%
 - Backend: 30%
 - DevOps: 20%
@@ -129,7 +129,7 @@ A showcase of every visualization type in MDeck
 
 ## Bar Chart (Vertical)
 
-```@barchart
+```@bar
 - JavaScript: 65
 - Python: 48
 - TypeScript: 38
@@ -141,7 +141,7 @@ A showcase of every visualization type in MDeck
 
 ## Bar Chart (Horizontal)
 
-```@barchart
+```@bar
 # orientation: horizontal
 - Revenue: 420
 - Expenses: 310
@@ -153,7 +153,7 @@ A showcase of every visualization type in MDeck
 
 ## Line Chart
 
-```@linechart
+```@line
 # x-labels: Q1, Q2, Q3, Q4
 - Revenue: 100, 150, 200, 280
 - Costs: 80, 90, 120, 150
@@ -332,6 +332,6 @@ visible: ../images/thermal/cabinet-visible.jpg
 label: Synthetic example images
 + lens 76% 43% 16%
 + reveal
-* spot Hotspot 76% 43%
++ spot Hotspot 76% 43%
 + above 80%
 ```

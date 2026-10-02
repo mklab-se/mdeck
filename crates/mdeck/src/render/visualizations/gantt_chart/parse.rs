@@ -257,7 +257,7 @@ mod tests {
         let data = parse_gantt(content);
         assert_eq!(data.tasks[0].reveal, VizReveal::Static);
         assert_eq!(data.tasks[1].reveal, VizReveal::NextStep);
-        assert_eq!(data.tasks[2].reveal, VizReveal::WithPrev);
+        assert_eq!(data.tasks[2].reveal, VizReveal::Static);
     }
 
     #[test]

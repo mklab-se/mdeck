@@ -9,7 +9,6 @@ use eframe::egui::{self, Pos2};
 use super::jobs::{display_job, item_job, lead_job};
 use super::{Frame, Sizes, ease_out, fade, stagger};
 use crate::parser::{Block, ListItem, Slide};
-use crate::render::text::item_step;
 use crate::theme::Theme;
 
 /// One element of the copy stack, laid out and ready to draw.
@@ -71,9 +70,8 @@ fn item_pieces(
     scale: f32,
     pieces: &mut Vec<Piece>,
 ) {
-    let mut counter = 0usize;
     for item in items {
-        let step = item_step(item.marker, &mut counter);
+        let step = item.step;
         let indent = ITEM_INDENT * scale;
         let job = item_job(&item.inlines, sz.lead, 1.0, width - indent, theme);
         let galley = ui.painter().layout_job(job);
@@ -84,7 +82,7 @@ fn item_pieces(
             for child in &item.children {
                 let job = item_job(&child.inlines, sz.lead * 0.9, 0.85, width - indent, theme);
                 let galley = ui.painter().layout_job(job);
-                pieces.push(Piece::item(galley, 12.0 * scale, step, indent, true));
+                pieces.push(Piece::item(galley, 12.0 * scale, child.step, indent, true));
             }
         }
     }
@@ -123,8 +121,9 @@ pub(super) fn content_pieces(
                     last.gap = 26.0 * scale;
                 }
             }
-            Block::BlockQuote { inlines } => {
-                let job = lead_job(inlines, sz.lead, 1.0, width - 30.0 * scale, theme);
+            Block::BlockQuote { blocks } | Block::Callout { blocks, .. } => {
+                let inlines = Block::quote_inlines(blocks);
+                let job = lead_job(&inlines, sz.lead, 1.0, width - 30.0 * scale, theme);
                 pieces.push(Piece {
                     bar: true,
                     ..Piece::plain(ui.painter().layout_job(job), 22.0 * scale)

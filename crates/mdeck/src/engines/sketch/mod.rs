@@ -3,7 +3,7 @@
 //! (`mdeck ai art`), graphite and ink in the MKLab house style by default,
 //! is drawn in with a pencil: the outlines first, along the lines, then the
 //! shading laid in stroke by stroke in bands that sweep across the picture.
-//! Without art, the slide's `@illustration` is drawn in pencil; the
+//! Without art, the slide's `picture` is drawn in pencil; the
 //! countdown and the end words are drawn the same way. Exports show the
 //! finished drawing.
 

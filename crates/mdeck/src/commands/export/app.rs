@@ -327,6 +327,8 @@ impl ExportApp {
         };
         self.deck.draw_slide(ui, &self.theme, idx, frame, &cx);
         self.deck.draw_logo(ui.painter(), rect, idx, scale);
+        self.deck
+            .draw_footer(ui.painter(), &self.theme, rect, scale);
     }
 
     fn draw_notes(&mut self, ui: &egui::Ui, origin: (u32, u32)) {

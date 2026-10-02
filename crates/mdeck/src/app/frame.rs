@@ -413,7 +413,7 @@ impl PresentationApp {
         let slide = &self.deck.presentation.slides[self.current_slide];
         let raw = &slide.raw_source;
         let debug_info = slide.blocks.iter().find_map(|b| {
-            if let parser::Block::Diagram { content } = b {
+            if let parser::Block::Diagram { content, .. } = b {
                 Some(render::diagram::diagram_debug_info(content))
             } else {
                 None

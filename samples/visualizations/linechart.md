@@ -1,11 +1,11 @@
 ---
 title: "Line Chart Tests"
-@theme: dark
+theme: dark
 ---
 
 # Line Chart — Single Series
 
-```@linechart
+```@line
 # x-labels: Q1, Q2, Q3, Q4
 - Revenue: 100, 150, 200, 280
 ```
@@ -13,7 +13,7 @@ title: "Line Chart Tests"
 
 # Line Chart — With Axis Labels
 
-```@linechart
+```@line
 # x-labels: Jan, Feb, Mar, Apr, May, Jun
 # x-label: Month
 # y-label: Temperature (°C)
@@ -24,7 +24,7 @@ title: "Line Chart Tests"
 
 # Line Chart — Multiple Series
 
-```@linechart
+```@line
 # x-labels: 2020, 2021, 2022, 2023, 2024
 # x-label: Year
 # y-label: Users (millions)
@@ -36,12 +36,12 @@ title: "Line Chart Tests"
 
 # Line Chart — Progressive Reveal
 
-```@linechart
+```@line
 # x-labels: Mon, Tue, Wed, Thu, Fri
 # y-label: Requests (k)
 - API v1: 120, 115, 130, 125, 140
 + API v2: 80, 95, 110, 130, 160
-* Legacy: 40, 35, 30, 25, 20
++ Legacy: 40, 35, 30, 25, 20
 ```
 
 
@@ -49,7 +49,7 @@ title: "Line Chart Tests"
 
 # Line Chart — Many Points (Label Thinning) and Thousands
 
-```@linechart
+```@line
 # x-labels: Jan 2023, Feb 2023, Mar 2023, Apr 2023, May 2023, Jun 2023, Jul 2023, Aug 2023, Sep 2023, Oct 2023, Nov 2023, Dec 2023, Jan 2024, Feb 2024, Mar 2024, Apr 2024, May 2024, Jun 2024, Jul 2024, Aug 2024, Sep 2024, Oct 2024, Nov 2024, Dec 2024
 # x-label: Month
 # y-label: Revenue ($)

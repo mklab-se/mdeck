@@ -1,6 +1,6 @@
 ---
 title: Gantt Chart Tests
-@theme: dark
+theme: dark
 ---
 
 # Gantt Chart — Short Timeline (Weekend Shading)
@@ -119,6 +119,6 @@ title: Gantt Chart Tests
 - Phase 1: 2024-01-01, 15d
 + Phase 2: 10d, after Phase 1
 + Phase 3: 20d, after Phase 2
-* Support: 20d, after Phase 2
++ Support: 20d, after Phase 2
 + Phase 4: 5d, after Phase 3
 ```

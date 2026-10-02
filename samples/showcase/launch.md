@@ -1,16 +1,16 @@
 ---
 title: "Northwind"
 author: "MDeck"
-@theme: ember
+theme: ember
 ---
 
 # Ship It
-@illustration: rocket
+<!-- picture: rocket -->
 
 The Northwind launch, written in plain markdown
 
 # Why we are building it
-@illustration: lightbulb
+<!-- picture: lightbulb -->
 
 - Teams lose a day a week to status meetings
 - Every tool shows a different truth
@@ -69,7 +69,7 @@ The Northwind launch, written in plain markdown
 - Boarding now
 
 # Built to last
-@illustration: gear
+<!-- picture: gear -->
 
 - Every part replaceable
 - Every change measured

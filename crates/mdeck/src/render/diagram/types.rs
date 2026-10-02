@@ -18,12 +18,10 @@ pub(super) enum DiagramScale {
 /// Reveal marker for diagram elements (mirrors ListMarker semantics).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) enum DiagramReveal {
-    /// Always visible (prefix `-` or no prefix).
+    /// Always visible (prefix `-`, `*` or no prefix).
     Static,
     /// Appears on the next reveal step (prefix `+`).
     NextStep,
-    /// Appears together with the previous `+` element (prefix `*`).
-    WithPrev,
 }
 
 pub(super) struct DiagramNode {

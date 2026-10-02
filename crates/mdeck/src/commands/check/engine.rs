@@ -6,7 +6,7 @@ use crate::parser;
 use crate::render;
 
 /// The theme the deck runs in, on the engine it runs on (`--engine`,
-/// `@engine`, then the theme's), and any problem with the deck's `@engine`.
+/// `engine`, then the theme's), and any problem with the deck's `engine`.
 /// An unknown `--engine` is an error.
 pub fn deck_theme(
     presentation: &parser::Presentation,
@@ -55,13 +55,13 @@ pub fn art_warnings(
             None => missing.push(i + 1),
             Some(r) if !r.file.exists() => out.push(CheckWarning {
                 slide: i + 1,
-                line: slide.directive_line("art"),
+                line: slide.setting_line("picture-prompt"),
                 category: CheckCategory::Art,
                 message: format!("art file {} is missing", r.file.display()),
             }),
             Some(r) if r.source == Source::Stale => out.push(CheckWarning {
                 slide: i + 1,
-                line: slide.directive_line("art"),
+                line: slide.setting_line("picture-prompt"),
                 category: CheckCategory::Art,
                 message: "art is stale (the slide changed since it was drawn); run `mdeck ai art --stale`".into(),
             }),
@@ -88,13 +88,13 @@ pub fn art_warnings(
     out
 }
 
-/// A message about a directive (`@illustration: ...`) points at that
-/// directive's line; any other at the slide's.
+/// A message about a setting (`picture: ...`) points at that setting's
+/// line; any other at the slide's.
 fn message_line(slide: &parser::Slide, message: &str) -> usize {
     message
-        .strip_prefix('@')
-        .and_then(|rest| rest.split_once(':'))
-        .map_or(slide.line, |(name, _)| slide.directive_line(name))
+        .split_once(':')
+        .filter(|(name, _)| crate::language::setting(name).is_some())
+        .map_or(slide.line, |(name, _)| slide.setting_line(name))
 }
 
 /// Content the deck's engine will not show, one warning per slide and thing.
@@ -122,10 +122,10 @@ mod tests {
 
     #[test]
     fn a_message_about_a_directive_names_its_line() {
-        let p = parser::parse("# A\n\n- one\n\n---\n\n# B\n\n- two\n@illustration: cup\n");
+        let p = parser::parse("# A\n\n- one\n\n---\n\n# B\n\n- two\n<!-- picture: cup -->\n");
         let slide = &p.slides[1];
-        assert_eq!(message_line(slide, "@illustration: cup is not shown"), 10);
-        assert_eq!(message_line(slide, "@art: x is not drawn"), 7);
+        assert_eq!(message_line(slide, "picture: cup is not shown"), 10);
+        assert_eq!(message_line(slide, "picture-prompt: x is not drawn"), 7);
         assert_eq!(message_line(slide, "code blocks are not shown"), 7);
     }
 }

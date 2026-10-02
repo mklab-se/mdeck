@@ -52,7 +52,7 @@ use crate::parser::Slide;
 use crate::render::art::Medium;
 use crate::render::illustration::Library;
 
-/// Which engine a theme (or a deck's `@engine`) runs. Every engine has a
+/// Which engine a theme (or a deck's `engine`) runs. Every engine has a
 /// variant in every build, so a theme can name one the build leaves out; it
 /// is then reported as not available.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -98,13 +98,13 @@ pub struct Capabilities {
     /// transitions between slides (the split-flap board). Its
     /// [`EngineDef::render_slide`] draws the slide.
     pub board: bool,
-    /// Shows `@illustration` point clouds.
+    /// Shows point cloud pictures (`picture`).
     pub illustrations: bool,
     /// Draws the opening countdown itself (`countdown: burst` in a theme).
     pub countdown: bool,
     /// Plays an act of its own on the end slide.
     pub end_act: bool,
-    /// Draws generated art (`@art`, `mdeck ai art`) in its medium.
+    /// Draws generated art (`mdeck ai art`) in its medium.
     pub art: bool,
     /// Prints the slide number itself, so the editorial counter is left out.
     pub numbers_slides: bool,

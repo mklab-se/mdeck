@@ -55,17 +55,26 @@ fn plain_text(inlines: &[Inline]) -> String {
 
 pub(super) fn render_quote(f: &Frame, slide: &Slide) {
     let (ui, theme, rect, sz, scale) = (f.ui, f.theme, f.rect, &f.sz, f.scale);
-    let mut quote = None;
+    let mut quote_blocks = None;
     let mut attribution = None;
     let mut heading = None;
     for block in &slide.blocks {
         match block {
             Block::Heading { inlines, .. } => heading = Some(inlines),
-            Block::BlockQuote { inlines } => quote = Some(inlines),
-            Block::Paragraph { inlines } if quote.is_some() => attribution = Some(inlines),
+            Block::BlockQuote { blocks } => quote_blocks = Some(blocks),
+            Block::Paragraph { inlines } if quote_blocks.is_some() => {
+                attribution = Some(inlines.clone())
+            }
             _ => {}
         }
     }
+    let quote = quote_blocks.map(|b| {
+        let (quote, own) = Block::quote_parts(b, attribution.is_some());
+        attribution = attribution.take().or(own);
+        quote
+    });
+    let quote = quote.as_ref();
+    let attribution = attribution.as_ref();
     let column = copy_column(rect);
     let width = rect.width() * 0.58;
     let (num, rest) = slide_eyebrow(f.deck);

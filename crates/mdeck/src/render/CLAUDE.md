@@ -14,7 +14,7 @@ All visualizations (charts, diagrams, etc.) must follow these principles:
 
 ## Code structure
 
-- **A new chart:** add a variant to `parser::Chart` and its fence tag to `Chart::TAGS`, an arm to `visualizations::draw`, and a module whose `draw_*` takes `(cx: &VizCtx, content, pos, max_width, max_height) -> f32`. Keep parsing and geometry pure (a `layout` step with unit tests) and paint separately.
+- **A new chart:** add a variant to `parser::Chart`, its fence tag to `Chart::TAGS` and to `language::FENCES`, an arm to `visualizations::draw`, and a module whose `draw_*` takes `(cx: &VizCtx, content, pos, max_width, max_height) -> f32`. Keep parsing and geometry pure (a `layout` step with unit tests) and paint separately.
 - **Shared pieces first:** `PlotFrame` (axes, grid, value labels), `header_directive` (`# key: value` lines), the legend helpers, `reveal_anim_progress` / `assign_steps`, and the `VIZ_FONT_*` tokens.
 - **No long argument lists:** pass `VizCtx`, `BlockCx` or `TextCx` plus small structs rather than adding `#[allow(clippy::too_many_arguments)]`.
 

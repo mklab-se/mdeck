@@ -41,7 +41,7 @@ fn main() {
 
 ## Chart
 
-```@barchart
+```@bar
 - Design: 42
 - Build: 68
 - Launch: 55

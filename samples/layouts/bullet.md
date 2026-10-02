@@ -1,7 +1,7 @@
 ---
 title: "Layout Test: Bullet Slides"
-@theme: dark
-@transition: fade
+theme: dark
+transition: fade
 ---
 
 # Layout Test: Bullet Slides

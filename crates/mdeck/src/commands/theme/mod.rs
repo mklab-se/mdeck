@@ -192,7 +192,7 @@ async fn new(name: &str, from: Option<&Path>, user: bool, force: bool, quiet: bo
         std::fs::write(&single, starter(name))?;
         if !quiet {
             println!("Wrote {}", single.display());
-            println!("Use it with `@theme: {name}` in a deck's frontmatter.");
+            println!("Use it with `theme: {name}` in a deck's frontmatter.");
         }
         return Ok(());
     };

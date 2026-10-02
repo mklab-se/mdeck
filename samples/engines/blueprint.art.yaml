@@ -4,7 +4,7 @@ version: 1
 slides:
 - slide: 1
   title: The Harbour Bridge
-  hash: 7e7f318f87332fae
+  hash: 7bcc4c9cbbd842e3
   style: line-9b4b0041
   file: art/blueprint-01-line-379533.jpg
   scene: A great iron suspension bridge under construction across a harbour, cranes on the towers, a small steam launch passing beneath.
@@ -18,7 +18,7 @@ slides:
   generated: 2026-09-28 12:26
 - slide: 3
   title: Construction lines first
-  hash: 245549feede63f38
+  hash: 5698c99db89de000
   style: line-9b4b0041
   file: art/blueprint-03-line-379029.jpg
   scene: A draughtsman's desk with a drafting machine, a compass and a half-finished drawing of a steam engine, a laptop beside it.
@@ -32,7 +32,7 @@ slides:
   generated: 2026-09-28 12:26
 - slide: 7
   title: Thank you
-  hash: cefd438f3dbc7547
+  hash: ad836e5fe9c15e3c
   style: line-9b4b0041
   file: art/blueprint-07-line-438817.jpg
   scene: A lighthouse keeper waving from the gallery of a lighthouse at dusk, a small robot beside them holding a lantern.

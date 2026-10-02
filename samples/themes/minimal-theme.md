@@ -1,6 +1,6 @@
 ---
 title: "Custom themes: ten lines"
-@theme: acme
+theme: acme
 ---
 
 # Ten lines of YAML
@@ -20,7 +20,7 @@ title: "Custom themes: ten lines"
 
 ## Charts follow the series
 
-```@barchart
+```@bar
 - North: 42
 - South: 68
 - East: 55

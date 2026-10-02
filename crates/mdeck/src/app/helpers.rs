@@ -102,8 +102,7 @@ pub(super) fn revealed_bottom(
         match block {
             parser::Block::List { items, .. } => {
                 let mut steps = Vec::new();
-                let mut counter = 0;
-                flatten_item_steps(items, &mut counter, &mut steps);
+                flatten_item_steps(items, &mut steps);
                 for (flat_idx, item_step) in steps.iter().enumerate() {
                     if *item_step == step {
                         let bottom = y + (flat_idx + 1) as f32 * item_height;
@@ -111,31 +110,25 @@ pub(super) fn revealed_bottom(
                     }
                 }
             }
-            other => {
-                if parser::compute_max_steps(std::slice::from_ref(other)) >= step {
+            parser::Block::Diagram { step_base, .. } | parser::Block::Chart { step_base, .. } => {
+                let own = parser::steps::default_visual_steps(block);
+                if step > *step_base && step <= step_base + own {
                     let bottom = y + h;
                     best = Some(best.map_or(bottom, |b: f32| b.max(bottom)));
                 }
             }
+            _ => {}
         }
         y += h + block_spacing;
     }
     best
 }
 
-/// Assign a reveal step to every list item in render order (depth first).
-fn flatten_item_steps(items: &[parser::ListItem], counter: &mut usize, out: &mut Vec<usize>) {
+/// Every list item's step in render order (depth first).
+fn flatten_item_steps(items: &[parser::ListItem], out: &mut Vec<usize>) {
     for item in items {
-        let step = match item.marker {
-            parser::ListMarker::NextStep => {
-                *counter += 1;
-                *counter
-            }
-            parser::ListMarker::WithPrev => *counter,
-            parser::ListMarker::Static | parser::ListMarker::Ordered => 0,
-        };
-        out.push(step);
-        flatten_item_steps(&item.children, counter, out);
+        out.push(item.step);
+        flatten_item_steps(&item.children, out);
     }
 }
 
@@ -195,7 +188,7 @@ pub(super) fn print_incident_summary(log: &IncidentLog) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::{Block, Inline, ListItem, ListMarker};
+    use crate::parser::Block;
     use std::path::Path;
 
     #[test]
@@ -222,50 +215,31 @@ mod tests {
         assert_eq!(resolve_setting(None, Some("  "), "light"), "light");
     }
 
-    fn item(marker: ListMarker, children: Vec<ListItem>) -> ListItem {
-        ListItem {
-            marker,
-            inlines: vec![Inline::Text("x".into())],
-            children,
-        }
-    }
-
-    fn list(items: Vec<ListItem>) -> Block {
-        Block::List {
-            ordered: false,
-            items,
-        }
+    /// Blocks parsed and numbered as a slide's.
+    fn numbered(md: &str) -> Vec<Block> {
+        let mut blocks = crate::parser::blocks::parse(md);
+        crate::parser::steps::number(
+            &mut blocks,
+            true,
+            &crate::parser::steps::default_visual_steps,
+        );
+        blocks
     }
 
     #[test]
-    fn flatten_item_steps_numbers_next_and_with_prev() {
-        let items = vec![
-            item(ListMarker::Static, vec![]),
-            item(
-                ListMarker::NextStep,
-                vec![item(ListMarker::WithPrev, vec![])],
-            ),
-            item(ListMarker::NextStep, vec![]),
-            item(ListMarker::WithPrev, vec![]),
-        ];
+    fn flatten_item_steps_follows_render_order() {
+        let blocks = numbered("- a\n+ b\n  - b1\n+ c\n- d");
+        let Block::List { items, .. } = &blocks[0] else {
+            panic!()
+        };
         let mut steps = Vec::new();
-        let mut counter = 0;
-        flatten_item_steps(&items, &mut counter, &mut steps);
-        assert_eq!(steps, vec![0, 1, 1, 2, 2]);
+        flatten_item_steps(items, &mut steps);
+        assert_eq!(steps, vec![0, 1, 1, 2, 0]);
     }
 
     #[test]
     fn revealed_bottom_finds_lowest_item_for_step() {
-        let heading = Block::Heading {
-            level: 1,
-            inlines: vec![],
-        };
-        let items = vec![
-            item(ListMarker::NextStep, vec![]),
-            item(ListMarker::NextStep, vec![]),
-            item(ListMarker::WithPrev, vec![]),
-        ];
-        let blocks = vec![heading, list(items)];
+        let blocks = numbered("# H\n\n+ one\n+ two\n  - two a");
         let heights = vec![60.0, 3.0 * 40.0];
         // Heading (60) + spacing (20) = list top at 80; item i bottom = 80 + (i+1)*40
         assert_eq!(revealed_bottom(&blocks, &heights, 0, 40.0, 20.0), None);
@@ -284,15 +258,14 @@ mod tests {
     #[test]
     fn revealed_bottom_handles_stepped_non_list_blocks() {
         // A bar chart with two reveal steps below a paragraph
-        let blocks = vec![
-            Block::Paragraph { inlines: vec![] },
-            Block::Chart {
-                kind: crate::parser::Chart::Bar,
-                content: "- A: 1\n+ B: 2\n+ C: 3".to_string(),
-            },
-        ];
+        let mut blocks =
+            crate::parser::blocks::parse("text\n\n```@bar\n- A: 1\n+ B: 2\n+ C: 3\n```");
+        let max = crate::parser::steps::number(
+            &mut blocks,
+            true,
+            &crate::parser::steps::default_visual_steps,
+        );
         let heights = vec![50.0, 300.0];
-        let max = crate::parser::compute_max_steps(&blocks);
         assert!(max >= 1, "sample chart should have reveal steps");
         assert_eq!(
             revealed_bottom(&blocks, &heights, 1, 40.0, 20.0),
@@ -304,20 +277,12 @@ mod tests {
         );
     }
 
-    use crate::parser::{Layout, Slide};
+    use crate::parser::Slide;
 
     fn slide(raw: &str) -> Slide {
         Slide {
-            directives: vec![],
-            blocks: vec![],
-            layout: Layout::Content,
             raw_source: raw.to_string(),
-            line: 0,
-            source_lines: Vec::new(),
-            notes: None,
-            illustration: None,
-            logo: None,
-            art: None,
+            ..Default::default()
         }
     }
 

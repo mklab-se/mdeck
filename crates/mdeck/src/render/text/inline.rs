@@ -247,29 +247,6 @@ pub fn draw_paragraph(cx: &TextCx, inlines: &[Inline], pos: Pos2, max_width: f32
     draw_inlines(cx, inlines, pos, size, color, max_width)
 }
 
-pub(super) const QUOTE_BAR_WIDTH: f32 = 4.0;
-pub(super) const QUOTE_BAR_PADDING: f32 = 16.0;
-
-/// Draw a blockquote. Returns height used.
-pub fn draw_blockquote(cx: &TextCx, inlines: &[Inline], pos: Pos2, max_width: f32) -> f32 {
-    let accent = Theme::with_opacity(cx.theme.accent, cx.opacity);
-    let color = Theme::with_opacity(cx.theme.foreground, cx.opacity);
-    let bar_width = QUOTE_BAR_WIDTH * cx.scale;
-    let bar_padding = QUOTE_BAR_PADDING * cx.scale;
-    let font_size = cx.theme.body_size * 1.1 * cx.scale;
-
-    let text_pos = Pos2::new(pos.x + bar_width + bar_padding, pos.y);
-    let text_width = max_width - bar_width - bar_padding;
-
-    let height = draw_inlines(cx, inlines, text_pos, font_size, color, text_width);
-
-    // Draw accent bar
-    let bar_rect = egui::Rect::from_min_size(pos, egui::vec2(bar_width, height));
-    cx.ui.painter().rect_filled(bar_rect, 2.0, accent);
-
-    height
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

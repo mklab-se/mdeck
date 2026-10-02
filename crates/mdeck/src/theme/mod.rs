@@ -160,7 +160,7 @@ pub struct Theme {
     pub fill_opacity: f32,
     /// Syntax theme: a syntect default name or a registered `.tmTheme` key.
     pub syntax: String,
-    /// A logo in a corner of every slide (a deck's `@logo` overrides it).
+    /// A logo in a corner of every slide (a deck's `logo` overrides it).
     pub logo: Option<crate::render::logo::Logo>,
     /// The slide as a sheet on a surface (`page:`); `None` fills the window.
     pub page: Option<Page>,

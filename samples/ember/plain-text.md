@@ -1,8 +1,8 @@
 ---
 title: "Working in the open"
 author: "MKLab"
-@theme: ember
-@transition: fade
+theme: ember
+transition: fade
 ---
 
 # Working in the open

@@ -7,6 +7,7 @@ mod config;
 mod deck;
 mod engines;
 mod incident_log;
+mod language;
 mod parser;
 mod prompt;
 mod render;

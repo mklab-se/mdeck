@@ -1,7 +1,7 @@
 ---
 title: "Transition Test: Fade"
-@theme: dark
-@transition: fade
+theme: dark
+transition: fade
 ---
 
 # Fade Transition

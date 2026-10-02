@@ -122,7 +122,6 @@ pub fn lay_out(slide: &Slide, title: bool, reveal: usize) -> Board {
     if images.len() > 1 {
         w.unsupported.insert("a second image".into());
     }
-    let mut counter = 0;
     let split = slide
         .blocks
         .iter()
@@ -133,12 +132,12 @@ pub fn lay_out(slide: &Slide, title: bool, reveal: usize) -> Board {
             .iter()
             .take_while(|b| matches!(b, Block::Heading { .. }))
             .count();
-        w.blocks(&slide.blocks[..lead], width, false, &mut counter);
+        w.blocks(&slide.blocks[..lead], width, false);
         let half = (width - 2) / 2;
         let mut left = Writer::new();
-        left.blocks(&slide.blocks[lead..sep], half, false, &mut counter);
+        left.blocks(&slide.blocks[lead..sep], half, false);
         let mut right = Writer::new();
-        right.blocks(&slide.blocks[sep + 1..], half, false, &mut counter);
+        right.blocks(&slide.blocks[sep + 1..], half, false);
         let n = left.lines.len().max(right.lines.len());
         for k in 0..n {
             let l = left.lines.get(k).cloned().unwrap_or_default();
@@ -156,7 +155,7 @@ pub fn lay_out(slide: &Slide, title: bool, reveal: usize) -> Board {
             w.unsupported.extend(sub.unsupported);
         }
     } else {
-        w.blocks(&slide.blocks, width, title, &mut counter);
+        w.blocks(&slide.blocks, width, title);
     }
     while w
         .lines
@@ -405,7 +404,7 @@ mod tests {
     #[test]
     fn code_charts_and_formulas_are_reported() {
         let p = problems(&slide(
-            "# T\n\nThe $x^2$ rule\n\n```rust\nfn main() {}\n```\n\n```@barchart\nA: 1\n```\n",
+            "# T\n\nThe $x^2$ rule\n\n```rust\nfn main() {}\n```\n\n```@bar\nA: 1\n```\n",
         ));
         let all = p.join("|");
         assert!(all.contains("code blocks"), "{all}");

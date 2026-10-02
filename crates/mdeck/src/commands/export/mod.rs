@@ -86,7 +86,7 @@ pub fn select_slides(
 
 /// Which theme an export uses.
 pub enum ThemeChoice {
-    /// What the deck asks for (`@theme`, then the config default).
+    /// What the deck asks for (`theme`, then the config default).
     Deck,
     /// A theme looked up by name from the deck's folder (`--theme`).
     Named(String),
@@ -110,7 +110,7 @@ pub struct ExportArgs {
     /// PDF only: a notes page after every slide.
     pub notes: bool,
     pub theme: ThemeChoice,
-    /// `--engine`: overrides `@engine` and the theme's.
+    /// `--engine`: overrides `engine` and the theme's.
     pub engine: Option<String>,
 }
 
@@ -179,9 +179,9 @@ pub fn run(args: ExportArgs) -> anyhow::Result<()> {
 }
 
 /// Parse the deck and resolve its theme with the same precedence as
-/// presenting: `--theme`, then `@theme`, then the config default, then the
+/// presenting: `--theme`, then `theme`, then the config default, then the
 /// built-in default (an explicit `--theme` must exist); and its engine:
-/// `--engine`, then `@engine`, then the theme's own.
+/// `--engine`, then `engine`, then the theme's own.
 fn open_deck(
     file: &Path,
     choice: ThemeChoice,

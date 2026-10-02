@@ -1,6 +1,6 @@
 ---
 title: "Org Chart Tests"
-@theme: dark
+theme: dark
 ---
 
 # Org Chart — Basic
@@ -43,7 +43,7 @@ title: "Org Chart Tests"
 - Director
 + Director -> Team Lead A
 + Director -> Team Lead B
-* Team Lead A -> Dev 1
-* Team Lead A -> Dev 2
++ Team Lead A -> Dev 1
++ Team Lead A -> Dev 2
 + Team Lead B -> Dev 3
 ```

@@ -75,6 +75,23 @@ impl PresentationApp {
         }
     }
 
+    /// How slide `index` is entered (and left again going back): its own
+    /// `transition` setting, else the deck's. `zoom` is set up by the
+    /// navigation from `zoom-to`, so it falls back to the deck's here.
+    pub(super) fn slide_transition(&self, index: usize) -> TransitionKind {
+        let own = self
+            .deck
+            .presentation
+            .slides
+            .get(index)
+            .and_then(|s| crate::parser::setting(&s.settings, "transition"))
+            .filter(|t| *t != "zoom");
+        match own {
+            Some(name) if !self.reduced_motion => TransitionKind::from_name(name),
+            _ => self.transition_kind(),
+        }
+    }
+
     /// `C`: the next thermal palette for every `@thermal` image and legend.
     pub(super) fn cycle_palette(&mut self) {
         use crate::render::thermal::Palette;
@@ -97,7 +114,7 @@ impl PresentationApp {
         }
     }
 
-    /// The deck's `@palette`, if it names a palette.
+    /// The deck's `palette`, if it names a palette.
     pub(super) fn deck_palette(&self) -> Option<crate::render::thermal::Palette> {
         self.deck
             .presentation

@@ -1,12 +1,12 @@
-//! Which engine a deck runs on (`--engine`, `@engine`, the theme's), and
+//! Which engine a deck runs on (`--engine`, `engine`, the theme's), and
 //! what that engine will not show, for `--check` and the startup line.
 
 use super::EngineKind;
 use crate::parser::Slide;
 
 /// The engine a deck runs on: `--engine` on the command line, then the deck's
-/// `@engine`, then the theme's own. An unknown `--engine` is an error (the
-/// caller stops); an unknown or unavailable `@engine` is a warning and the
+/// `engine`, then the theme's own. An unknown `--engine` is an error (the
+/// caller stops); an unknown or unavailable `engine` is a warning and the
 /// theme's engine is kept.
 pub fn choose(
     cli: Option<&str>,
@@ -32,13 +32,13 @@ pub fn choose(
         Some(kind) if kind.available() => Ok((Some(kind), warnings)),
         Some(_) => {
             warnings.push(format!(
-                "@engine: {name} is not in this build of MDeck; using the theme's engine"
+                "engine: {name} is not in this build of MDeck; using the theme's engine"
             ));
             Ok((None, warnings))
         }
         None => {
             warnings.push(format!(
-                "@engine: '{name}' is not an engine ({}); using the theme's engine",
+                "engine: '{name}' is not an engine ({}); using the theme's engine",
                 EngineKind::names()
             ));
             Ok((None, warnings))
@@ -72,7 +72,7 @@ pub fn unsupported(kind: EngineKind, slide: &Slide) -> Vec<String> {
         && !caps.illustrations
     {
         out.push(format!(
-            "@illustration: {name} is not shown by the {} engine",
+            "picture: {name} is not shown by the {} engine",
             kind.name()
         ));
     }
@@ -89,7 +89,7 @@ pub fn unsupported(kind: EngineKind, slide: &Slide) -> Vec<String> {
             .map(|k| k.name())
             .collect();
         out.push(format!(
-            "@art: '{short}' is not drawn by the {} engine (engines that draw art: {})",
+            "picture-prompt: '{short}' is not drawn by the {} engine (engines that draw art: {})",
             kind.name(),
             media.join(", ")
         ));
@@ -132,7 +132,7 @@ mod tests {
             Some(EngineKind::Particles)
         );
         assert_eq!(choose(None, None).unwrap().0, None);
-        // a bad --engine stops; a bad @engine warns and keeps the theme's
+        // a bad --engine stops; a bad engine warns and keeps the theme's
         assert!(
             choose(Some("lasers"), None)
                 .unwrap_err()
@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn unsupported_names_illustrations() {
-        let pres = crate::parser::parse("# A\n@illustration: server\n\n- one\n\n# B\n\n- two\n");
+        let pres = crate::parser::parse("# A\n<!-- picture: server -->\n\n- one\n\n# B\n\n- two\n");
         let a = &pres.slides[0];
         assert!(unsupported(EngineKind::Particles, a).is_empty());
         let plain = unsupported(EngineKind::Plain, a);

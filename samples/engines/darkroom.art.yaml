@@ -4,7 +4,7 @@ version: 1
 slides:
 - slide: 1
   title: The Night Shift
-  hash: 84a50ec6a06a6637
+  hash: 52e8aa641e97223c
   style: darkroom-30821963
   file: art/darkroom-01-darkroom-380877.jpg
   scene: A lone dock worker walking along a wet quay at night under a streetlight, fishing boats moored beside him.
@@ -18,7 +18,7 @@ slides:
   generated: 2026-09-28 12:59
 - slide: 3
   title: The boats come in
-  hash: fbcc7192b8549be8
+  hash: 7fc1169c22933546
   style: darkroom-30821963
   file: art/darkroom-03-darkroom-380416.jpg
   scene: A fishing boat coming into harbour at dawn, gulls following it, mist on the water.
@@ -32,7 +32,7 @@ slides:
   generated: 2026-09-28 12:59
 - slide: 7
   title: Lights on
-  hash: d3e9866f32e8feda
+  hash: 241cf0f4140ce954
   style: darkroom-30821963
   file: art/darkroom-07-darkroom-427771.jpg
   scene: A harbour café at dawn, a waiter setting out chairs, the first sunlight on the wet cobbles.

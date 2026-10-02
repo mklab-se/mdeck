@@ -1,21 +1,19 @@
 ---
 title: "Poker Night: Humans vs Machines"
 author: "MDeck Demo"
-date: 2026-02-28
-@theme: dark
-@transition: slide
+theme: dark
+transition: slide
 ---
 
 # Poker Night: Humans vs Machines
 
 A tale of bluffs, bots, and bad beats
 
-
+---
 
 ![The table is set @fill](images/poker-4.png)
 
 A smoke-filled saloon. Two players. One has a secret.
-
 
 
 # Why Poker?
@@ -24,7 +22,6 @@ A smoke-filled saloon. Two players. One has a secret.
 + Deception is a core mechanic, not a bug
 + Optimal play requires modeling your opponent
 + Machines had to learn to *lie* before they could win
-
 
 
 # A Brief History
@@ -37,12 +34,11 @@ A smoke-filled saloon. Two players. One has a secret.
 | 2019 | Pluribus defeats 5 human pros simultaneously |
 | 2024 | AI poker bots flood online platforms |
 
-
+---
 
 ![Reading the table @width:80%](images/poker-1.png)
 
 The cowboy studies his hand. His opponent's cards glow with something... unnatural.
-
 
 
 # The Human Advantage
@@ -56,7 +52,6 @@ The cowboy studies his hand. His opponent's cards glow with something... unnatur
 + And they never, ever get tired.
 
 
-
 # The Machine Advantage
 
 + Game-theoretic optimal (GTO) play
@@ -68,12 +63,11 @@ The cowboy studies his hand. His opponent's cards glow with something... unnatur
 
 *"The bot doesn't need to read your face. It already knows the math."*
 
-
+---
 
 ![The reveal @width:80%](images/poker-3.png)
 
 Human hands and mechanical hands shuffle the same deck.
-
 
 
 # How Poker AI Works
@@ -88,7 +82,6 @@ Human hands and mechanical hands shuffle the same deck.
 + Self-Play -> Strategy Net: learn equilibrium
 + Strategy Net -> Live Game: deploy
 ```
-
 
 
 # Counterfactual Regret Minimization
@@ -116,16 +109,15 @@ def cfr(game_state, player, reach_probs):
     return node_value
 ```
 
-
+---
 
 ![Four aces @width:80%](images/poker-2.png)
 
 Sometimes you just get lucky. The AI knows exactly how often.
 
 
-
 # Human vs Machine
-@layout: two-column
+<!-- design: columns -->
 
 **Strengths of Humans:**
 
@@ -144,7 +136,6 @@ Sometimes you just get lucky. The AI knows exactly how often.
 - Perfect memory
 
 
-
 # What Poker Teaches Us About AI
 
 + AI doesn't need to be "smart" — it needs to be *strategic*
@@ -152,12 +143,11 @@ Sometimes you just get lucky. The AI knows exactly how often.
 + The best AI systems handle uncertainty, not just facts
 + Collaboration might beat competition
 
-
+---
 
 > In poker, as in life, the goal isn't to play the cards — it's to play the player.
 
 -- Old saloon wisdom
-
 
 
 # Thank You

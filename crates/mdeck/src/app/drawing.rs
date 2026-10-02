@@ -317,20 +317,9 @@ impl PresentationApp {
             }
             return;
         }
-        // Footer
-        if let Some(ref footer) = self.deck.presentation.meta.footer {
-            let footer_color = Theme::with_opacity(self.theme.foreground, 0.4);
-            let galley = ui.painter().layout_no_wrap(
-                footer.clone(),
-                egui::FontId::proportional(14.0 * scale),
-                footer_color,
-            );
-            let pos = egui::pos2(
-                rect.center().x - galley.rect.width() / 2.0,
-                rect.bottom() - 30.0 * scale,
-            );
-            ui.painter().galley(pos, galley, footer_color);
-        }
+        // Footer: drawn by the deck, as in export
+        self.deck
+            .draw_footer(ui.painter(), &self.theme, rect, scale);
 
         // Slide counter
         let counter_text = format!("{} / {}", self.current_slide + 1, self.slide_count());

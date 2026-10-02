@@ -1,8 +1,8 @@
 ---
 title: "MDeck Gallery"
 author: "MDeck"
-@theme: dark
-@transition: spatial
+theme: dark
+transition: spatial
 ---
 
 # MDeck Gallery
@@ -105,7 +105,7 @@ fn main() {
 
 ## Bar Chart
 
-```@barchart
+```@bar
 # x-label: Language
 # y-label: Popularity
 - JavaScript: 65
@@ -119,7 +119,7 @@ fn main() {
 
 ## Horizontal Bar Chart
 
-```@barchart
+```@bar
 # orientation: horizontal
 # x-label: Score
 - Ease of Use: 92
@@ -133,7 +133,7 @@ fn main() {
 
 ## Line Chart
 
-```@linechart
+```@line
 # x-labels: Jan, Feb, Mar, Apr, May, Jun
 # y-label: Revenue ($K)
 - Product A: 120, 145, 162, 190, 215, 248
@@ -145,7 +145,7 @@ fn main() {
 
 ## Pie Chart
 
-```@piechart
+```@pie
 - Frontend: 35%
 - Backend: 30%
 - DevOps: 20%
@@ -356,7 +356,7 @@ fn main() {
 ---
 
 ## Two-Column Layout
-@layout: two-column
+<!-- design: columns -->
 
 ### Markdown Source
 

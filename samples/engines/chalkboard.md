@@ -1,12 +1,12 @@
 ---
 title: "How a Lighthouse Works"
 author: "MDeck"
-@theme: chalkboard
-@art: A rocky coast with a tall stone lighthouse, its keeper, and ships at sea, in the nineteenth century.
+theme: chalkboard
+art-world: A rocky coast with a tall stone lighthouse, its keeper, and ships at sea, in the nineteenth century.
 ---
 
 # How a Lighthouse Works
-@art: A tall stone lighthouse on a rocky point, beams of light sweeping over the sea, a sailing ship passing.
+<!-- picture-prompt: A tall stone lighthouse on a rocky point, beams of light sweeping over the sea, a sailing ship passing. -->
 
 Today's lesson, drawn on the board
 
@@ -17,7 +17,7 @@ Today's lesson, drawn on the board
 - Too weak on its own to reach the ships
 
 # The lens
-@art: A cutaway of a Fresnel lighthouse lens: rings of glass prisms around a small lamp, bending its light into a single beam.
+<!-- picture-prompt: A cutaway of a Fresnel lighthouse lens: rings of glass prisms around a small lamp, bending its light into a single beam. -->
 
 + Rings of prisms bend the light into one beam
 + The beam reaches forty kilometres out to sea
@@ -31,7 +31,7 @@ Today's lesson, drawn on the board
 
 # Light by the numbers
 
-```@barchart
+```@bar
 title: Range in kilometres
 - Candle: 2
 - Oil lamp: 8
@@ -39,13 +39,12 @@ title: Range in kilometres
 ```
 
 # No picture? Still chalk
-@art: none
-@illustration: lightbulb
+<!-- picture: lightbulb -->
 
-- Without a picture, the `@illustration` is drawn in chalk
-- `@art: none` keeps a slide free of generated art
+- Without a picture, the point cloud named by `picture` is drawn in chalk
+- A slide that names a point cloud gets no generated art; `picture: none` keeps it empty
 
 # Class dismissed
-@art: A lighthouse keeper waving from the gallery at dawn, gulls around the tower, a calm sea.
+<!-- picture-prompt: A lighthouse keeper waving from the gallery at dawn, gulls around the tower, a calm sea. -->
 
 - The engine is `chalkboard`, the theme is `chalkboard`

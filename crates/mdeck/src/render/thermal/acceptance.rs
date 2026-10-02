@@ -170,7 +170,7 @@ fn spots_stay_on_their_pixel_when_the_block_is_resized_or_reshaped() {
 #[test]
 fn every_step_draws_the_same_however_it_was_reached() {
     let spec = Spec::parse(
-        "image: a.png\nvisible: b.jpg\n+ lens 70% 40% 15%\n+ reveal\n+ above 85%\n* spot Hot 70% 40%\n",
+        "image: a.png\nvisible: b.jpg\n+ lens 70% 40% 15%\n+ reveal\n+ above 85%\n+ spot Hot 70% 40%\n",
     );
     let steps = spec.steps(&Support::DISPLAY);
     // forward 0,1,2,3 then back to 1: the state is the step's, not the path's

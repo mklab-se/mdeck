@@ -23,6 +23,7 @@ pub(super) fn parse_list(lines: &[&str], start: usize, ordered: bool) -> (Block,
     let mut i = start;
     // The first item's indent is the list's base level; deeper lines nest.
     let base_indent = line_indent(lines[start]);
+    let first_number = ordered_number(lines[start].trim()).unwrap_or(1);
 
     while i < lines.len() {
         let line = lines[i];
@@ -68,7 +69,33 @@ pub(super) fn parse_list(lines: &[&str], start: usize, ordered: bool) -> (Block,
         }
     }
 
-    (Block::List { ordered, items }, i)
+    (
+        Block::List {
+            ordered,
+            start: first_number,
+            items,
+        },
+        i,
+    )
+}
+
+/// The number an ordered item line starts with (`3. x` gives 3).
+fn ordered_number(line: &str) -> Option<u32> {
+    extract_ordered_item(line)?;
+    line.split('.').next()?.parse().ok()
+}
+
+/// Split a task list box off an item's text: `[ ] x` and `[x] x`.
+fn task_box(text: &str) -> (Option<bool>, &str) {
+    let t = text.trim_start();
+    for (prefix, checked) in [("[ ]", false), ("[x]", true), ("[X]", true)] {
+        if let Some(rest) = t.strip_prefix(prefix)
+            && (rest.is_empty() || rest.starts_with(' '))
+        {
+            return (Some(checked), rest.trim_start());
+        }
+    }
+    (None, text)
 }
 
 /// After the blank line at `lines[i]`, the index of the next non-blank line
@@ -90,13 +117,11 @@ fn parse_item(
     indent: usize,
 ) -> (ListItem, usize) {
     let mut i = i + 1;
+    let (checked, text) = task_box(text);
     let text = collect_item_text(lines, &mut i, text);
     let (children, next) = collect_children(lines, i, indent);
-    let item = ListItem {
-        marker,
-        inlines: crate::parser::inline::parse(&text),
-        children,
-    };
+    let mut item = ListItem::new(marker, crate::parser::inline::parse(&text), children);
+    item.checked = checked;
     (item, next)
 }
 
@@ -160,9 +185,8 @@ fn extract_unordered_item(line: &str) -> Option<(&str, ListMarker)> {
         return None;
     }
     let marker = match first {
-        '-' => ListMarker::Static,
+        '-' | '*' => ListMarker::Static,
         '+' => ListMarker::NextStep,
-        '*' => ListMarker::WithPrev,
         _ => return None,
     };
     Some((&line[2..], marker))
@@ -213,7 +237,7 @@ mod tests {
     fn test_parse_unordered_list() {
         let blocks = parse("- First\n- Second\n- Third");
         assert_eq!(blocks.len(), 1);
-        if let Block::List { ordered, items } = &blocks[0] {
+        if let Block::List { ordered, items, .. } = &blocks[0] {
             assert!(!ordered);
             assert_eq!(items.len(), 3);
         } else {
@@ -223,12 +247,13 @@ mod tests {
 
     #[test]
     fn test_parse_list_markers() {
-        let blocks = parse("- Static\n+ Next\n* WithPrev");
+        // `*` is just another bullet (v1's "with previous" is gone).
+        let blocks = parse("- Static\n+ Next\n* Star");
         assert_eq!(blocks.len(), 1);
         if let Block::List { items, .. } = &blocks[0] {
             assert_eq!(items[0].marker, ListMarker::Static);
             assert_eq!(items[1].marker, ListMarker::NextStep);
-            assert_eq!(items[2].marker, ListMarker::WithPrev);
+            assert_eq!(items[2].marker, ListMarker::Static);
         } else {
             panic!("Expected List");
         }
@@ -301,6 +326,26 @@ mod tests {
         assert_eq!(blocks.len(), 1, "{blocks:?}");
         assert!(!is_ordered_list_start("1 . x"));
         assert!(is_ordered_list_start("10. x"));
+    }
+
+    #[test]
+    fn ordered_lists_keep_their_start_and_tasks_their_boxes() {
+        let blocks = parse("3. three\n4. four");
+        assert!(matches!(
+            blocks[0],
+            Block::List {
+                ordered: true,
+                start: 3,
+                ..
+            }
+        ));
+        let blocks = parse("- [ ] todo\n- [x] done\n- [link](x) text\n- []");
+        let items = list_items(&blocks[0]);
+        assert_eq!(items[0].checked, Some(false));
+        assert_eq!(inlines_to_text(&items[0].inlines), "todo");
+        assert_eq!(items[1].checked, Some(true));
+        assert_eq!(items[2].checked, None);
+        assert_eq!(items[3].checked, None);
     }
 
     #[test]

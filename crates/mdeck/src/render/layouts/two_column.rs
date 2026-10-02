@@ -165,7 +165,6 @@ mod tests {
             let long = "A long paragraph that wraps over a few rows in a narrow column, so its \
                         height is clearly larger than a single short line of text.";
             let slide = Slide {
-                directives: vec![],
                 blocks: vec![
                     Block::Heading {
                         level: 1,
@@ -178,12 +177,8 @@ mod tests {
                 ],
                 layout: Layout::TwoColumn,
                 raw_source: String::new(),
-                line: 0,
-                source_lines: Vec::new(),
                 notes: None,
-                illustration: None,
-                logo: None,
-                art: None,
+                ..Default::default()
             };
 
             let geo = geometry(rect, 1.0);

@@ -1,6 +1,6 @@
 ---
 title: "My First Talk"
-@theme: ember
+theme: ember
 ---
 
 # My First Talk
@@ -16,7 +16,7 @@ Made with MDeck
 
 # Where our users are
 
-```@barchart
+```@bar
 - Europe: 42
 - Americas: 35
 - Asia: 23
@@ -34,12 +34,12 @@ Made with MDeck
 ```
 
 # Ready for launch
-@illustration: rocket
+<!-- picture: rocket -->
 
 - Ship small, ship often
 - Measure everything
 - Celebrate the wins
 
-???
-
+```@notes
 Thank everyone for coming. Mention that the whole deck is one markdown file.
+```

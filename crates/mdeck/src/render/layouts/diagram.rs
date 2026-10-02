@@ -19,15 +19,15 @@ pub fn render(cx: &BlockCx, slide: &Slide, rect: egui::Rect) {
 
     // Find heading and diagram blocks
     let mut heading: Option<&Block> = None;
-    let mut diagram_content: Option<&str> = None;
+    let mut diagram_content: Option<(&str, usize)> = None;
 
     for block in &slide.blocks {
         match block {
             Block::Heading { .. } if heading.is_none() => {
                 heading = Some(block);
             }
-            Block::Diagram { content } if diagram_content.is_none() => {
-                diagram_content = Some(content);
+            Block::Diagram { content, step_base } if diagram_content.is_none() => {
+                diagram_content = Some((content, *step_base));
             }
             _ => {}
         }
@@ -41,11 +41,11 @@ pub fn render(cx: &BlockCx, slide: &Slide, rect: egui::Rect) {
     }
 
     // Draw diagram filling the remaining vertical space
-    if let Some(content) = diagram_content {
+    if let Some((content, step_base)) = diagram_content {
         let remaining_height = rect.bottom() - y - padding;
         if remaining_height > 50.0 * scale {
             diagram::draw_diagram_sized(
-                cx,
+                &cx.after_steps(step_base),
                 content,
                 Pos2::new(content_left, y),
                 content_width,

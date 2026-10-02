@@ -38,26 +38,26 @@ pub fn background_warnings(
                 .find(|&i| backgrounds.get(i).is_some_and(|b| b.path == path))
                 .unwrap_or(0);
             let slide = &presentation.slides[first];
-            let own = parser::directive(&slide.directives, "background")
-                .is_some_and(|v| v.trim() == path);
+            let own =
+                parser::setting(&slide.settings, "background").is_some_and(|v| v.trim() == path);
             let (n, line) = if own {
-                (first + 1, slide.directive_line("background"))
+                (first + 1, slide.setting_line("background"))
             } else {
-                (0, frontmatter_line(content, "@background:"))
+                (0, frontmatter_line(content, "background:"))
             };
-            out.push(warn(n, line, format!("@background: {e}")));
+            out.push(warn(n, line, format!("background: {e}")));
         }
     }
     out
 }
 
 /// The frontmatter line of the key a problem `message` starts with
-/// (`@background:` or `@background-opacity:`), or 0.
+/// (`background:` or `background-opacity:`), or 0.
 fn frontmatter_line(content: &str, message: &str) -> usize {
-    let key = if message.starts_with("@background-opacity") {
-        "@background-opacity:"
+    let key = if message.starts_with("background-opacity") {
+        "background-opacity:"
     } else {
-        "@background:"
+        "background:"
     };
     let mut lines = content.lines().enumerate();
     if lines.next().map(|(_, l)| l.trim()) != Some("---") {
@@ -79,8 +79,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("broken.png"), b"not a png").unwrap();
-        let md = "---\ntitle: T\n@background: gone.jpg\n@background-opacity: 300%\n---\n\n\
-                  # One\n\n- a\n\n# Two\n@background: broken.png\n\n- b\n";
+        let md = "---\ntitle: T\nbackground: gone.jpg\nbackground-opacity: 300%\n---\n\n\
+                  # One\n\n- a\n\n# Two\n<!-- background: broken.png -->\n\n- b\n";
         let pres = parser::parse(md);
         let w = background_warnings(&pres, &dir, md);
         let found: Vec<(usize, usize)> = w.iter().map(|w| (w.slide, w.line)).collect();
@@ -99,7 +99,7 @@ mod tests {
         image::RgbaImage::new(4, 4)
             .save(dir.join("ok.png"))
             .unwrap();
-        let md = "---\n@background: ok.png\n---\n\n# One\n\n- a\n";
+        let md = "---\nbackground: ok.png\n---\n\n# One\n\n- a\n";
         assert!(background_warnings(&parser::parse(md), &dir, md).is_empty());
         std::fs::remove_dir_all(&dir).ok();
     }

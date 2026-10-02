@@ -1,7 +1,7 @@
 ---
 title: "Transition Test: Spatial"
-@theme: dark
-@transition: spatial
+theme: dark
+transition: spatial
 ---
 
 # Spatial Transition
