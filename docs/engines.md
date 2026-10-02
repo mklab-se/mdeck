@@ -8,7 +8,7 @@ like itself on every engine, and any deck switches with one line:
 
 ```yaml
 ---
-@engine: led        # plain, particles, led, splitflap, laser, blocks, blueprint, sketch,
+engine: led         # plain, particles, led, splitflap, laser, blocks, blueprint, sketch,
                     # chalkboard, watercolour, darkroom or thermal
 ---
 ```
@@ -21,7 +21,7 @@ build one? Read [Writing an engine](../crates/mdeck/doc/engines.md).
 
 Ember is MKLab's brand as a theme: graphite on near-black, one ember accent,
 an editorial serif for headings, and a living field of glowing particles
-behind every slide. Set `@theme: ember` and any deck you already have gets it.
+behind every slide. Set `theme: ember` and any deck you already have gets it.
 The field is the **particles engine**, and any theme can run on it: the
 built-in `autumn` and `winter` do, in their own colours, and so can yours.
 
@@ -38,7 +38,7 @@ circle a pie. Behind it all the dark is space: a star field drifting slowly
 forward, dust, a galaxy, or a nebula, rotating by slide so a run of bullet
 slides never repeats itself. None of this needs a line of authoring.
 
-**It can draw a thing.** Put `@illustration: server` under a slide's heading
+**It can draw a thing.** Put `<!-- picture: server -->` under a slide's heading
 and the particles settle into a server beside the copy (behind it, faded, on
 a title slide). Thirty-eight illustrations are built in, from `person` and `laptop`
 to `robot`, `rocket`, `lightbulb` and `account`; `mdeck illustration generate --name server
@@ -48,7 +48,7 @@ Made one worth sharing? `mdeck illustration contribute <name>`
 opens a prefilled issue; drag the file in and it can become a built-in.
 
 **It opens and closes.** A 3-2-1 countdown counted in particles (any key
-skips it, `@countdown: false` turns it off) and an ending where the field
+skips it, `countdown: off` turns it off) and an ending where the field
 spells THE END before it bursts into black. Nord gets a plain countdown too,
 and any theme can ask for one.
 
@@ -143,7 +143,7 @@ accents last.
 **Darkroom** (`darkroom`, theme `darkroom`). A red safelight glows over the
 bench, and the slide's black-and-white photograph develops as a print,
 shadows first; then the white light comes on and the print shows its true
-greys. Without a photograph, the `@illustration` becomes a photogram.
+greys. Without a photograph, the `picture` becomes a photogram.
 
 <p align="center">
   <img src="../media/gallery/watercolour-page.jpg" width="45%">&nbsp;&nbsp;
@@ -158,20 +158,20 @@ mdeck ai art talk.md --dry-run  # which slides, and where each scene comes from
 mdeck ai art talk.md --slide 4  # redraw one
 ```
 
-Say what a slide's picture shows with `@art:` under its heading, or let the
-chat model write the scene from the slide's copy and notes. `@art:` in the
-frontmatter sets the deck's world (setting, era, recurring characters), and
-`@art: none` keeps a slide free of art. Pictures never contain text, and
+Say what a slide's picture shows with `<!-- picture-prompt: ... -->` under
+its heading, or let the chat model write the scene from the slide's copy and
+notes. `art-world:` in the frontmatter sets the deck's world (setting, era,
+recurring characters), and `<!-- picture: none -->` keeps a slide free of art. Pictures never contain text, and
 only slides with room beside or behind the copy get one:
 
 ```markdown
 ---
-@theme: blueprint
-@art: A Victorian harbour town where a small team builds modern machines.
+theme: blueprint
+art-world: A Victorian harbour town where a small team builds modern machines.
 ---
 
 # The Harbour Bridge
-@art: A great iron suspension bridge under construction across a harbour.
+<!-- picture-prompt: A great iron suspension bridge under construction across a harbour. -->
 ```
 
 The pictures go in `art/` next to the deck and `talk.art.yaml` records which
@@ -179,7 +179,7 @@ slide each belongs to. Presenting never calls the AI: no waiting, no cost,
 and it works offline. Edit a slide and its picture goes stale (still shown,
 and `mdeck talk.md --check` says so; `mdeck ai art talk.md --stale` redraws
 those). Press `S` while presenting to draw the current slide's picture in
-the background. A slide without a picture still works: its `@illustration`
+the background. A slide without a picture still works: its point cloud (`picture`)
 is drawn in the medium: a technical pen, pencil, chalk, ink and wash, or a photogram.
 
 `mdeck talk.md --engine led` tries an engine without touching the deck, and
@@ -196,7 +196,7 @@ contour bands. It saves its motion for the moments that tell the story:
   heat: points of heat inside the letters spread into contours, the words are
   readable within a second, then the crisp type rises into the settling heat,
   which stays as a faint contour halo.
-- **Heat signatures.** An `@illustration` glows like a warm body (the built-in
+- **Heat signatures.** A point cloud picture glows like a warm body (the built-in
   `thermographer` fits); the countdown digits heat up and cool off.
 - **Calm evidence.** The field stays dark around charts, diagrams, images and
   thermal images. `heat: { drift: true }` in a theme lets a few embers drift

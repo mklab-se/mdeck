@@ -10,11 +10,10 @@ The complete reference is the [format specification](../crates/mdeck/doc/mdeck-s
 
 ## Slides and layouts
 
-Three things create a new slide, and they combine freely:
+Two things create a new slide:
 
-1. A `---` line with blank lines around it
-2. Three blank lines
-3. A heading. If the file has one `#` title and `##` sections, both levels split; set `@slide-level: 2` in the frontmatter to control it explicitly.
+1. A heading (`#` or an underlined setext heading). If the file has one `#` title and `##` sections, both levels split; set `slide-level: 2` in the frontmatter to control it explicitly.
+2. A `---` line with blank lines around it, for slides without a heading.
 
 Each slide gets a layout from its content:
 
@@ -30,18 +29,25 @@ Each slide gets a layout from its content:
 | Bullets + image | Split layout |
 | `+++` separator | Two columns |
 | `@architecture` block | Architecture diagram |
-| `@barchart`, `@piechart`, ... | Visualization |
+| `@bar`, `@pie`, ... | Visualization |
 | Anything else | Content |
 
-Override with `@layout: name` on its own line under the slide's heading when
-you want a specific one. Slide directives (`@layout`, `@illustration`, `@logo`, `@background`)
-work wherever they stand at the top level of the slide, and `mdeck --check`
-flags typos and directives that were not applied.
+Override with `<!-- design: name -->` in the slide when you want a specific
+one. Slide settings (`design`, `picture`, `logo`, `background`, ...) are
+`key: value` lines in an HTML comment, invisible on GitHub; they apply to the
+slide they are written in, and `mdeck --check` flags typos, invalid values
+and v1 syntax. Deck settings are plain YAML keys in the frontmatter
+(`theme: ember`).
+
+Plain markdown from anywhere presents cleanly: raw HTML keeps its text (and
+`<img>` its image), task lists show their boxes, reference links and
+footnotes resolve (footnote text goes to the notes), GitHub alerts
+(`> [!NOTE]`) become callouts, and tables keep their column alignment.
 
 ## Progressive reveal
 
-List items that start with `+` appear one per key press; `*` items appear
-together with the previous `+` item. The same markers work inside every
+List items that start with `+` appear one per key press, with their nested
+items; `-` and `*` items are always shown. Steps count across the whole slide. The same markers work inside every
 visualization, so a bar chart can grow bar by bar and a diagram can build up
 connection by connection.
 
@@ -60,22 +66,23 @@ Dollar amounts such as `$5 and $10` stay text.
 
 ## Speaker notes
 
-Everything after a `???` line is a note for the presenter and is never shown
-on screen. AI-generated decks include detailed notes on every slide.
+A fenced block tagged `@notes`, anywhere in the slide, is a note for the
+presenter and is never shown on screen. Notes are markdown, and nothing in
+them starts a new slide. AI-generated decks include detailed notes on every slide.
 
-```markdown
+````markdown
 # Key Decision
 
 - We chose microservices for team autonomy
 
-???
-
+```@notes
 Emphasise that this was about letting teams ship independently, not scale.
 ```
+````
 
 ## Images
 
-Standard markdown images work, with optional directives in the alt text:
+Standard markdown images work, with options in the alt text:
 `@fill`, `@fit`, `@width:80%`, `@left`, `@right`. A slide with one image
 becomes a full-screen image slide, two to four become a gallery, and bullets
 plus an image become a split layout. Images decode in the background, so big

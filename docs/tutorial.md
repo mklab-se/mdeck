@@ -89,7 +89,7 @@ Add a block of settings at the very top of the file, called the frontmatter:
 ```markdown
 ---
 title: "My First Talk"
-@theme: ember
+theme: ember
 ---
 ```
 
@@ -108,7 +108,7 @@ particles that follows your content.
 bottom of the screen names it. Keep pressing to cycle through every built-in theme (and your
 own, if you have any). The switch is temporary: your file does not change, and
 the next time you start MDeck it opens in the theme your frontmatter names.
-When you find one you like, write its name after `@theme:`. `T` does the same
+When you find one you like, write its name after `theme:`. `T` does the same
 for the transition between slides.
 
 The [Themes](themes.md) page lists every theme and shows how to make your own.
@@ -130,12 +130,12 @@ Start a list item with `+` instead of `-` and it appears on the next key press:
 
 ## 6. Add a chart
 
-A fenced block tagged `@barchart` becomes a chart. Each line is a bar:
+A fenced block tagged `@bar` becomes a chart. Each line is a bar:
 
 ````markdown
 # Where our users are
 
-```@barchart
+```@bar
 - Europe: 42
 - Americas: 35
 - Asia: 23
@@ -173,11 +173,11 @@ arrows:
 
 ## 8. Add an illustration
 
-Put `@illustration:` and a name on the line under a slide's heading:
+Put a `picture` setting, in an HTML comment, under a slide's heading:
 
 ```markdown
 # Ready for launch
-@illustration: rocket
+<!-- picture: rocket -->
 
 - Ship small, ship often
 - Measure everything
@@ -198,7 +198,7 @@ The engine decides how a theme brings slides to life. Add one line to the
 frontmatter:
 
 ```markdown
-@engine: led
+engine: led
 ```
 
 <p align="center">
@@ -212,32 +212,32 @@ The same slide on a wall of LEDs that light up your illustration. Try
 
 ## 10. Add speaker notes
 
-Everything after a line with `???` is a note for you, never shown on screen:
+A fenced block tagged `@notes` is a note for you, never shown on screen:
 
-```markdown
+````markdown
 # Ready for launch
-@illustration: rocket
+<!-- picture: rocket -->
 
 - Ship small, ship often
 - Measure everything
 - Celebrate the wins
 
-???
-
+```@notes
 Thank everyone for coming. Mention that the whole deck is one markdown file.
 ```
+````
 
 Print them with your slides using `mdeck export talk.md --format pdf --notes`.
 
 ## 11. Check your deck
 
 Before you present, let MDeck look for mistakes. Here it catches a typo in a
-directive:
+setting:
 
 ```text
 $ mdeck talk.md --check
 Checking talk.md (5 slides)...
-  slide 5 (line 37): [directive] @ilustration is not a directive and shows as text; did you mean @illustration?
+  slide 5 (line 37): [settings] `pictur` is not a slide setting; did you mean `picture`?
 
 1 warning(s) found.
 ```

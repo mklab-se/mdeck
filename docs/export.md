@@ -22,7 +22,7 @@ size or DPI: slides larger than the display are rendered in tiles and stitched.
 A PDF is the answer to "can I have the slides?": every page is the slide
 exactly as presented (final reveal step, Ember field frozen), 13.33 x 7.5 in
 like a widescreen PowerPoint deck, with a bookmark per slide. `--notes` makes
-printable notes pages instead: the slide on top and its `???` speaker notes
+printable notes pages instead: the slide on top and its speaker notes (the `@notes` blocks)
 below, dark on white whatever the theme, in A4 proportions; long notes
 continue on the next page. Pages are images, so text in the PDF is not
 selectable.

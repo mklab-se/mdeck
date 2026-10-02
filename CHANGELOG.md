@@ -4,6 +4,53 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+The v2 authoring language. v2 breaks with v1 syntax on purpose; `mdeck --check` names the v2
+form of every v1 construct it finds.
+
+### Changed
+
+- **Deck settings are plain YAML keys** (`theme: ember`, `art-world: ...`). v1 `@key:` frontmatter
+  keys are no longer read. `countdown` takes `on` or `off`; `date`, `@aspect` and `@code-theme`
+  are gone.
+- **Slide settings are an HTML comment** in the slide (`<!-- design: quote -->`, or several
+  `key: value` lines in one comment), invisible on GitHub and applying to the slide they are
+  written in, wherever that is. Visible `@key: value` lines are plain text, and settings never move
+  to the next slide (fixes an indented directive in the last list item moving to the next slide).
+  `design` replaces `@layout` (with the v2 design names), `picture` replaces `@illustration`,
+  `picture-prompt` replaces a slide's `@art`, `zoom-to` replaces `@zoom`, and a slide may set its
+  own `transition` and `reveal`.
+- **Slides split at headings, setext headings included, and at `---`**; three blank lines no
+  longer split.
+- **Speaker notes are a ```` ```@notes ```` block** of markdown, anywhere in the slide, replacing
+  `???`. A heading or `---` in the notes no longer starts a visible slide.
+- **Steps count across the whole slide** in reading order: a second `+` list, and a chart's `+`
+  items, continue after the first. `*` is an ordinary bullet; nest items under a `+` item to
+  reveal them together. Hidden items keep their space, so nothing moves as items appear, and
+  revealed list items slide and fade in. `reveal: none` turns steps off.
+- **Visual tags match exactly, one name per kind**: `@barchart`, `@linechart`, `@piechart` and
+  `@donutchart` are now `@bar`, `@line`, `@pie` and `@donut`.
+
+### Added
+
+- Plain markdown presents cleanly: raw HTML keeps its text (`<img>` becomes an image,
+  `<h1>`..`<h6>` a heading, `<br>` a line break), task lists show checkboxes, reference links and
+  autolinks resolve, footnote text goes to the slide's notes, GitHub alerts (`> [!NOTE]`) render
+  as callouts, indented code is code, quotes keep their paragraphs and nesting, ordered lists keep
+  their start number, and tables keep their column alignment.
+- `mdeck --check` reports unknown settings and fence tags with a "did you mean", invalid values,
+  deck settings in a slide, v1 syntax with its v2 form, and content that will not show as written
+  (new categories `settings`, `visual` and `content`). `--check -v` lists the settings that apply
+  to each slide.
+- The settings tables in `mdeck spec` and `mdeck spec --short` are generated from one language
+  table, so they always match what the parser accepts.
+
+### Fixed
+
+- A quote's attribution written as its last paragraph (`> text`, `>`, `> Who`) no longer runs into
+  the quotation.
+- The deck's `footer` is drawn in export too.
+- Nested `+` items under the editorial layouts no longer take presses that reveal nothing.
+
 ### Removed
 
 - Stories (PIC-06): the ```` ```@story ```` and ```` ```@scene ```` fences, the `@story` deck key,

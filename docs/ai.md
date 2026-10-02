@@ -39,8 +39,8 @@ Control the look with named styles or an inline description:
 
 ```yaml
 ---
-@image-style: "Cinematic photography, vivid colours, dramatic lighting"
-@icon-style: "Clean minimalist icon, subtle 3D feel"
+image-style: "Cinematic photography, vivid colours, dramatic lighting"
+icon-style: "Clean minimalist icon, subtle 3D feel"
 ---
 ```
 
@@ -69,7 +69,7 @@ mdeck ai art talk.md --slide 4     # redraw one
 mdeck ai art talk.md --node microsoft-foundry/gpt-image-2   # another image node
 ```
 
-`@art:` in the frontmatter is the deck's world and under a slide's heading
+`art-world:` in the frontmatter is the deck's world and `picture-prompt:` in a slide's settings
 that slide's scene; otherwise the chat model writes the scene from the
 slide's copy and notes. Pictures are made four at a time (about 20 seconds
 each), kept in `art/` next to the deck, and recorded in `talk.art.yaml`. A

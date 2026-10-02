@@ -37,7 +37,7 @@ Every frame the host builds a `Stage`:
   (the countdown's exit) or `End { elapsed, words }`. `mask` and `words` are
   point masks of the glyphs in the theme's display face (points in the unit
   square, plus the shape's width over height).
-- `figure`: the slide's `@illustration`, resolved through the deck, user and
+- `figure`: the slide's `picture`, resolved through the deck, user and
   built-in libraries, with `place` (a box in slide fractions) already chosen:
   on the right beside the copy, or large and centred behind a title
   (`backdrop`). The cloud's points are in importance order: the first sixty
@@ -104,7 +104,7 @@ glyphs out of the font atlas there.
 | `paints` | The engine paints a layer (plain does not). |
 | `editorial` | Copy slides use the editorial layouts: a copy column on the left, a stage on the right, display headings and the counter chrome. |
 | `board` | The engine draws every slide itself, text included, and owns the transitions between slides (split-flap). `render_slide` then hands the slide to the engine's `EngineDef::render_slide` (its static renderer, for thumbnails) (`SlideContext::engine_drew` says whether the live engine drew it already), the app skips its transitions and scrolling, and the engine prints its own labels. |
-| `illustrations` | Shows `@illustration`. |
+| `illustrations` | Shows point cloud pictures (`picture`). |
 | `countdown` | Draws the opening countdown itself (`countdown: burst`). |
 | `end_act` | Plays an act of its own on the end slide. |
 | `art` | Draws generated art: the host fills `Stage::art`, and `EngineKind::medium` says which kind of picture to generate and how to draw it in. |
@@ -153,7 +153,7 @@ shared (`render::art`); the engine only decides the medium:
   under the new one, and asks for frames while anything moves. Each of the
   five art engines is under 300 lines of engine plus its drawing helpers. `Reveal::grain` breaks a medium up on
   its surface (chalk on slate).
-- **Without art**, draw the slide's `@illustration` in your medium:
+- **Without art**, draw the slide's point cloud (`picture`) in your medium:
   `engines::art::fallback_strokes` turns the figure, the countdown digit or
   the end words into timed pen strokes (`render::strokes::Picture`).
 
@@ -176,8 +176,8 @@ shared (`render::art`); the engine only decides the medium:
    listed in `theme::lookup::BUILTIN` behind the same feature.
 5. `samples/engines/<name>.md`, a deck that shows what the engine is good at.
 6. Docs: spec sections 9.1 (the theme) and 9.6 (the engine; 9.7 for an art
-   engine), the `@engine`
-   and `@theme` lists in the spec and `spec --short`, README, GALLERY
+   engine), the `engine`
+   and `theme` lists in the spec and `spec --short`, README, GALLERY
    (stills as JPEG), CHANGELOG.
 7. Look at it (below), then run the golden check so no other engine moved.
 
@@ -239,7 +239,7 @@ impl Engine for Dots {
 }
 ```
 
-Registered as described above, `@engine: dots` would show every
+Registered as described above, `engine: dots` would show every
 illustration as a constellation of accent dots.
 
 ## Looking at motion

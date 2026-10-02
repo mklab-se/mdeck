@@ -48,11 +48,11 @@ system into a theme yourself: read its rules and tokens, map its roles to slide
 roles with the table in spec section 9.4, write the file, run `mdeck theme
 check`, then `mdeck theme preview` and look at the PNGs; repeat until it looks
 like the brand. Logos (spec section 9.5): a theme's `logo:` block, or
-`@logo: file.svg` (plus `@logo-position`, `@logo-opacity`, `@logo-height`) in
+`logo: file.svg` (plus `logo-position`, `logo-opacity`, `logo-height`) in
 any deck's frontmatter; PNG with transparency or SVG. Background images (spec
-section 9.8): `@background: file.jpg` and `@background-opacity: 30%` in the
-frontmatter put an image behind every slide; the same keys under a slide's
-heading override it there, and `@background: none` turns it off. Keep the
+section 9.8): `background: file.jpg` and `background-opacity: 30%` in the
+frontmatter put an image behind every slide; the same keys in a slide.s
+settings comment override it there, and `background: none` turns it off. Keep the
 opacity low (the default 0.3) behind text.
 
 ### Configuration
@@ -67,14 +67,14 @@ Available config keys:
   `spring`, `summer`, `autumn`, `winter`) or a user theme
 - `mdeck ai art <deck.md> [--slide N] [--stale] [--force] [--dry-run] [--engine E] [--node N]`:
   draw a picture per slide for an art engine (`blueprint`, `sketch`, `chalkboard`, `watercolour`, `darkroom`) with the image model; pictures go in
-  `art/` next to the deck and `<deck>.art.yaml` records them. `@art: "..."` in the frontmatter is
-  the deck's world (setting, era, characters); under a slide's heading it is that slide's scene
-  (otherwise the chat model writes one from the copy and notes); `@art: none` skips a slide.
+  `art/` next to the deck and `<deck>.art.yaml` records them. `art-world: "..."` in the frontmatter is
+  the deck's world (setting, era, characters); `picture-prompt: "..."` in a slide's settings is that slide's scene
+  (otherwise the chat model writes one from the copy and notes); `<!-- picture: none -->` skips a slide.
   Only title, section, quote, bullet and copy slides take art. Pictures never contain text.
 - `mdeck illustration generate --name <n> --description "..."` — make a point cloud
   illustration for the Ember field (`--user` for the user library, `--force` to overwrite);
   `mdeck illustration import <image> --name <n>` converts an existing image, `list` shows what
-  resolves from here, `show <n>` previews. A slide asks for one with `@illustration: <n>` at its
+  resolves from here, `show <n>` previews. A slide asks for one with `<!-- picture: <n> -->` at its
   top; bullet, content, quote and section slides show it beside the copy, title slides behind
   it, other layouts never. Built in: person, hooded, man, woman, thermographer, presenter-up,
   presenter-down, box, orb, doc, docs, inbox, db, cloud, laptop, folder, mail, gate, server,
@@ -156,12 +156,12 @@ The alt text becomes the image prompt. Leave alt text empty for auto-prompting f
 
 Image styles control the visual aesthetic of all generated images. Styles can be set at multiple levels (highest priority first):
 
-1. **Per-file frontmatter:** `@image-style: watercolor` (name or literal description)
+1. **Per-file frontmatter:** `image-style: watercolor` (name or literal description)
 2. **Config default:** `mdeck ai style set-default <name>`
 3. **Hardcoded fallback:** A built-in default style
 
 For icons (used in architecture diagrams):
-1. **Per-file frontmatter:** `@icon-style: flat-design`
+1. **Per-file frontmatter:** `icon-style: flat-design`
 2. **Config default:** `mdeck ai style set-icon-default <name>`
 3. **Hardcoded fallback:** A built-in default icon style
 
@@ -188,9 +188,9 @@ In architecture diagrams, use `icon: generate-image` with a `prompt` to mark a n
 ### Tips for AI Agents Writing Presentations
 
 - Use descriptive alt text for image generation prompts — be specific about the scene, mood, and composition
-- Set `@image-style` in frontmatter when the presentation has a consistent visual theme
+- Set `image-style` in frontmatter when the presentation has a consistent visual theme
 - Use `+` list markers for incremental reveal (appears on forward press)
-- Use `*` list markers to group items with the previous `+` reveal step
+- Nest items under a `+` item to reveal them in the same step
 - Use `-` for static items that are always visible
 - Keep slide content concise — presentations are meant to be visual aids, not documents
 - Use the `---` separator or 3+ blank lines between slides
@@ -198,8 +198,8 @@ In architecture diagrams, use `icon: generate-image` with a `prompt` to mark a n
 - Use `@gitgraph` for git branching diagrams — declare lanes, add commits, fork with `branch source -> target`, merge with `merge source -> target`, and tag with `tag branch: "label"`; supports progressive reveal
 - Use `@flower` when one platform or shared capability serves several peer teams that also contribute back: `- center Platform: ...`, then one `- petal Team: ...` per team (keep descriptions to a short sentence; 3-8 petals read best)
 - Use `@artifactflow` for supply chains of builds, packages or images: `producer`, `service` and `consumer` lines, then `A -> B: artifact (icon: package)` edges; indented `- item` lines list what a service holds
-- For infrared and thermal-imaging talks, use `@theme: thermal` (headings form in heat) and put each thermal picture in a `@thermal` block: `image:` a grayscale white-hot export, `visible:` the same scene as a photo, then `+ lens X% Y% R%`, `+ reveal`, `+ above 85%` and `- spot Name X% Y%`. Without a `mapping:` or `data:` file never write temperatures as measurements (spot text is marked as author-supplied); ordinary images are never treated as thermal
-- Use `@layout: two-column` with `+++` separator for side-by-side comparisons
+- For infrared and thermal-imaging talks, use `theme: thermal` (headings form in heat) and put each thermal picture in a `@thermal` block: `image:` a grayscale white-hot export, `visible:` the same scene as a photo, then `+ lens X% Y% R%`, `+ reveal`, `+ above 85%` and `- spot Name X% Y%`. Without a `mapping:` or `data:` file never write temperatures as measurements (spot text is marked as author-supplied); ordinary images are never treated as thermal
+- Use `design: columns` with `+++` separator for side-by-side comparisons
 - Write formulas in LaTeX (KaTeX syntax): `$E = mc^2$` inline, `$$\frac{-b \pm \sqrt{b^2-4ac}}{2a}$$` on a line of its own; run `mdeck <file> --check` to catch formulas that do not parse
-- Add speaker notes after `???` on every slide — explain the slide's intent and delivery guidance
+- Add speaker notes in a ```@notes block on every slide: explain the slide's intent and delivery guidance
 - Use `mdeck ai create` to generate presentations from any content, then refine with an AI agent

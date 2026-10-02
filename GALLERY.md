@@ -36,7 +36,7 @@ routed edges in their direction while dust keeps to the margins.
 
 ### An illustration
 
-`@illustration: robot` under the slide's heading, and the particles settle into a
+`<!-- picture: robot -->` under the slide's heading, and the particles settle into a
 point cloud beside the copy: a hint of the thing, never a picture of it. Thirty-eight
 are built in; `mdeck illustration generate` makes more from a description.
 
@@ -47,7 +47,7 @@ are built in; `mdeck illustration generate` makes more from a description.
 ## Engines
 
 The same slides on other engines (spec section 9.6); any deck switches with
-`@engine` in its frontmatter. These stills are from `samples/engines/`.
+`engine` in its frontmatter. These stills are from `samples/engines/`.
 
 ### LED wall
 

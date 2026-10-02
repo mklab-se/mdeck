@@ -24,8 +24,8 @@ system (`mdeck --check` tells you if none was found):
 
 ```yaml
 ---
-@theme: winter
-@transition: spatial
+theme: winter
+transition: spatial
 ---
 ```
 
@@ -42,7 +42,7 @@ system (`mdeck --check` tells you if none was found):
 
 **Your own themes are YAML files**, and the built-in ones are written the same
 way. Put `themes/acme.yaml` next to a deck (or in `~/.config/mdeck/themes/`) and
-set `@theme: acme`; everything you leave out comes from the theme it extends:
+set `theme: acme`; everything you leave out comes from the theme it extends:
 
 ```yaml
 name: Acme
@@ -100,15 +100,15 @@ one without a custom theme:
 
 ```yaml
 ---
-@theme: dark
-@logo: brand/logo-white.svg
-@logo-position: bottom-right   # default top-right
-@logo-opacity: 40%             # default 60%
+theme: dark
+logo: brand/logo-white.svg
+logo-position: bottom-right   # default top-right
+logo-opacity: 40%             # default 60%
 ---
 ```
 
-`@logo: none` in the frontmatter hides a theme's logo for the whole deck. Under a
-slide's heading, `@logo: none` hides it on that slide and `@logo: partner.svg`
+`logo: none` in the frontmatter hides a theme's logo for the whole deck. Under a
+slide's heading, `logo: none` hides it on that slide and `logo: partner.svg`
 shows another logo there.
 
 ## Background images
@@ -118,22 +118,24 @@ in the frontmatter, and override it on a slide under its heading:
 
 ```markdown
 ---
-@background: images/texture.jpg   # relative to the deck
-@background-opacity: 25%          # default 30%
+background: images/texture.jpg   # relative to the deck
+background-opacity: 25%          # default 30%
 ---
 
 # Welcome
-@background: images/stage.jpg     # this slide's own image
-@background-opacity: 60%
+<!--
+background: images/stage.jpg
+background-opacity: 60%
+-->
 
 # The code
-@background: none                 # a clean slide
+<!-- background: none -->
 ```
 
 The image covers the slide (scaled, centred, cropped, never stretched) and
 sits on the theme's background colour under everything else, so a low
 opacity keeps text readable on light and dark themes. A slide that sets only
-`@background-opacity` shows the deck's image with that opacity. PNG, JPEG,
+`background-opacity` shows the deck's image with that opacity. PNG, JPEG,
 WebP and SVG work; `mdeck --check` reports files that are missing or
 unreadable. See `samples/features/backgrounds.md` and spec section 9.8.
 

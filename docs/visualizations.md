@@ -12,10 +12,10 @@ Fenced code blocks with an `@` tag become charts:
 
 | Type | Tag | Example line |
 |------|-----|--------------|
-| Bar chart | `@barchart` | `- Python: 48` |
-| Line chart | `@linechart` | `- Revenue: 100, 150, 200` |
-| Pie chart | `@piechart` | `- Frontend: 35%` |
-| Donut chart | `@donutchart` | `- Complete: 78` |
+| Bar chart | `@bar` | `- Python: 48` |
+| Line chart | `@line` | `- Revenue: 100, 150, 200` |
+| Pie chart | `@pie` | `- Frontend: 35%` |
+| Donut chart | `@donut` | `- Complete: 78` |
 | Stacked bar | `@stackedbar` | `- Product A: 40, 45, 50` |
 | Scatter plot | `@scatter` | `- Alice: 80, 90` |
 | Radar chart | `@radar` | `- Speed: 9, 7, 5, 3` |
@@ -74,15 +74,15 @@ label: Cabinet 4, breaker row B
 ````
 
 - **Palettes:** iron (default), white-hot, black-hot, rainbow, arctic, lava;
-  `palette:` per block, `@palette` for the deck, `C` while presenting.
+  `palette:` per block, `palette` for the deck, `C` while presenting.
 - **What a picture can claim:** a plain export gets a *relative intensity*
   legend and author spot text marked `†`. With `mapping: linear 18..92 °C`
   or a `data:` file (16-bit PNG plus a `.yaml` sidecar with unit, scale and
   offset), the legend shows values, spots are measured (`≈` for a mapping)
   and thresholds can be in degrees.
-- **Comparisons:** two blocks on a slide with `@thermal-window: 25..90 °C`
+- **Comparisons:** two blocks on a slide with `thermal-window: 25..90 °C`
   share one scale, even with different mappings.
-- **Zoom:** `@zoom: Hotspot` on the next slide zooms into that spot.
+- **Zoom:** `zoom-to: Hotspot` on the next slide zooms into that spot.
 - **Colour exports** are shown as they are (with a warning); the lens still
   works with them.
 

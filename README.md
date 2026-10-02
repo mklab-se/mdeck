@@ -76,7 +76,7 @@ heading and three bullets a bullet slide. Then pick a theme and an engine.</em><
 
 ```markdown
 # Why we are building it
-@illustration: lightbulb
+<!-- picture: lightbulb -->
 
 - Teams lose a day a week to status meetings
 - Every tool shows a different truth
@@ -90,9 +90,9 @@ heading and three bullets a bullet slide. Then pick a theme and an engine.</em><
 </p>
 
 No layout, no design work: the heading starts a slide, the list makes it a
-bullet slide, `@illustration` puts a picture beside it, and the theme (here
+bullet slide, `picture` puts a picture beside it, and the theme (here
 `marquee`, on the LED engine) does the rest. Change one line to
-`@theme: ember` and the same slide becomes a field of glowing particles.
+`theme: ember` and the same slide becomes a field of glowing particles.
 
 ---
 
@@ -109,11 +109,11 @@ brew install mklab-se/tap/mdeck      # or: cargo install mdeck
 ````markdown
 ---
 title: "My Talk"
-@theme: ember
+theme: ember
 ---
 
 # Hello, MDeck
-@illustration: rocket
+<!-- picture: rocket -->
 
 Presentations from plain markdown
 
@@ -125,7 +125,7 @@ Presentations from plain markdown
 
 # Where we are
 
-```@barchart
+```@bar
 - Europe: 42
 - Americas: 35
 - Asia: 23
