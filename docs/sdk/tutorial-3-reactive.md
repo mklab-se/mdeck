@@ -127,26 +127,26 @@ The engine declares each setting it reads, with a type and one sentence of help:
 
 ```rust
 pub const SETTINGS: &[SettingSpec] = &[
-    SettingSpec {
-        key: "glow",
-        kind: SettingKind::Number,
-        summary: "How bright the lights are, from 0 to 2 (default 1).",
-    },
-    SettingSpec {
-        key: "runners",
-        kind: SettingKind::Bool,
-        summary: "Send runners along line series and edges (default true).",
-    },
-    SettingSpec {
-        key: "palette",
-        kind: SettingKind::OneOf(&["accent", "warm", "cool"]),
-        summary: "Which theme colours the lights take (default accent).",
-    },
-    SettingSpec {
-        key: "tint",
-        kind: SettingKind::Color,
-        summary: "One colour for every light, overriding the palette.",
-    },
+    SettingSpec::new(
+        "glow",
+        SettingKind::Number,
+        "How bright the lights are, from 0 to 2 (default 1).",
+    ),
+    SettingSpec::new(
+        "runners",
+        SettingKind::Bool,
+        "Send runners along line series and edges (default true).",
+    ),
+    SettingSpec::new(
+        "palette",
+        SettingKind::OneOf(&["accent", "warm", "cool"]),
+        "Which theme colours the lights take (default accent).",
+    ),
+    SettingSpec::new(
+        "tint",
+        SettingKind::Color,
+        "One colour for every light, overriding the palette.",
+    ),
 ];
 ```
 
@@ -205,11 +205,11 @@ The rule: never fail on a bad setting. Report it, use the default (or clamp), an
 **READ** `examples/engine-reactive/src/lib.rs`, in `DEF`:
 
 ```rust
-needs: Needs { page: false },
+.with_needs(Needs::NONE)
 ```
 
 This engine adds light on a dark ground and needs nothing. An ink engine that draws on paper would
-set `page: true`: the theme must then have a `page:` block (the slide becomes a sheet on a surface),
+say `.with_needs(Needs::NONE.with_page())`: the theme must then have a `page:` block (the slide becomes a sheet on a surface),
 and `mdeck theme check` reports a theme that selects the engine without one.
 
 ## An honest `animating`

@@ -118,7 +118,7 @@ choices follow Marp's precedent: plain YAML keys for the deck, HTML comments for
 | `background` | slide + deck | image path or `none` |
 | `background-opacity` | slide + deck | 0 to 1, or a percentage |
 | `logo` | slide + deck | path or `none` |
-| `transition` | slide + deck | `fade`, `slide`, `spatial`, `zoom` (slide only, with `zoom-to`), `none` |
+| `transition` | slide + deck | `fade`, `slide`, `spatial`, `zoom` (slide only, with `zoom-to`), `none`, or a transition an extension registers |
 | `zoom-to` | slide | a thermal spot name on the slide before |
 | `thermal-window` | slide | `25..90 °C` |
 | `reveal` | slide + deck | `steps`, `none` (MD-21) |

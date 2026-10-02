@@ -47,6 +47,7 @@ finished engines: read them next to their source.
 |---|---|
 | [Visuals](visuals.md) | A new fenced block kind (```` ```@my-chart ````): the `Visual` trait, the fence grammar, `--check` problems, publishing geometry |
 | [Design sets and board engines](design-sets.md) | Arranging slides in code, and engines that draw every slide themselves |
+| [Transitions](concepts.md#transitions) | How one slide gives way to the next: `look`, `duration` and `paint_over` |
 
 ## Reference
 

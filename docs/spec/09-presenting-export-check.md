@@ -37,9 +37,10 @@ describes is what the window presents and what export writes.
 ### Transitions
 
 - **RUN-08** MUST `implemented`: Transitions are `slide`, `fade`, `spatial` and `none`, with
-  smooth easing. The transition is set by the deck, then the theme's `transition:`, then the user
-  config, then the built-in default, `fade` (the default theme is `dark`, VIS-07). A blank or
-  unknown value falls through to the next in line. `T` cycles the transition while presenting.
+  smooth easing, and any transition an extension registers (EXT-05). The transition is set by the
+  deck, then the theme's `transition:`, then the user config, then the built-in default, `fade`
+  (the default theme is `dark`, VIS-07). A blank or unknown value falls through to the next in
+  line. `T` cycles the transition while presenting.
 - **RUN-09** MUST `implemented`: A slide can set its own transition into it (`transition:` in its
   settings), used when it is entered going forward and when it is left going back. The thermal
   spot zoom is `transition: zoom` with `zoom-to: <spot>` on the same slide.
@@ -73,8 +74,9 @@ describes is what the window presents and what export writes.
   pages (`--notes`).
 - **RUN-17** MUST `implemented`: Exports are reproducible: the same deck, theme and engine always
   give the same pixels. Stills of motion are rehearsed on a fixed clock: `--at <seconds>` runs
-  the engine that long from a cold start, and `--moment countdown|3|2|1|burst|end` exports the
-  opening or the ending as one image.
+  the engine that long from a cold start, `--moment countdown|3|2|1|burst|end` exports the
+  opening or the ending as one image, and `--moment transition` the change into a slide halfway
+  (or `--at` seconds into it).
 - **RUN-18** MAY `deferred to 2.x`: Export a video or animated image of a slide's motion
   (rehearsed with the same clock as `--at`), so decks can be shared with their wow effect intact.
   *Deferred:* decided as later, not in v2.0 (Q13).

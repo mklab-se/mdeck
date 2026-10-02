@@ -17,7 +17,7 @@
 //!
 //! - [`paint`]: colours, geometry, meshes, textures, fonts and the [`paint::Painter`];
 //! - [`tokens`]: the theme's colours and the engine's typed settings;
-//! - [`content`]: the slide content model (first draft);
+//! - [`content`]: the slide content model;
 //! - [`cloud`]: point clouds and masks;
 //! - [`geometry`]: geometry visuals publish for engines;
 //! - [`stage`]: what an engine is shown each frame;

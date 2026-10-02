@@ -40,18 +40,15 @@ The crate exports two things mdeck needs: the engine's definition `DEF` and the 
 **READ** `examples/engine-ambience/src/lib.rs`, the definition and `register`:
 
 ```rust
-pub static DEF: EngineDef = EngineDef {
-    name: "ambience",
-    summary: "Soft lights drift slowly under every slide.",
-    // It only decorates: no pictures, no countdown, no end act.
-    capabilities: Capabilities::NONE,
-    // It reads no settings from the theme's `engine:` block.
-    settings: &[],
-    needs: Needs { page: false },
-    ending_caption_delay: 1.0,
+// It only decorates: no pictures, no countdown, no end act, and it reads
+// no settings from the theme's `engine:` block, so the defaults of
+// `EngineDef::new` are all it needs.
+pub static DEF: EngineDef = EngineDef::new(
+    "ambience",
+    "Soft lights drift slowly under every slide.",
     create,
-    board: None,
-};
+)
+.with_ending_caption_delay(1.0);
 
 pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
     r.engine(&DEF)?;

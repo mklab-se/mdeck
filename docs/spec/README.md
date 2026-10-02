@@ -49,17 +49,12 @@ release notes (`CHANGELOG.md`, "Deferred to 2.x") carry the same list.
   feature), not through the SDK's `paint` interface, which has no math layout yet; `@thermal` and
   `@architecture` keep their own renderers (VIS-18, VIZ-07, EXT-25).
 - The built-in transitions and the `standard` and `editorial` design sets are not registered
-  through the SDK, and mdeck never looks up a transition or a code design set an extension
-  registers: a theme's `transition:` takes the built-in names, its `designs:` a YAML design set,
-  and a code design set works only as a board engine's own (VIS-18, DES-14, EXT-05, EXT-06).
-- Only the engine examples and scaffold are compiled in CI; the visual, design-set and transition
-  scaffolds are checked for their files only (EXT-15).
+  through the SDK (an extension's transitions and code design sets are looked up by name next to
+  them) (VIS-18, EXT-06).
 - Built-in visuals are not cargo features; engines are (EXT-22).
 - Dynamic loading (native plugins or WebAssembly), by design not before the SDK has proven stable
   (EXT-19).
-- The SDK content model is converted from the parser's: quotes and callouts reach an extension as
-  one run of text and lists carry no start number (the split-flap board numbers lists from 1). A
-  heading reaches engines as one `Hint::Text` per glyph, without letter spacing.
+- A heading reaches engines as one `Hint::Text` per glyph, without letter spacing.
 
 **Pictures and visuals**
 

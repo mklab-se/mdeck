@@ -114,7 +114,7 @@ comment is an ordinary comment. A key set on a slide overrides the deck's value 
 | `palette` | deck | the palette of `@thermal` images that name none |
 | `requires` | deck | packs and extensions the deck expects, `[acme-brand, glow]` |
 | `art-world`, `image-style`, `icon-style` | deck | inputs for `mdeck ai` ([AI](ai.md)) |
-| `transition` | deck and slide | `fade`, `slide`, `spatial`, `none`; on a slide, how it is entered |
+| `transition` | deck and slide | `fade`, `slide`, `spatial`, `none`, or one an extension adds; on a slide, how it is entered |
 | `reveal` | deck and slide | `steps` (default) or `none` |
 | `logo` | deck and slide | an image file, or `none` |
 | `background`, `background-opacity` | deck and slide | an image behind the slide ([Themes](themes.md#background-images)) |

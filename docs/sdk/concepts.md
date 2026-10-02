@@ -160,8 +160,11 @@ An engine declares `Capabilities` in its definition. Each one changes what the *
 | `transition` | lets the engine own the transitions between slides |
 | `medium` | prepares generated artworks for the engine's medium (art engines) |
 
-`Needs` says what the engine needs from the theme (for example `page: true` for a sheet on a
-surface); `mdeck theme check` reports a theme that selects the engine without it.
+`Needs` says what the engine needs from the theme (for example `Needs::NONE.with_page()` for a
+sheet on a surface); `mdeck theme check` reports a theme that selects the engine without it. Build
+capabilities the same way, `Capabilities::NONE.with_picture().with_countdown()`, and the definition
+with `EngineDef::new(name, summary, create)` and its `with_` methods (see
+[compatibility](compatibility.md)).
 
 ## Drawing
 
@@ -170,3 +173,21 @@ Extensions draw through `mdeck_sdk::paint::Painter` with mdeck's own types (`Col
 library without breaking you. Colours are premultiplied: `premul(c, a)` blends normally,
 `additive(c, k)` adds light. See [compatibility](compatibility.md) for the promise and the
 `unstable-egui` escape hatch.
+
+## Transitions
+
+A `Transition` says how one slide gives way to the next. A deck, a slide or a theme selects it by
+name (`transition: rise`), exactly like a built-in one, and `T` cycles through it while
+presenting. The host eases `t` from 0 to 1 over `duration()` and, every frame of the change:
+
+1. asks `look(t, forward, rect)` how the leaving and the arriving slide look: a `SideLook` each,
+   moved by `offset`, scaled by `scale` about the slide's centre and drawn at `opacity`
+   (`SideLook::SHOWN.with_offset(..)`);
+2. draws both slides that way;
+3. calls `paint_over(cx, t)` for anything drawn over both: a wipe line, a flash.
+
+Going back (`forward` false) should play the motion mirrored. Reduced motion shows no transitions,
+and a board engine with the `transition` capability owns every change itself.
+`mdeck export deck.md --moment transition --slide 3` exports the change into slide 3 halfway (or
+`--at <seconds>` into it), and `mdeck sdk new transition <name>` scaffolds one with a golden test
+of its overlay.

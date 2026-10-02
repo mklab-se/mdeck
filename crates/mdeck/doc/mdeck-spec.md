@@ -56,7 +56,12 @@ Every key is a **setting** (section 7). A key in the frontmatter is the deck's v
 | `zoom`     | On a slide with `zoom-to`: enter it by zooming into a thermal spot of the slide before (section 14.20) |
 | `none`     | Instant switch |
 
-All transitions use smooth easing and last about a third of a second. Cycle
+A custom build (section 18) may add transitions: `transition:` then names
+one an extension registers, exactly like a built-in, and `T` cycles through
+it after the built-ins.
+
+All transitions use smooth easing and the built-ins last about a third of a
+second. Cycle
 the deck's transition while presenting with `T`. A slide's own `transition`
 says how that slide is entered (and left again going back). The deck's
 transition comes from its `transition` setting, then the theme's
@@ -1068,10 +1073,10 @@ engine:                    # the engine and its settings (section 9.6); `engine:
   kind: line               # art engines: line | tonal (section 9.7)
   style: "graphite and ink, cross-hatching"   # art engines: the style prompt
   references: [refs/teacup.jpg]               # art engines: style swatches in the theme folder
-designs: standard          # standard | editorial | a set in designs/: how the slide designs look (section 9.9)
+designs: standard          # standard | editorial | a set in designs/ | a code design set: how the slide designs look (section 9.9)
 arrangements: {}           # per-design overrides of the design set (section 9.9)
 countdown: off             # on | off: the 3-2-1 opener (the engine decides its look)
-transition: fade           # slide | fade | spatial | none (a deck's `transition` wins)
+transition: fade           # slide | fade | spatial | none | a registered one (a deck's `transition` wins)
 spacing:                   # the gaps the designs use, px on a 1920x1080 slide
   xs: 8
   sm: 16
@@ -1702,7 +1707,11 @@ over the particle field.
 deck's `designs/` folder, then the `designs/` folder of the user folder, then
 installed packs' `designs/` (section 18), then the built-ins. A set file has
 `base` (keys for every design) and `designs` (keys per design), merged over
-the set it `extends` (default `standard`):
+the set it `extends` (default `standard`). A name that no set file or
+built-in has may name a design set an extension registers in code (a custom
+build, section 18), which then draws every slide; `--check` lists what it does
+not show. Any other name falls back to `standard`, with a warning. A set
+file:
 
 ```yaml
 # designs/roomy.yaml
@@ -2635,7 +2644,7 @@ in-app HUD (`H`) show the same table.
 | Up, Down, mouse wheel | Scroll a slide that overflows |
 | Home, End | First / last slide |
 | G | Grid overview; arrows move the selection, Enter / E / click opens it |
-| T | Cycle transition (slide, fade, spatial, none) |
+| T | Cycle transition (slide, fade, spatial, none, then any an extension registers) |
 | Shift+T | Cycle theme (the built-ins, then user and deck themes) |
 | F | Toggle fullscreen |
 | M | Move the fullscreen window to the next monitor (remembered in config) |
@@ -2728,7 +2737,7 @@ mdeck export talk.md --range 3-7
 | `--theme <name>`, `--engine <name>` | another theme or engine, without editing the deck |
 | `--debug` | every reveal step of every slide, as its own file |
 | `--at <seconds>` | a still of the motion: run the engine this many seconds from a cold start, instead of the settled still |
-| `--moment <m>` | a moment instead of the slides: `countdown` (its 3), `3`, `2`, `1`, `burst` or `end` |
+| `--moment <m>` | a moment instead of the slides: `countdown` (its 3), `3`, `2`, `1`, `burst`, `end`, or `transition` (the change into `--slide`, else the second slide, halfway or `--at` seconds in) |
 
 Every slide is exported with all its steps revealed and its engine settled,
 so exports are reproducible. A PNG is exactly `--width` by `--height` pixels

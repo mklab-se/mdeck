@@ -87,9 +87,10 @@ earlier one wins.
   or visuals that only it uses, without forking mdeck and without publishing anything.
 - **VIS-18** MUST `deferred to 2.x`: mdeck's own built-ins use the same extension interfaces that
   third parties use. There is no privileged internal path. Built-in engines, themes and point
-  clouds register through the SDK `Registry` like an extension's. *Deferred:* built-in visuals
-  still draw through an internal bridge, and the built-in transitions and the `standard` and
-  `editorial` design sets are not registered through the SDK.
+  clouds register through the SDK `Registry` like an extension's, and an extension's transitions
+  and design sets are looked up next to the built-ins. *Deferred:* built-in visuals still draw
+  through an internal bridge, and the built-in transitions and the `standard` and `editorial`
+  design sets are not registered through the SDK.
 - **VIS-19** MUST `implemented`: The extension trust model is the owner's machine. Whoever installs mdeck
   and its extensions owns what runs, so extensions are trusted like any installed program and may
   do anything mdeck itself can do. mdeck is not a hosted service and does not sandbox its owner.

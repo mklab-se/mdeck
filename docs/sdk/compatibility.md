@@ -31,13 +31,44 @@ for mdeck 2.4 uses `mdeck-sdk` 2.4. Your crate needs no change for that. Rebuild
 for each mdeck release you want to use.
 
 Minor versions add: new methods, new optional hooks with default implementations, new painter
-operations, new hint kinds and content fields. Write code that tolerates additions:
+operations, new hint kinds, new moments, new capabilities and new content fields. Write code that
+tolerates additions:
 
 - implement only the trait methods you need; new hooks come with defaults;
-- match on SDK enums that may grow (`Hint`, `Block`, `Inline`, `PictureSource`) with a wildcard
-  arm (`_ => {}`);
-- build SDK structs with `..Default::default()` or the provided constructors (`Frame::new`,
-  `Stage::new`, `Capabilities { picture: true, ..Capabilities::NONE }`) where you can.
+- match on SDK enums with a wildcard arm (`_ => {}`), and on their struct-like variants with `..`
+  (`Moment::End { words, .. }`, `Block::List { items, .. }`);
+- build SDK values with their constructors, never with a struct literal.
+
+The compiler enforces the last two. Every SDK type that may grow is `#[non_exhaustive]`: the
+content model (`Slide`, `Block`, `Inline`, `ListItem`, `CalloutKind`, ...), `Hint`, `Moment`,
+`Look`, `PictureSource`, `Picture`, `Stage`, `Frame`, `Tokens`, `EngineDef`, `Capabilities`,
+`Needs`, `SettingKind`, `SettingSpec`, `Medium`, `SideLook`, `Annotation`, `Problem`, `Cloud`,
+`Mask`, `Font`, `FontRole` and the registry's errors. Outside the SDK you cannot write a struct
+literal for them (or `..Default::default()` on them), and a `match` without a wildcard arm does not
+compile. A field or variant added in 2.x therefore cannot break your crate.
+
+How to make each value:
+
+| Value | Make it with |
+|---|---|
+| an engine definition | `EngineDef::new(name, summary, create)`, then `.with_capabilities(..)`, `.with_settings(..)`, `.with_needs(..)`, `.with_ending_caption_delay(..)`, `.with_board(..)`; all `const`, so it can be a `static` |
+| capabilities, needs | `Capabilities::NONE.with_picture().with_countdown()`, `Needs::NONE.with_page()` |
+| a setting | `SettingSpec::new(key, kind, summary)` |
+| an art medium | `Medium::new(name, kind, strategy)` |
+| a side of a transition | `SideLook::SHOWN.with_offset(v).with_opacity(o).with_scale(s)` |
+| a stage, a frame | `Stage::new(moment)`, `Frame::new(rect, &tokens, &settings)`, then set fields |
+| a moment | `Moment::Slide`, `Moment::countdown(digit, mask, progress)`, `Moment::burst(p)`, `Moment::end(elapsed, words)` |
+| a picture | `Picture::new(source, place)`, then `p.backdrop = true` |
+| a heading hint | `Hint::text(text, font, pos, color, slide)` (the other hints are tuple variants) |
+| a slide | `Slide::new(design)` or `Slide::default()`, then set fields (`s.line = 3`) |
+| blocks, inlines | `Block::heading`, `paragraph`, `list`, `ordered_list`, `image`, `code`, `quote`, `callout`, `table`, `visual`; `Inline::text`, `math`, `link` |
+| a list item | `ListItem::new(marker, inlines)`, then set `step`, `children`, `checked` |
+| theme colours | `Tokens::default()`, then set fields (`t.accent = ...`) |
+| an annotation | `Annotation::new(points, color, width)` |
+
+The few types that stay exhaustive are closed by nature: the paint primitives (`Color`, `Pos2`,
+`Vec2`, `Rect`, `Stroke`, `Mesh`, `Vertex`), `Place`, `tokens::Value` (a YAML value), and the art
+pipeline's `Artwork`, `Strategy` and `MediumKind`.
 
 ## No third-party types
 
