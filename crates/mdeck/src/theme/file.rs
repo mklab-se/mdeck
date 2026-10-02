@@ -16,11 +16,13 @@ pub struct ThemeFile {
     pub extends: Option<String>,
     /// `plain` or `particles`.
     pub engine: Option<String>,
-    /// `none`, `plain` or `burst`.
+    /// `on` or `off`: whether decks open with the 3-2-1 countdown.
     pub countdown: Option<String>,
     /// The line engine's surface: `sheet` or `slate` (interim, see
     /// [`super::Surface`]).
     pub surface: Option<String>,
+    /// `slide`, `fade`, `spatial` or `none`.
+    pub transition: Option<String>,
     #[serde(default)]
     pub colors: Colors,
     #[serde(default)]
@@ -199,6 +201,7 @@ impl ThemeFile {
             engine: pick(&self.engine, &parent.engine),
             countdown: pick(&self.countdown, &parent.countdown),
             surface: pick(&self.surface, &parent.surface),
+            transition: pick(&self.transition, &parent.transition),
             colors: Colors {
                 background: pick(&c.background, &p.background),
                 text: pick(&c.text, &p.text),

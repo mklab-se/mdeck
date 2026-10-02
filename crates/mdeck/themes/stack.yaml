@@ -4,7 +4,7 @@
 name: Stack
 extends: dark
 engine: blocks
-countdown: burst
+countdown: on
 colors:
   background: "#0d0e1a"      # the playfield
   text: "#c2c5d9"

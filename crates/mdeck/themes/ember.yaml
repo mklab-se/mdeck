@@ -4,7 +4,7 @@
 name: Ember
 extends: dark
 engine: particles
-countdown: burst
+countdown: on
 colors:
   background: "#050505"      # ink-950
   text: "#b4b4bc"            # ink-200

@@ -4,7 +4,7 @@
 name: Marquee
 extends: dark
 engine: led
-countdown: burst
+countdown: on
 colors:
   background: "#06070b"      # the wall with the power off
   text: "#b9bccb"

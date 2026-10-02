@@ -6,7 +6,7 @@
 name: Sketchbook
 extends: light
 engine: sketch
-countdown: burst
+countdown: on
 colors:
   background: "#f5f0e6"      # the paper
   text: "#45423c"

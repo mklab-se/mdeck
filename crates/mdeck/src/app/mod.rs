@@ -1,5 +1,6 @@
 mod actions;
 mod ai;
+mod cockpit;
 mod countdown;
 mod drawing;
 mod end_slide;
@@ -14,6 +15,7 @@ mod navigation;
 mod overlays;
 mod overview;
 mod placement;
+pub mod presenter;
 mod reload;
 mod toast;
 
@@ -21,7 +23,7 @@ use actions::{MonitorMove, QuitTaps, ViewportSnapshot};
 use countdown::{Countdown, CountdownPhase};
 use grid::{GridLayout, GridState};
 use input::Ink;
-pub use launch::run;
+pub use launch::{RunOptions, run};
 use toast::Toast;
 
 use eframe::egui;
@@ -162,8 +164,17 @@ struct PresentationApp {
     engine_override: Option<crate::engines::EngineKind>,
     /// Keeps the context's fonts in step with theme font files.
     font_sync: render::fonts::FontSync,
-    default_transition: TransitionKind,
+    /// `defaults.transition` from the user config.
+    config_transition: Option<String>,
+    /// A transition picked live with `T`; wins over the resolved one.
+    cycled_transition: Option<TransitionKind>,
+    /// `--theme` from the command line: wins over `theme`, also on reload.
+    cli_theme: Option<String>,
     transition: Option<ActiveTransition>,
+    /// Digits typed for a slide jump.
+    jump: keys::SlideJump,
+    /// The presenter window and the notes overlay.
+    presenter: presenter::Presenter,
     show_hud: bool,
     raw_overlay_side: RawOverlaySide,
     toast: Option<Toast>,

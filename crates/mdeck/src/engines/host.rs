@@ -125,7 +125,7 @@ impl Host {
 
     /// Run the engine from a cold start through `seconds` of simulated time
     /// at 60 frames a second, then paint that frame: a still of the motion
-    /// (`MDECK_EXPORT_AT`, for looking at animations in export). A burst
+    /// (`mdeck export --at`, for looking at animations in export). A burst
     /// runs its progress over the rehearsal.
     pub fn rehearse(&mut self, ui: &egui::Ui, shot: Shot, lib: &mut Library, seconds: f32) {
         *self = Host::new(shot.theme.engine);

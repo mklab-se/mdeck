@@ -8,7 +8,7 @@ use std::ops::Range;
 
 use eframe::egui::{self, Color32, Pos2, Rect, Stroke, Vec2, pos2, vec2};
 
-use crate::parser::{self, Block};
+use crate::parser::Block;
 use crate::render::image_cache::ImageCache;
 use crate::render::text;
 use crate::theme::Theme;
@@ -64,28 +64,9 @@ impl Geometry {
     }
 }
 
-/// The printable part of a slide's notes: text-like blocks only (charts,
-/// diagrams and images in notes are left out).
+/// The printable part of a slide's notes, as the presenter view shows them.
 pub fn blocks(notes: Option<&str>) -> Vec<Block> {
-    let Some(notes) = notes else {
-        return Vec::new();
-    };
-    parser::blocks::parse(notes)
-        .into_iter()
-        .filter(|b| {
-            matches!(
-                b,
-                Block::Heading { .. }
-                    | Block::Paragraph { .. }
-                    | Block::List { .. }
-                    | Block::CodeBlock { .. }
-                    | Block::BlockQuote { .. }
-                    | Block::Callout { .. }
-                    | Block::Table { .. }
-                    | Block::HorizontalRule
-            )
-        })
-        .collect()
+    crate::app::presenter::notes_blocks(notes)
 }
 
 /// Split blocks with the given heights (each followed by its gap) into pages

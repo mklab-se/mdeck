@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use eframe::egui;
 
 use super::input::ActiveDraw;
-use super::keys::{self, KeyMode, map_key};
+use super::keys::{self, KeyMode};
 use super::overlays::{draw_hud, draw_raw_markdown_overlay};
 use super::{
     AppMode, CountdownPhase, DRAW_FADE_DURATION, PresentationApp, REVEAL_IN_FLIGHT_WINDOW,
@@ -34,6 +34,9 @@ impl eframe::App for PresentationApp {
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(bg).inner_margin(0.0))
             .show(root_ui, |ui| self.paint(ui, ctx, bg));
+
+        // The presenter's own window, when it is open.
+        self.show_presenter(ctx);
 
         // Keep the display pipeline alive with periodic repaints. Without this,
         // eframe enters ControlFlow::Wait when idle, and on Linux the EGL/GLX
@@ -187,6 +190,8 @@ impl PresentationApp {
         });
 
         let mut viewport_cmds = self.tick_monitor_move(&vp);
+        self.open_presenter_at_start(&vp);
+        self.jump.expire(Instant::now());
         if self.monitor_move.is_some() {
             ctx.request_repaint_after(Duration::from_millis(100));
         }
@@ -208,14 +213,7 @@ impl PresentationApp {
         };
 
         for (key, modifiers) in pressed {
-            let Some(action) = map_key(key, modifiers, key_mode) else {
-                continue;
-            };
-            // Block everything but global actions while blacked out
-            if self.blackout && !action.is_global() {
-                continue;
-            }
-            self.handle_action(action, &vp, &mut viewport_cmds);
+            self.press(key, modifiers, key_mode, &vp, &mut viewport_cmds, false);
         }
 
         // Mouse wheel scroll (presentation mode only)
@@ -325,6 +323,12 @@ impl PresentationApp {
         }
 
         self.draw_toast(ui, ctx, rect, scale);
+
+        // The notes overlay (one display) and the slide number being typed.
+        self.draw_notes_overlay(ui, rect);
+        if matches!(self.mode, AppMode::Presentation { .. }) {
+            self.draw_jump(ui, rect, scale);
+        }
 
         // HUD overlay (presentation mode only)
         if self.show_hud && matches!(self.mode, AppMode::Presentation { .. }) {

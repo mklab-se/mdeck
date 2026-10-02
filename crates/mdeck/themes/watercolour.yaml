@@ -6,7 +6,7 @@
 name: Watercolour
 extends: light
 engine: watercolour
-countdown: burst
+countdown: on
 colors:
   background: "#fbf8f1"      # cold-press paper
   text: "#4a4640"

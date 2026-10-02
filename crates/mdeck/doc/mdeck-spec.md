@@ -48,14 +48,19 @@ Every key is a **setting** (section 7). A key in the frontmatter is the deck's v
 | Transition | Effect |
 |------------|--------|
 | `slide`    | The next slide pushes the current one horizontally |
-| `fade`     | Cross-fade between slides |
+| `fade`     | Cross-fade between slides (default) |
 | `spatial`  | Slides pan in the direction they sit in the grid overview, so `G` and navigation feel like one continuous space |
 | `zoom`     | On a slide with `zoom-to`: enter it by zooming into a thermal spot of the slide before (section 14.20) |
 | `none`     | Instant switch |
 
 All transitions use smooth easing and last about a third of a second. Cycle
 the deck's transition while presenting with `T`. A slide's own `transition`
-says how that slide is entered (and left again going back).
+says how that slide is entered (and left again going back). The deck's
+transition comes from its `transition` setting, then the theme's
+`transition:` (section 9.4), then the user config (`defaults.transition`),
+then the built-in `fade`; a blank or unknown value passes to the next in
+line. Reduced motion shows no transitions, and a board engine (section 9.6)
+draws its own.
 
 **Parser rule:** If the document starts with a line that is exactly `---`, begin parsing YAML until a closing `---` line. If no closing `---` is found, there is no frontmatter and the whole file is slides. If the YAML is invalid, each `key: value` line is still read on its own.
 
@@ -135,6 +140,8 @@ kubectl get pods
 Footnotes (`text[^1]` with `[^1]: the note` anywhere in the deck) are notes too: the marker is hidden on the slide and the footnote's text is added to that slide's notes.
 
 **Printing notes:** `mdeck export deck.md --format pdf --notes` writes `deck-notes.pdf` with one notes page per slide: the slide on top and its notes below, dark text on white in any theme, in A4 proportions. Notes are rendered as markdown: headings, paragraphs, emphasis, lists, code, quotes, tables and math are printed; charts, diagrams and images in notes are left out. Notes that do not fit continue on the next page. Without `--notes`, `--format pdf` writes `deck.pdf` with one page per slide.
+
+**Notes are markdown.** While presenting, the presenter view (`V`, `--presenter`, section 15) shows them rendered: headings, emphasis, lists, code, quotes, tables and math.
 
 **Graceful degradation:** In a standard markdown viewer, a notes block renders as a code block under the slide's content: visible and readable, clearly set apart.
 
@@ -939,13 +946,17 @@ the presenter chrome is a counter and a progress hairline.
 
 #### The countdown
 
-Ember and Nord open with a three-second countdown before the first slide
-(any theme can, with the `countdown` key of section 9.4).
+Ember, Nord and the engine showcase themes open with a three-second
+countdown before the first slide (any theme can, with `countdown: on` in
+section 9.4; a deck's `countdown: on|off` wins over the theme). The engine
+decides how it looks: an engine with a countdown of its own draws it, any
+other shows plain numerals.
 In Ember the particles form the digits 3, 2 and 1 in the display face, morph
 from one to the next, and the 1 bursts outward into black before the first
 slide's scene assembles; in Nord the numerals simply fade. Any key or click
 cancels it, starting on a chosen slide (`--slide`, `--overview`) skips it, and
-`countdown: off` in the frontmatter turns it off for a deck.
+`countdown: off` in the frontmatter turns it off for a deck (`on` turns it
+on in a theme without one).
 
 #### Illustrations
 
@@ -1079,8 +1090,9 @@ The full set of keys:
 name: Acme
 extends: dark
 engine: plain              # plain | particles | led | splitflap | blocks | line | sketch | watercolour | darkroom | thermal (section 9.6)
-countdown: none            # none | plain | burst (burst: the engine's own countdown)
+countdown: off             # on | off: the 3-2-1 opener (the engine decides its look)
 surface: sheet             # the line engine's ground: sheet | slate (section 9.6; interim, moves into an engine block)
+transition: fade           # slide | fade | spatial | none (a deck's `transition` wins)
 colors:                    # #rgb, #rrggbb or #rrggbbaa
   background: "#0b1020"    # slide background
   text: "#c9d1e3"          # body text
@@ -1228,7 +1240,7 @@ Then decide what the web system cannot tell you:
   system names the same family (Spectral, Hanken Grotesk, JetBrains Mono);
   otherwise put TTF/OTF files in the theme folder.
 - **Pick the engine.** A dark, atmospheric brand can use `engine: particles`
-  (glowing particles) or `engine: led` (an LED wall) with `countdown: burst`;
+  (glowing particles) or `engine: led` (an LED wall) with `countdown: on`;
   most brands want `plain`.
 - **Check contrast.** `mdeck theme check` flags text that is hard to read.
 
@@ -1470,8 +1482,8 @@ engine: plain
 `mdeck deck.md --check --engine <name>` try an engine without editing the deck.
 Precedence: `--engine`, then `engine`, then the theme's `engine:`. An unknown
 `engine` is reported and the theme's engine is used; an unknown `--engine`
-stops with the list of engines. A theme's `countdown: burst` becomes the plain
-countdown on an engine that has no countdown of its own.
+stops with the list of engines. The countdown switch stays the theme's; an
+engine without a countdown of its own shows plain numerals.
 
 **Content an engine does not show.** Engines differ in what they can show:
 the plain engine draws no illustrations, and the
@@ -2476,6 +2488,9 @@ in-app HUD (`H`) show the same table.
 | F | Toggle fullscreen |
 | M | Move the fullscreen window to the next monitor (remembered in config) |
 | H | Toggle the presenter HUD |
+| V | Presenter view: a second window with the current slide, the next slide or step, the notes and the elapsed time; with one display, a notes overlay instead. V again closes it |
+| Shift+V | Reset the presenter timer |
+| Digits, then Enter | Jump to that slide (the number shows in the bottom-left corner while typed; Backspace edits, Esc cancels) |
 | C | Next thermal palette for every `@thermal` image and legend (section 14.20) |
 | Shift+C | Thermal palettes as written |
 | S | AI for the current slide, in the background: a picture on an art engine (section 9.7) |
@@ -2495,6 +2510,16 @@ Drawings fade out after about eight seconds (on the thermal engine a pen
 stroke is a heat trace: white-hot, cooling, gone after about four). Keys
 pressed during a transition are queued and applied when it finishes, so fast
 presses never lose a step.
+
+**Presenter view.** `V` (or `mdeck deck.md --presenter`) opens the
+presenter's window on the display beside the slides: the current slide
+large, the next slide or reveal step, the slide's notes rendered as markdown
+(headings, emphasis, lists, code, quotes, tables, math) and the elapsed time
+(`Shift+V` resets it). Keys typed in either window drive the deck. When the
+presenter window cannot land on another display (one screen, displays not
+side by side), the notes show as an overlay at the bottom of the slides
+instead; `V` hides it. `--theme <name>` presents in another theme without
+editing the deck.
 
 **Reduced motion.** `mdeck deck.md --reduced-motion` (or
 `mdeck config set defaults.reduced_motion true`) presents every slide and

@@ -69,19 +69,6 @@ pub(super) fn event_matches_file(event_path: &std::path::Path, file: &std::path:
     }
 }
 
-/// Resolve a setting with precedence: frontmatter > config default > built-in.
-pub(super) fn resolve_setting(
-    frontmatter: Option<&str>,
-    config_default: Option<&str>,
-    builtin: &str,
-) -> String {
-    frontmatter
-        .or(config_default)
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or(builtin)
-        .to_string()
-}
-
 /// Bottom edge (relative to the content top) of the lowest element revealed at
 /// exactly `step`, using pre-measured block `heights` and the list geometry
 /// used by the renderer. Returns `None` when nothing is revealed at that step.
@@ -205,14 +192,6 @@ mod tests {
             file
         ));
         assert!(!event_matches_file(Path::new("/tmp/deck/slides.md~"), file));
-    }
-
-    #[test]
-    fn resolve_setting_precedence() {
-        assert_eq!(resolve_setting(Some("nord"), Some("dark"), "light"), "nord");
-        assert_eq!(resolve_setting(None, Some("dark"), "light"), "dark");
-        assert_eq!(resolve_setting(None, None, "light"), "light");
-        assert_eq!(resolve_setting(None, Some("  "), "light"), "light");
     }
 
     /// Blocks parsed and numbered as a slide's.

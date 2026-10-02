@@ -183,7 +183,7 @@ impl Deck {
 
     /// Paint the engine's layer for `frame`: from where it is on screen, or,
     /// with `rehearse_at`, from a cold start that many seconds in (the
-    /// `MDECK_EXPORT_AT` stills in export).
+    /// `--at` stills in export).
     pub fn engine_layer(
         &mut self,
         ui: &egui::Ui,
@@ -244,29 +244,46 @@ impl Deck {
         render::render_slide(&block, slide, frame.rect, cx);
     }
 
-    /// Draw the deck's `footer`, if it has one, at the foot of the slide.
-    /// Board engines print their own labels and draw no footer.
-    pub fn draw_footer(
+    /// The chrome over a slide: the editorial counter and hairline, or the
+    /// footer and the slide counter (a board engine prints its own). The
+    /// window and export both draw it, so an export shows what the window
+    /// shows.
+    pub fn draw_chrome(
         &self,
         painter: &egui::Painter,
         theme: &Theme,
         rect: egui::Rect,
+        cx: &SlideContext,
         scale: f32,
     ) {
+        if theme.engine.capabilities().editorial {
+            render::ember::draw_chrome(painter, theme, rect, cx, scale);
+            return;
+        }
         if theme.engine.is_board() {
             return;
         }
-        let Some(footer) = self.presentation.meta.footer.as_deref() else {
-            return;
-        };
-        let color = Theme::with_opacity(theme.foreground, 0.4);
+        if let Some(footer) = &self.presentation.meta.footer {
+            let color = Theme::with_opacity(theme.foreground, 0.4);
+            let galley = painter.layout_no_wrap(
+                footer.clone(),
+                egui::FontId::proportional(14.0 * scale),
+                color,
+            );
+            let pos = egui::pos2(
+                rect.center().x - galley.rect.width() / 2.0,
+                rect.bottom() - 30.0 * scale,
+            );
+            painter.galley(pos, galley, color);
+        }
+        let color = Theme::with_opacity(theme.foreground, 0.3);
         let galley = painter.layout_no_wrap(
-            footer.to_string(),
-            egui::FontId::proportional(14.0 * scale),
+            format!("{} / {}", cx.index + 1, cx.count),
+            egui::FontId::monospace(14.0 * scale),
             color,
         );
         let pos = egui::pos2(
-            rect.center().x - galley.rect.width() / 2.0,
+            rect.right() - galley.rect.width() - 16.0 * scale,
             rect.bottom() - 30.0 * scale,
         );
         painter.galley(pos, galley, color);

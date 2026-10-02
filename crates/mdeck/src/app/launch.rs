@@ -14,12 +14,9 @@ use crate::deck::{self, Deck};
 use crate::incident_log::IncidentLog;
 use crate::parser::{self, Presentation};
 use crate::render;
-use crate::render::transition::TransitionKind;
 use crate::theme::{Theme, lookup};
 
-use super::helpers::{
-    hash_content, load_app_icon, print_incident_summary, resolve_setting, spawn_file_watcher,
-};
+use super::helpers::{hash_content, load_app_icon, print_incident_summary, spawn_file_watcher};
 use super::{
     AppMode, Fps, GridState, Ink, Jobs, PresentationApp, QuitTaps, RawOverlaySide, SlideView,
 };
@@ -41,6 +38,10 @@ pub(super) struct Launch {
     pub(super) cli_engine: Option<crate::engines::EngineKind>,
     /// `--reduced-motion` or `defaults.reduced_motion`.
     pub(super) reduced_motion: bool,
+    /// `--theme`: present in this theme instead of the deck's.
+    pub(super) cli_theme: Option<String>,
+    /// `--presenter`: open the presenter view on the first frame.
+    pub(super) presenter: bool,
 }
 
 impl PresentationApp {
@@ -56,16 +57,24 @@ impl PresentationApp {
             defaults,
             cli_engine,
             reduced_motion,
+            cli_theme,
+            presenter,
         } = launch;
         let FileWatch {
             rx: watcher_rx,
             watcher,
             content_hash,
         } = watch;
-        // Precedence: frontmatter > config defaults > built-in
+        // Precedence: --theme > frontmatter > config defaults > built-in
         let themes = lookup::Lookup::for_deck(file.parent());
-        let (resolved, theme_key) =
-            deck::deck_theme(&themes, &presentation, defaults.theme.as_deref());
+        let (resolved, theme_key) = match &cli_theme {
+            Some(name) => {
+                let (theme, problems) = lookup::resolve_or_default(&themes, name);
+                deck::report_theme_problems(&problems);
+                (theme, name.trim().to_ascii_lowercase())
+            }
+            None => deck::deck_theme(&themes, &presentation, defaults.theme.as_deref()),
+        };
         let engine_override = deck::deck_engine(cli_engine, &presentation, quiet);
         let resolved = crate::engines::with_engine(resolved, engine_override);
         // `run` preloads every theme's fonts before installing them; should a
@@ -76,13 +85,6 @@ impl PresentationApp {
         } else {
             (Theme::light(), Some(resolved))
         };
-
-        let transition_name = resolve_setting(
-            presentation.meta.transition.as_deref(),
-            defaults.transition.as_deref(),
-            "slide",
-        );
-        let default_transition = TransitionKind::from_name(&transition_name);
 
         let mut deck = Deck::open(file, presentation, &theme, true, quiet);
         // Art follows the theme the window is about to switch to.
@@ -107,8 +109,12 @@ impl PresentationApp {
             themes,
             pending_theme,
             font_sync,
-            default_transition,
+            config_transition: defaults.transition.clone(),
+            cycled_transition: None,
+            cli_theme,
             transition: None,
+            jump: super::keys::SlideJump::default(),
+            presenter: super::presenter::Presenter::new(presenter),
             show_hud: false,
             raw_overlay_side: RawOverlaySide::Off,
             toast: None,
@@ -248,15 +254,37 @@ fn viewport(
     }
 }
 
-pub fn run(
-    file: PathBuf,
-    windowed: bool,
-    start_slide: Option<usize>,
-    start_overview: bool,
-    quiet: bool,
-    engine: Option<String>,
-    reduced_motion: bool,
-) -> anyhow::Result<()> {
+/// How `mdeck <file>` presents.
+pub struct RunOptions {
+    pub file: PathBuf,
+    /// A window instead of fullscreen.
+    pub windowed: bool,
+    /// Start on this slide (1-based).
+    pub start_slide: Option<usize>,
+    /// Start in the overview grid.
+    pub start_overview: bool,
+    pub quiet: bool,
+    /// `--engine`: wins over `engine` and the theme's.
+    pub engine: Option<String>,
+    /// `--theme`: wins over `theme` and the config default.
+    pub theme: Option<String>,
+    pub reduced_motion: bool,
+    /// `--presenter`: open the presenter view at once.
+    pub presenter: bool,
+}
+
+pub fn run(opts: RunOptions) -> anyhow::Result<()> {
+    let RunOptions {
+        file,
+        windowed,
+        start_slide,
+        start_overview,
+        quiet,
+        engine,
+        theme: cli_theme,
+        reduced_motion,
+        presenter,
+    } = opts;
     let file = file.canonicalize().unwrap_or(file);
 
     // Config defaults: start mode, theme/transition fallbacks, monitor position
@@ -276,6 +304,15 @@ pub fn run(
     }
     let (cli_engine, _) =
         crate::engines::choose(engine.as_deref(), None).map_err(|e| anyhow::anyhow!("{e}"))?;
+    // An explicit --theme must exist, as for export.
+    if let Some(name) = &cli_theme {
+        let built = lookup::Lookup::for_deck(file.parent())
+            .load(name)
+            .map_err(|e| anyhow::anyhow!("--theme {name}: {e}"))?;
+        if !quiet {
+            deck::report_theme_problems(&built.warnings);
+        }
+    }
 
     if !quiet {
         warn_before_presenting(&presentation, &file);
@@ -328,6 +365,8 @@ pub fn run(
                 defaults,
                 cli_engine,
                 reduced_motion,
+                cli_theme,
+                presenter,
             };
             let mut app = PresentationApp::new(file_clone, presentation, watch, launch);
             app.start_at(initial_slide, initial_overview, shared);

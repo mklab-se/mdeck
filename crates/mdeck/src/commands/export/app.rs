@@ -71,6 +71,10 @@ pub(super) struct ExportApp {
     /// Frames rendered for the current page; content hints arrive one frame
     /// late, so the screenshot waits for the engine's settle frames.
     frames_on_slide: u32,
+    /// `--at` / `--moment`: a still of the engine's motion.
+    rehearsal: Rehearsal,
+    /// `--presenter-view`: draw the presenter's cockpit instead of slides.
+    presenter_view: bool,
 }
 
 impl ExportApp {
@@ -104,6 +108,8 @@ impl ExportApp {
             done: false,
             error,
             frames_on_slide: 0,
+            rehearsal: job.rehearsal,
+            presenter_view: job.presenter_view,
         }
     }
 
@@ -281,6 +287,23 @@ impl ExportApp {
             return;
         }
         let reveal = self.cursor.reveal(self.max_step());
+        if self.presenter_view {
+            let full = egui::Rect::from_min_size(
+                egui::pos2(-(origin.0 as f32), -(origin.1 as f32)),
+                egui::vec2(self.width as f32, self.height as f32),
+            );
+            let view = crate::app::presenter::View {
+                deck: &self.deck,
+                theme: &self.theme,
+                index: idx,
+                reveal,
+                end: false,
+                // a fixed time, so the export is reproducible
+                elapsed: std::time::Duration::from_secs(754),
+            };
+            crate::app::presenter::draw(ui, full, &view);
+            return;
+        }
         let radius = self.theme.page.as_ref().map_or(0.0, |p| p.radius * scale);
         self.deck.draw_background(
             &ui.painter().with_clip_rect(rect),
@@ -290,10 +313,10 @@ impl ExportApp {
             radius,
             false,
         );
-        // Developer stills of an engine's motion (see doc/engines.md):
-        // MDECK_EXPORT_AT=<seconds> rehearses the engine from a cold start,
-        // MDECK_EXPORT_MOMENT=3|2|1|burst|end shows the countdown or the end.
-        let rehearsal = Rehearsal::from_env();
+        // Stills of an engine's motion (see doc/engines.md): `--at <seconds>`
+        // rehearses the engine from a cold start, `--moment countdown|end`
+        // shows the countdown or the end.
+        let rehearsal = self.rehearsal;
         if self.theme.engine.paints() {
             let frame = EngineFrame {
                 rect,
@@ -306,7 +329,7 @@ impl ExportApp {
             };
             self.deck.engine_layer(ui, &self.theme, frame, rehearsal.at);
         }
-        if rehearsal.end || rehearsal.countdown.is_some() {
+        if rehearsal.moment() {
             return;
         }
         let cx = render::SlideContext {
@@ -327,8 +350,9 @@ impl ExportApp {
         };
         self.deck.draw_slide(ui, &self.theme, idx, frame, &cx);
         self.deck.draw_logo(ui.painter(), rect, idx, scale);
+        // the footer and counter, as the window draws them
         self.deck
-            .draw_footer(ui.painter(), &self.theme, rect, scale);
+            .draw_chrome(ui.painter(), &self.theme, rect, &cx, scale);
     }
 
     fn draw_notes(&mut self, ui: &egui::Ui, origin: (u32, u32)) {
@@ -440,7 +464,9 @@ impl eframe::App for ExportApp {
         // while images are still decoding in the background, and for engine
         // slides only once the engine has seen the slide's geometry.
         self.frames_on_slide += 1;
-        let settled = notes_page || self.frames_on_slide >= self.theme.engine.settle_frames();
+        let settled = notes_page
+            || self.presenter_view
+            || self.frames_on_slide >= self.theme.engine.settle_frames();
         if !self.screenshot_requested && !self.deck.image_cache.is_loading() && settled {
             ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
             self.screenshot_requested = true;

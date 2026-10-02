@@ -3,16 +3,16 @@
 use std::path::Path;
 
 use super::super::file::{Sizes, ThemeFile};
-use super::super::{Countdown, EngineKind, Surface, ThemeError};
+use super::super::{EngineKind, Surface, ThemeError};
 use super::range;
 use crate::render::syntax;
 
-/// `engine:` and `countdown:`. An engine left out of this build, or a burst
-/// countdown on an engine without one, falls back with a warning.
+/// `engine:`, `countdown:` and `transition:`. An engine left out of this
+/// build falls back to plain with a warning.
 pub(super) fn engine_and_countdown(
     f: &ThemeFile,
     warnings: &mut Vec<String>,
-) -> Result<(EngineKind, Countdown), ThemeError> {
+) -> Result<(EngineKind, bool, Option<String>), ThemeError> {
     let engine = match &f.engine {
         None => EngineKind::Plain,
         Some(e) => EngineKind::from_name(e).ok_or_else(|| {
@@ -31,21 +31,31 @@ pub(super) fn engine_and_countdown(
         ));
         EngineKind::Plain
     };
-    let mut countdown = match &f.countdown {
-        None => Countdown::None,
-        Some(c) => Countdown::from_name(c).ok_or_else(|| {
-            ThemeError::invalid("countdown", format!("'{c}' is not none, plain or burst"))
-        })?,
+    let countdown = match f.countdown.as_deref().map(str::trim) {
+        None | Some("off") => false,
+        Some("on") => true,
+        Some(c) => {
+            return Err(ThemeError::invalid(
+                "countdown",
+                format!("'{c}' is not on or off"),
+            ));
+        }
     };
-    if countdown == Countdown::Burst && !engine.capabilities().countdown {
-        warnings.push(format!(
-            "countdown: burst needs an engine with its own countdown, not {}; using plain",
-            engine.name()
-        ));
-        countdown = Countdown::Plain;
-    }
-    Ok((engine, countdown))
+    let transition = match f.transition.as_deref().map(str::trim) {
+        None => None,
+        Some(t) if TRANSITIONS.contains(&t) => Some(t.to_string()),
+        Some(t) => {
+            return Err(ThemeError::invalid(
+                "transition",
+                format!("'{t}' is not {}", TRANSITIONS.join(", ")),
+            ));
+        }
+    };
+    Ok((engine, countdown, transition))
 }
+
+/// The transitions a theme may name.
+pub(crate) const TRANSITIONS: [&str; 4] = ["slide", "fade", "spatial", "none"];
 
 /// `surface:` (the line engine's ground), `sheet` when unset.
 pub(super) fn surface(f: &ThemeFile) -> Result<Surface, ThemeError> {
@@ -185,12 +195,12 @@ mod tests {
     fn countdown_names_are_checked() {
         let mut w = Vec::new();
         let e = engine_and_countdown(&file("countdown: loud"), &mut w).unwrap_err();
+        assert_eq!(e.to_string(), "countdown: 'loud' is not on or off");
+        let (engine, countdown, transition) = engine_and_countdown(&file("{}"), &mut w).unwrap();
         assert_eq!(
-            e.to_string(),
-            "countdown: 'loud' is not none, plain or burst"
+            (engine, countdown, transition),
+            (EngineKind::Plain, false, None)
         );
-        let (engine, countdown) = engine_and_countdown(&file("{}"), &mut w).unwrap();
-        assert_eq!((engine, countdown), (EngineKind::Plain, Countdown::None));
         assert!(w.is_empty());
     }
 

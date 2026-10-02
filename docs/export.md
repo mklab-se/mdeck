@@ -14,7 +14,18 @@ mdeck export talk.md --range 3-5 --debug          # slides 3 to 5, every step
 mdeck export talk.md --format pdf                 # export/talk.pdf, one page per slide
 mdeck export talk.md --format pdf --notes         # export/talk-notes.pdf, slide + speaker notes
 mdeck export talk.md --theme winter               # in another theme, without editing the deck
+mdeck export talk.md --slide 3 --at 0.3           # a still of the engine's motion, 0.3 s in
+mdeck export talk.md --slide 1 --moment countdown # the opening countdown (or 3, 2, 1, burst, end)
 ```
+
+The footer (`footer`), the slide counter and the editorial chrome are drawn
+in export exactly as in the window.
+
+`--at <seconds>` runs the engine from a cold start for that long (simulated
+at 60 frames a second) and exports that frame; `--moment countdown|end`
+exports the opening countdown or the end act instead of the slide (`3`, `2`,
+`1` and `burst` pick a single countdown phase). They replace the
+`MDECK_EXPORT_AT` and `MDECK_EXPORT_MOMENT` environment variables.
 
 Output is always exactly the requested size, independent of your screen's
 size or DPI: slides larger than the display are rendered in tiles and stitched.

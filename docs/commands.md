@@ -3,8 +3,8 @@
 # Command reference
 
 ```bash
-mdeck <file.md>                    # present (add --windowed, --slide N, --overview, --reduced-motion, --check)
-mdeck export <file.md>             # PNG or PDF export (--width, --height, --output-dir, --debug, --slide, --range, --format, --notes, --theme)
+mdeck <file.md>                    # present (add --windowed, --slide N, --overview, --theme, --engine, --presenter, --reduced-motion, --check)
+mdeck export <file.md>             # PNG or PDF export (--width, --height, --output-dir, --debug, --slide, --range, --format, --notes, --theme, --engine, --at, --moment)
 mdeck theme list                   # Every theme visible from here (deck, user, built-in)
 mdeck theme new <n>                # Starter theme in ./themes (--from <design system> with AI, --user, --force)
 mdeck theme check <n>              # Errors, fallbacks and weak contrast in a theme

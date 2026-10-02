@@ -93,7 +93,7 @@ pub struct Capabilities {
     pub board: bool,
     /// Shows point cloud pictures (`picture`).
     pub illustrations: bool,
-    /// Draws the opening countdown itself (`countdown: burst` in a theme).
+    /// Draws the opening countdown itself (when `countdown: on`).
     pub countdown: bool,
     /// Plays an act of its own on the end slide.
     pub end_act: bool,

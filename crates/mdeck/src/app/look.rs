@@ -8,6 +8,29 @@ use crate::theme::Theme;
 use super::PresentationApp;
 use super::toast::Toast;
 
+/// Resolve the transition by precedence: the deck, then the theme, then
+/// the user config, then the built-in `fade`. A blank or unknown value is
+/// skipped, so the next one in line applies.
+pub(super) fn resolve_transition(
+    deck: Option<&str>,
+    theme: Option<&str>,
+    config: Option<&str>,
+) -> TransitionKind {
+    [deck, theme, config]
+        .into_iter()
+        .flatten()
+        .find_map(TransitionKind::parse)
+        .unwrap_or(TransitionKind::Fade)
+}
+
+/// A slide's own transition into it (RUN-09): its `transition` setting.
+/// `zoom` is set up by the navigation from `zoom-to`, so it is not one here.
+pub(super) fn slide_transition(slide: &crate::parser::Slide) -> Option<TransitionKind> {
+    crate::parser::setting(&slide.settings, "transition")
+        .filter(|t| *t != "zoom")
+        .and_then(TransitionKind::parse)
+}
+
 impl PresentationApp {
     /// `Shift+T`: the next theme visible from this deck (built-ins, then
     /// user and deck themes by name).
@@ -50,14 +73,19 @@ impl PresentationApp {
         self.toast = Some(Toast::new(format!("Theme: {}", self.theme.name)));
     }
 
+    /// `T`: the next transition, for the rest of the session.
     pub(super) fn cycle_transition(&mut self) {
-        self.default_transition = match self.default_transition {
+        let next = match self
+            .cycled_transition
+            .unwrap_or_else(|| self.resolved_transition())
+        {
             TransitionKind::SlideHorizontal => TransitionKind::Fade,
             TransitionKind::Fade => TransitionKind::Spatial,
             TransitionKind::Spatial => TransitionKind::None,
             TransitionKind::None => TransitionKind::SlideHorizontal,
         };
-        let name = match self.default_transition {
+        self.cycled_transition = Some(next);
+        let name = match next {
             TransitionKind::SlideHorizontal => "Slide",
             TransitionKind::Fade => "Fade",
             TransitionKind::Spatial => "Spatial",
@@ -66,30 +94,39 @@ impl PresentationApp {
         self.toast = Some(Toast::new(format!("Transition: {name}")));
     }
 
-    /// The transition to use: the chosen one, or none with reduced motion.
-    pub(super) fn transition_kind(&self) -> TransitionKind {
-        if self.reduced_motion {
-            TransitionKind::None
-        } else {
-            self.default_transition
-        }
+    /// The deck's transition: its own setting, then the theme's (the one
+    /// about to be shown when a theme waits for its fonts), then the user
+    /// config, then `fade`.
+    pub(super) fn resolved_transition(&self) -> TransitionKind {
+        let theme = self.pending_theme.as_ref().unwrap_or(&self.theme);
+        resolve_transition(
+            self.deck.presentation.meta.transition.as_deref(),
+            theme.transition.as_deref(),
+            self.config_transition.as_deref(),
+        )
     }
 
-    /// How slide `index` is entered (and left again going back): its own
-    /// `transition` setting, else the deck's. `zoom` is set up by the
-    /// navigation from `zoom-to`, so it falls back to the deck's here.
-    pub(super) fn slide_transition(&self, index: usize) -> TransitionKind {
-        let own = self
-            .deck
-            .presentation
-            .slides
-            .get(index)
-            .and_then(|s| crate::parser::setting(&s.settings, "transition"))
-            .filter(|t| *t != "zoom");
-        match own {
-            Some(name) if !self.reduced_motion => TransitionKind::from_name(name),
-            _ => self.transition_kind(),
+    /// The transition into slide `to` from `from`: none with reduced
+    /// motion; otherwise a slide's own transition (the one being entered
+    /// going forward, the one being left going back, so the way back
+    /// mirrors the way in), then the one picked with `T`, then the deck's.
+    pub(super) fn transition_between(&self, from: usize, to: usize) -> TransitionKind {
+        if self.reduced_motion {
+            return TransitionKind::None;
         }
+        // a board engine owns its transitions: per-slide ones are ignored
+        let own = if self.theme.engine.is_board() {
+            None
+        } else {
+            let entered = if to >= from { to } else { from };
+            self.deck
+                .presentation
+                .slides
+                .get(entered)
+                .and_then(slide_transition)
+        };
+        own.or(self.cycled_transition)
+            .unwrap_or_else(|| self.resolved_transition())
     }
 
     /// `C`: the next thermal palette for every `@thermal` image and legend.
@@ -130,5 +167,53 @@ impl PresentationApp {
             .slides
             .iter()
             .any(|s| !crate::render::thermal::blocks(s).is_empty())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn transition_precedence_is_deck_theme_config_fade() {
+        let r = resolve_transition;
+        assert_eq!(
+            r(Some("none"), Some("spatial"), Some("slide")),
+            TransitionKind::None
+        );
+        assert_eq!(
+            r(None, Some("spatial"), Some("slide")),
+            TransitionKind::Spatial
+        );
+        assert_eq!(
+            r(None, None, Some("slide")),
+            TransitionKind::SlideHorizontal
+        );
+        assert_eq!(r(None, None, None), TransitionKind::Fade);
+    }
+
+    /// D19: a blank deck value used to skip the config default and fall
+    /// through to the built-in one.
+    #[test]
+    fn a_blank_or_unknown_deck_transition_falls_to_the_next_in_line() {
+        let r = resolve_transition;
+        assert_eq!(r(Some(""), None, Some("spatial")), TransitionKind::Spatial);
+        assert_eq!(r(Some("  "), Some("none"), None), TransitionKind::None);
+        assert_eq!(
+            r(Some("wipe"), None, Some("slide")),
+            TransitionKind::SlideHorizontal
+        );
+        assert_eq!(r(Some(" Fade "), None, None), TransitionKind::Fade);
+    }
+
+    #[test]
+    fn a_slide_sets_its_own_transition_but_not_zoom() {
+        let slides = crate::parser::parse(
+            "# A\n\n# B\n<!-- transition: spatial -->\n\n# C\n<!-- transition: zoom -->\n",
+        )
+        .slides;
+        assert_eq!(slide_transition(&slides[0]), None);
+        assert_eq!(slide_transition(&slides[1]), Some(TransitionKind::Spatial));
+        assert_eq!(slide_transition(&slides[2]), None);
     }
 }

@@ -4,7 +4,7 @@
 name: Departures
 extends: dark
 engine: splitflap
-countdown: burst
+countdown: on
 colors:
   background: "#0e0f11"      # the hall
   text: "#e8e3d6"

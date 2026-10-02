@@ -9,6 +9,10 @@ pub(super) struct Job {
     pub debug: bool,
     /// Slide indices to export, in order.
     pub targets: Vec<usize>,
+    /// `--at` / `--moment`.
+    pub rehearsal: super::rehearsal::Rehearsal,
+    /// Draw the presenter view instead of the slides.
+    pub presenter_view: bool,
 }
 
 /// Which slide, and which reveal step of it, is being exported.

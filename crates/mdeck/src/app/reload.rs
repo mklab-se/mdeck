@@ -4,7 +4,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::parser::{self, Presentation};
-use crate::render::transition::TransitionKind;
 use crate::theme::lookup;
 use crate::{deck, render};
 
@@ -67,7 +66,6 @@ impl PresentationApp {
         // progress (clamped to the new step count) and scroll position.
         let engine_override = deck::deck_engine(self.cli_engine, &new_presentation, false);
         let new_theme = new_presentation.meta.theme.clone();
-        let new_transition = new_presentation.meta.transition.clone();
         self.deck.replace(new_presentation, &self.theme);
         self.views = vec![SlideView::default(); slide_count];
         let cur = self.current_slide;
@@ -78,9 +76,14 @@ impl PresentationApp {
             scroll_target: old_scroll,
         };
 
-        // Update theme/transition from new frontmatter (and pick up edits to
-        // the theme file itself)
-        if let Some(name) = &new_theme {
+        // Update the theme from new frontmatter (and pick up edits to the
+        // theme file itself); `--theme` keeps its theme. The transition is
+        // resolved from the deck on every slide change.
+        if let Some(name) = self.cli_theme.clone() {
+            let (theme, problems) = lookup::resolve_or_default(&self.themes, &name);
+            deck::report_theme_problems(&problems);
+            self.pending_theme = Some(theme);
+        } else if let Some(name) = &new_theme {
             let (theme, problems) = lookup::resolve_or_default(&self.themes, name);
             deck::report_theme_problems(&problems);
             self.theme_key = name.trim().to_ascii_lowercase();
@@ -90,9 +93,6 @@ impl PresentationApp {
             self.pending_theme = Some(theme);
         }
         self.engine_override = engine_override;
-        if let Some(name) = &new_transition {
-            self.default_transition = TransitionKind::from_name(name);
-        }
 
         self.jobs.precache_cancel.store(true, Ordering::Relaxed);
         render::diagram::clear_route_cache();
