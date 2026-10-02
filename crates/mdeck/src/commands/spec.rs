@@ -69,7 +69,7 @@ POINT CLOUDS (pictures for the particles engine and others)
   mdeck illustration generate --name NAME --description "..."   New cloud via AI
   mdeck illustration import IMAGE --name NAME | list | show NAME | contribute NAME
 
-ART ENGINES (blueprint, sketch, chalkboard, watercolour, darkroom; spec 9.7)
+ART ENGINES (line, sketch, watercolour, darkroom; spec 9.7)
   mdeck ai art deck.md  Draw a picture per slide (--slide N, --stale, --force,
                         --dry-run, --engine, --node); kept in art/ and deck.art.yaml
   S                     While presenting: draw this slide's picture

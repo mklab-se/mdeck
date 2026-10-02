@@ -1,4 +1,4 @@
-//! Generated artwork for the art engines (sketch, blueprint, chalkboard,
+//! Generated artwork for the art engines (line, sketch,
 //! watercolour, darkroom). `mdeck ai art` makes a picture per slide with the
 //! configured image model, in the style of the deck's medium ([`style`]),
 //! and records it in a sidecar next to the deck ([`sidecar`]). Presenting

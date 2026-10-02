@@ -66,7 +66,7 @@ Available config keys:
 - `defaults.theme`: default theme, a built-in (`light`, `dark`, `nord`, `ember`,
   `spring`, `summer`, `autumn`, `winter`) or a user theme
 - `mdeck ai art <deck.md> [--slide N] [--stale] [--force] [--dry-run] [--engine E] [--node N]`:
-  draw a picture per slide for an art engine (`blueprint`, `sketch`, `chalkboard`, `watercolour`, `darkroom`) with the image model; pictures go in
+  draw a picture per slide for an art engine (`line`, `sketch`, `watercolour`, `darkroom`) with the image model; pictures go in
   `art/` next to the deck and `<deck>.art.yaml` records them. `art-world: "..."` in the frontmatter is
   the deck's world (setting, era, characters); `picture-prompt: "..."` in a slide's settings is that slide's scene
   (otherwise the chat model writes one from the copy and notes); `<!-- picture: none -->` skips a slide.

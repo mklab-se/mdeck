@@ -36,7 +36,7 @@ pub enum AiCommands {
     },
     /// Create a presentation from content using AI
     Create(CreateArgs),
-    /// Draw a picture for every slide on an art engine, like blueprint (saved in art/ next to the deck, recorded in <deck>.art.yaml)
+    /// Draw a picture for every slide on an art engine, like line (saved in art/ next to the deck, recorded in <deck>.art.yaml)
     Art {
         /// Markdown file to process
         file: PathBuf,
@@ -52,7 +52,7 @@ pub enum AiCommands {
         /// List the slides that would be drawn, without generating anything
         #[arg(long)]
         dry_run: bool,
-        /// Draw for this engine instead of the deck's (e.g. blueprint)
+        /// Draw for this engine instead of the deck's (e.g. line)
         #[arg(long)]
         engine: Option<String>,
         /// Use this image node instead of the default (see `ailloy ai config list-nodes`)

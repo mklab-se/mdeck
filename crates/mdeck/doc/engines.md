@@ -3,8 +3,8 @@
 An **engine** is what a theme does beyond colours and type: the layer it
 paints under the slides, and what it plays for the countdown and the end.
 MDeck ships `plain`, `particles` (the Ember theme), `led` (Marquee),
-`splitflap` (Departures), `laser` (Etch), `blocks` (Stack) and the art
-engines `blueprint`, `sketch` (Sketchbook), `chalkboard`, `watercolour` and
+`splitflap` (Departures), `blocks` (Stack) and the art
+engines `line` (Blueprint and Chalkboard), `sketch` (Sketchbook), `watercolour` and
 `darkroom`, and `thermal` (the Thermal theme). This guide is for adding one. Read spec sections 9.6
 and 9.7 first for what users see.
 
@@ -108,7 +108,7 @@ glyphs out of the font atlas there.
 | `countdown` | Draws the opening countdown itself (`countdown: burst`). |
 | `end_act` | Plays an act of its own on the end slide. |
 | `art` | Draws generated art: the host fills `Stage::art`, and `EngineKind::medium` says which kind of picture to generate and how to draw it in. |
-| `numbers_slides` | Prints the slide number itself, so the editorial counter is left out (blueprint's title block). |
+| `numbers_slides` | Prints the slide number itself, so the editorial counter is left out (the line engine's sheet, in its title block; see `Theme::numbers_slides`). |
 | `cold_open` | Forms title and section headings itself: the editorial copy waits `render::ember::COLD_OPEN_HOLD` seconds and publishes the heading as `Hint::Text` (with its slide) for the engine to draw (thermal). |
 | `heat_trace` | Pen strokes are drawn as a heat trace in the theme's `heat.palette`: white-hot, cooling, gone after a few seconds (thermal). |
 
@@ -277,7 +277,7 @@ image loading; everything else must be identical.)
 
 The plan in [#16](https://github.com/mklab-se/mdeck/issues/16) left open
 whether each engine should become its own crate once the interface had
-settled. After four new engines on it (LED, split-flap, laser, blocks), the
+settled. After four new engines on it (LED, split-flap, laser, blocks; laser has since been removed), the
 answer is no, for now:
 
 - **The interface held.** Adding the four engines changed the core twice:

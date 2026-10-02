@@ -17,7 +17,7 @@ pub struct Card {
     pub swatches: &'static [(&'static str, &'static [u8])],
 }
 
-/// Ink lines on white, shared by every line medium (blueprint, chalkboard,
+/// Ink lines on white, shared by every line medium (the line engine's sheet and slate,
 /// a pencil sketch): the engine draws the lines in its own medium.
 pub const LINE: Card = Card {
     name: "line",
@@ -41,7 +41,7 @@ pub const LINE: Card = Card {
 
 /// The MKLab house style: graphite and ink on paper, old craft meeting
 /// modern technology.
-#[cfg(any(feature = "sketch", feature = "blueprint", feature = "chalkboard"))]
+#[cfg(any(feature = "sketch", feature = "line"))]
 pub const SKETCH: Card = Card {
     name: "sketch",
     prompt: "A detailed hand-drawn illustration in graphite pencil and black ink on plain \
@@ -212,7 +212,7 @@ mod tests {
     fn every_card_forbids_text_and_has_swatches() {
         let cards = [
             Some(&LINE),
-            #[cfg(any(feature = "sketch", feature = "blueprint", feature = "chalkboard"))]
+            #[cfg(any(feature = "sketch", feature = "line"))]
             Some(&SKETCH),
             #[cfg(feature = "watercolour")]
             Some(&WATERCOLOUR),

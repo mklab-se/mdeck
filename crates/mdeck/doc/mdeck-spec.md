@@ -856,18 +856,17 @@ the board as the whole slide.
 | Characters      | `#F2EDE0`       |
 | Headings        | `#FFC21A`       |
 
-**`etch`** and **`stack`**
+**`stack`**
 
-Two themes for two more engines (section 9.6):
+A theme for the blocks engine (section 9.6):
 
 | Theme | Feel | Engine | Background | Accent |
 |---|---|---|---|---|
-| `etch` | a laser engraver's slate: deep graphite, an editorial serif, a beam that etches each picture white-hot and cools it to a pale engraved line | laser | `#0C0D0F` | `#FF5A1F` |
 | `stack` | a night-blue playfield where pictures are built from bright bevelled blocks in pink, yellow, cyan, orange and violet | blocks | `#0D0E1A` | `#FF4F8B` |
 
 **`blueprint`**
 
-A draftsman's sheet for the first art engine (sections 9.6 and 9.7): a
+A draftsman's sheet for the line engine (`surface: sheet`, sections 9.6 and 9.7): a
 Prussian blue sheet with a fine grid, a ruled border and a title block, laid
 on a dark drafting table (`page:`), with generated line art inked in
 blue-white, construction lines first.
@@ -897,7 +896,7 @@ technology), drawn in with a pencil; an editorial serif for headings.
 
 **`chalkboard`**
 
-A green slate in a wooden frame for the chalkboard engine, with the ghosts
+A green slate in a wooden frame for the line engine (`surface: slate`), with the ghosts
 of earlier drawings wiped off it; generated line art is drawn in chalk.
 
 | Property        | Value           |
@@ -1049,7 +1048,7 @@ match wins:
    `~/Library/Application Support/mdeck/themes/` on macOS,
    `%APPDATA%\mdeck\themes\` on Windows
 3. the built-in themes (`dark`, `light`, `nord`, `ember`, `spring`, `summer`,
-   `autumn`, `winter`, `marquee`, `departures`, `etch`, `stack`, `blueprint`,
+   `autumn`, `winter`, `marquee`, `departures`, `stack`, `blueprint`,
    `sketchbook`, `chalkboard`, `watercolour`, `darkroom`, `thermal`)
 
 `theme` may also be a path to a file (`theme: brand/acme.yaml`), relative
@@ -1079,8 +1078,9 @@ The full set of keys:
 ```yaml
 name: Acme
 extends: dark
-engine: plain              # plain | particles | led | splitflap | laser | blocks (section 9.6)
+engine: plain              # plain | particles | led | splitflap | blocks | line | sketch | watercolour | darkroom | thermal (section 9.6)
 countdown: none            # none | plain | burst (burst: the engine's own countdown)
+surface: sheet             # the line engine's ground: sheet | slate (section 9.6; interim, moves into an engine block)
 colors:                    # #rgb, #rrggbb or #rrggbbaa
   background: "#0b1020"    # slide background
   text: "#c9d1e3"          # body text
@@ -1305,18 +1305,16 @@ from the theme, so every theme looks like itself on every engine.
 | `particles` | a living field of glowing particles that morphs from slide to slide and follows the content, editorial copy layouts (section 9.1, Ember) | yes | yes | particle digits that burst; the words, a swirl and a bang |
 | `led` | a fixed wall of RGB LEDs behind every slide, editorial copy layouts (theme `marquee`) | yes | no | LED digits, then a white-hot ring runs out over the wall; the words, then every LED dies out |
 | `splitflap` | the slide is a departure board: all its text on a grid of split flaps (theme `departures`) | no | no | digits in solid flaps, then the board scrambles awake; the words, then the board clears |
-| `laser` | a beam from in front of the screen etches each picture onto the slide, editorial copy layouts (theme `etch`) | yes | no | digits etched in a flash, then burned away in a spray of sparks; the words, then they fade |
 | `blocks` | pictures built from falling blocks, editorial copy layouts (theme `stack`) | yes | no | digits in falling blocks that burst apart; the words, then a line clear |
-| `blueprint` | a draftsman's sheet: generated line art inked stroke by stroke, construction lines first (theme `blueprint`, section 9.7) | yes, as technical pen lines when a slide has no art | no | digits drawn with a technical pen; the words, then they fade |
+| `line` | generated line art drawn stroke by stroke on a surface: a draftsman's `sheet`, inked construction lines first (theme `blueprint`), or a `slate`, in chalk (theme `chalkboard`; section 9.7) | yes, as technical pen lines or in chalk when a slide has no art | no | digits drawn with the pen or the chalk; the words, then they fade |
 | `sketch` | a sketchbook page: generated graphite drawings drawn in with a pencil, outlines first, then the shading (theme `sketchbook`, section 9.7) | yes, in pencil when a slide has no art | no | digits drawn in pencil; the words, then they fade |
-| `chalkboard` | a slate in a wooden frame: generated line art drawn in chalk, stroke by stroke (theme `chalkboard`, section 9.7) | yes, in chalk when a slide has no art | no | digits drawn in chalk; the words, then they fade |
 | `watercolour` | cold-press paper: generated watercolours bloom onto it, a pale wash first, then the colour spreading (theme `watercolour`, section 9.7) | yes, in ink with a loose wash when a slide has no art | no | digits in ink and wash; the words, then they fade |
 | `darkroom` | a darkroom under a red safelight: generated photographs develop as prints, then the white light comes on (theme `darkroom`, section 9.7) | yes, as a photogram when a slide has no art | no | digits glowing white like a photogram; the words, then they fade |
 | `thermal` | a heat field under the slides in the theme's heat palette; title and section headings form in heat (the cold opening), editorial copy layouts (theme `thermal`) | yes, as a heat signature | no | digits that heat up and cool off; the words glow, then cool |
 
 **The LED engine.** The slide sits on a wall of LEDs, a few pixels apart,
 their unlit lenses just visible. Nothing ever moves: pictures appear by
-lighting LEDs. An `picture` powers on from its centre outward, each LED
+lighting LEDs. A `picture` powers on from its centre outward, each LED
 flickering as it strikes, and then shimmers slowly between the theme's
 `accent`, `accent-soft` and `particles.cool`; the hottest cores whiten toward
 `particles.light`. Brightness follows the point cloud's density, so strokes
@@ -1364,17 +1362,7 @@ characters the flaps do not carry (Chinese, Japanese and Korean, emoji and
 most symbols show as blank flaps). The board says what a timetable says:
 agendas, schedules, status and numbers read best.
 
-**The laser engine.** A beam enters from below the screen, as if from a
-projector in the room, and etches each picture: an `picture` is
-ordered into a drawing path through its points (the pen lifts on long jumps,
-as a real laser's does) and traced in about two seconds. Fresh marks burn
-white-hot (`particles.light`) and cool through `secondary` and `accent` to a
-pale engraved line with a faint warmth left in it; sparks fly off the tip and
-smoke drifts up. On charts and diagrams the beam traces the lines, edges,
-circles and bar tops the renderers drew. Slides without either stay a calm,
-finely grained surface. Exports show the finished, cooled etching.
-
-**The blocks engine.** An `picture` is cut into a grid of blocks,
+**The blocks engine.** A `picture` is cut into a grid of blocks,
 grouped into pieces of two to four, and the pieces drop from above the slide,
 bottom row first, land with a small bounce and settle into the picture. The
 blocks are bevelled, in `accent`, `secondary`, `particles.cool`,
@@ -1382,10 +1370,17 @@ blocks are bevelled, in `accent`, `secondary`, `particles.cool`,
 flashes and clears row by row, like a completed line. Slides without an
 illustration stay calm. Exports show the settled stack.
 
-**The blueprint engine.** Every slide is a Prussian blue drawing sheet: a
+**The line engine.** Line art drawn on a surface the theme chooses with
+`surface:` (`sheet`, the default, or `slate`). Line art is the same on both,
+so a deck switches between the `blueprint` and `chalkboard` themes without
+new pictures. (`surface:` is a top-level theme key for now; it moves into the
+engine's own settings with the next theme format.)
+
+*The sheet* (`surface: sheet`, theme `blueprint`). Every slide is a Prussian
+blue drawing sheet: a
 fine grid in `rule` with heavier lines every fifth square, a ruled double
 border with zone ticks, and a title block in the bottom-right corner with the
-deck's title and the sheet number (the blueprint numbers its sheets itself,
+deck's title and the sheet number (the sheet numbers itself,
 so the editorial counter is left out). A slide's generated line art (section
 9.7) is inked in `heading` colour the way a draughtsman works: faint
 construction lines in `rule` run ahead, the ink follows stroke by stroke,
@@ -1409,7 +1404,7 @@ On a title slide the drawing sits large and faint behind the title. Without
 art, the slide's `picture` is drawn in pencil, and so are the
 countdown and the end words. Exports show the finished drawing.
 
-**The chalkboard engine.** Every slide is a slate (`background`) with soft
+*The slate* (`surface: slate`, theme `chalkboard`). Every slide is a slate (`background`) with soft
 clouds where it was wiped and the faint ghosts of earlier drawings in white
 and the coloured chalks (`accent`, `accent-soft`, `secondary`); the
 `chalkboard` theme puts it in a wooden frame (`page:`). A slide's line art
@@ -1417,8 +1412,7 @@ and the coloured chalks (`accent`, `accent-soft`, `secondary`); the
 chalk breaking up in clumps on the slate, a stick of chalk at the point and
 dust falling from it. On a title slide the drawing sits large and faint
 behind the title. Without art, the slide's `picture` is drawn in
-chalk, and so are the countdown and the end words. Line art is shared with
-the blueprint, so a deck switches between the two without new pictures.
+chalk, and so are the countdown and the end words.
 
 **The watercolour engine.** With the `watercolour` theme every slide is a
 sheet of cold-press paper on a table. A slide's generated watercolour
@@ -1448,7 +1442,7 @@ cold. Its motion is kept for the moments that matter:
   and the words are readable in under a second. Then the crisp type rises
   into it (the copy waits about 1.5 seconds) and the heat settles into a
   faint contour halo that stays. Going back to the slide plays it again.
-- *Heat signatures.* An `picture` glows like a warm body; the
+- *Heat signatures.* A `picture` glows like a warm body; the
   countdown digits heat up and cool off; the end words glow and fade.
 - *Calm evidence.* Where a slide shows a chart, a diagram, an image or a
   `@thermal` block, the field stays dark. With `heat: { drift: true }` a few
@@ -1489,10 +1483,10 @@ and presenting or exporting prints one summary line when a deck has any.
 Engines are part of MDeck and each one is a cargo feature, on by default.
 Building MDeck with `--no-default-features` leaves them out (and with them
 the themes that run on them: `ember`, `autumn` and `winter` on particles,
-`marquee` on led, `departures` on splitflap, `etch` on laser, `stack` on
-blocks, `blueprint` on blueprint, `sketchbook` on sketch, `chalkboard` on
-chalkboard, `watercolour` on watercolour, `darkroom` on darkroom, `thermal`
-on thermal, and the built-in illustrations); themes and
+`marquee` on led, `departures` on splitflap, `stack` on blocks, `blueprint`
+and `chalkboard` on line, `sketchbook` on sketch, `watercolour` on
+watercolour, `darkroom` on darkroom, `thermal` on thermal, and the built-in
+illustrations); themes and
 decks that ask for one then use `plain`, with a warning.
 
 ### 9.7 Generated art
@@ -1505,9 +1499,8 @@ cost, and it works offline.
 
 | Engine | Picture | How it is drawn in |
 |---|---|---|
-| `blueprint` | line art (black ink on white, inked by the engine in the theme's colours) | construction lines, then ink along the strokes, then dimension lines |
+| `line` | line art (black ink on white, drawn by the engine in the theme's colours) | on the sheet: construction lines, then ink along the strokes, then dimension lines; on the slate: chalk along the strokes, grainy, with a stick of chalk shedding dust |
 | `sketch` | graphite and ink drawings in the MKLab house style (tonal) | outlines along the lines, then shading in sweeping bands, with a pencil |
-| `chalkboard` | line art, the same pictures as the blueprint's | chalk along the strokes, grainy, with a stick of chalk shedding dust |
 | `watercolour` | loose watercolours on white paper (tonal) | a pale wash, then the colour blooming from where the paint is heaviest |
 | `darkroom` | black-and-white documentary photographs (tonal) | developing as a print, shadows first, under a red safelight |
 

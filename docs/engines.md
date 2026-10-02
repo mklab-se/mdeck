@@ -8,12 +8,12 @@ like itself on every engine, and any deck switches with one line:
 
 ```yaml
 ---
-engine: led         # plain, particles, led, splitflap, laser, blocks, blueprint, sketch,
-                    # chalkboard, watercolour, darkroom or thermal
+engine: led         # plain, particles, led, splitflap, blocks, line, sketch,
+                    # watercolour, darkroom or thermal
 ---
 ```
 
-`mdeck talk.md --engine laser` tries one without editing the deck, and
+`mdeck talk.md --engine blocks` tries one without editing the deck, and
 `mdeck talk.md --check` lists anything the chosen engine does not show. Want to
 build one? Read [Writing an engine](../crates/mdeck/doc/engines.md).
 
@@ -80,16 +80,12 @@ it shows the new one.
   <img src="../media/gallery/departures-turning.jpg" width="45%">
 </p>
 
-**Laser** (`laser`, theme `etch`). A beam from in front of the screen etches
-each illustration onto the slide in a couple of seconds: white-hot marks
-cooling to a pale engraving, sparks off the tip, smoke drifting up.
-
 **Falling blocks** (`blocks`, theme `stack`). Illustrations are built from
 bright bevelled blocks that drop from above and settle, bottom row first; the
 next slide clears the stack like a completed line.
 
 <p align="center">
-  <img src="../media/gallery/etch-beam.jpg" width="45%">&nbsp;&nbsp;
+  <img src="../media/gallery/stack-illustration.jpg" width="45%">&nbsp;&nbsp;
   <img src="../media/gallery/stack-falling.jpg" width="45%">
 </p>
 
@@ -100,7 +96,11 @@ made for each slide by the image model you configured, and draw it in as the
 slide opens. You write a slide about a harbour bridge, and a draughtsman
 inks one onto the sheet.
 
-**Blueprint** (`blueprint`, theme `blueprint`). Every slide is a Prussian
+**Line** (`line`, themes `blueprint` and `chalkboard`). Line art drawn on a
+surface the theme picks with `surface: sheet` or `surface: slate`; the same
+pictures serve both, so a deck switches between the two for free.
+
+*Blueprint* (`surface: sheet`, theme `blueprint`). Every slide is a Prussian
 blue drawing sheet on a drafting table: a fine grid, a ruled border, a title
 block with the deck's title and the sheet number. The slide's line art is
 inked the way a draughtsman works: faint construction lines run ahead, the
@@ -124,7 +124,7 @@ stroke as the pencil sweeps across the page.
   <img src="../media/gallery/sketch-page.jpg" width="45%">
 </p>
 
-**Chalkboard** (`chalkboard`, theme `chalkboard`). A green slate in a
+*Chalkboard* (`surface: slate`, theme `chalkboard`). A green slate in a
 wooden frame, with the ghosts of earlier lessons wiped off it. The slide's
 line art is drawn in chalk, breaking up on the slate, a stick of chalk at
 the point and dust falling from it. It uses the same pictures as the

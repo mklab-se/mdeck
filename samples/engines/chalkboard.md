@@ -47,4 +47,4 @@ title: Range in kilometres
 # Class dismissed
 <!-- picture-prompt: A lighthouse keeper waving from the gallery at dawn, gulls around the tower, a calm sea. -->
 
-- The engine is `chalkboard`, the theme is `chalkboard`
+- The engine is `line` on a `slate`, the theme is `chalkboard`

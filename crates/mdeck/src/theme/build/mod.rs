@@ -33,6 +33,7 @@ impl Theme {
         let mut warnings = Vec::new();
         let palette = Palette::resolve(f, &mut warnings)?;
         let (engine, countdown) = settings::engine_and_countdown(f, &mut warnings)?;
+        let surface = settings::surface(f)?;
         let fonts = fonts::resolve(&f.fonts, &mut warnings)?;
         let line_height = settings::line_height(f)?;
         let fill_opacity = settings::fill_opacity(f)?;
@@ -48,6 +49,7 @@ impl Theme {
             name: f.name.clone().unwrap_or_else(|| name.to_string()),
             engine,
             countdown,
+            surface,
             background: p.background,
             foreground: p.foreground,
             heading_color: p.heading,

@@ -31,9 +31,9 @@ These are worth fixing whether or not v2 happens. **Verified** means reproduced 
 | D21 | Setext headings never split slides. | `parser/splitter.rs:262` | verified |
 | D22 | Ordered list start numbers and table column alignment are ignored. | `render/text/list.rs`, `render/text/table.rs` | by reading |
 | D23 | Ordered lists under the editorial layouts show dots, not numbers, and only one nesting level is drawn. | `render/ember/pieces.rs` | by reading |
-| D24 | Chart reactions leak onto the next slide. On the first frame of a new slide, `follow_hints` clears the old hints and then adopts `fresh`, which holds the previous slide's geometry (renderers publish after the engine paints). A slide without visuals never replaces it, so LED peak markers and laser traces from a chart stay on the following slides. | `engines/host.rs:221-235` | verified (export: LED slide 7, laser slide 5) |
+| D24 | Chart reactions leak onto the next slide. On the first frame of a new slide, `follow_hints` clears the old hints and then adopts `fresh`, which holds the previous slide's geometry (renderers publish after the engine paints). A slide without visuals never replaces it, so LED peak markers and laser traces from a chart stay on the following slides. | `engines/host.rs:221-235` | fixed (regression test in `engines/host.rs`) |
 | D25 | A blockquote with several paragraphs is flattened into one, so an attribution written as a second quote paragraph (as several engine samples do) reads as part of the quotation. | `parser/blocks` (blockquote), `samples/engines/*.md` | verified (export) |
-| D26 | The thermal end act cools to black before the export still is taken, so the end slide exports as an empty frame (violates "stills look finished"). | `engines/thermal` | verified (export) |
+| D26 | The thermal end act cools to black before the export still is taken, so the end slide exports as an empty frame (violates "stills look finished"). | `engines/thermal` | fixed (regression test in `engines/thermal`) |
 
 ## Documentation drift (format reference `mdeck-spec.md` and docs)
 

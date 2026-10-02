@@ -1,7 +1,7 @@
-//! Drawing paths: points ordered into strokes a pen (or a beam) can follow.
+//! Drawing paths: points ordered into strokes a pen can follow.
 //! A nearest-neighbour tour, untangled with 2-opt and rounded with Chaikin's
 //! corner cutting, then timed so the pen lifts on long jumps. Used by the
-//! laser engine, the art engines' reveal order and their line drawings.
+//! art engines' reveal order and their line drawings.
 
 use eframe::egui::{Pos2, Rect};
 
@@ -17,20 +17,20 @@ pub const MAX_POINTS: usize = 560;
 pub struct Picture {
     /// Points in slide fractions.
     pub points: Vec<Pos2>,
-    /// `pen[i]`: the move from point `i - 1` to `i` is etched (else the
-    /// beam is blanked and jumps).
+    /// `pen[i]`: the move from point `i - 1` to `i` is drawn (else the
+    /// pen is lifted and jumps).
     pub pen: Vec<bool>,
-    /// When the beam reaches each point, from the start of the etching.
+    /// When the pen reaches each point, from the start of the drawing.
     pub at: Vec<f32>,
     pub duration: f32,
-    /// Brightness of the finished etching (a title's backdrop is dimmer).
+    /// Brightness of the finished drawing (a title's backdrop is dimmer).
     pub weight: f32,
-    /// Engine clock when the beam started.
+    /// Engine clock when the pen started.
     pub born: f32,
 }
 
 impl Picture {
-    /// The beam's position `t` seconds into the etching, and whether it is on.
+    /// The pen's position `t` seconds into the drawing, and whether it is down.
     pub fn tip(&self, t: f32) -> Option<(Pos2, bool)> {
         if self.points.is_empty() || t < 0.0 || t >= self.duration {
             return None;
@@ -68,7 +68,7 @@ pub fn toured(points: &[[f32; 2]], place: Place, aspect: f32) -> Vec<Pos2> {
 }
 
 /// 2-opt: reverse any stretch of the tour whose ends cross or double back,
-/// until a pass finds nothing to improve (at most a few passes), so the beam
+/// until a pass finds nothing to improve (at most a few passes), so the pen
 /// draws strokes instead of zig-zags.
 pub fn untangle(pts: &[Pos2], order: &mut [usize], aspect: f32) {
     let d = |a: usize, b: usize| {
@@ -169,9 +169,9 @@ pub fn tour(pts: &[Pos2], aspect: f32) -> Vec<usize> {
     order
 }
 
-/// Time the beam along `strokes`: long jumps inside a stroke and the moves
+/// Time the pen along `strokes`: long jumps inside a stroke and the moves
 /// between strokes lift the pen and are nearly instant; the whole
-/// etching takes `duration`.
+/// drawing takes `duration`.
 pub fn plan(
     strokes: Vec<Vec<Pos2>>,
     duration: f32,
@@ -242,7 +242,7 @@ mod tests {
     }
 
     #[test]
-    fn long_jumps_lift_the_pen_and_the_beam_finishes_on_time() {
+    fn long_jumps_lift_the_pen_and_the_drawing_finishes_on_time() {
         // two short strokes far apart
         let a: Vec<Pos2> = (0..20)
             .map(|k| Pos2::new(0.1 + k as f32 * 0.005, 0.2))

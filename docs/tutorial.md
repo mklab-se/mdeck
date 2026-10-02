@@ -206,8 +206,8 @@ engine: led
 </p>
 
 The same slide on a wall of LEDs that light up your illustration. Try
-`splitflap` (a departure board), `laser` and `blocks` too, or run
-`mdeck talk.md --engine laser` to try one without touching the file. The
+`splitflap` (a departure board) and `blocks` too, or run
+`mdeck talk.md --engine blocks` to try one without touching the file. The
 [Engines](engines.md) page shows them all.
 
 ## 10. Add speaker notes
@@ -290,6 +290,6 @@ single slides and more.
 - [Writing slides](writing-slides.md): layouts, two columns, images, math
 - [Visualizations](visualizations.md): every chart and diagram
 - [Themes](themes.md): your brand as a theme, logos, design systems
-- [Engines](engines.md): illustrations and all twelve engines
+- [Engines](engines.md): illustrations and all ten engines
 - [AI features](ai.md): a whole deck from a PDF, a document or one sentence
 - [Gallery](../GALLERY.md): what everything looks like

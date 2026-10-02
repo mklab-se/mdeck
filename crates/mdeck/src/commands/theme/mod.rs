@@ -139,7 +139,7 @@ fn starter(name: &str) -> String {
 # `mdeck theme preview {name} --output-dir /tmp/{name}`.
 name: {name}
 extends: dark              # dark | light | nord | ember | another theme
-# engine: plain            # plain | particles | led | splitflap | laser | blocks
+# engine: plain            # plain | particles | led | splitflap | blocks | thermal | ...
 # countdown: none          # none | plain | burst (burst: the engine's own countdown)
 colors:
   background: "#1e1e1e"    # slide background

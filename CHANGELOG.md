@@ -7,6 +7,20 @@ All notable changes to this project will be documented in this file.
 The v2 authoring language. v2 breaks with v1 syntax on purpose; `mdeck --check` names the v2
 form of every v1 construct it finds.
 
+### Added
+
+- Plain markdown presents cleanly: raw HTML keeps its text (`<img>` becomes an image,
+  `<h1>`..`<h6>` a heading, `<br>` a line break), task lists show checkboxes, reference links and
+  autolinks resolve, footnote text goes to the slide's notes, GitHub alerts (`> [!NOTE]`) render
+  as callouts, indented code is code, quotes keep their paragraphs and nesting, ordered lists keep
+  their start number, and tables keep their column alignment.
+- `mdeck --check` reports unknown settings and fence tags with a "did you mean", invalid values,
+  deck settings in a slide, v1 syntax with its v2 form, and content that will not show as written
+  (new categories `settings`, `visual` and `content`). `--check -v` lists the settings that apply
+  to each slide.
+- The settings tables in `mdeck spec` and `mdeck spec --short` are generated from one language
+  table, so they always match what the parser accepts.
+
 ### Changed
 
 - **Deck settings are plain YAML keys** (`theme: ember`, `art-world: ...`). v1 `@key:` frontmatter
@@ -29,27 +43,11 @@ form of every v1 construct it finds.
   revealed list items slide and fade in. `reveal: none` turns steps off.
 - **Visual tags match exactly, one name per kind**: `@barchart`, `@linechart`, `@piechart` and
   `@donutchart` are now `@bar`, `@line`, `@pie` and `@donut`.
-
-### Added
-
-- Plain markdown presents cleanly: raw HTML keeps its text (`<img>` becomes an image,
-  `<h1>`..`<h6>` a heading, `<br>` a line break), task lists show checkboxes, reference links and
-  autolinks resolve, footnote text goes to the slide's notes, GitHub alerts (`> [!NOTE]`) render
-  as callouts, indented code is code, quotes keep their paragraphs and nesting, ordered lists keep
-  their start number, and tables keep their column alignment.
-- `mdeck --check` reports unknown settings and fence tags with a "did you mean", invalid values,
-  deck settings in a slide, v1 syntax with its v2 form, and content that will not show as written
-  (new categories `settings`, `visual` and `content`). `--check -v` lists the settings that apply
-  to each slide.
-- The settings tables in `mdeck spec` and `mdeck spec --short` are generated from one language
-  table, so they always match what the parser accepts.
-
-### Fixed
-
-- A quote's attribution written as its last paragraph (`> text`, `>`, `> Who`) no longer runs into
-  the quotation.
-- The deck's `footer` is drawn in export too.
-- Nested `+` items under the editorial layouts no longer take presses that reveal nothing.
+- The blueprint and chalkboard engines are one engine, `line`, that draws line art on a surface
+  the theme picks with the new `surface:` key: `sheet` (the Prussian-blue drafting sheet) or
+  `slate` (chalk on a slate). The `blueprint` and `chalkboard` themes look exactly as before; a
+  theme or deck that said `engine: blueprint` now says `engine: line` (and `surface: slate` for
+  the chalkboard). The cargo features `blueprint` and `chalkboard` are now `line`.
 
 ### Removed
 
@@ -57,6 +55,19 @@ form of every v1 construct it finds.
   the `<deck>.scenes.yaml` sidecar, `mdeck ai story`, story beats as reveal steps, the beat ticks
   and spoken line in the HUD, and the `story` check category. `S` while presenting now only draws
   pictures on art engines.
+- The laser engine and its `etch` theme. Their settled stills were a faint outline, and the line,
+  sketch and particle engines cover drawn pictures.
+
+### Fixed
+
+- A quote's attribution written as its last paragraph (`> text`, `>`, `> Who`) no longer runs into
+  the quotation.
+- The deck's `footer` is drawn in export too.
+- Nested `+` items under the editorial layouts no longer take presses that reveal nothing.
+- Chart reactions no longer leak onto the next slide: LED peak markers and other engine reactions
+  to a chart stay on the chart's slide instead of showing on the slides after it.
+- The thermal engine's end slide exports with its glowing "THE END" instead of an empty frame.
+
 
 ## [1.19.0] - 2026-10-02
 

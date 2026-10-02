@@ -216,17 +216,8 @@ impl Host {
     fn follow_hints(&mut self, ui: &egui::Ui, index: usize) {
         hints::set_enabled(ui.ctx(), true);
         let fresh = hints::take(ui.ctx());
-        if self.last_index.is_some_and(|i| i != index) {
-            self.hints.clear();
-            self.hints_key = 0;
-        }
-        if !fresh.is_empty() {
-            let fp = hints::fingerprint(&fresh);
-            if fp != self.hints_key {
-                self.hints = fresh;
-                self.hints_key = fp;
-            }
-        }
+        let changed = self.last_index.is_some_and(|i| i != index);
+        adopt_hints(&mut self.hints, &mut self.hints_key, fresh, changed);
     }
 
     /// What the frame shows: a countdown digit or its burst, the end slide
@@ -279,6 +270,25 @@ impl Host {
 
 /// The slide's illustration, when it asks for one, the layout can show it
 /// (an editorial layout draws the slide) and the name resolves.
+/// Fold the hints taken this frame into the held set. On the first frame of
+/// a new slide, `fresh` is what the previous slide drew last frame, so it is
+/// dropped with the held set instead of adopted (a slide without visuals
+/// would otherwise keep the previous chart's geometry, D24).
+fn adopt_hints(held: &mut Vec<Hint>, key: &mut u64, fresh: Vec<Hint>, slide_changed: bool) {
+    if slide_changed {
+        held.clear();
+        *key = 0;
+        return;
+    }
+    if !fresh.is_empty() {
+        let fp = hints::fingerprint(&fresh);
+        if fp != *key {
+            *held = fresh;
+            *key = fp;
+        }
+    }
+}
+
 pub fn illustration_for(
     slide: &Slide,
     lib: &mut Library,
@@ -288,4 +298,41 @@ pub fn illustration_for(
         return None;
     }
     lib.get(name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn bar() -> Vec<Hint> {
+        vec![Hint::Bar(egui::Rect::from_min_size(
+            egui::pos2(10.0, 20.0),
+            egui::vec2(40.0, 80.0),
+        ))]
+    }
+
+    #[test]
+    fn hints_taken_on_a_slide_change_belong_to_the_previous_slide() {
+        let mut held = bar();
+        let mut key = hints::fingerprint(&held);
+        // First frame of the next slide: what arrives is the chart's.
+        adopt_hints(&mut held, &mut key, bar(), true);
+        assert!(held.is_empty(), "the previous slide's chart leaked");
+        assert_eq!(key, 0);
+        // A slide without visuals publishes nothing afterwards.
+        adopt_hints(&mut held, &mut key, Vec::new(), false);
+        assert!(held.is_empty());
+    }
+
+    #[test]
+    fn hints_on_the_same_slide_are_adopted_and_kept() {
+        let mut held = Vec::new();
+        let mut key = 0;
+        adopt_hints(&mut held, &mut key, bar(), false);
+        assert_eq!(held.len(), 1);
+        assert_ne!(key, 0);
+        // A frame that published nothing keeps the held geometry.
+        adopt_hints(&mut held, &mut key, Vec::new(), false);
+        assert_eq!(held.len(), 1);
+    }
 }

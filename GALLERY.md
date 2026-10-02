@@ -94,17 +94,6 @@ The countdown in solid flaps.
 
 <img src="media/gallery/departures-countdown.jpg" width="720">
 
-### Laser
-
-The `laser` engine and its `etch` theme: a beam from in front of the screen
-etches each illustration. Mid-etch, the fresh marks are still hot:
-
-<img src="media/gallery/etch-beam.jpg" width="720">
-
-and the finished engraving:
-
-<img src="media/gallery/etch-illustration.jpg" width="720">
-
 ### Falling blocks
 
 The `blocks` engine and its `stack` theme: illustrations built from falling
@@ -122,7 +111,7 @@ On a title slide the stack stands dim behind the copy.
 
 ### Blueprint
 
-The first art engine, `blueprint`, and its theme: each slide gets line art
+The `line` engine on its `sheet` surface, and the `blueprint` theme: each slide gets line art
 generated for it (`mdeck ai art`), inked onto a Prussian blue sheet.
 Mid-drawing, construction lines run ahead of the ink under the drafting
 machine's crosshair:
@@ -155,7 +144,7 @@ The title page, its drawing faint behind the copy.
 
 ### Chalkboard
 
-The `chalkboard` engine and theme: a slate in a wooden frame, generated line
+The `line` engine on its `slate` surface, and the `chalkboard` theme: a slate in a wooden frame, generated line
 art drawn in chalk with a stick of chalk at the point:
 
 <img src="media/gallery/chalkboard-drawing.jpg" width="720">
@@ -223,7 +212,7 @@ examples):
 
 ## Themes
 
-Eighteen built-in themes, all written as theme files, and your own in a few lines
+Seventeen built-in themes, all written as theme files, and your own in a few lines
 of YAML (spec section 9.4). These stills are from `samples/themes/`.
 
 ### The four seasons

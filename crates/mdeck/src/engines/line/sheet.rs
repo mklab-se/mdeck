@@ -1,13 +1,88 @@
-//! Drawing the blueprint: the sheet, the title block, dimension lines, the
-//! drafting machine and the pen.
+//! The `sheet` surface: a blueprint. The sheet, the title block, dimension
+//! lines, the drafting machine and the technical pen.
 
 use eframe::egui::{self, Color32, Pos2, Rect, Stroke};
 
+use super::super::art::{Drawing, Hand, Reveal, Tip};
 use super::super::hash01;
 use super::super::paint::{SPRITE_CORE, SPRITE_GLOW, additive, mix, premul};
-use super::super::stage::Stage;
+use super::super::stage::{FrameCx, Stage};
+use super::{Pace, drawn_segment};
 use crate::render::strokes::{Picture, to_screen};
 use crate::theme::Theme;
+
+/// Ink a picture in 3.4 s, then rule the dimension lines in 0.7 s.
+pub(super) const PACE: Pace = Pace {
+    draw: 3.4,
+    after: 0.7,
+    fade: 0.5,
+};
+
+const REVEAL: Reveal = Reveal {
+    soft: 0.018,
+    ghost: 0.16,
+    ghost_speed: 2.4,
+    grain: 0.0,
+};
+
+/// A technical pen: ink lines, dimension lines ruled around a finished
+/// picture, and the drafting machine's crosshair at the tip.
+pub(super) struct Pen {
+    pub(super) ink: Ink,
+    pub(super) texture: egui::TextureId,
+}
+
+impl Hand for Pen {
+    fn backdrop(&self) -> f32 {
+        0.34
+    }
+
+    fn picture(
+        &self,
+        ui: &egui::Ui,
+        cx: &FrameCx,
+        d: &mut Drawing,
+        now: f32,
+        k: f32,
+        current: bool,
+    ) {
+        let box_ = d.screen(cx.rect);
+        d.paint(ui, cx.rect, now, premul(self.ink.line, k), REVEAL);
+        if current && !d.backdrop {
+            let t = (now - d.born - PACE.draw) / PACE.after;
+            dimensions(ui.painter(), box_, cx.scale, &self.ink, t, cx.opacity);
+        }
+    }
+
+    fn strokes(
+        &self,
+        painter: &egui::Painter,
+        cx: &FrameCx,
+        p: &Picture,
+        now: f32,
+        k: f32,
+        _: bool,
+    ) {
+        pen_lines(painter, p, now, cx.rect, cx.scale, &self.ink, k);
+    }
+
+    fn finish(&self, painter: &egui::Painter, cx: &FrameCx, tip: Option<Tip>) {
+        let (scale, ink) = (cx.scale, &self.ink);
+        match tip {
+            Some(Tip::Picture {
+                at,
+                frame,
+                backdrop,
+                ..
+            }) => {
+                let k = cx.opacity * if backdrop { 0.5 } else { 1.0 };
+                crosshair(painter, self.texture, frame, at, scale, ink, k);
+            }
+            Some(Tip::Pen { at, .. }) => pen_tip(painter, self.texture, at, scale, ink, cx.opacity),
+            None => {}
+        }
+    }
+}
 
 /// The sheet's colours.
 pub(super) struct Ink {
@@ -369,25 +444,20 @@ pub(super) fn pen_lines(
     let mut inked = Vec::new();
     let mut bleed = Vec::new();
     for i in 1..pic.points.len() {
-        if !pic.pen[i] {
-            continue;
-        }
-        let a = to_screen(pic.points[i - 1], rect);
-        let b = to_screen(pic.points[i], rect);
-        if pic.at[i - 1] <= ghost_t {
+        // the construction pass runs ahead along whole segments
+        if pic.pen[i] && pic.at[i - 1] <= ghost_t {
+            let (a, b) = (
+                to_screen(pic.points[i - 1], rect),
+                to_screen(pic.points[i], rect),
+            );
             ghost.push(egui::Shape::line_segment(
                 [a, b],
                 Stroke::new(1.0, premul(ink.faint, 0.9 * opacity)),
             ));
         }
-        if pic.at[i - 1] > t {
+        let Some((a, b)) = drawn_segment(pic, i, t, rect) else {
             continue;
-        }
-        let mut b = b;
-        if pic.at[i] > t {
-            let f = (t - pic.at[i - 1]) / (pic.at[i] - pic.at[i - 1]).max(1e-4);
-            b = a + (b - a) * f.clamp(0.0, 1.0);
-        }
+        };
         bleed.push(egui::Shape::line_segment(
             [a, b],
             Stroke::new(w * 2.6, premul(ink.line, 0.10 * opacity * pic.weight)),

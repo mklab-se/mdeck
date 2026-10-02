@@ -134,7 +134,7 @@ mod tests {
         assert_eq!(choose(None, None).unwrap().0, None);
         // a bad --engine stops; a bad engine warns and keeps the theme's
         assert!(
-            choose(Some("lasers"), None)
+            choose(Some("fireworks"), None)
                 .unwrap_err()
                 .contains("plain, particles")
         );

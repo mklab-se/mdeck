@@ -73,7 +73,7 @@ pub fn load(deck: &Path) -> Result<Option<Sidecar>> {
 
 pub fn save(deck: &Path, sidecar: &Sidecar) -> Result<PathBuf> {
     let path = path_for(deck);
-    let header = "# Generated art for the art engines (like blueprint), written by `mdeck ai art`.\n# Set `pinned: true` to keep a picture for its slide number whatever the slide says.\n";
+    let header = "# Generated art for the art engines (like line), written by `mdeck ai art`.\n# Set `pinned: true` to keep a picture for its slide number whatever the slide says.\n";
     shared::write(&path, header, sidecar)?;
     Ok(path)
 }

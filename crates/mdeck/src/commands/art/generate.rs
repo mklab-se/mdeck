@@ -403,9 +403,9 @@ mod tests {
     #[test]
     fn the_image_prompt_is_scene_then_style() {
         let theme = Theme::light();
-        // a line medium, as blueprint's (which a build may leave out)
+        // a line medium, as the line engine's (which a build may leave out)
         let medium = art::Medium {
-            name: "blueprint",
+            name: "line",
             kind: art::ArtKind::Line,
             tonal: &art::style::LINE,
             tonal_strategy: art::prepare::Strategy::Hatch,
