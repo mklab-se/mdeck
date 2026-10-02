@@ -16,9 +16,15 @@ pub enum ExtendCommands {
 
     /// Build an mdeck with extension crates in it (needs a Rust toolchain)
     Build {
-        /// An extension: a crate folder, or a crate name with an optional
-        /// version (`acme-engines@1.2`). Repeat for more
-        #[arg(long = "with", value_name = "PATH|CRATE[@VERSION]", required = true)]
+        /// An extension: a crate folder, a crate name with an optional
+        /// version (`acme-engines@1.2`), or a git repository
+        /// (`git+https://github.com/acme/aurora#v0.2.0`, `git+ssh://...`,
+        /// `git@host:org/repo`; `#` a tag, branch or commit). Repeat for more
+        #[arg(
+            long = "with",
+            value_name = "PATH|CRATE[@VERSION]|GIT-URL[#REF]",
+            required = true
+        )]
         with: Vec<String>,
 
         /// Where the binary goes: a file, or a folder to put it in
