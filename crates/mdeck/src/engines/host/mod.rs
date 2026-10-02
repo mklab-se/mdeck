@@ -36,6 +36,10 @@ use crate::render::hints;
 use crate::render::illustration::Library;
 use crate::theme::Theme;
 
+/// Seconds a rehearsed burst spends forming the countdown's 1 first, so the
+/// burst has a digit to blow apart.
+const BURST_LEAD_IN: f32 = 1.2;
+
 /// Where the opening countdown is.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CountPhase {
@@ -193,7 +197,8 @@ impl Host {
     /// Run the engine from a cold start through `seconds` of simulated time
     /// at 60 frames a second, then paint that frame: a still of the motion
     /// (`mdeck export --at`, for looking at animations in export). A burst
-    /// runs its progress over the rehearsal.
+    /// starts from the countdown's 1, as it does when presenting, and runs
+    /// its progress over the rehearsal.
     pub fn rehearse(&mut self, ui: &egui::Ui, shot: Shot, lib: &mut Library, seconds: f32) {
         let backend = self.backend;
         *self = Host::new(shot.theme.engine);
@@ -203,6 +208,20 @@ impl Host {
             return;
         }
         let dt = 1.0 / 60.0;
+        if let Some((CountPhase::Burst, _)) = shot.countdown {
+            let lead = (BURST_LEAD_IN / dt).round() as usize;
+            for k in 0..lead {
+                let mut s = shot;
+                s.countdown = Some((CountPhase::Digit(1), k as f32 / lead as f32));
+                let tick = Tick {
+                    dt,
+                    end_elapsed: 0.0,
+                    still: false,
+                    paint: false,
+                };
+                self.step(ui, &s, lib, tick);
+            }
+        }
         let steps = (seconds.max(0.0) / dt).round() as usize;
         for k in 0..=steps {
             let t = k as f32 * dt;

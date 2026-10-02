@@ -269,7 +269,7 @@ pub const SETTINGS: &[SettingDef] = &[
         Scope::Slide,
         Kind::Text,
         "",
-        "The picture on the slide's stage: a point cloud name; `none` keeps it empty",
+        "The picture on the slide's stage: a point cloud name or an image file; `none` keeps it empty",
     ),
     def(
         "picture-prompt",

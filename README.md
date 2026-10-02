@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/mklab-se/mdeck/main/media/mdeck-horizontal.png" alt="mdeck" width="600">
+  <img src="https://raw.githubusercontent.com/mklab-se/mdeck/main/media/mdeck-horizontal.png" alt="mdeck" width="560">
 </p>
 
-<h1 align="center">Beautiful presentations from plain markdown</h1>
+<h1 align="center">Markdown in. A presentation people remember out.</h1>
 
 <p align="center">
-  Write your talk in any markdown editor. MDeck turns it into slides that look amazing:<br>
-  laid out, animated and themed, with charts, diagrams, illustrations and twelve presentation engines.
+  Write your talk as an ordinary markdown file. mdeck reads its structure, picks a design for every
+  slide and presents it: still and clean, or alive with particles, LEDs, split flaps and ink.
 </p>
 
 <p align="center">
@@ -18,166 +18,185 @@
 </p>
 
 <p align="center">
-  <strong>New in 1.19:</strong> a thermal look for infrared talks: headings that form in heat,
-  and <code>@thermal</code> images with palettes, a lens, threshold reveals and measured spots.<br>
+  <img src="media/showcase/hero.gif" width="100%" alt="An ember slide: particles gather into a light bulb beside the copy">
+</p>
+
+<p align="center">
+  <strong>mdeck 2</strong> is here: slide designs recognised from your content, a presenter view,
+  cleaner markdown and private extensions.<br>
   <a href="CHANGELOG.md"><strong>What's new</strong></a> &middot;
-  <a href="https://github.com/mklab-se/mdeck/releases">All releases</a> &middot;
-  <a href="BACKLOG.md">Roadmap</a>
+  <a href="docs/upgrading-from-v1.md">Upgrading from v1</a> &middot;
+  <a href="GALLERY.md">Gallery</a>
 </p>
-
-<p align="center">
-  <img src="media/showcase/nord-title.jpg" width="49%" alt="A title slide: Ship It, with a subtitle">
-  <img src="media/showcase/nord-bullets.jpg" width="49%" alt="A slide with a heading and three bullets">
-</p>
-
-<p align="center"><em>Start simple: a heading and a line of text become a title slide, a
-heading and three bullets a bullet slide. Then pick a theme and an engine.</em></p>
-
-<p align="center">
-  <img src="media/showcase/dep.gif" width="49%" alt="A departure board turning to the next slide">
-  <img src="media/gallery/thermal-title.jpg" width="49%" alt="A title formed in heat by the thermal engine">
-</p>
-
-<p align="center"><em>Every slide on this page comes from one markdown file,
-<a href="samples/showcase/launch.md">samples/showcase/launch.md</a>, in different themes and engines.</em></p>
-
-<table>
-  <tr>
-    <td width="50%"><img src="media/showcase/led-idea.jpg" alt="An LED wall lighting up a light bulb illustration"><br><sub><b>LED wall</b>: illustrations power on LED by LED</sub></td>
-    <td width="50%"><img src="media/showcase/ember-idea.jpg" alt="The same slide in glowing particles"><br><sub><b>Ember</b>: the same slide in a living field of particles</sub></td>
-  </tr>
-  <tr>
-    <td><img src="media/showcase/ember-architecture.jpg" alt="An architecture diagram"><br><sub><b>Architecture diagrams</b> from a few lines of text, edges routed for you</sub></td>
-    <td><img src="media/showcase/board-platform.jpg" alt="A split-flap departure board with a photo"><br><sub><b>Departure board</b>: every slide on split flaps</sub></td>
-  </tr>
-  <tr>
-    <td><img src="media/showcase/winter-kpi.jpg" alt="KPI cards on the Winter theme"><br><sub><b>KPI cards</b> on the Winter theme</sub></td>
-    <td><img src="media/showcase/spring-chart.jpg" alt="A stacked bar chart on the Spring theme"><br><sub><b>Twenty charts</b>, here on the Spring theme</sub></td>
-  </tr>
-  <tr>
-    <td><img src="media/gallery/chalkboard-drawing.jpg" alt="Generated line art drawn in chalk on a slate"><br><sub><b>Chalkboard</b>: line art drawn in chalk on a slate</sub></td>
-    <td><img src="media/showcase/stack-gear.jpg" alt="A gear built from falling blocks"><br><sub><b>Falling blocks</b>: pictures built block by block</sub></td>
-  </tr>
-  <tr>
-    <td><img src="media/showcase/blueprint-why.jpg" alt="Generated line art inked onto a blueprint sheet"><br><sub><b>Blueprint</b>: a drawing made for every slide with <code>mdeck ai pictures</code></sub></td>
-    <td><img src="media/showcase/blueprint-title.jpg" alt="A title slide over a dim blueprint drawing of a ship launch"><br><sub>The title sheet, its drawing dim behind the copy</sub></td>
-  </tr>
-  <tr>
-    <td><img src="media/gallery/sketch-page.jpg" alt="A graphite drawing of a workshop on a sketchbook page"><br><sub><b>Sketchbook</b>: graphite drawings, pencilled in as the slide opens</sub></td>
-    <td><img src="media/gallery/darkroom-print.jpg" alt="A black-and-white photograph as a print in a darkroom"><br><sub><b>Darkroom</b>: photographs that develop under a safelight</sub></td>
-  </tr>
-</table>
-
-<p align="center"><a href="GALLERY.md"><strong>See the full gallery</strong></a></p>
 
 ---
 
-## From this
+## Sixty seconds to your first talk
+
+**Install** (macOS, Linux or Windows; [all options](docs/install.md))
+
+```bash
+brew install mklab-se/tap/mdeck      # or: cargo install mdeck
+```
+
+**Write** `talk.md`, in any editor:
 
 ```markdown
-# Why we are building it
-<!-- picture: lightbulb -->
+# Ship It
+
+The Northwind launch
+
+## Why we are building it
 
 - Teams lose a day a week to status meetings
 - Every tool shows a different truth
 - We make the plan the single source
 ```
 
-## To this
-
-<p align="center">
-  <img src="media/showcase/led-idea.jpg" width="80%" alt="The same slide on the LED wall">
-</p>
-
-No layout, no design work: the heading starts a slide, the list makes it a
-bullet slide, `picture` puts a picture beside it, and the theme (here
-`marquee`, on the LED engine) does the rest. Change one line to
-`theme: ember` and the same slide becomes a field of glowing particles.
-
----
-
-## Get started
-
-**1. Install** (macOS, Linux or Windows; [more options](docs/install.md))
-
-```bash
-brew install mklab-se/tap/mdeck      # or: cargo install mdeck
-```
-
-**2. Write `talk.md`**
-
-````markdown
----
-title: "My Talk"
-theme: ember
----
-
-# Hello, MDeck
-<!-- picture: rocket -->
-
-Presentations from plain markdown
-
-# Why it works
-
-- Headings start new slides
-- Layouts are picked for you
-+ Items marked with `+` appear one at a time
-
-# Where we are
-
-```@bar
-- Europe: 42
-- Americas: 35
-- Asia: 23
-```
-````
-
-**3. Present it**
+**Present** it:
 
 ```bash
 mdeck talk.md
 ```
 
-Space moves forward, `G` shows every slide, `Shift+T` cycles themes and `Esc`
-twice quits. Keep MDeck open on a second screen while you write: every time you
-save, the slide you are looking at updates.
+That is all you need to know. Space moves forward, `G` shows every slide and `Esc` twice quits.
+Keep mdeck open while you write: every time you save, the slide on screen updates.
 
-**4. Share it**
+<p align="center">
+  <img src="media/showcase/plain-title.jpg" width="49%" alt="A title slide in the default dark theme">
+  <img src="media/showcase/plain-points.jpg" width="49%" alt="A heading and three points in the default dark theme">
+</p>
 
-```bash
-mdeck export talk.md --format pdf    # export/talk.pdf, one page per slide
-```
-
-**New here?** The [tutorial](docs/tutorial.md) builds a first presentation step
-by step, with a picture of every step: themes, charts, diagrams,
-illustrations, engines, and how to keep MDeck open on a second screen so it
-updates every time you save.
+<p align="center"><em>A plain file opens in the default theme: dark, calm and readable.</em></p>
 
 ---
 
-## Why MDeck
+## Make it yours
 
-- **Any markdown file is a deck.** Headings split slides and every slide picks
-  its layout from its content. Nothing to learn but a few conventions.
-  [Writing slides](docs/writing-slides.md)
-- **Charts and diagrams from text.** Twenty visualizations, from bar charts
-  to Gantt charts and routed architecture diagrams, all animated.
-  [Visualizations](docs/visualizations.md)
-- **Seventeen themes, and yours.** Your brand in a few lines of YAML, or converted
-  from your design system. [Themes](docs/themes.md)
-- **Ten engines.** A particle field, an LED wall, a departure board, falling
-  blocks, a thermal camera, four art media (line art on a blueprint or a
-  chalkboard, sketchbook, watercolour, darkroom) that draw a picture made for
-  every slide, or a clean flat page: one line switches. [Engines](docs/engines.md)
-- **A real presenter tool.** Transitions, grid overview, pen and arrows,
-  speaker notes, multiple monitors, clickers. [Presenting](docs/presenting.md)
-- **Pixel-perfect export.** PNG at any resolution, and PDF with or without
-  speaker notes. [Export](docs/export.md)
-- **AI when you want it.** A full deck from a PDF, a document or one sentence;
-  images and icons in your own style; a drawing made for every slide, generated
-  once and presented offline. [AI features](docs/ai.md)
-- **One fast binary.** Written in Rust, GPU rendered, 60 fps, no runtime
-  dependencies.
+Add one line to the top of the file and the same slides become a different show:
+
+```yaml
+---
+theme: ember
+---
+```
+
+<table>
+  <tr>
+    <td width="50%"><img src="media/showcase/ember-points.jpg" alt="The slide beside a point cloud of glowing particles"><br><sub><b>ember</b>: a living field of particles that forms your pictures</sub></td>
+    <td width="50%"><img src="media/showcase/led-points.jpg" alt="The slide on a wall of LEDs"><br><sub><b>marquee</b>: a wall of RGB LEDs</sub></td>
+  </tr>
+  <tr>
+    <td><img src="media/showcase/departures.jpg" alt="A split-flap departure board"><br><sub><b>departures</b>: every slide on split flaps</sub></td>
+    <td><img src="media/showcase/stack.jpg" alt="A picture built from falling blocks"><br><sub><b>stack</b>: pictures built block by block</sub></td>
+  </tr>
+  <tr>
+    <td><img src="media/showcase/thermal.jpg" alt="A thermal image of a cabinet with a hotspot"><br><sub><b>thermal</b>: infrared images with palettes and measured spots</sub></td>
+    <td><img src="media/showcase/blueprint.jpg" alt="Line art inked on a blueprint sheet"><br><sub><b>blueprint</b>: line art inked on a drafting sheet</sub></td>
+  </tr>
+  <tr>
+    <td><img src="media/showcase/chalkboard.jpg" alt="Line art drawn in chalk on a slate"><br><sub><b>chalkboard</b>: drawn in chalk on a slate</sub></td>
+    <td><img src="media/showcase/sketchbook.jpg" alt="A graphite drawing on a sketchbook page"><br><sub><b>sketchbook</b>: pencilled in as the slide opens</sub></td>
+  </tr>
+  <tr>
+    <td><img src="media/showcase/watercolour.jpg" alt="A watercolour painting blooming on paper"><br><sub><b>watercolour</b>: paintings that bloom on the page</sub></td>
+    <td><img src="media/showcase/darkroom.jpg" alt="A photograph developing in a darkroom"><br><sub><b>darkroom</b>: photographs that develop under a safelight</sub></td>
+  </tr>
+</table>
+
+A **theme** is the look: colours, fonts, a design set and an engine. The **engine** is what moves
+behind and around your slides. mdeck has ten:
+
+| Engine | What it does | Themes |
+|---|---|---|
+| `plain` | A still, clean page | `dark` (the default), `light`, `nord` |
+| `particles` | A field of particles that forms pictures and reacts to charts | `ember`, with the variants `autumn` and `winter` |
+| `led` | A wall of RGB LEDs | `marquee` |
+| `splitflap` | Every slide on a departure board | `departures` |
+| `blocks` | Pictures built from falling blocks | `stack` |
+| `thermal` | A heat field; headings form in heat | `thermal` |
+| `line` | Line art on a sheet or a slate | `blueprint`, `chalkboard` |
+| `sketch` | Graphite on a sketchbook page | `sketchbook` |
+| `watercolour` | Paint that blooms on paper | `watercolour` |
+| `darkroom` | Prints that develop in a tray | `darkroom` |
+
+`Shift+T` cycles themes while you present, and `mdeck talk.md --theme marquee` tries one without
+touching the file. Your own theme is a short YAML file next to the deck.
+[Themes](docs/themes.md) &middot; [Engines](docs/engines.md)
+
+---
+
+## What your markdown becomes
+
+**A design for every slide, recognised from what is on it.** A heading and a sentence is a
+statement in large type, a heading and a list is a points slide, an image beside text is a split,
+a quote is a quote. Thirteen designs in all, and nothing you write is ever dropped. When you want
+a say, it goes in a comment that GitHub never shows: `<!-- design: quote -->`.
+[Writing slides](docs/writing-slides.md)
+
+**Charts and diagrams from fenced blocks.** Twenty kinds, from bar charts and Gantt charts to
+routed architecture diagrams and thermal images, drawn in the theme's colours and animated in
+steps.
+
+````markdown
+```@bar
++ Status meetings: 6
++ Updating slides: 4
++ Writing the talk: 2
+```
+````
+
+<p align="center">
+  <img src="media/showcase/ember-architecture.jpg" width="49%" alt="An architecture diagram with routed edges">
+  <img src="media/showcase/chart.jpg" width="49%" alt="A chart drawn from a fenced block">
+</p>
+
+[Visualizations](docs/visualizations.md)
+
+**Steps and notes, in plain markdown.** Items written with `+` appear one press at a time; a
+```` ```@notes ```` block holds speaker notes, written in markdown.
+
+**A presenter view.** `V` opens your notes, the next slide and a timer on a second screen. Jump to
+any slide by typing its number, draw on the slide with the mouse, black out the room with `B`.
+[Presenting](docs/presenting.md)
+
+<p align="center">
+  <img src="media/showcase/presenter.jpg" width="80%" alt="The presenter view with notes, the next slide and a timer">
+</p>
+
+**Export that matches the screen.** PNG at any resolution, and PDF with or without notes pages,
+showing exactly what the window shows. [Export](docs/export.md)
+
+```bash
+mdeck export talk.md --format pdf --notes
+```
+
+**A check that tells you what will not show.** `mdeck --check talk.md` reports misspelt settings
+with a "did you mean", content that will not show as written, and v1 syntax with its v2 form.
+
+---
+
+## Extend it, privately
+
+mdeck is built to be extended by anyone, without forking it and without publishing anything.
+
+- **Packs** bring themes and point clouds to every deck on the machine: `mdeck pack install ./acme-brand`.
+- **Rust extensions** add engines, visual kinds, design sets and transitions:
+  `mdeck sdk new engine glow` starts one, and `mdeck build --with ./glow` builds your own mdeck
+  with it.
+- **Visuals in any language**: map a fence tag to a program that writes a PNG.
+
+Start with the [SDK guide](docs/sdk/README.md) and its [getting started](docs/sdk/getting-started.md).
+
+---
+
+## AI, when you want it
+
+Every AI feature is optional, runs on your own provider, and never runs while you present: what it
+makes is stored next to the deck. `mdeck ai deck` writes a deck from a document or a sentence,
+`mdeck ai images` fills `![prompt](generate:)` placeholders, `mdeck ai pictures` draws a picture
+for every slide on the art engines, and `mdeck ai skill` teaches your AI agent to write decks.
+[AI features](docs/ai.md)
 
 ---
 
@@ -185,20 +204,23 @@ updates every time you save.
 
 | Page | What is in it |
 |---|---|
-| [Tutorial](docs/tutorial.md) | Your first presentation, step by step, with pictures |
+| [Tutorial](docs/tutorial.md) | Your first deck, step by step |
 | [Install](docs/install.md) | Homebrew, cargo, binaries, Windows notes, SBOMs |
-| [Writing slides](docs/writing-slides.md) | Slides, layouts, reveal, math, images, speaker notes |
+| [Writing slides](docs/writing-slides.md) | Slides, designs, settings, steps, notes, images, math |
 | [Visualizations](docs/visualizations.md) | Every chart and diagram, with its syntax |
-| [Themes](docs/themes.md) | Built-in themes, your own theme, logos, design systems |
-| [Engines](docs/engines.md) | Ember's particles and illustrations, and the other engines |
-| [Presenting](docs/presenting.md) | Keys, mouse, start options |
+| [Themes](docs/themes.md) | Built-in themes, variants, design sets, your own theme, packs |
+| [Engines](docs/engines.md) | The ten engines and the pictures they draw |
+| [Presenting](docs/presenting.md) | Keys, mouse, the presenter view, start options |
 | [Export](docs/export.md) | PNG and PDF |
-| [AI features](docs/ai.md) | Decks from documents, image generation, art for every slide, AI agents |
+| [AI features](docs/ai.md) | Decks, images, icons, pictures, styles, the agent skill |
 | [Commands](docs/commands.md) | Every command and flag |
-| [Gallery](GALLERY.md) | Every layout, visualization, theme and engine as exported slides |
-| [Format specification](crates/mdeck/doc/mdeck-spec.md) | The complete reference (also `mdeck spec`) |
+| [Upgrading from v1](docs/upgrading-from-v1.md) | Every v1 construct and its v2 form |
+| [Gallery](GALLERY.md) | Every design, engine and visual as exported slides |
+| [Sample decks](samples/README.md) | Decks for every feature |
+| [Format reference](crates/mdeck/doc/mdeck-spec.md) | The complete format (also `mdeck spec`) |
+| [SDK](docs/sdk/README.md) | Writing extensions in Rust |
 | [Changelog](CHANGELOG.md) and [Roadmap](BACKLOG.md) | What changed, and what is next |
-| [Contributing](CONTRIBUTING.md), [Development](docs/development.md), [Writing an engine](crates/mdeck/doc/engines.md) | Working on MDeck itself |
+| [Contributing](CONTRIBUTING.md), [Development](docs/development.md) | Working on mdeck itself |
 
 ---
 
