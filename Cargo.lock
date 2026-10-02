@@ -2606,6 +2606,7 @@ dependencies = [
  "colored",
  "dirs",
  "eframe",
+ "engine-ambience",
  "flate2",
  "futures",
  "image",

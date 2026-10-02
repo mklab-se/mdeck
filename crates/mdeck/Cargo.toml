@@ -52,6 +52,15 @@ ratex-types.workspace = true
 pdf-writer.workspace = true
 flate2.workspace = true
 
+[dev-dependencies]
+# EXT-14 end to end: an SDK tutorial engine registered next to the built-ins.
+engine-ambience = { path = "../../examples/engine-ambience" }
+
+# Runs on the main thread (no test harness): export opens a window.
+[[test]]
+name = "extension_engine"
+harness = false
+
 [features]
 default = [
     "particles",
