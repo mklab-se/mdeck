@@ -384,9 +384,11 @@ Standard markdown blockquotes:
 > rendered prominently on the slide.
 ```
 
-A quote keeps its structure: several paragraphs, lists and nested quotes stay
-as written, inside the quote's accent bar. On a quote slide, a quote of
-several paragraphs whose last paragraph is short ends in its attribution:
+A quote keeps its paragraphs, each starting a new line inside the quote's
+accent bar. Lists and nested quotes inside it give their text as further
+lines: a nested quote is not drawn as a quote within a quote. A quote of
+several paragraphs whose last paragraph is short (80 characters or fewer)
+ends in its attribution, set apart under the quotation:
 
 ```markdown
 > The negative is the score, the print is the performance.
