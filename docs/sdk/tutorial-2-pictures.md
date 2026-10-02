@@ -144,9 +144,11 @@ engine would trace the points, a blocks engine would drop bricks on them.
 
 ### Fall back gracefully
 
-`stage.picture` may also hold a generated artwork (`PictureSource::Artwork`) or an image
-(`PictureSource::Image`). This engine draws only point clouds, so for anything else, and when
-there is no picture, it shows its ground: a low band of resting motes. A slide is never left empty
+`stage.picture` may also hold a generated artwork (`PictureSource::Artwork`). When the
+slide's picture is an image file, mdeck draws it on the stage itself and the engine gets no
+picture, only a `Hint::Frame` where the image is (`PictureSource::Image` is reserved for later).
+This engine draws only point clouds, so for anything else, and when there is no picture, it shows
+its ground: a low band of resting motes. A slide is never left empty
 because an optional input is missing.
 
 **READ** `examples/engine-pictures/src/lib.rs`, in `form`:

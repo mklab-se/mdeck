@@ -77,9 +77,10 @@ IMAGE OPTIONS (in alt text: ![Team @width: 60%](team.jpg))
   @height: 400px        Height; with both, the image fits both
   @fill                 Cover the space, cropping (a media slide: the whole slide)
 
-PICTURES (on the design's stage; every engine but plain and splitflap)
+PICTURES (on the design's stage; clouds: every engine but plain and splitflap)
   <!-- picture: name -->  The slide's artwork on an art engine, else the point
                         cloud of that name, else an image file of that path
+                        (drawn by mdeck on every engine but splitflap)
                         clouds: deck.assets/point-clouds > deck point-clouds/ >
                         user folder point-clouds/ > packs > built-in
   <!-- picture: none -->  Keep the stage empty

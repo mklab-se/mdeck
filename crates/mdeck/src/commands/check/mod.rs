@@ -147,7 +147,6 @@ pub(crate) fn collect(
     add(point_cloud_warnings(presentation, file, &theme));
     add(design_warnings(presentation));
     add(engine_warnings(presentation, theme.engine));
-    add(engine::picture_stage_warnings(presentation, &theme));
     add(asset_warnings(file, presentation, &theme));
     Ok(report)
 }
@@ -312,6 +311,23 @@ mod tests {
             w.iter().any(|m| m.contains("diagrams are not shown")),
             "{w:?}"
         );
+    }
+
+    /// A picture on a design with no stage was reported twice, once by the
+    /// point-cloud category and once by the engine category.
+    #[cfg(feature = "particles")]
+    #[test]
+    fn a_picture_without_a_stage_is_reported_once() {
+        let content = "---\ntheme: ember\n---\n# Deck\n\n---\n\n## Code\n<!-- picture: account -->\n\n```rust\nfn main() {}\n```\n";
+        let p = parser::parse(content);
+        let file = Path::new("/nonexistent/talk.md");
+        let report = collect(file, content, &p, Path::new("/nonexistent"), None).unwrap();
+        let about: Vec<_> = report
+            .warnings()
+            .filter(|w| w.message.contains("account"))
+            .collect();
+        assert_eq!(about.len(), 1, "{about:?}");
+        assert!(about[0].message.contains("no stage"), "{about:?}");
     }
 
     #[test]

@@ -248,7 +248,6 @@ impl Deck {
             still: frame.still,
             deck_title: self.presentation.meta.title.as_deref(),
             count,
-            deck_dir: deck_dir(&self.file),
         };
         let host = match host {
             Some(h) => h,

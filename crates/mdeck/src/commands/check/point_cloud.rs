@@ -1,13 +1,16 @@
-//! `picture` checks: names that do not resolve, layouts that never
-//! show one, and unreadable cloud files.
+//! `picture` checks: names that do not resolve, image files that are
+//! missing, designs that never show one, and unreadable cloud files.
 
 use crate::check::{CheckCategory, CheckWarning};
 use crate::parser;
 use crate::render;
 
-/// Point cloud warnings: names that do not resolve, layouts that never show
-/// one, and unreadable cloud files (reported once, on slide 0). `deck` is
-/// the deck file: its folder and its generated point clouds are searched.
+/// Picture warnings: point cloud names that do not resolve, image files
+/// that are missing, designs that leave no stage for a picture that would
+/// otherwise show, and unreadable cloud files (reported once, on slide 0).
+/// `deck` is the deck file: its folder and its generated point clouds are
+/// searched, and image paths are relative to it. What the engine does not
+/// show is the `engine` category's (one warning per picture, never two).
 pub fn point_cloud_warnings(
     presentation: &parser::Presentation,
     deck: &std::path::Path,
@@ -17,25 +20,34 @@ pub fn point_cloud_warnings(
     let base = deck.parent().unwrap_or(std::path::Path::new("."));
     let mut lib = render::point_cloud::Library::for_deck(Some(base))
         .with_assets(crate::assets::point_cloud_dir(deck));
+    // images are drawn by mdeck on any engine but a board; clouds by
+    // engines that show pictures
+    let shows_images = !theme.engine.is_board();
+    let shows_clouds = theme.engine.capabilities().picture;
     for (i, slide) in presentation.slides.iter().enumerate() {
         let Some(name) = &slide.illustration else {
             continue;
         };
-        let message = if let Err(e) = render::point_cloud::validate_name(name) {
-            format!("picture: {e}")
+        let image = render::picture::is_image_path(name);
+        let message = if image && !base.join(name).is_file() {
+            format!("picture: no image file `{name}` (image paths are relative to the deck)")
+        } else if image {
+            match stage_problem(slide, name, theme).filter(|_| shows_images) {
+                Some(m) => m,
+                None => continue,
+            }
+        } else if let Err(e) = render::point_cloud::validate_name(name) {
+            format!("picture: {e} (or name an image file: .png, .jpg, .jpeg, .webp or .svg)")
         } else if !lib.has(name) {
             format!(
                 "no point cloud named `{name}` (run `mdeck point-cloud list`, or \
                  `mdeck ai point-cloud <deck>` to generate it)"
             )
-        } else if !render::design_has_stage(slide, theme) {
-            format!(
-                "`{name}` is ignored: {} slides leave no stage for a picture in the {} design set",
-                slide.design.name(),
-                theme.arrangements.set
-            )
         } else {
-            continue;
+            match stage_problem(slide, name, theme).filter(|_| shows_clouds) {
+                Some(m) => m,
+                None => continue,
+            }
         };
         out.push(CheckWarning {
             slide: i + 1,
@@ -53,6 +65,21 @@ pub fn point_cloud_warnings(
         });
     }
     out
+}
+
+/// A picture on a slide whose design leaves no stage for one (ENG-14).
+fn stage_problem(
+    slide: &parser::Slide,
+    name: &str,
+    theme: &crate::theme::Theme,
+) -> Option<String> {
+    (!render::design_has_stage(slide, theme)).then(|| {
+        format!(
+            "`{name}` is ignored: {} slides leave no stage for a picture in the {} design set",
+            slide.design.name(),
+            theme.arrangements.set
+        )
+    })
 }
 
 /// A deck folder that still keeps point clouds in v1's `illustrations/`,
@@ -121,6 +148,15 @@ mod tests {
         let mut theme = crate::theme::Theme::dark();
         theme.arrangements =
             crate::theme::arrangement::Arrangements::resolve("editorial", None).unwrap();
+        // on plain, which shows no clouds, the engine category says so and
+        // this one stays quiet about stages
+        let plain = point_cloud_warnings(&pres, &tmp.join("talk.md"), &theme);
+        assert!(
+            !plain.iter().any(|w| w.message.contains("no stage")),
+            "{plain:?}"
+        );
+        #[cfg(feature = "particles")]
+        let theme = crate::theme::Theme::ember();
         let warnings = point_cloud_warnings(&pres, &tmp.join("talk.md"), &theme);
         let by_slide: Vec<(usize, String)> = warnings
             .iter()
@@ -133,6 +169,7 @@ mod tests {
                 .any(|(s, m)| *s == 2 && m.contains("no point cloud named `nothing`")),
             "{by_slide:?}"
         );
+        #[cfg(feature = "particles")]
         assert!(
             by_slide
                 .iter()
@@ -151,6 +188,39 @@ mod tests {
                 .any(|(s, m)| *s == 0 && m.contains("broken.mdpc")),
             "{by_slide:?}"
         );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    #[test]
+    fn an_image_picture_is_accepted_and_a_missing_one_reported() {
+        let tmp = std::env::temp_dir().join(format!("mdeck-image-pic-{}", std::process::id()));
+        std::fs::create_dir_all(tmp.join("images")).unwrap();
+        std::fs::write(tmp.join("images/Team.jpg"), b"not decoded by the check").unwrap();
+        let md = "# Deck\n\n---\n\n## Team\n<!-- picture: images/Team.jpg -->\n\n- a\n\n---\n\n## Gone\n<!-- picture: images/gone.png -->\n\n- a\n\n---\n\n## Code\n<!-- picture: images/Team.jpg -->\n\n```rust\nfn main() {}\n```\n";
+        let pres = parser::parse(md);
+        let mut theme = crate::theme::Theme::dark();
+        theme.arrangements =
+            crate::theme::arrangement::Arrangements::resolve("editorial", None).unwrap();
+        let warnings = point_cloud_warnings(&pres, &tmp.join("talk.md"), &theme);
+        let on = |n: usize| -> Vec<&str> {
+            warnings
+                .iter()
+                .filter(|w| w.slide == n)
+                .map(|w| w.message.as_str())
+                .collect()
+        };
+        // an existing image is fine, even on plain, and never a bad cloud name
+        assert!(on(2).is_empty(), "{warnings:?}");
+        assert!(
+            on(3).iter().any(|m| m.contains("no image file `images/gone.png`")),
+            "{warnings:?}"
+        );
+        // an image shows on every engine, so a missing stage is reported
+        assert!(
+            on(4).iter().any(|m| m.contains("code slides leave no stage")),
+            "{warnings:?}"
+        );
+        assert_eq!(on(4).len(), 1, "{warnings:?}");
         std::fs::remove_dir_all(&tmp).ok();
     }
 }

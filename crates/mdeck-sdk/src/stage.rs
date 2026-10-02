@@ -218,7 +218,9 @@ pub enum PictureSource {
     Cloud(Arc<Cloud>),
     /// A generated picture, prepared for the engine's medium.
     Artwork(Arc<Artwork>),
-    /// A plain image.
+    /// A plain image. mdeck 2.0 does not send this: it draws a picture
+    /// that names an image file on the stage itself, and engines see it as
+    /// a [`crate::geometry::Hint::Frame`].
     Image(Arc<ImageData>),
 }
 

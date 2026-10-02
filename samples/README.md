@@ -36,6 +36,7 @@ overrides arrangements.
 | [features/notes.md](features/notes.md) | Speaker notes in ```` ```@notes ```` blocks |
 | [features/math.md](features/math.md) | LaTeX math, inline and display |
 | [features/backgrounds.md](features/backgrounds.md) | Background images |
+| [features/image-pictures.md](features/image-pictures.md) | Image files as the slide's picture, on the stage |
 | [features/symbols.md](features/symbols.md) and [features/cjk.md](features/cjk.md) | Symbols and Chinese, Japanese and Korean text |
 | [`transitions/`](transitions) | One deck per transition: `fade`, `slide`, `spatial`, `none` |
 

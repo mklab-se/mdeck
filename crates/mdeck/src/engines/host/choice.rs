@@ -54,8 +54,14 @@ pub fn with_engine(mut theme: crate::theme::Theme, kind: Option<EngineId>) -> cr
 pub fn unsupported(kind: EngineId, slide: &Slide) -> Vec<String> {
     let caps = kind.capabilities();
     let mut out = Vec::new();
+    // an image file is drawn by mdeck itself, except on a board, which
+    // draws the whole slide; a point cloud needs an engine with pictures
     if let Some(name) = &slide.illustration
-        && !caps.picture
+        && if crate::render::picture::is_image_path(name) {
+            kind.board().is_some()
+        } else {
+            !caps.picture
+        }
     {
         out.push(format!(
             "picture: {name} is not shown by the {} engine",
@@ -158,5 +164,17 @@ mod tests {
         let line = unsupported_summary(EngineId::plain(), &pres).unwrap();
         assert!(line.contains("1 slide;"), "{line}");
         assert!(unsupported_summary(particles(), &pres).is_none());
+    }
+
+    #[test]
+    fn an_image_picture_shows_on_every_engine_but_a_board() {
+        let pres = crate::parser::parse("# A\n<!-- picture: images/team.jpg -->\n\n- one\n");
+        let a = &pres.slides[0];
+        assert!(unsupported(EngineId::plain(), a).is_empty());
+        assert!(unsupported(particles(), a).is_empty());
+        if let Some(board) = EngineId::find("splitflap") {
+            let w = unsupported(board, a);
+            assert!(w.iter().any(|m| m.contains("images/team.jpg")), "{w:?}");
+        }
     }
 }

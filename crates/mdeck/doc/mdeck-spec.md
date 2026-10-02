@@ -916,8 +916,11 @@ one with the `picture` setting. Its value resolves in this order:
    is one;
 2. a **point cloud** of that name: a named file of points that the particles
    settle into, the LEDs light up, the blocks build or the pencil traces;
-3. an image file at that path, relative to the deck, drawn on the stage as it
-   is.
+3. an image file at that path, relative to the deck (`.png`, `.jpg`, `.jpeg`,
+   `.webp` or `.svg`, as in `<!-- picture: images/team.jpg -->`). mdeck draws
+   it on the stage itself, framed beside the copy or large and dim behind a
+   title, so it shows on every engine but the split-flap board (which draws
+   the whole slide); the engine sees where it is and keeps clear of it.
 
 ```markdown
 ## Our new server
@@ -933,8 +936,9 @@ the right, beside the copy, warm and lit from the first step. Title slides
 put it behind the centred copy, large, dim and slow: a backdrop rather than
 a picture. Split, media, gallery, code, visual, columns and table slides
 never show one, and the standard set leaves no stage at all. Every engine
-except `plain` and `splitflap` draws pictures, each in its own medium
-(section 9.6). `mdeck --check` warns when a slide asks for a picture its
+except `plain` and `splitflap` draws point clouds and artworks, each in its
+own medium (section 9.6); an image file shows on every engine but
+`splitflap`. `mdeck --check` warns when a slide asks for a picture its
 design or engine cannot show, or one that does not exist. `picture: none`
 keeps a slide's stage empty.
 
