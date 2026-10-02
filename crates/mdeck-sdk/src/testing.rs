@@ -7,7 +7,10 @@
 //! additive meshes, so they show, but without wakes. The result is close to
 //! what mdeck shows, not identical (no multisampling, sRGB blending): use
 //! it for "does it draw, and where" tests and tolerant golden comparisons
-//! ([`mean_difference`]), not for pixel-exact ones.
+//! ([`mean_difference`], [`assert_golden`]), not for pixel-exact ones.
+//! Visuals, design sets and transitions render with
+//! [`Headless::render_visual`], [`Headless::render_design`] and
+//! [`Headless::render_transition`].
 //!
 //! ```
 //! use mdeck_sdk::paint::Color;
@@ -21,6 +24,12 @@
 //! ```
 
 use std::collections::HashMap;
+
+mod golden;
+mod render;
+
+pub use golden::{GOLDEN_TOLERANCE, UPDATE_GOLDEN_ENV, assert_golden, read_png, write_png};
+pub use render::Rendered;
 
 use crate::engine::Engine;
 use crate::paint::painter::Backend;
@@ -193,14 +202,20 @@ impl Headless {
         let cx1 = (clip.max.x.ceil() as i32).min(w);
         let cy1 = (clip.max.y.ceil() as i32).min(h);
         for tri in mesh.indices.as_chunks::<3>().0 {
-            let v = [
+            let mut v = [
                 &mesh.vertices[tri[0] as usize],
                 &mesh.vertices[tri[1] as usize],
                 &mesh.vertices[tri[2] as usize],
             ];
-            let area = edge(v[0].pos, v[1].pos, v[2].pos);
+            let mut area = edge(v[0].pos, v[1].pos, v[2].pos);
             if area.abs() < 1e-8 {
                 continue;
+            }
+            // One winding for every triangle, so the fill rule below sees a
+            // shared edge in opposite directions from its two triangles.
+            if area < 0.0 {
+                v.swap(1, 2);
+                area = -area;
             }
             let minx = v.iter().map(|v| v.pos.x).fold(f32::MAX, f32::min).floor() as i32;
             let maxx = v.iter().map(|v| v.pos.x).fold(f32::MIN, f32::max).ceil() as i32;
@@ -209,12 +224,24 @@ impl Headless {
             for y in miny.max(cy0)..maxy.min(cy1) {
                 for x in minx.max(cx0)..maxx.min(cx1) {
                     let p = egui::pos2(x as f32 + 0.5, y as f32 + 0.5);
-                    let w0 = edge(v[1].pos, v[2].pos, p) / area;
-                    let w1 = edge(v[2].pos, v[0].pos, p) / area;
-                    let w2 = 1.0 - w0 - w1;
-                    if w0 < 0.0 || w1 < 0.0 || w2 < 0.0 {
+                    let e = [
+                        edge(v[1].pos, v[2].pos, p),
+                        edge(v[2].pos, v[0].pos, p),
+                        edge(v[0].pos, v[1].pos, p),
+                    ];
+                    // A pixel centre exactly on an edge (egui's feathered
+                    // rects put edges on centres) belongs to exactly one of
+                    // the two triangles sharing it.
+                    let inside = |e: f32, a: egui::Pos2, b: egui::Pos2| {
+                        e > 0.0 || (e == 0.0 && (b.y > a.y || (b.y == a.y && b.x > a.x)))
+                    };
+                    if !(inside(e[0], v[1].pos, v[2].pos)
+                        && inside(e[1], v[2].pos, v[0].pos)
+                        && inside(e[2], v[0].pos, v[1].pos))
+                    {
                         continue;
                     }
+                    let (w0, w1, w2) = (e[0] / area, e[1] / area, e[2] / area);
                     let lerp = |f: fn(&egui::epaint::Vertex) -> f32| {
                         f(v[0]) * w0 + f(v[1]) * w1 + f(v[2]) * w2
                     };
@@ -337,6 +364,13 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn a_full_rect_covers_every_edge_pixel() {
+        let mut h = Headless::new(320, 180);
+        let img = h.paint(|p| p.rect_filled(p.clip_rect(), 0.0, Color::BLACK));
+        assert!(img.pixels.iter().all(|c| *c == Color::BLACK));
     }
 
     #[test]

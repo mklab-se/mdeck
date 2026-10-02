@@ -1309,6 +1309,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "engine-ambience"
+version = "1.19.0"
+dependencies = [
+ "mdeck-sdk",
+]
+
+[[package]]
+name = "engine-pictures"
+version = "1.19.0"
+dependencies = [
+ "mdeck-sdk",
+]
+
+[[package]]
+name = "engine-reactive"
+version = "1.19.0"
+dependencies = [
+ "mdeck-sdk",
+]
+
+[[package]]
 name = "epaint"
 version = "0.36.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2614,6 +2635,7 @@ dependencies = [
  "egui",
  "egui_glow",
  "glow",
+ "png",
 ]
 
 [[package]]
@@ -4818,6 +4840,13 @@ dependencies = [
  "once_cell",
  "rustix 1.1.5",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "template-engine"
+version = "1.19.0"
+dependencies = [
+ "mdeck-sdk",
 ]
 
 [[package]]

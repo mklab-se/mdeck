@@ -1,0 +1,8 @@
+# A theme that arranges every slide with the {{name}} design set.
+# Registered by `register()`, so a deck selects it with `theme: {{name}}`.
+name: {{name}}
+extends: dark
+designs: {{name}}
+colors:
+  background: "#101014"
+  accent: "#ffd166"

@@ -1,0 +1,12 @@
+# The showcase theme of the {{name}} engine. Registered by `register()`, so
+# a deck selects it with `theme: {{name}}`.
+name: {{name}}
+extends: dark
+engine: {{name}}
+countdown: none
+colors:
+  background: "#0c0c10"
+  accent: "#ff6a3d"
+  secondary: "#f5b84a"
+particles:
+  cool: "#8fb2ff"

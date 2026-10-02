@@ -1,0 +1,10 @@
+[package]
+name = "{{name}}"
+version = "0.1.0"
+edition = "2024"
+description = "The {{name}} design set for mdeck"
+publish = false
+
+[dependencies]
+# SDK 2.x works with every mdeck 2.x.
+mdeck-sdk = "{{sdk_version}}"

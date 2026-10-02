@@ -1,0 +1,13 @@
+[package]
+name = "template-engine"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "The engine scaffold template, instantiated so CI builds and tests it"
+publish = false
+
+[dependencies]
+mdeck-sdk = { path = "../../crates/mdeck-sdk" }

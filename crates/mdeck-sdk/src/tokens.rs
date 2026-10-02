@@ -419,6 +419,27 @@ impl EngineSettings {
         None
     }
 
+    /// Record a problem with `key` that the typed getters cannot see, such as
+    /// a number out of range. It is reported by [`EngineSettings::problems`]
+    /// with the `engine:` block's line, like a value of the wrong type.
+    ///
+    /// ```
+    /// use mdeck_sdk::tokens::{EngineSettings, Value};
+    /// let s = EngineSettings::from_pairs([("glow", Value::Number(5.0))]).at_line(7);
+    /// let glow = s.f32_or("glow", 1.0);
+    /// if !(0.0..=2.0).contains(&glow) {
+    ///     s.report("glow", format!("should be between 0 and 2, not {glow}"));
+    /// }
+    /// let p = s.problems();
+    /// assert_eq!(p[0].message, "`glow` should be between 0 and 2, not 5");
+    /// assert_eq!(p[0].line, Some(7));
+    /// ```
+    pub fn report(&self, key: &str, message: impl AsRef<str>) {
+        let mut p = Problem::new("engine", format!("`{key}` {}", message.as_ref()));
+        p.line = self.line;
+        self.invalid.borrow_mut().push(p);
+    }
+
     /// Everything wrong so far: values of the wrong type that were read, and
     /// every key that was never read (unknown to the engine, or inert).
     /// Call it after the engine has read its settings (after `create`).

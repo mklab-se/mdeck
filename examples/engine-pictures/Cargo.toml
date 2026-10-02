@@ -1,0 +1,13 @@
+[package]
+name = "engine-pictures"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "SDK tutorial step 2: pictures, the countdown and the end"
+publish = false
+
+[dependencies]
+mdeck-sdk = { path = "../../crates/mdeck-sdk" }

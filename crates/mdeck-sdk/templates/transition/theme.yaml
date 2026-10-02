@@ -1,0 +1,7 @@
+# A theme that moves between slides with the {{name}} transition.
+# Registered by `register()`, so a deck selects it with `theme: {{name}}`.
+name: {{name}}
+extends: dark
+transition: {{name}}
+colors:
+  accent: "#7bdff2"
