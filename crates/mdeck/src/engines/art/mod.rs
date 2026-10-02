@@ -1,48 +1,77 @@
 //! What the art engines share: a generated picture being drawn in (the
 //! reveal runs on the CPU into a texture, a frame at a time, and stops
 //! uploading once the picture is finished), and the pen strokes a medium
-//! draws when a slide has no picture (its `picture`, the countdown,
-//! the end words).
+//! draws when a slide has no artwork (its point cloud picture, the
+//! countdown, the end words).
 
 #![cfg_attr(
     not(all_engines),
     allow(dead_code, reason = "shared by the art engines, each using some of it")
 )]
 
+pub mod reveal;
+pub mod strokes;
+
 use std::sync::Arc;
 
-use eframe::egui::{self, Color32, Pos2, Rect};
-
-use super::Capabilities;
-use super::stage::{FrameCx, Look, Mask, Moment, Place, Stage};
-use crate::render::art::prepare::Prepared;
-use crate::render::illustration::Library;
-use crate::render::strokes::{Picture, plan, to_screen, toured};
-
-/// What an art engine shows: the pictures most engines show, drawn from
-/// generated art when a slide has it.
-pub const CAPABILITIES: Capabilities = Capabilities {
-    art: true,
-    ..Capabilities::PICTURES
+use mdeck_sdk::cloud::Mask;
+use mdeck_sdk::engine::Capabilities;
+use mdeck_sdk::paint::{
+    Color, ImageData, Mesh, Painter, Pos2, Rect, Texture, TextureFilter, sprite_sheet,
 };
+use mdeck_sdk::stage::{Artwork, Frame, Look, Moment, PictureSource, Place, Stage};
+
+pub use reveal::{Reveal, Reveals};
+use strokes::{Strokes, plan, to_screen, toured};
+
+/// What an art engine can do: show the slide's picture (its generated
+/// artwork, else its point cloud as pen strokes).
+pub const CAPABILITIES: Capabilities = Capabilities {
+    picture: true,
+    ..Capabilities::NONE
+};
+
+/// The shared sprite sheet ([`sprite_sheet`]) as a texture, uploaded on
+/// first use.
+pub struct Sprites {
+    name: &'static str,
+    texture: Option<Texture>,
+}
+
+impl Sprites {
+    /// `name`: the texture's name in debug tools.
+    pub const fn new(name: &'static str) -> Self {
+        Self {
+            name,
+            texture: None,
+        }
+    }
+
+    /// The texture, uploading it the first time.
+    pub fn get(&mut self, painter: &Painter) -> Texture {
+        self.texture
+            .get_or_insert_with(|| {
+                painter.load_texture(self.name, &sprite_sheet(), TextureFilter::Linear)
+            })
+            .clone()
+    }
+}
 
 /// A generated picture on the slide, drawn in over `duration` seconds.
 pub struct Drawing {
-    pub picture: Arc<Prepared>,
+    pub picture: Arc<Artwork>,
     pub place: Place,
     pub backdrop: bool,
     pub born: f32,
     pub duration: f32,
-    texture: Option<egui::TextureHandle>,
+    texture: Option<Texture>,
     /// The moment the texture shows (negative: nothing uploaded yet).
     shown: f32,
 }
 
-pub use crate::render::art::prepare::Reveal;
-
 impl Drawing {
     pub fn new(
-        picture: Arc<Prepared>,
+        picture: Arc<Artwork>,
         place: Place,
         backdrop: bool,
         born: f32,
@@ -66,7 +95,7 @@ impl Drawing {
 
     /// Where the picture goes on screen.
     pub fn screen(&self, rect: Rect) -> Rect {
-        to_rect(self.place, rect)
+        self.place.in_rect(rect)
     }
 
     /// Where the drawing hand is at `now`, on screen.
@@ -81,33 +110,31 @@ impl Drawing {
 
     /// Paint the picture as far as it has come, tinted by `tint` (line art
     /// is white, so the tint is its ink colour).
-    pub fn paint(&mut self, ui: &egui::Ui, rect: Rect, now: f32, tint: Color32, reveal: Reveal) {
+    pub fn paint(&mut self, painter: &Painter, rect: Rect, now: f32, tint: Color, reveal: Reveal) {
         let t = self.progress(now).min(1.0 + reveal.soft);
         let stale = self.texture.is_none() || (t - self.shown).abs() > 0.002;
         if stale {
-            let pixels = self.picture.reveal(t, &reveal);
-            let image = egui::ColorImage::new([self.picture.width, self.picture.height], pixels);
+            let image = ImageData {
+                size: [self.picture.width, self.picture.height],
+                pixels: self.picture.reveal(t, &reveal),
+            };
             match &mut self.texture {
-                Some(tex) => tex.set(image, egui::TextureOptions::LINEAR),
+                Some(tex) => painter.update_texture(tex, &image, TextureFilter::Linear),
                 None => {
                     let name = format!("mdeck-art-{:p}", Arc::as_ptr(&self.picture));
-                    self.texture = Some(ui.ctx().load_texture(
-                        name,
-                        image,
-                        egui::TextureOptions::LINEAR,
-                    ));
+                    self.texture = Some(painter.load_texture(&name, &image, TextureFilter::Linear));
                 }
             }
             self.shown = t;
         }
         if let Some(tex) = &self.texture {
-            let mut mesh = egui::Mesh::with_texture(tex.id());
-            mesh.add_rect_with_uv(
+            let mut mesh = Mesh::with_texture(tex.clone());
+            mesh.add_rect_uv(
                 self.screen(rect),
                 Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
                 tint,
             );
-            ui.painter().add(egui::Shape::mesh(mesh));
+            painter.mesh(mesh);
         }
     }
 }
@@ -123,12 +150,14 @@ pub struct Canvas {
     pub drawing: Option<Drawing>,
     /// The previous slide's picture, fading out since the given time.
     pub fading: Option<(Drawing, f32)>,
-    pub strokes: Option<Picture>,
-    pub fading_strokes: Option<(Picture, f32)>,
+    pub strokes: Option<Strokes>,
+    pub fading_strokes: Option<(Strokes, f32)>,
     /// The countdown's burst, 0..1, while it runs.
     pub burst: Option<f32>,
     /// Where the drawing hand is this frame (`None` in stills).
     pub tip: Option<Tip>,
+    /// Something moved in the last paint: the engine is animating.
+    pub moving: bool,
     key: Option<Key>,
     /// Seconds to draw a picture in, and to finish around it after.
     draw: f32,
@@ -149,6 +178,7 @@ impl Canvas {
             fading_strokes: None,
             burst: None,
             tip: None,
+            moving: true,
             key: None,
             draw,
             after,
@@ -168,20 +198,16 @@ impl Canvas {
 
     /// Follow the stage: a new slide, digit or end act starts a new picture
     /// (its generated art on a slide, else pen strokes), and the old one
-    /// fades. `still` settles everything at once.
-    pub fn update(&mut self, cx: &FrameCx, stage: &Stage, _lib: &mut Library) {
+    /// fades. A settled frame (a still, reduced motion) finishes everything
+    /// at once.
+    pub fn update(&mut self, frame: &Frame, stage: &Stage) {
         let look = stage.moment.look(self.end_words);
-        let art = stage
-            .art
-            .as_ref()
-            .map(|a| Arc::as_ptr(&a.picture) as usize)
-            .unwrap_or(0);
-        let figure = stage
-            .figure
-            .as_ref()
-            .map(|f| Arc::as_ptr(&f.cloud) as usize)
-            .unwrap_or(0);
-        let key = (stage.index, look, art, figure, stage.title);
+        let (art, cloud) = match stage.picture.as_ref().map(|p| &p.source) {
+            Some(PictureSource::Artwork(a)) => (Arc::as_ptr(a) as usize, 0),
+            Some(PictureSource::Cloud(c)) => (0, Arc::as_ptr(c) as usize),
+            _ => (0, 0),
+        };
+        let key = (stage.index, look, art, cloud, stage.title);
         if self.key != Some(key) {
             match look {
                 Look::Burst => self.burst = Some(0.0),
@@ -189,16 +215,20 @@ impl Canvas {
                 _ => {
                     self.burst = None;
                     self.retire();
-                    if let (Look::Slide, Some(a)) = (look, &stage.art) {
+                    let artwork = stage.picture.as_ref().and_then(|p| match &p.source {
+                        PictureSource::Artwork(a) => Some((a, p)),
+                        _ => None,
+                    });
+                    if let (Look::Slide, Some((a, p))) = (look, artwork) {
                         self.drawing = Some(Drawing::new(
-                            a.picture.clone(),
-                            a.place,
-                            a.backdrop,
+                            a.clone(),
+                            p.place,
+                            p.backdrop,
                             self.now,
                             self.draw,
                         ));
                     } else {
-                        self.strokes = fallback_strokes(cx, stage, self.now);
+                        self.strokes = fallback_strokes(frame, stage, self.now);
                     }
                 }
             }
@@ -207,7 +237,7 @@ impl Canvas {
         if let Moment::Burst { progress } = stage.moment {
             self.burst = Some(progress);
         }
-        if cx.still {
+        if frame.settled() {
             self.fading = None;
             self.fading_strokes = None;
             if let Some(d) = &mut self.drawing {
@@ -219,7 +249,7 @@ impl Canvas {
             self.tip = None;
             return;
         }
-        self.now += cx.dt;
+        self.now += frame.dt;
         let fade = self.fade;
         let now = self.now;
         if self
@@ -236,7 +266,7 @@ impl Canvas {
         {
             self.fading_strokes = None;
         }
-        self.tip = self.find_tip(cx.rect);
+        self.tip = self.find_tip(frame.rect);
     }
 
     /// Where the hand is: on the picture being drawn in, or at the end of
@@ -263,34 +293,32 @@ impl Canvas {
 
     /// Paint what the canvas holds in `hand`'s medium: the old picture and
     /// strokes fading, the current picture (dimmed behind a title) and
-    /// strokes, then the hand's tool at the tip. Asks for another frame
-    /// while anything moves.
-    pub fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, hand: &impl Hand) {
+    /// strokes, then the hand's tool at the tip. Notes in
+    /// [`Canvas::moving`] whether anything still moves.
+    pub fn paint(&mut self, painter: &Painter, frame: &Frame, hand: &impl Hand) {
         let now = self.now;
-        let painter = ui.painter();
         let left = self
             .fading
             .as_ref()
             .map(|(_, since)| self.fade_left(*since));
         if let (Some((old, _)), Some(left)) = (&mut self.fading, left) {
-            hand.picture(ui, cx, old, now, left * cx.opacity, false);
+            hand.picture(painter, frame, old, now, left * frame.opacity, false);
         }
         if let Some((old, since)) = &self.fading_strokes {
-            let k = self.fade_left(*since) * cx.opacity;
-            hand.strokes(painter, cx, old, now, k, false);
+            let k = self.fade_left(*since) * frame.opacity;
+            hand.strokes(painter, frame, old, now, k, false);
         }
         let burst = self.burst_left();
         if let Some(d) = &mut self.drawing {
-            let k = if d.backdrop { hand.backdrop() } else { 1.0 } * cx.opacity;
-            hand.picture(ui, cx, d, now, k, true);
+            let k = if d.backdrop { hand.backdrop() } else { 1.0 } * frame.opacity;
+            hand.picture(painter, frame, d, now, k, true);
         }
         if let Some(p) = &self.strokes {
-            hand.strokes(painter, cx, p, now, burst * cx.opacity, true);
+            hand.strokes(painter, frame, p, now, burst * frame.opacity, true);
         }
-        hand.finish(painter, cx, if cx.still { None } else { self.tip });
-        if (self.busy() || hand.busy()) && !cx.still {
-            ui.ctx().request_repaint();
-        }
+        let settled = frame.settled();
+        hand.finish(painter, frame, if settled { None } else { self.tip });
+        self.moving = (self.busy() || hand.busy()) && !settled;
     }
 
     /// How far the old picture has faded (1: fully there, 0: gone).
@@ -354,8 +382,8 @@ pub trait Hand {
     /// the slide's own picture, not the old one fading out.
     fn picture(
         &self,
-        ui: &egui::Ui,
-        cx: &FrameCx,
+        painter: &Painter,
+        frame: &Frame,
         d: &mut Drawing,
         now: f32,
         k: f32,
@@ -365,9 +393,9 @@ pub trait Hand {
     /// Draw pen strokes as far as they have come at opacity `k`.
     fn strokes(
         &self,
-        painter: &egui::Painter,
-        cx: &FrameCx,
-        p: &Picture,
+        painter: &Painter,
+        frame: &Frame,
+        p: &Strokes,
         now: f32,
         k: f32,
         current: bool,
@@ -375,7 +403,7 @@ pub trait Hand {
 
     /// Last, over everything: the tool at `tip` (`None` when nothing is
     /// being drawn, and in stills) and whatever else rides on top.
-    fn finish(&self, _painter: &egui::Painter, _cx: &FrameCx, _tip: Option<Tip>) {}
+    fn finish(&self, _painter: &Painter, _frame: &Frame, _tip: Option<Tip>) {}
 
     /// Something of the engine's own is still moving.
     fn busy(&self) -> bool {
@@ -383,25 +411,14 @@ pub trait Hand {
     }
 }
 
-/// A place in slide fractions, on screen.
-pub fn to_rect(place: Place, rect: Rect) -> Rect {
-    Rect::from_min_size(
-        Pos2::new(
-            rect.left() + place.u * rect.width(),
-            rect.top() + place.v * rect.height(),
-        ),
-        egui::vec2(place.w * rect.width(), place.h * rect.height()),
-    )
-}
-
-/// The pen strokes for a moment without a picture: the slide's
-/// `picture`, a countdown digit or the end words. `None` when there is
+/// The pen strokes for a moment without an artwork: the slide's point
+/// cloud picture, a countdown digit or the end words. `None` when there is
 /// nothing to draw.
-pub fn fallback_strokes(cx: &FrameCx, stage: &Stage, now: f32) -> Option<Picture> {
-    let rect = cx.rect;
+pub fn fallback_strokes(frame: &Frame, stage: &Stage, now: f32) -> Option<Strokes> {
+    let rect = frame.rect;
     let aspect = rect.width() / rect.height();
     let place_mask = |mask: &Mask, h: f32| -> Place {
-        let w = h * mask.1 / aspect;
+        let w = h * mask.aspect / aspect;
         Place {
             u: 0.5 - w / 2.0,
             v: 0.47 - h / 2.0,
@@ -411,31 +428,120 @@ pub fn fallback_strokes(cx: &FrameCx, stage: &Stage, now: f32) -> Option<Picture
     };
     let (strokes, duration, weight) = match &stage.moment {
         Moment::Countdown { mask, .. } => (
-            vec![toured(&mask.0, place_mask(mask, 0.56), aspect)],
+            vec![toured(&mask.points, place_mask(mask, 0.56), aspect)],
             0.85,
             1.0,
         ),
         Moment::End { words, .. } => {
             let w = 0.60;
-            let h = w / words.1 * aspect;
+            let h = w / words.aspect * aspect;
             let place = Place {
                 u: 0.5 - w / 2.0,
                 v: 0.47 - h / 2.0,
                 w,
                 h,
             };
-            (vec![toured(&words.0, place, aspect)], 1.9, 1.0)
+            (vec![toured(&words.points, place, aspect)], 1.9, 1.0)
         }
         Moment::Slide => {
-            let fig = stage.figure.as_ref()?;
-            let weight = if fig.backdrop { 0.4 } else { 1.0 };
-            (
-                vec![toured(&fig.cloud.points, fig.place, aspect)],
-                2.4,
-                weight,
-            )
+            let pic = stage.picture.as_ref()?;
+            let PictureSource::Cloud(cloud) = &pic.source else {
+                return None;
+            };
+            let weight = if pic.backdrop { 0.4 } else { 1.0 };
+            (vec![toured(&cloud.points, pic.place, aspect)], 2.4, weight)
         }
         Moment::Burst { .. } => return None,
     };
     Some(plan(strokes, duration, weight, aspect, now))
+}
+
+/// Segment `i` of `pic` (from point `i - 1` to point `i`) on screen, as far
+/// as the hand has come `t` seconds into the drawing: `None` while the pen
+/// is lifted or has not reached it, cut short while it is being drawn.
+pub fn drawn_segment(pic: &Strokes, i: usize, t: f32, rect: Rect) -> Option<(Pos2, Pos2)> {
+    if !pic.pen[i] || pic.at[i - 1] > t {
+        return None;
+    }
+    let a = to_screen(pic.points[i - 1], rect);
+    let mut b = to_screen(pic.points[i], rect);
+    if pic.at[i] > t {
+        let f = (t - pic.at[i - 1]) / (pic.at[i] - pic.at[i - 1]).max(1e-4);
+        b = a + (b - a) * f.clamp(0.0, 1.0);
+    }
+    Some((a, b))
+}
+
+/// A vector turned a quarter the way the art engines' tools were drawn
+/// (`(y, -x)`): the opposite of [`mdeck_sdk::paint::Vec2::rot90`].
+pub fn across(v: mdeck_sdk::paint::Vec2) -> mdeck_sdk::paint::Vec2 {
+    -v.rot90()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mdeck_sdk::cloud::Cloud;
+    use mdeck_sdk::paint::Vec2;
+    use mdeck_sdk::stage::Picture;
+    use mdeck_sdk::tokens::{EngineSettings, Tokens};
+
+    #[test]
+    fn a_segment_is_cut_where_the_hand_is() {
+        let pic = Strokes {
+            points: vec![
+                Pos2::new(0.0, 0.0),
+                Pos2::new(1.0, 0.0),
+                Pos2::new(1.0, 1.0),
+            ],
+            pen: vec![true, true, false],
+            at: vec![0.0, 1.0, 2.0],
+            duration: 2.0,
+            born: 0.0,
+            weight: 1.0,
+        };
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(100.0, 100.0));
+        let (a, b) = drawn_segment(&pic, 1, 0.5, rect).expect("drawing");
+        assert_eq!(a, to_screen(pic.points[0], rect));
+        assert!((b.x - (a.x + to_screen(pic.points[1], rect).x) / 2.0).abs() < 1e-3);
+        assert!(drawn_segment(&pic, 2, 5.0, rect).is_none(), "pen lifted");
+    }
+
+    #[test]
+    fn across_turns_the_other_way_from_rot90() {
+        assert_eq!(across(Vec2::new(1.0, 0.0)), Vec2::new(0.0, -1.0));
+    }
+
+    #[test]
+    fn a_cloud_picture_is_drawn_in_pen_strokes_and_settles_in_stills() {
+        let (tokens, settings) = (Tokens::default(), EngineSettings::new());
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(1920.0, 1080.0));
+        let mut frame = Frame::new(rect, &tokens, &settings);
+        let cloud = Cloud::new(
+            "dots",
+            (0..40).map(|i| [i as f32 / 40.0, 0.5]).collect(),
+            1.0,
+        );
+        let mut stage = Stage::new(Moment::Slide);
+        stage.picture = Some(Picture {
+            source: PictureSource::Cloud(Arc::new(cloud)),
+            backdrop: false,
+            place: Place {
+                u: 0.5,
+                v: 0.1,
+                w: 0.4,
+                h: 0.8,
+            },
+        });
+        let mut canvas = Canvas::new(3.0, 0.0, 3.0, 0.5);
+        canvas.update(&frame, &stage);
+        assert!(canvas.strokes.is_some() && canvas.drawing.is_none());
+        assert!(canvas.busy());
+        frame.still = true;
+        canvas.update(&frame, &stage);
+        assert!(!canvas.busy(), "a still shows the finished drawing");
+        assert!(canvas.tip.is_none());
+        // no picture: nothing to draw on a slide
+        assert!(fallback_strokes(&frame, &Stage::new(Moment::Slide), 0.0).is_none());
+    }
 }

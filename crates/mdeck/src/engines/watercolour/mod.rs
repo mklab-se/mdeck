@@ -2,42 +2,40 @@
 //! theme's `page:`), and the slide's generated watercolour (`mdeck ai pictures`)
 //! blooms onto it: a pale first wash over the whole picture, then the
 //! colour spreading outward from where the paint is heaviest, the dark
-//! accents dropped in last. Without art, the slide's `picture` is
+//! accents dropped in last. Without art, the slide's point cloud picture is
 //! drawn in ink with a loose wash beside it; the countdown and the end
 //! words are painted the same way. Exports show the dry painting.
 
-use eframe::egui::{self, Color32, Stroke};
+use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Medium, MediumKind, Needs};
+use mdeck_sdk::paint::{Color, Painter, Rect, Stroke, Vec2, mix, premul};
+use mdeck_sdk::stage::{Frame, Stage, Strategy};
+use mdeck_sdk::tokens::Tokens;
 
+use super::art::strokes::{Strokes, to_screen};
 use super::art::{Canvas, Drawing, Hand, Reveal};
 use super::hash01;
-use super::paint::{mix, premul};
-use super::stage::{FrameCx, Stage};
-use super::{Engine, EngineDef};
-use crate::render::art::prepare::Strategy;
-use crate::render::art::{ArtKind, Medium, style};
-use crate::render::illustration::Library;
-use crate::render::strokes::{Picture, to_screen};
-use crate::theme::Theme;
 
 /// Watercolour asks for finished paintings and lets them bloom.
-pub static MEDIUM: Medium = Medium {
+pub const MEDIUM: Medium = Medium {
     name: "watercolour",
-    kind: ArtKind::Tonal,
-    tonal: &style::WATERCOLOUR,
-    tonal_strategy: Strategy::Bloom,
+    kind: MediumKind::Tonal,
+    strategy: Strategy::Bloom,
 };
-
-/// Seconds into the end slide when the caption fades in.
-pub const END_CAPTION_DELAY: f32 = 5.4;
 
 pub static DEF: EngineDef = EngineDef {
-    capabilities: super::art::CAPABILITIES,
-    create: || Box::new(Watercolour::new()),
-    end_caption_delay: END_CAPTION_DELAY,
-    medium: Some(&MEDIUM),
-    render_slide: None,
-    problems: None,
+    name: "watercolour",
+    summary: "Generated paintings that bloom onto cold-press paper.",
+    capabilities: Capabilities {
+        medium: Some(MEDIUM),
+        ..super::art::CAPABILITIES
+    },
+    settings: &[],
+    needs: Needs { page: false },
+    ending_caption_delay: 5.4,
+    create: |_| Box::new(Watercolour::new()),
+    board: None,
 };
+
 /// The end words hold this long, then fade.
 const END_WORDS: f32 = 3.8;
 /// Seconds for a painting to bloom.
@@ -78,28 +76,32 @@ impl Default for Watercolour {
     }
 }
 
-/// The paints: an ink for lines and a wash colour.
+/// The paints: an ink for lines and the wash colours.
 struct Paint {
-    ink: Color32,
-    washes: [Color32; 3],
+    ink: Color,
+    washes: [Color; 3],
 }
 
 impl Paint {
-    fn of(theme: &Theme) -> Self {
+    fn of(t: &Tokens) -> Self {
         Paint {
-            ink: mix(theme.heading_color, theme.background, 0.1),
-            washes: [theme.accent, theme.secondary, theme.accent_soft],
+            ink: mix(t.heading, t.background, 0.1),
+            washes: [t.accent, t.secondary, t.accent_soft],
         }
     }
 }
 
 impl Engine for Watercolour {
-    fn update(&mut self, cx: &FrameCx, stage: &Stage, lib: &mut Library) {
-        self.canvas.update(cx, stage, lib);
+    fn update(&mut self, frame: &Frame, stage: &Stage) {
+        self.canvas.update(frame, stage);
     }
 
-    fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, _stage: &Stage) {
-        self.canvas.paint(ui, cx, &Paint::of(cx.theme));
+    fn paint(&mut self, painter: &mut Painter, frame: &Frame, _stage: &Stage) {
+        self.canvas.paint(painter, frame, &Paint::of(frame.tokens));
+    }
+
+    fn animating(&self) -> bool {
+        self.canvas.moving
     }
 }
 
@@ -110,36 +112,36 @@ impl Hand for Paint {
         0.35
     }
 
-    fn picture(&self, ui: &egui::Ui, cx: &FrameCx, d: &mut Drawing, now: f32, k: f32, _: bool) {
-        let line = d.picture.strategy == Strategy::Draw;
-        let (tint, reveal) = if line {
-            (premul(self.ink, k), LINE_REVEAL)
-        } else {
-            (premul(Color32::WHITE, k), REVEAL)
-        };
-        d.paint(ui, cx.rect, now, tint, reveal);
-    }
-
-    fn strokes(
+    fn picture(
         &self,
-        painter: &egui::Painter,
-        cx: &FrameCx,
-        p: &Picture,
+        painter: &Painter,
+        frame: &Frame,
+        d: &mut Drawing,
         now: f32,
         k: f32,
         _: bool,
     ) {
-        ink_and_wash(painter, p, now, cx.rect, cx.scale, self, k);
+        let line = d.picture.strategy == Strategy::Draw;
+        let (tint, reveal) = if line {
+            (premul(self.ink, k), LINE_REVEAL)
+        } else {
+            (premul(Color::WHITE, k), REVEAL)
+        };
+        d.paint(painter, frame.rect, now, tint, reveal);
+    }
+
+    fn strokes(&self, painter: &Painter, frame: &Frame, p: &Strokes, now: f32, k: f32, _: bool) {
+        ink_and_wash(painter, p, now, frame.rect, frame.scale, self, k);
     }
 }
 
 /// Pen strokes in ink, with a loose wash laid along them a moment later:
 /// wide, pale and a little off the line, the way a quick sketch is washed.
 fn ink_and_wash(
-    painter: &egui::Painter,
-    pic: &Picture,
+    painter: &Painter,
+    pic: &Strokes,
     now: f32,
-    rect: egui::Rect,
+    rect: Rect,
     scale: f32,
     paint: &Paint,
     opacity: f32,
@@ -159,12 +161,12 @@ fn ink_and_wash(
         let b = to_screen(pic.points[i], rect);
         if pic.at[i - 1] <= wash_t {
             let colour = paint.washes[(i / 40) % 3];
-            let off = egui::vec2(
+            let off = Vec2::new(
                 hash01(i as u32 / 12) - 0.5,
                 hash01(i as u32 / 12 + 99) - 0.5,
             ) * 14.0
                 * scale;
-            washes.push(egui::Shape::line_segment(
+            washes.push((
                 [a + off, b + off],
                 Stroke::new(30.0 * scale, premul(colour, 0.10 * opacity * pic.weight)),
             ));
@@ -177,7 +179,7 @@ fn ink_and_wash(
             let f = (t - pic.at[i - 1]) / (pic.at[i] - pic.at[i - 1]).max(1e-4);
             b = a + (b - a) * f.clamp(0.0, 1.0);
         }
-        lines.push(egui::Shape::line_segment(
+        lines.push((
             [a, b],
             Stroke::new(
                 1.8 * scale,
@@ -185,8 +187,9 @@ fn ink_and_wash(
             ),
         ));
     }
-    painter.extend(washes);
-    painter.extend(lines);
+    for (seg, stroke) in washes.into_iter().chain(lines) {
+        painter.line_segment(seg, stroke);
+    }
 }
 
 #[cfg(test)]
@@ -195,13 +198,8 @@ mod tests {
 
     #[test]
     fn watercolour_asks_for_paintings_that_bloom() {
-        assert_eq!(MEDIUM.kind, ArtKind::Tonal);
-        assert_eq!(MEDIUM.tonal_strategy, Strategy::Bloom);
-        assert_eq!(
-            super::super::EngineKind::Watercolour
-                .medium()
-                .map(|m| m.name),
-            Some("watercolour")
-        );
+        assert_eq!(MEDIUM.kind, MediumKind::Tonal);
+        assert_eq!(MEDIUM.strategy, Strategy::Bloom);
+        assert_eq!(DEF.capabilities.medium.map(|m| m.name), Some("watercolour"));
     }
 }

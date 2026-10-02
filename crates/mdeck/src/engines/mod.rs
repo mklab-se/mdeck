@@ -13,9 +13,19 @@
 //! only `mdeck_sdk` and engine helpers under `engines/` (a test checks). The
 //! guide is `crates/mdeck/doc/engines.md` and the SDK's `docs/sdk/`.
 
+#[cfg(feature = "art")]
+pub mod art;
+#[cfg(feature = "darkroom")]
+pub mod darkroom;
 pub mod host;
+#[cfg(feature = "line")]
+pub mod line;
 pub mod plain;
 pub mod rng;
+#[cfg(feature = "sketch")]
+pub mod sketch;
+#[cfg(feature = "watercolour")]
+pub mod watercolour;
 
 pub use host::{CountPhase, Host, Shot, choose, unsupported, unsupported_summary, with_engine};
 pub use mdeck_sdk::engine::{Capabilities, EngineDef, Medium};
@@ -26,6 +36,14 @@ use mdeck_sdk::registry::{Registry, RegistryError};
 /// Register the built-in engines (each one but plain is a cargo feature).
 pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
     r.engine(&plain::DEF)?;
+    #[cfg(feature = "line")]
+    r.engine(&line::DEF)?;
+    #[cfg(feature = "sketch")]
+    r.engine(&sketch::DEF)?;
+    #[cfg(feature = "watercolour")]
+    r.engine(&watercolour::DEF)?;
+    #[cfg(feature = "darkroom")]
+    r.engine(&darkroom::DEF)?;
     Ok(())
 }
 
