@@ -1093,7 +1093,7 @@ colors:                    # #rgb, #rrggbb or #rrggbbaa
     - "#ffb400"
     - "#4ea8ff"
     - "#3ecf8e"
-annotations:               # the presenter's pen (drag) and arrow (Shift+drag) tools
+annotations:               # the presenter's pen (drag) and arrow (right drag) tools
   pen: "#50c8ff"
   pen-outline: "#1e82b4"
   arrow: "#ffc832"
@@ -2759,7 +2759,9 @@ mdeck pack remove acme-brand
 ```
 
 Themes and point clouds in packs are found after the deck's own and the
-user's, and before the built-ins: deck packs first, then user packs.
+user's, and before the built-ins: deck packs first, then user packs. The
+`designs/`, `styles/` and `fonts/` folders are installed with the pack but not
+read yet.
 
 **Code extensions** (engines, visual kinds, design sets, transitions) are Rust
 crates built on the `mdeck-sdk` crate:

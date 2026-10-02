@@ -2,9 +2,11 @@
 
 # Visualizations
 
-Twenty charts and diagrams from plain text. Every one animates in and supports
-step-by-step reveal with the same `+` markers as lists. See all of them in the
-[Gallery](../GALLERY.md).
+Twenty charts and diagrams from plain text. On GitHub each block still reads as
+data. Every one animates in and supports step-by-step reveal with the same `+`
+markers as lists, counted with the rest of the slide's steps. See all of them in
+the [Gallery](../GALLERY.md) and in
+[`samples/visualizations/all.md`](../samples/visualizations/all.md).
 
 ## Charts
 
@@ -36,6 +38,19 @@ Fenced code blocks with an `@` tag become charts:
 Values may carry units and separators (`$4,200`, `12%`, `40 users`). Charts
 pick round axis limits, size their labels to fit, and share one colour palette
 per theme.
+
+<table>
+  <tr>
+    <td width="33%"><img src="../media/gallery/visual-bar.jpg" alt="A bar chart"></td>
+    <td width="33%"><img src="../media/gallery/visual-kpi.jpg" alt="KPI cards"></td>
+    <td width="33%"><img src="../media/gallery/visual-gantt.jpg" alt="A Gantt chart"></td>
+  </tr>
+  <tr>
+    <td><img src="../media/gallery/visual-radar.jpg" alt="A radar chart"></td>
+    <td><img src="../media/gallery/visual-timeline.jpg" alt="A timeline"></td>
+    <td><img src="../media/gallery/visual-flower.jpg" alt="A flower"></td>
+  </tr>
+</table>
 
 ## One grammar inside every block
 
@@ -69,6 +84,8 @@ settings and items.
 ```
 ````
 
+<p align="center"><img src="../media/gallery/visual-architecture.jpg" width="70%" alt="An architecture diagram"></p>
+
 Grid or automatic placement, 20+ built-in icons, five arrow types
 (`->`, `<-`, `<->`, `--`, `-->`), colour-coded labels, and A* routed edges
 that avoid nodes and each other. Node icons can also be AI-generated.
@@ -99,9 +116,12 @@ label: Cabinet 4, breaker row B
   and thresholds can be in degrees.
 - **Comparisons:** two blocks on a slide with `thermal-window: 25..90 °C`
   share one scale, even with different mappings.
-- **Zoom:** `zoom-to: Hotspot` on the next slide zooms into that spot.
+- **Zoom:** `<!-- zoom-to: Hotspot -->` on the next slide enters it by zooming
+  into that spot.
 - **Colour exports** are shown as they are (with a warning); the lens still
   works with them.
+
+<p align="center"><img src="../media/gallery/visual-thermal.jpg" width="70%" alt="A thermal image"></p>
 
 `samples/features/thermal.md` shows every option, and the
 [format spec](../crates/mdeck/doc/mdeck-spec.md) (section 14.20) the full

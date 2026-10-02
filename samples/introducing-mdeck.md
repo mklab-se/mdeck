@@ -190,7 +190,7 @@ Export shows exactly what the window shows, at any size.
 
 ## Extend it, privately
 
-- Themes, designs, point clouds and fonts travel as **packs**
+- Themes and point clouds travel as **packs**
 - `mdeck sdk new engine glow` starts an engine in Rust
 - `mdeck build --with ./glow` builds your own mdeck with it
 - Nothing has to be published

@@ -85,10 +85,10 @@ an AI harness can convert a deck.
   - `mdeck build --with <path|crate[@version]>...` builds an mdeck with extension crates in it:
     a generated cargo project registers the built-ins and each extension, compiles in release
     mode and copies the binary to `./target/release/mdeck` (`--out`, `--name`, `--mdeck-path`).
-  - **Packs** bundle themes, designs, point clouds, styles and fonts with an `mdeck-pack.yaml`
-    manifest: `mdeck pack install <folder|zip|git-url>` (for the user, or `--deck` for the deck's
+  - **Packs** are folders of data with an `mdeck-pack.yaml` manifest: `mdeck pack install <folder|zip|git-url>` (for the user, or `--deck` for the deck's
     `packs/`), `mdeck pack list` and `mdeck pack remove`. Pack themes and point clouds are found
-    after the deck's and the user's and before the built-ins.
+    after the deck's and the user's and before the built-ins; a pack's `designs/`, `styles/` and
+    `fonts/` folders are installed but not read yet.
   - `requires:` in the frontmatter names the packs and extensions a deck expects; `--check` warns
     about each one that is not installed. Frontmatter lists (`[a, b]`) read as `a, b`.
   - `mdeck extensions list` shows installed packs, the engines, visuals, transitions and themes

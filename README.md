@@ -180,7 +180,7 @@ with a "did you mean", content that will not show as written, and v1 syntax with
 
 mdeck is built to be extended by anyone, without forking it and without publishing anything.
 
-- **Packs** bundle themes, designs, point clouds, styles and fonts: `mdeck pack install ./acme-brand`.
+- **Packs** bring themes and point clouds to every deck on the machine: `mdeck pack install ./acme-brand`.
 - **Rust extensions** add engines, visual kinds, design sets and transitions:
   `mdeck sdk new engine glow` starts one, and `mdeck build --with ./glow` builds your own mdeck
   with it.

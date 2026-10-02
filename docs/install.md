@@ -19,8 +19,10 @@ have) to compile [`aws-lc-rs`](https://github.com/aws/aws-lc-rs), the TLS crypto
 transitively via `ailloy`. macOS and Linux need nothing extra, and `brew install` / `cargo binstall`
 skip this entirely by using a pre-built binary.
 
-Every engine is a cargo feature, all on by default. To build a smaller binary with only the
-engines you use, name them (the plain engine is always there):
+Every engine except `plain` is a cargo feature, all on by default: `particles`, `led`,
+`splitflap`, `blocks`, `thermal`, `line`, `sketch`, `watercolour` and `darkroom`. To build a
+smaller binary with only the engines you use, name them (the plain engine is always there, and
+the themes of engines you leave out are left out too):
 
 ```bash
 cargo install mdeck --no-default-features --features particles,splitflap
@@ -49,9 +51,15 @@ cargo audit bin ./mdeck
 
 </details>
 
+To build an mdeck with your own extensions inside, see `mdeck build` in the
+[command reference](commands.md#extending).
+
 Check it works:
 
 ```bash
 mdeck version
 mdeck samples/showcase/launch.md   # from a clone of this repository
 ```
+
+Then write your first deck: the [tutorial](tutorial.md) takes ten minutes. Upgrading from mdeck 1?
+Read [Upgrading from v1](upgrading-from-v1.md) first: the v2 format is new.
