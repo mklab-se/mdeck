@@ -134,7 +134,7 @@ pub struct PointCloudArgs {
     #[arg(long)]
     pub description: Option<String>,
     /// One-off: save to the user library (in the user config folder, see `mdeck config show`)
-    /// instead of ./illustrations
+    /// instead of ./point-clouds
     #[arg(long, requires = "name")]
     pub user: bool,
 }

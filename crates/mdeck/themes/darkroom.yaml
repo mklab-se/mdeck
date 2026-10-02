@@ -1,7 +1,7 @@
 # Darkroom: slides in a darkroom under a red safelight. Each slide's
 # generated black-and-white photograph develops as a print, the shadows
 # first, then the white light comes on (darkroom engine). Make the
-# photographs with `mdeck ai art`; without them, `@illustration` point
+# photographs with `mdeck ai pictures`; without them, `picture:` point
 # clouds become photograms.
 name: Darkroom
 extends: dark

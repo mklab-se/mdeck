@@ -386,8 +386,9 @@ Standard markdown blockquotes:
 ```
 
 A quote keeps its paragraphs, each starting a new line inside the quote's
-accent bar. Lists and nested quotes inside it give their text as further
-lines: a nested quote is not drawn as a quote within a quote. A quote of
+accent bar. A list inside a quote is drawn as a list, and a nested quote
+(`> > text`) as a quote within the quote: indented, with a bar of its own.
+A quote with a list or a nested quote is set flush left. A quote of
 several paragraphs whose last paragraph is short (80 characters or fewer)
 ends in its attribution, set apart under the quotation:
 
@@ -941,8 +942,8 @@ A point cloud name resolves through these places, first match wins:
 
 1. the deck's generated point clouds, `<deck>.assets/point-clouds/` (made by
    `mdeck ai point-cloud`, section 9.7);
-2. `illustrations/<name>.mdpc` next to the deck;
-3. the user library: `illustrations/` in the user folder
+2. `point-clouds/<name>.mdpc` next to the deck;
+3. the user library: `point-clouds/` in the user folder
    (`~/.config/mdeck/` on Linux, `~/Library/Application Support/mdeck/` on
    macOS, `%APPDATA%\mdeck\` on Windows);
 4. the `point-clouds/` folders of installed packs (section 18);
@@ -973,7 +974,7 @@ mdeck point-cloud show server   # a preview image
 constellation of glowing particles forming the subject, then reduces the
 image to a cloud. Given a deck, it writes every missing name into
 `<deck>.assets/point-clouds/`; with `--name`, and `mdeck point-cloud import`,
-it writes `./illustrations/<name>.mdpc` (`--user` writes to the user library
+it writes `./point-clouds/<name>.mdpc` (`--user` writes to the user library
 instead, and `--force` overwrites an import). A cloud is JSON: a name, a
 description, the prompt that made it, the bounding box's height over width,
 and up to 1500 points in the unit square, stored in **importance order** so
@@ -1159,7 +1160,8 @@ links, muted captions and eyebrows, code on its background, the soft accent
 where the design set draws emphasis in it, and every role of every design at
 its size and opacity), and keys that do nothing: an engine setting the engine
 does not read, `fonts.lead` when no design uses the lead face, and an engine
-that draws on a page (line, sketch, watercolour) without a `page:`.
+that draws on a page (line, sketch, watercolour) without a `page:`. It exits
+non-zero on an error or a contrast failure, so a theme can be checked in CI.
 
 **The page.** With a `page:` block the slide is a sheet (the theme's
 `background`) lying on `surface`, with a soft shadow and a fine paper grain.
@@ -2813,14 +2815,21 @@ crates built on the `mdeck-sdk` crate:
 
 ```bash
 mdeck sdk new engine glow                # a crate that builds and tests as it is
+mdeck sdk preview --engine glow -o shots # every design, a chart, images, a picture, both moments
 mdeck build --with ./glow                # an mdeck with it inside: ./target/release/mdeck
-mdeck build --with ./glow --with acme-visuals@1.2 --out ~/bin
+mdeck build --with ./glow --with acme-visuals@1.2 --out ~/bin/
+mdeck build --with git+ssh://git@github.com/acme/glow.git#v1.0.0   # a (private) git repository
 ```
 
 `mdeck sdk new` makes an `engine`, `visual`, `design-set` or `transition`.
 `mdeck build` needs a Rust toolchain: it generates a cargo project that
 registers the built-ins and each extension, builds it in release mode and
-copies the binary to `--out`. `mdeck extensions list` shows the installed
+copies the binary to `--out` (a file, or a folder: one that exists or ends in
+a slash). `--with` takes a crate folder, a crates.io name with an optional
+version, or a git URL (`git+https://`, `git+ssh://`, `git+file://` or
+`git@host:org/repo`) with an optional `#tag`, `#branch` or `#commit`. An
+extension's `register` may also embed themes, fonts (`Registry::font`, for
+the `fonts:` of those themes) and point clouds. `mdeck extensions list` shows the installed
 packs and the engines, visuals, transitions and themes this mdeck provides,
 with their origin. The SDK guide is the repository's `docs/sdk/` folder.
 
@@ -2912,6 +2921,7 @@ comment, one `key: value` per line.
 | top-level `particles:`, `heat:`, `art:`, `surface:` in a theme | the same keys inside the theme's `engine:` block |
 | `countdown: none`, `plain` or `burst` in a theme | `countdown: on` or `off` (the engine decides the look) |
 | `<deck>.art.yaml` and `art/` | `<deck>.assets/manifest.yaml` and `<deck>.assets/artworks/` |
+| point clouds in `illustrations/` (next to the deck and in the user folder) | `point-clouds/` (rename the folder; `--check` reports a v1 one) |
 | `mdeck ai art`, `mdeck ai create`, `mdeck ai generate` | `mdeck ai pictures`, `mdeck ai deck`, `mdeck ai images` and `mdeck ai icons` |
 | `mdeck illustration generate` | `mdeck ai point-cloud` |
 | `mdeck illustration import`, `list`, `show`, `contribute` | `mdeck point-cloud import`, `list`, `show`, `contribute` |

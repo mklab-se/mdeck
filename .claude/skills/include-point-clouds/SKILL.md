@@ -1,19 +1,20 @@
 ---
-name: include-illustrations
-description: Make generated point cloud illustrations official built-ins of mdeck. Use when Kristofer says to include, add, promote or ship illustrations he has created (typically the .mdpc files in ./illustrations/ at the repo root, or files he names), or to pull an illustration someone contributed.
+name: include-point-clouds
+description: Make generated point clouds official built-ins of mdeck. Use when Kristofer says to include, add, promote or ship point clouds (pictures, .mdpc files) he has created (typically the .mdpc files in ./point-clouds/ at the repo root, or files he names), or to pull a point cloud someone contributed.
 ---
 
-# Include illustrations as built-ins
+# Include point clouds as built-ins
 
-A built-in illustration is exactly one file: `crates/mdeck/illustrations/<name>.mdpc`.
+A built-in point cloud is exactly one file: `crates/mdeck/point-clouds/<name>.mdpc`.
 The build script registers every file in that folder, so nothing in `src/` changes.
 Everything else in this skill is review and bookkeeping.
 
 ## Step 1: Find the candidates
 
-- Default source: `illustrations/*.mdpc` in the repo root (where `mdeck point-cloud
-  generate` writes when run from the root). Also accept paths, names, or a deck's
-  `illustrations/` folder if Kristofer names one.
+- Default source: `point-clouds/*.mdpc` in the repo root (where `mdeck ai point-cloud
+  --name ...` and `mdeck point-cloud import` write when run from the root). Also accept
+  paths, names, a deck's `point-clouds/` folder or its `<deck>.assets/point-clouds/` if
+  Kristofer names one.
 - List each candidate with its name, description, point count and aspect (`head -8` of
   the file is enough). Skip the `.png` source images; they never enter the repo.
 - Refuse a name that is not lowercase letters, digits and hyphens, and say so.
@@ -21,7 +22,7 @@ Everything else in this skill is review and bookkeeping.
 ## Step 2: Check the name against the built-in set
 
 ```bash
-cargo run -q -p mdeck -- illustration list | grep built-in
+cargo run -q -p mdeck -- point-cloud list | grep built-in
 ```
 
 - New name: proceed.
@@ -41,8 +42,8 @@ otherwise; do not silently drop it.
 ## Step 4: Move the files in
 
 ```bash
-git mv illustrations/<name>.mdpc crates/mdeck/illustrations/<name>.mdpc   # or cp, if untracked
-rm illustrations/<name>.png                                                # source image, never committed
+git mv point-clouds/<name>.mdpc crates/mdeck/point-clouds/<name>.mdpc   # or cp, if untracked
+rm point-clouds/<name>.png                                               # source image, never committed
 ```
 
 Make sure the moved file keeps its `prompt` and `generated` fields (a generated cloud
@@ -51,17 +52,17 @@ has them; an imported one has `prompt: null`, which is fine).
 ## Step 5: Build, verify, and update the docs
 
 ```bash
-cargo build -p mdeck && cargo test -p mdeck point-cloud
-cargo run -q -p mdeck -- illustration list | grep -c built-in
+cargo build -p mdeck && cargo test -p mdeck illustration
+cargo run -q -p mdeck -- point-cloud list | grep -c built-in
 ```
 
 Then update every place the built-in set is listed or counted:
 
-- `crates/mdeck/doc/mdeck-spec.md` — the "The built-in set:" list in the Illustrations section
-- `crates/mdeck/doc/ai-reference-supplement.md` — the "Built in:" list
-- `docs/engines.md` and `GALLERY.md`: the count ("Twenty illustrations are built in")
-- `CHANGELOG.md` — an `[Unreleased]` line naming the new built-ins
-- `samples/ember/illustrations.md` — only if the new cloud makes a better example than
+- `crates/mdeck/doc/mdeck-spec.md`: the "The built-in set:" list in the point cloud section
+- `crates/mdeck/doc/ai-reference-supplement.md`: the "Built in:" list
+- `docs/engines.md` and `GALLERY.md`: the count ("Thirty-eight pictures are built in")
+- `CHANGELOG.md`: an `[Unreleased]` line naming the new built-ins
+- `samples/ember/illustrations.md`: only if the new cloud makes a better example than
   one already there
 
 Run the full check before declaring done:
@@ -72,13 +73,14 @@ cargo fmt --all -- --check && cargo clippy --workspace -- -D warnings && cargo t
 
 ## Step 6: Commit
 
-One commit, `illustration: add <names> to the built-in set`, with the standard
+One commit, `point clouds: add <names> to the built-in set`, with the standard
 trailers. Do not release; Kristofer decides that separately.
 
 ## Contributed clouds
 
-Contributions arrive as GitHub issues labelled `illustration`, filed by
-`mdeck point-cloud contribute` with a `<name>.mdpc.json` attachment. To include one:
+Contributions arrive as GitHub issues labelled `illustration` (the label keeps its v1
+name), filed by `mdeck point-cloud contribute` with a `<name>.mdpc.json` attachment. To
+include one:
 
 ```bash
 gh issue list --label illustration
@@ -89,7 +91,8 @@ Find the attachment link in the body (`https://github.com/user-attachments/files
 download it, and rename it:
 
 ```bash
-curl -sL -o illustrations/<name>.mdpc "<attachment url>"
+mkdir -p point-clouds
+curl -sL -o point-clouds/<name>.mdpc "<attachment url>"
 mdeck point-cloud show <name> --output /tmp/<name>.png --quiet
 ```
 

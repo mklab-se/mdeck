@@ -2,7 +2,7 @@
 //! with AI) and preview custom themes.
 
 mod from;
-mod preview;
+pub(crate) mod preview;
 
 use std::path::{Path, PathBuf};
 
@@ -90,7 +90,8 @@ fn list() -> Result<()> {
     Ok(())
 }
 
-/// Print a theme's problems; returns whether it loaded.
+/// Print a theme's problems; returns whether it passes: it loaded and every
+/// text colour reads comfortably (warnings about keys do not fail it).
 fn report(name: &str, l: &Lookup) -> bool {
     match l.load(name) {
         Err(e) => {
@@ -131,11 +132,13 @@ fn report(name: &str, l: &Lookup) -> bool {
             {
                 println!("  {}", "No issues found.".green());
             }
-            true
+            advice.is_empty()
         }
     }
 }
 
+/// `mdeck theme check`: exits non-zero on an error or a contrast failure, so
+/// it can guard a theme in CI.
 fn check(name: &str) -> Result<()> {
     if !report(name, &here()) {
         std::process::exit(1);
@@ -220,6 +223,24 @@ mod tests {
         assert!(s.contains("From a design system to a theme"));
         assert!(s.contains("mdeck theme preview"));
         assert!(!s.contains("## 10."));
+    }
+
+    #[test]
+    fn theme_check_fails_on_contrast_and_errors() {
+        let dir = std::env::temp_dir().join(format!("mdeck-theme-check-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("murky.yaml"),
+            "extends: dark\ncolors: { background: '#777777', text: '#888888' }\n",
+        )
+        .unwrap();
+        std::fs::write(dir.join("fine.yaml"), "extends: dark\n").unwrap();
+        let l = written_in(&dir);
+        assert!(!report("murky", &l), "a contrast failure fails the check");
+        assert!(!report("no-such-theme", &l), "an error fails the check");
+        assert!(report("fine", &l));
+        assert!(report("dark", &l));
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

@@ -5,10 +5,11 @@ already keeps the whole engine contract.
 
 ![The ambience engine's settled ground](../../examples/engine-ambience/tests/golden/dark.png)
 
-The complete crate is [`examples/engine-ambience`](../../examples/engine-ambience). Run its tests
-with `cargo test -p engine-ambience`.
+**What you will build:** `ambience`, a calm animated ground: a dozen soft lights drifting
+slowly under every slide.
+The complete crate is [`examples/engine-ambience`](../../examples/engine-ambience).
 
-You will learn:
+**What you will learn:**
 
 - the frame lifecycle: `update`, then `paint`, then `animating`;
 - drawing through the `Painter`, with glow sprites;
@@ -16,9 +17,17 @@ You will learn:
 - taking colours from the theme;
 - reduced motion and deterministic stills.
 
+**Before you start:** set up the [prerequisites](prerequisites.md), and work through
+[Your first engine](tutorial-0-your-first-engine.md) first if you have not written an engine yet.
+This step explains a finished engine instead of having you type it: every code block is a
+**READ** block, taken from the file its label names, so read them next to that file. To run the
+engine yourself, see [Try it](#try-it) at the end.
+
 ## The crate
 
 `Cargo.toml` depends on `mdeck-sdk` and nothing else:
+
+**READ** `examples/engine-ambience/Cargo.toml` (the example is part of mdeck's workspace, so it uses a path instead):
 
 ```toml
 [dependencies]
@@ -27,6 +36,8 @@ mdeck-sdk = "2"
 
 The crate exports two things mdeck needs: the engine's definition `DEF` and the entry point
 `register`.
+
+**READ** `examples/engine-ambience/src/lib.rs`, the definition and `register`:
 
 ```rust
 pub static DEF: EngineDef = EngineDef {
@@ -57,6 +68,8 @@ pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
 
 The theme is plain data:
 
+**READ** `examples/engine-ambience/themes/dusk.yaml`:
+
 ```yaml
 name: Dusk
 extends: dark
@@ -71,6 +84,8 @@ colors:
 
 ## The state
 
+**READ** `examples/engine-ambience/src/lib.rs`, the engine's state:
+
 ```rust
 pub struct Ambience {
     lights: Vec<Light>,
@@ -83,6 +98,8 @@ pub struct Ambience {
 
 Each `Light` circles a home position on a slow Lissajous path. Its position is a pure function of
 the clock:
+
+**READ** `examples/engine-ambience/src/lib.rs`, `Light::at`:
 
 ```rust
 pub fn at(&self, t: f32) -> [f32; 2] {
@@ -102,6 +119,8 @@ is no random number generator and no wall clock anywhere: the same deck always g
 lights. This is the first half of deterministic stills.
 
 ## `update`: advance the clock
+
+**READ** `examples/engine-ambience/src/lib.rs`, `update`:
 
 ```rust
 fn update(&mut self, frame: &Frame, stage: &Stage) {
@@ -129,6 +148,8 @@ only on the slide number: slide 3 always looks the same, and slide 4 looks diffe
 Live, the clock advances by `frame.dt`, clamped so a stalled frame never makes the lights jump.
 
 ## `paint`: draw under the slide
+
+**READ** `examples/engine-ambience/src/lib.rs`, `paint`:
 
 ```rust
 fn paint(&mut self, painter: &mut Painter, frame: &Frame, _stage: &Stage) {
@@ -178,6 +199,8 @@ draw.
 
 ## `animating`: be honest
 
+**READ** `examples/engine-ambience/src/lib.rs`, `animating`:
+
 ```rust
 fn animating(&self) -> bool {
     !self.settled
@@ -190,6 +213,8 @@ another frame, so under reduced motion the engine costs nothing.
 ## Testing
 
 The unit tests check the contract directly:
+
+**READ** `examples/engine-ambience/src/lib.rs`, a unit test in `mod tests`:
 
 ```rust
 #[test]
@@ -205,6 +230,8 @@ fn stills_are_deterministic_and_differ_by_slide() {
 `still` renders one frame with `mdeck_sdk::testing::Headless`, which draws without a window or a
 GPU:
 
+**READ** `examples/engine-ambience/src/lib.rs`, the body of the `still` helper in `mod tests`:
+
 ```rust
 let mut headless = Headless::new(w, h);
 let (tokens, settings) = (Tokens::default(), EngineSettings::new());
@@ -217,6 +244,8 @@ headless.render_engine(&mut Ambience::new(), &frame, &stage)
 
 The golden tests in `tests/golden.rs` compare a dark and a light still against PNGs committed in
 `tests/golden/`:
+
+**READ** `examples/engine-ambience/tests/golden.rs`:
 
 ```rust
 assert_golden(golden("dark"), &render(&Tokens::default(), 0), GOLDEN_TOLERANCE);
@@ -232,8 +261,23 @@ the GPU's but not identical.
 
 ## Try it
 
+To run this engine you need a clone of the mdeck repository, the one case where you do: the
+examples live there and build against its SDK. **RUN** once, in the folder where you keep code:
+
 ```bash
-mdeck build --with examples/engine-ambience
+git clone https://github.com/mklab-se/mdeck
+cd mdeck
+cargo test -p engine-ambience
+```
+
+`--mdeck-path .` makes `mdeck build` use the clone's mdeck too (the example depends on the
+clone's SDK, and both must be the same). Alternatively, create your own crate with
+`mdeck sdk new engine <name>` and copy the example's `src/lib.rs` and theme into it.
+
+Then, **RUN** in `mdeck/`:
+
+```bash
+mdeck build --with examples/engine-ambience --mdeck-path .
 ./target/release/mdeck samples/layouts/code.md --engine ambience
 ./target/release/mdeck export samples/layouts/code.md --theme dusk --at 4 --output-dir /tmp/dusk
 ```

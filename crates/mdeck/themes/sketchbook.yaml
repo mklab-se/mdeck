@@ -1,7 +1,7 @@
 # Sketchbook: a sheet of drawing paper on a grey desk. Graphite and ink
 # drawings in the MKLab house style, old craft meeting modern technology,
 # drawn in with a pencil as each slide opens (sketch engine). Make the
-# drawings with `mdeck ai art`; without them, `@illustration` point clouds
+# drawings with `mdeck ai pictures`; without them, `picture:` point clouds
 # are drawn in pencil.
 name: Sketchbook
 extends: light

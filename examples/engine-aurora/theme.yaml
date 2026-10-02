@@ -1,0 +1,14 @@
+# The showcase theme of the aurora engine. Registered by `register()`, so
+# a deck selects it with `theme: aurora`.
+name: aurora
+extends: dark
+engine:
+  name: aurora
+  cool: "#a77bff"
+  speed: 0.8
+  height: 1.2
+countdown: off
+colors:
+  background: "#070b14"
+  accent: "#3ddc97"
+  secondary: "#5ad1e6"

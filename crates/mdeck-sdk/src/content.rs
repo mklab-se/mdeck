@@ -34,7 +34,7 @@ pub struct Slide {
     pub source_lines: Vec<usize>,
     /// Speaker notes.
     pub notes: Option<String>,
-    /// The point cloud illustration the slide names (`@illustration`).
+    /// The picture the slide names (`<!-- picture: name -->`).
     pub illustration: Option<String>,
     /// The slide's logo (a path, or `none`).
     pub logo: Option<String>,

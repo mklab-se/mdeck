@@ -38,7 +38,22 @@ MDECK_UPDATE_GOLDEN=1 cargo test    # accept a deliberate change of look
 
 The first test run records `tests/golden/{{name}}.png`. Commit it.
 
+## Version control and sharing
+
+```bash
+printf 'target/\n*.actual.png\nout/\n' > .gitignore
+git init -b main && git add . && git commit -m "The {{name}} engine"
+git tag v0.1.0
+```
+
+Push it to a (private) repository, and colleagues build an mdeck with it:
+
+```bash
+mdeck build --with git+ssh://git@github.com/acme/{{name}}.git#v0.1.0
+```
+
 ## Learn more
 
-The SDK guides (getting started, concepts, a three-step engine tutorial) are in
+The SDK guides (prerequisites, a full-cycle tutorial from an empty folder to colleagues using your
+engine, concepts, and packaging and sharing) are in
 [`docs/sdk`](https://github.com/mklab-se/mdeck/tree/main/docs/sdk).

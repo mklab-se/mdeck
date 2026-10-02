@@ -71,7 +71,7 @@ fn write_cloud(cloud: &Cloud, user: bool, force: bool) -> Result<PathBuf> {
 }
 
 /// `mdeck ai point-cloud --name --description`: a library cloud in
-/// `./illustrations` (or the user library).
+/// `./point-clouds` (or the user library).
 pub async fn generate(
     name: &str,
     description: &str,

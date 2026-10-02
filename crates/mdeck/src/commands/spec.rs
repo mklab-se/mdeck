@@ -80,8 +80,8 @@ IMAGE OPTIONS (in alt text: ![Team @width: 60%](team.jpg))
 PICTURES (on the design's stage; every engine but plain and splitflap)
   <!-- picture: name -->  The slide's artwork on an art engine, else the point
                         cloud of that name, else an image file of that path
-                        clouds: deck.assets/point-clouds > deck illustrations/ >
-                        user folder illustrations/ > packs > built-in
+                        clouds: deck.assets/point-clouds > deck point-clouds/ >
+                        user folder point-clouds/ > packs > built-in
   <!-- picture: none -->  Keep the stage empty
   mdeck ai point-cloud deck.md   Generate the deck's missing names (deck.assets/)
   mdeck ai point-cloud --name NAME --description "..."   A library cloud via AI
@@ -156,6 +156,7 @@ PRESENT, EXPORT, CHECK
 EXTENDING (spec section 18)
   mdeck pack install <folder|zip|git-url>   Themes, designs, point clouds, fonts
   mdeck sdk new engine|visual|design-set|transition <name>   A Rust crate
+  mdeck sdk preview --engine NAME [--theme NAME] -o DIR   Every design and both moments, as PNGs
   mdeck build --with <path|crate>   An mdeck with the extension inside
   requires: [pack, extension]       In the frontmatter; --check names missing ones
 "#;

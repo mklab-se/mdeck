@@ -297,7 +297,8 @@ mdeck ai theme acme --from ./brand         # a theme from a design system (AI)
 theme draws (body text, headings, bold, links, muted captions and eyebrows, code, every design
 role at the size and opacity it is drawn), and keys that do nothing: an engine setting the engine
 does not read, `fonts.lead` when no design in the theme's design set uses it, or a paper engine
-without a `page:`.
+without a `page:`. It exits non-zero on an error or a contrast failure (warnings about keys do not
+fail it), so a theme can be checked in CI.
 
 **From a design system.** If your brand already lives in a design system (a Claude Design
 export, CSS tokens, a Tailwind config, W3C design tokens), `mdeck ai theme acme --from

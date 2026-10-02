@@ -1,6 +1,21 @@
 # Writing a visual kind
 
+**What you will build:** `roadmap`, a new fenced block kind (```` ```@roadmap ````) drawn on the
+slide, with its own `--check` problems; or, without Rust, a visual drawn by a program in any
+language.
+
+**What you will learn:** the `Visual` trait, the fence grammar, reporting problems with line
+numbers, publishing geometry for engines, testing, and external visual programs.
+
+**Before you start:** the [prerequisites](prerequisites.md) (only for the Rust part), and
+[Your first engine](tutorial-0-your-first-engine.md) for the build, test, git and sharing cycle,
+which is the same for a visual: `mdeck sdk new visual roadmap`, then `mdeck build --with .`.
+Code blocks are labelled **TYPE** (you write it), **READ** (shown for understanding) and **RUN**
+(terminal commands).
+
 A visual is a block mdeck draws from structured text in a fence. A deck writes it like code:
+
+**READ** a slide in a deck that uses the visual:
 
 ````markdown
 ```@roadmap
@@ -16,11 +31,15 @@ built-in `@bar`, `@line` and `@architecture`.
 
 Start with the scaffold, which builds and tests as it is:
 
+**RUN** in the folder where you keep code:
+
 ```bash
 mdeck sdk new visual roadmap
 ```
 
 ## The `Visual` trait
+
+**READ** the trait, from `mdeck_sdk::visual` (you implement it):
 
 ```rust
 pub trait Visual: Send + Sync {
@@ -33,6 +52,8 @@ pub trait Visual: Send + Sync {
 ```
 
 Register it from your crate's entry point:
+
+**TYPE** `src/lib.rs` in your visual's crate (the scaffold has a working version):
 
 ```rust
 pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
@@ -58,6 +79,8 @@ Kind-specific verbs (a `milestone` in a roadmap, a `lens` in a thermal image) ar
 inside this grammar, not new syntax. A `+ ` item is revealed on the next step, like a `+` list item
 in the slide; a `- ` item is shown with the slide.
 
+**READ** the fence grammar, as an author writes it:
+
 ```text
 title: 2027                       # a setting
 max: 4                            # another setting
@@ -71,6 +94,8 @@ Search -> Sync: unblocks          # a relation
 `check` returns every problem in the source, one `Problem` per mistake, with the 1-based line
 **inside the fence** (mdeck adds the fence's position in the deck, so `--check` points at the
 right line of the file). Use the category `visual`.
+
+**TYPE** `src/lib.rs`, in your `impl Visual`:
 
 ```rust
 fn check(&self, src: &str) -> Vec<Problem> {
@@ -93,6 +118,8 @@ reveal steps are one sequence: list items, visuals and everything else take thei
 
 ## `draw`
 
+**TYPE** `src/lib.rs`, in your `impl Visual`:
+
 ```rust
 fn draw(&self, cx: &mut VisualCx, src: &str, rect: Rect, step: usize) -> f32
 ```
@@ -113,6 +140,8 @@ fn draw(&self, cx: &mut VisualCx, src: &str, rect: Rect, step: usize) -> f32
 `mdeck_sdk::testing::Headless::render_visual` draws a visual without a window and returns the
 image, the published hints and the height:
 
+**TYPE** a test in `tests/` or `mod tests`:
+
 ```rust
 let out = Headless::new(480, 270).render_visual(&Roadmap, SRC, 1, &Tokens::default());
 assert_eq!(out.hints.len(), 3);
@@ -128,6 +157,8 @@ If your team does not write Rust, a visual can be any program that writes a PNG.
 to a command in the user config (`config.yaml` in the user folder: `~/.config/mdeck/` on Linux, `~/Library/Application Support/mdeck/`
 on macOS; `mdeck config show` prints it):
 
+**TYPE** your user config (`mdeck config show` prints where it is):
+
 ```yaml
 visuals:
   plantuml: ~/bin/plantuml-png      # draws ```@plantuml blocks
@@ -135,6 +166,8 @@ visuals:
 
 For each ```` ```@plantuml ```` block, mdeck runs the command through the shell (`sh -c`, or
 `cmd /C` on Windows) and writes one JSON object to its stdin:
+
+**READ** what mdeck writes to the program's stdin:
 
 ```json
 {
@@ -162,6 +195,8 @@ command and everything in the request. A program runs once per block when the de
 image is missing, never while you present; change the block or the theme and it runs again for
 that block. Commit the `visuals/` folder with the deck and it presents on machines without the
 program. A minimal program in Python:
+
+**TYPE** the program, for example `~/bin/plantuml-png` (make it executable with `chmod +x`):
 
 ```python
 #!/usr/bin/env python3

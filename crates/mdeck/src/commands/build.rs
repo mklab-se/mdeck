@@ -1,5 +1,6 @@
-//! `mdeck build --with <path|crate[@version]>...` (EXT-14, EXT-17, D15): an
-//! mdeck with extension crates built in, without touching mdeck's source.
+//! `mdeck build --with <path|crate[@version]|git-url[#ref]>...` (EXT-14,
+//! EXT-17, D15): an mdeck with extension crates built in, without touching
+//! mdeck's source.
 //!
 //! It generates a small cargo project in the cache folder
 //! (`<cache>/mdeck/build/<hash>/`, one per set of inputs, so a rebuild with
@@ -37,12 +38,138 @@ pub enum Extension {
         name: String,
         version: Option<String>,
     },
+    /// A crate in a git repository (private ones too: cargo fetches it with
+    /// the user's git credentials or ssh agent).
+    Git {
+        /// The URL cargo fetches (`https://`, `ssh://`, `file://`).
+        url: String,
+        /// The package name: `?package=` or the repository's name.
+        package: String,
+        /// The `#` part: a tag, a branch or a commit.
+        reference: Option<GitRef>,
+    },
+}
+
+/// Which commit of a git extension to build.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GitRef {
+    Tag(String),
+    Branch(String),
+    Rev(String),
+}
+
+impl GitRef {
+    /// `tag=v1`, `branch=main`, `rev=1a2b3c4`, or bare: a commit hash (7 to
+    /// 40 hex digits) is a rev, a version (`v1.2`, `1.2.0`) is a tag, and
+    /// anything else is a branch.
+    fn parse(s: &str) -> Result<Self> {
+        let r = if let Some(t) = s.strip_prefix("tag=") {
+            GitRef::Tag(t.to_string())
+        } else if let Some(b) = s.strip_prefix("branch=") {
+            GitRef::Branch(b.to_string())
+        } else if let Some(c) = s.strip_prefix("rev=") {
+            GitRef::Rev(c.to_string())
+        } else if (7..=40).contains(&s.len()) && s.chars().all(|c| c.is_ascii_hexdigit()) {
+            GitRef::Rev(s.to_string())
+        } else if s
+            .strip_prefix('v')
+            .unwrap_or(s)
+            .starts_with(|c: char| c.is_ascii_digit())
+        {
+            GitRef::Tag(s.to_string())
+        } else {
+            GitRef::Branch(s.to_string())
+        };
+        if r.value().is_empty() {
+            bail!("`#{s}`: name a tag, a branch or a commit after the #");
+        }
+        Ok(r)
+    }
+
+    fn value(&self) -> &str {
+        match self {
+            GitRef::Tag(v) | GitRef::Branch(v) | GitRef::Rev(v) => v,
+        }
+    }
+
+    fn key(&self) -> &'static str {
+        match self {
+            GitRef::Tag(_) => "tag",
+            GitRef::Branch(_) => "branch",
+            GitRef::Rev(_) => "rev",
+        }
+    }
+}
+
+/// A git source: `git+https://host/org/repo[.git][?package=name][#ref]`,
+/// `git+ssh://...`, `git+file://...` or `git@host:org/repo[...]`. `None`
+/// when `arg` is not one.
+fn parse_git(arg: &str) -> Option<Result<Extension>> {
+    let url = if let Some(rest) = arg.strip_prefix("git+") {
+        rest.to_string()
+    } else if arg.starts_with("git@") && !arg.contains("://") {
+        // scp-like `git@host:org/repo`; cargo wants `ssh://git@host/org/repo`.
+        let (host, path) = arg.split_once(':')?;
+        format!("ssh://{host}/{}", path.trim_start_matches('/'))
+    } else {
+        return None;
+    };
+    Some(git_extension(arg, url))
+}
+
+fn git_extension(arg: &str, url: String) -> Result<Extension> {
+    let (url, reference) = match url.split_once('#') {
+        Some((u, r)) => (u.to_string(), Some(GitRef::parse(r)?)),
+        None => (url, None),
+    };
+    let (url, package) = match url.split_once('?') {
+        Some((u, q)) => {
+            let name = q
+                .split('&')
+                .find_map(|kv| kv.strip_prefix("package="))
+                .ok_or_else(|| anyhow!("`{arg}`: the only query it takes is ?package=<name>"))?;
+            (u.to_string(), Some(name.to_string()))
+        }
+        None => (url, None),
+    };
+    let scheme_ok = ["https://", "http://", "ssh://", "file://"]
+        .iter()
+        .any(|s| url.starts_with(s));
+    if !scheme_ok {
+        bail!(
+            "`{arg}`: a git source is git+https://..., git+ssh://..., git+file://... or git@host:org/repo"
+        );
+    }
+    let package = package.unwrap_or_else(|| {
+        url.trim_end_matches('/')
+            .rsplit('/')
+            .next()
+            .unwrap_or_default()
+            .trim_end_matches(".git")
+            .to_string()
+    });
+    let ok = !package.is_empty()
+        && package
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+    if !ok {
+        bail!("`{arg}`: no crate name in the URL; add ?package=<name>");
+    }
+    Ok(Extension::Git {
+        url,
+        package,
+        reference,
+    })
 }
 
 impl Extension {
-    /// `./glow`, `../acme`, `/abs/path` (a folder with a `Cargo.toml`), or
-    /// `name` / `name@1.2`.
+    /// `./glow`, `../acme`, `/abs/path` (a folder with a `Cargo.toml`),
+    /// `name` / `name@1.2`, or a git source (`git+https://...#v1`, see
+    /// [`parse_git`]).
     pub fn parse(arg: &str) -> Result<Self> {
+        if let Some(git) = parse_git(arg) {
+            return git;
+        }
         let path = Path::new(arg);
         let looks_like_path =
             path.exists() || arg.starts_with('.') || arg.contains('/') || arg.contains('\\');
@@ -79,12 +206,27 @@ impl Extension {
         match self {
             Extension::Path { package, .. } => package,
             Extension::Crate { name, .. } => name,
+            Extension::Git { package, .. } => package,
         }
     }
 
     /// The name Rust code uses for the crate.
     pub fn ident(&self) -> String {
         self.package().replace('-', "_")
+    }
+
+    /// Whether what it names can move on while the arguments stay the same:
+    /// a branch (or the default branch) of a git repository, or a crates.io
+    /// version requirement. A rebuild then updates it in the generated
+    /// project's lock file, so `--with ...#main` picks up new commits.
+    fn floats(&self) -> bool {
+        match self {
+            Extension::Path { .. } => false,
+            Extension::Crate { .. } => true,
+            Extension::Git { reference, .. } => {
+                matches!(reference, None | Some(GitRef::Branch(_)))
+            }
+        }
     }
 
     fn dependency(&self) -> String {
@@ -97,6 +239,18 @@ impl Extension {
                 quote(name),
                 quote(version.as_deref().unwrap_or("*"))
             ),
+            Extension::Git {
+                url,
+                package,
+                reference,
+            } => {
+                let mut dep = format!("{} = {{ git = {}", quote(package), quote(url));
+                if let Some(r) = reference {
+                    dep.push_str(&format!(", {} = {}", r.key(), quote(r.value())));
+                }
+                dep.push_str(" }");
+                dep
+            }
         }
     }
 }
@@ -302,12 +456,18 @@ pub struct BuildArgs {
     pub quiet: bool,
 }
 
-/// Where the binary goes: `--out` (a file, or a folder to put it in), else
-/// `./target/release/<name>`.
+/// Where the binary goes: `--out` (a file, or a folder to put it in: one
+/// that exists or ends in a slash), else `./target/release/<name>`.
 pub fn output_path(out: Option<PathBuf>, bin: &str) -> PathBuf {
     let file = format!("{bin}{}", std::env::consts::EXE_SUFFIX);
+    let folder = |p: &Path| {
+        p.is_dir() || {
+            let s = p.to_string_lossy();
+            s.ends_with('/') || s.ends_with('\\')
+        }
+    };
     match out {
-        Some(p) if p.is_dir() => p.join(file),
+        Some(p) if folder(&p) => p.join(file),
         Some(p) => p,
         None => Path::new("target").join("release").join(file),
     }
@@ -316,7 +476,7 @@ pub fn output_path(out: Option<PathBuf>, bin: &str) -> PathBuf {
 /// `mdeck build`: generate, compile, install. Returns the binary's path.
 pub fn build(args: BuildArgs) -> Result<PathBuf> {
     if args.with.is_empty() {
-        bail!("name at least one extension: `mdeck build --with <path|crate>`");
+        bail!("name at least one extension: `mdeck build --with <path|crate|git-url>`");
     }
     crate::commands::sdk::validate_name(&args.name)
         .map_err(|_| anyhow!("`{}` is not a usable binary name", args.name))?;
@@ -332,6 +492,17 @@ pub fn build(args: BuildArgs) -> Result<PathBuf> {
     let root = build_root()?;
     let dir = root.join(project.hash());
     project.write(&dir)?;
+    if dir.join("Cargo.lock").exists() {
+        for e in extensions.iter().filter(|e| e.floats()) {
+            // Ignore failures (offline, say): cargo build then uses what the
+            // lock file has, as before.
+            let _ = Command::new(cargo())
+                .args(["update", "--quiet", "--manifest-path"])
+                .arg(dir.join("Cargo.toml"))
+                .args(["--package", e.package()])
+                .status();
+        }
+    }
     let target = root.join("target");
     if !args.quiet {
         let names: Vec<&str> = extensions.iter().map(Extension::package).collect();
@@ -424,6 +595,100 @@ mod tests {
         assert!(Extension::parse("bad name!").is_err());
     }
 
+    fn git_dependency(arg: &str) -> String {
+        Extension::parse(arg).unwrap().dependency()
+    }
+
+    #[test]
+    fn git_sources_become_cargo_git_dependencies() {
+        // https, with and without .git, no ref: the default branch.
+        assert_eq!(
+            git_dependency("git+https://github.com/acme/aurora"),
+            "\"aurora\" = { git = \"https://github.com/acme/aurora\" }"
+        );
+        assert_eq!(
+            git_dependency("git+https://github.com/acme/aurora.git#v0.2.0"),
+            "\"aurora\" = { git = \"https://github.com/acme/aurora.git\", tag = \"v0.2.0\" }"
+        );
+        // ssh, with a branch.
+        assert_eq!(
+            git_dependency("git+ssh://git@github.com/acme/aurora.git#main"),
+            "\"aurora\" = { git = \"ssh://git@github.com/acme/aurora.git\", branch = \"main\" }"
+        );
+        // scp-like, with a commit.
+        assert_eq!(
+            git_dependency("git@gitlab.com:acme/engines/aurora.git#1a2b3c4d"),
+            "\"aurora\" = { git = \"ssh://git@gitlab.com/acme/engines/aurora.git\", rev = \"1a2b3c4d\" }"
+        );
+        // A local repository, an explicit kind of ref, and a package name
+        // that differs from the repository's.
+        assert_eq!(
+            git_dependency("git+file:///tmp/engines.git?package=aurora#tag=release-1"),
+            "\"aurora\" = { git = \"file:///tmp/engines.git\", tag = \"release-1\" }"
+        );
+        assert_eq!(
+            git_dependency("git+https://example.com/x/aurora#branch=v2-work"),
+            "\"aurora\" = { git = \"https://example.com/x/aurora\", branch = \"v2-work\" }"
+        );
+        assert_eq!(
+            git_dependency("git+https://example.com/x/aurora#rev=HEAD~1"),
+            "\"aurora\" = { git = \"https://example.com/x/aurora\", rev = \"HEAD~1\" }"
+        );
+    }
+
+    #[test]
+    fn git_refs_are_guessed_from_their_shape() {
+        assert_eq!(
+            GitRef::parse("v1.2.0").unwrap(),
+            GitRef::Tag("v1.2.0".into())
+        );
+        assert_eq!(GitRef::parse("1.2").unwrap(), GitRef::Tag("1.2".into()));
+        assert_eq!(
+            GitRef::parse("main").unwrap(),
+            GitRef::Branch("main".into())
+        );
+        assert_eq!(
+            GitRef::parse("deadbeef").unwrap(),
+            GitRef::Rev("deadbeef".into())
+        );
+        // Too short for a commit: a branch.
+        assert_eq!(
+            GitRef::parse("cafe").unwrap(),
+            GitRef::Branch("cafe".into())
+        );
+        assert!(GitRef::parse("tag=").is_err());
+    }
+
+    #[test]
+    fn bad_git_sources_say_what_is_wrong() {
+        let err = Extension::parse("git+ftp://host/aurora")
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("git+https://"), "{err}");
+        let err = Extension::parse("git+https://host/acme/aurora.engine")
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("?package="), "{err}");
+        let err = Extension::parse("git+https://host/aurora?branch=x")
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("?package="), "{err}");
+    }
+
+    #[test]
+    fn a_git_extension_registers_by_its_package() {
+        let exts = vec![Extension::parse("git+https://github.com/acme/my-aurora#v1").unwrap()];
+        let p = Project::generate(&exts, &MdeckSource::Published("2.0.0".into()), "mdeck");
+        assert!(
+            p.cargo_toml.contains(
+                "\"my-aurora\" = { git = \"https://github.com/acme/my-aurora\", tag = \"v1\" }"
+            ),
+            "{}",
+            p.cargo_toml
+        );
+        assert!(p.main_rs.contains("::my_aurora::register(&mut registry)"));
+    }
+
     #[test]
     fn package_names_come_from_the_package_table() {
         let toml = "[workspace]\nname = \"nope\"\n\n[package]\nversion = \"1\"\nname = \"glow\"\n";
@@ -507,6 +772,23 @@ mod tests {
             output_path(Some(dir.clone()), "x"),
             dir.join(format!("x{exe}"))
         );
+        // A folder that does not exist yet, marked as one by its slash.
+        assert_eq!(
+            output_path(Some("no-such-bin/".into()), "mdeck"),
+            PathBuf::from(format!("no-such-bin/mdeck{exe}"))
+        );
+    }
+
+    #[test]
+    fn branches_and_crates_io_requirements_float_tags_and_commits_do_not() {
+        let floats = |a: &str| Extension::parse(a).unwrap().floats();
+        assert!(floats("git+https://host/acme/aurora"));
+        assert!(floats("git+https://host/acme/aurora#main"));
+        assert!(!floats("git+https://host/acme/aurora#v1.0.0"));
+        assert!(!floats("git+https://host/acme/aurora#1a2b3c4d"));
+        assert!(floats("acme-engines@1.2"));
+        let ambience = checkout().join("examples/engine-ambience");
+        assert!(!floats(ambience.to_str().unwrap()));
     }
 
     #[test]

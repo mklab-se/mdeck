@@ -44,15 +44,33 @@ pub fn point_cloud_warnings(
             message,
         });
     }
-    for p in lib.take_problems() {
+    for message in v1_folder(base).into_iter().chain(lib.take_problems()) {
         out.push(CheckWarning {
             slide: 0,
             line: 0,
             category: CheckCategory::PointCloud,
-            message: p,
+            message,
         });
     }
     out
+}
+
+/// A deck folder that still keeps point clouds in v1's `illustrations/`,
+/// which v2 no longer reads (CON-01).
+fn v1_folder(base: &std::path::Path) -> Option<String> {
+    let dir = base.join(render::illustration::V1_FOLDER);
+    let has_clouds = std::fs::read_dir(&dir).ok()?.flatten().any(|e| {
+        e.path()
+            .extension()
+            .is_some_and(|x| x == render::illustration::EXTENSION)
+    });
+    has_clouds.then(|| {
+        format!(
+            "`{}/` is a v1 folder; rename it to `{}/` (its point clouds are not read)",
+            render::illustration::V1_FOLDER,
+            render::illustration::FOLDER
+        )
+    })
 }
 
 #[cfg(test)]
@@ -60,9 +78,33 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_v1_illustrations_folder_is_reported() {
+        let tmp = std::env::temp_dir().join(format!("mdeck-v1-clouds-{}", std::process::id()));
+        std::fs::create_dir_all(tmp.join("illustrations")).unwrap();
+        let pres = parser::parse("# Hi\n");
+        let theme = crate::theme::Theme::dark();
+        let talk = tmp.join("talk.md");
+        // a folder without point clouds is not a v1 library
+        assert!(point_cloud_warnings(&pres, &talk, &theme).is_empty());
+        std::fs::write(tmp.join("illustrations/kettle.mdpc"), "{}").unwrap();
+        let messages: Vec<String> = point_cloud_warnings(&pres, &talk, &theme)
+            .into_iter()
+            .filter(|w| w.slide == 0)
+            .map(|w| w.message)
+            .collect();
+        assert!(
+            messages
+                .iter()
+                .any(|m| m.contains("v1 folder; rename it to `point-clouds/`")),
+            "{messages:?}"
+        );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    #[test]
     fn point_cloud_warnings_cover_missing_names_and_layouts() {
         let tmp = std::env::temp_dir().join(format!("mdeck-illu-check-{}", std::process::id()));
-        std::fs::create_dir_all(tmp.join("illustrations")).unwrap();
+        std::fs::create_dir_all(tmp.join("point-clouds")).unwrap();
         let cloud = render::illustration::Cloud {
             version: render::illustration::VERSION,
             name: "kettle".into(),
@@ -72,8 +114,8 @@ mod tests {
             aspect: 1.0,
             points: std::sync::Arc::new(vec![[0.5, 0.5]]),
         };
-        std::fs::write(tmp.join("illustrations/kettle.mdpc"), cloud.to_json()).unwrap();
-        std::fs::write(tmp.join("illustrations/broken.mdpc"), "{").unwrap();
+        std::fs::write(tmp.join("point-clouds/kettle.mdpc"), cloud.to_json()).unwrap();
+        std::fs::write(tmp.join("point-clouds/broken.mdpc"), "{").unwrap();
         let md = "\n## Fine\n<!-- picture: kettle -->\n\n- a\n\n---\n\n\n## Missing\n<!-- picture: nothing -->\n\n- a\n\n---\n\n\n## Code\n<!-- picture: kettle -->\n\n```rust\nfn main() {}\n```\n\n---\n\n\n## Bad\n<!-- picture: Bad Name -->\n\n- a\n\n---\n\n\n## Broken\n<!-- picture: broken -->\n\n- a\n";
         let pres = parser::parse(md);
         let mut theme = crate::theme::Theme::dark();

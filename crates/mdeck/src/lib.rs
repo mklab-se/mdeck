@@ -24,6 +24,8 @@ mod config;
 mod deck;
 mod engines;
 mod extensions;
+#[cfg(test)]
+mod guards;
 mod incident_log;
 mod language;
 mod parser;

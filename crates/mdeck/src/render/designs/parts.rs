@@ -34,6 +34,9 @@ pub struct Item<'s> {
     /// Inline runs replacing the block's own (a quote's quotation or
     /// attribution).
     pub inlines: Option<Vec<Inline>>,
+    /// A quote's own blocks (without an attribution taken from them), laid
+    /// out with their structure when they hold a list or a nested quote.
+    pub quote: Option<&'s [Block]>,
 }
 
 impl<'s> Item<'s> {
@@ -42,6 +45,7 @@ impl<'s> Item<'s> {
             role,
             block,
             inlines: None,
+            quote: None,
         }
     }
 }
@@ -137,17 +141,19 @@ pub fn of(design: Design, blocks: &[Block]) -> Parts<'_> {
                 // attribution; otherwise the quote's own last line may be
                 let next_is_attr = design == Design::Quote
                     && matches!(blocks.get(i + 1), Some(Block::Paragraph { .. }));
-                let (quote, own) = Block::quote_parts(inner, next_is_attr);
+                let (own_blocks, own) = Block::quote_split(inner, next_is_attr);
                 target.push(Item {
                     role: Role::Quote,
                     block,
-                    inlines: Some(quote),
+                    inlines: Some(Block::quote_inlines(own_blocks)),
+                    quote: Some(own_blocks),
                 });
                 if let Some(own) = own {
                     target.push(Item {
                         role: Role::Attribution,
                         block,
-                        inlines: Some(own),
+                        inlines: Some(own.clone()),
+                        quote: None,
                     });
                 }
                 quote_seen = true;
@@ -194,6 +200,7 @@ fn columns<'s>(blocks: &'s [Block], parts: &mut Parts<'s>) {
                         role,
                         block,
                         inlines: Some(Block::quote_inlines(blocks)),
+                        quote: Some(blocks),
                     },
                     _ => Item::new(role, block),
                 };

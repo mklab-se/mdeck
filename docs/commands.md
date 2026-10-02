@@ -43,7 +43,7 @@ See [Export](export.md).
 ```bash
 mdeck theme list                   # every theme visible from here: themes, then variants
 mdeck theme new <name>             # a starter theme in ./themes, every key commented (--user, --force)
-mdeck theme check <name|file>      # errors, fallbacks, contrast, keys that do nothing
+mdeck theme check <name|file>      # errors, fallbacks, contrast, keys that do nothing (exit 1: error or contrast)
 mdeck theme preview <name|file> -o <dir>   # one slide per design, as PNGs (--width, --height)
 
 mdeck point-cloud list            # every point cloud visible from here
@@ -80,7 +80,8 @@ The deck forms (bare, `images`, `icons`, `pictures`, `point-cloud`) share `--sli
 
 ```bash
 mdeck sdk new <kind> <name>        # an extension crate: engine, visual, design-set or transition (--dir)
-mdeck build --with <path|crate[@version]>   # an mdeck with extensions built in (repeat --with; --out, --name, --mdeck-path)
+mdeck sdk preview [--engine <name>] [--theme <name>] [-o <dir>]   # the preview deck and both moments as PNGs
+mdeck build --with <path|crate[@version]|git-url[#ref]>   # an mdeck with extensions built in (repeat --with; --out, --name, --mdeck-path)
 mdeck pack install <folder|zip|git-url>     # install a pack for you (--deck: into ./packs)
 mdeck pack list                    # packs installed for you and in ./packs
 mdeck pack remove <name>           # remove a pack (--deck)
@@ -93,10 +94,26 @@ writes into a folder that is not empty). `mdeck build --with ./glow` generates a
 the cache folder (`~/Library/Caches/mdeck/build/` on macOS, `~/.cache/mdeck/build/` on Linux)
 that registers mdeck's built-ins and then each extension, compiles it in release mode, copies the
 binary to `./target/release/mdeck` (or `--out`, a file or a folder; `--name` names the binary)
-and prints its path. Extensions are crate folders or crates.io names (`acme-engines@1.2`). mdeck
+and prints its path (`--out dist/`, with the slash, makes the folder). Extensions are crate
+folders, crates.io names (`acme-engines@1.2`), or git repositories, private ones included:
+`git+https://github.com/acme/aurora#v0.2.0`, `git+ssh://git@github.com/acme/aurora.git#main`,
+`git@github.com:acme/aurora.git#1a2b3c4d` or `git+file:///srv/git/aurora.git`. After `#` comes a
+tag, a branch or a commit (`#tag=`, `#branch=` or `#rev=` when the name is ambiguous; without `#`,
+the default branch); the crate's name is the repository's, or `?package=<name>` before the `#`.
+Cargo fetches with your own git credentials or SSH agent (set `CARGO_NET_GIT_FETCH_WITH_CLI=true`
+if a private repository that `git clone` can read fails to fetch). A rebuild updates branches and
+crates.io requirements to their newest match; tags and commits stay fixed. See
+[Packaging and sharing](sdk/packaging-and-sharing.md). mdeck
 itself comes from the checkout the running mdeck was built from (or `--mdeck-path`, or the
 `MDECK_SOURCE` environment variable), else from crates.io at the running version. Building needs
 a Rust toolchain ([rustup.rs](https://rustup.rs)); the people you give the binary to do not.
+
+`mdeck sdk preview` shows an extension at a glance: it exports a built-in preview deck (a slide
+for every design, a chart, images and a picture slide) and the countdown and end moments to PNGs
+in `-o <dir>` (default `./sdk-preview`): `slide-01.png` to `slide-14.png`, `countdown.png` and
+`end.png`. `--engine` and `--theme` pick what to preview by name, so an extension engine works in
+an mdeck built with it (`./target/release/mdeck sdk preview --engine glow`); `--width` and
+`--height` set the size (1920x1080).
 
 **Packs** are data extensions: themes, design sets, point clouds, AI styles and fonts as plain
 files ([Themes](themes.md#packs)).

@@ -239,3 +239,117 @@ fn stage_follows_the_arrangement() {
     // a content slide with code gives its stage up
     assert!(!crate::render::design_has_stage(&pres.slides[1], &e));
 }
+
+/// The text of every text piece, where it is painted, and whether it has a
+/// list mark.
+fn texts(plan: &Plan) -> Vec<(String, Pos2, bool)> {
+    plan.pieces
+        .iter()
+        .filter_map(|p| match &p.kind {
+            Kind::Text {
+                galley,
+                anchor,
+                mark,
+                ..
+            } => Some((galley.job.text.clone(), *anchor, mark.is_some())),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn quotes_keep_nested_quotes_and_lists_in_every_design() {
+    // MD-12: a nested quote is an indented quote with a bar of its own, a
+    // list in a quote is a list, and the attribution rule still holds
+    let quote =
+        "> Outer words\n>\n> > Inner words\n>\n> - first point\n> - second point\n>\n> -- Ada";
+    with_ui(|ui| {
+        for set in ["standard", "editorial"] {
+            let theme = themed(set);
+            for design in Design::ALL {
+                let md = format!(
+                    "## Heading\n<!-- design: {} -->\n\n{quote}\n",
+                    design.name()
+                );
+                let pres = parse(&md);
+                let (_, plan) = layout(
+                    ui,
+                    &pres.slides[0],
+                    &theme,
+                    rect(),
+                    1.0,
+                    &SlideContext::default(),
+                );
+                let t = texts(&plan);
+                let find = |needle: &str| {
+                    t.iter()
+                        .find(|(s, ..)| s.to_lowercase().contains(&needle.to_lowercase()))
+                        .unwrap_or_else(|| panic!("{set} {design:?}: no `{needle}` in {t:?}"))
+                        .clone()
+                };
+                let outer = find("Outer words");
+                let inner = find("Inner words");
+                assert!(
+                    !outer.0.contains("Inner") && !outer.0.contains("first point"),
+                    "{set} {design:?}: flattened {:?}",
+                    outer.0
+                );
+                assert!(
+                    inner.1.x > outer.1.x + 20.0,
+                    "{set} {design:?}: the nested quote is not indented"
+                );
+                let bars: Vec<Rect> = plan
+                    .pieces
+                    .iter()
+                    .filter_map(|p| match p.kind {
+                        Kind::Bar { rect, .. } => Some(rect),
+                        _ => None,
+                    })
+                    .collect();
+                assert!(
+                    bars.iter().any(|b| b.center().x > outer.1.x
+                        && b.center().x < inner.1.x
+                        && b.top() <= inner.1.y + 8.0),
+                    "{set} {design:?}: the nested quote has no bar of its own: {bars:?}"
+                );
+                let first = find("first point");
+                let second = find("second point");
+                assert!(
+                    first.2 && second.2,
+                    "{set} {design:?}: list items lost their marks"
+                );
+                assert!(second.1.y > first.1.y);
+                let ada = find("Ada");
+                assert!(
+                    !ada.0.contains("Outer") && ada.1.y > second.1.y,
+                    "{set} {design:?}: the attribution ran into the quote"
+                );
+            }
+        }
+    });
+}
+
+#[test]
+fn a_plain_quote_keeps_its_single_passage() {
+    // structure only where there is some: paragraphs still read as one run
+    let long = "two, a closing paragraph long enough that it can never be read as an attribution of the quote above";
+    let pres = parse(&format!("## Q\n\n> one\n>\n> {long}\n"));
+    with_ui(|ui| {
+        let (_, plan) = layout(
+            ui,
+            &pres.slides[0],
+            &themed("standard"),
+            rect(),
+            1.0,
+            &SlideContext::default(),
+        );
+        let t = texts(&plan);
+        assert!(t.iter().any(|(s, ..)| s.contains("one\ntwo,")), "{t:?}");
+        assert!(
+            !plan
+                .pieces
+                .iter()
+                .any(|p| matches!(p.kind, Kind::Bar { .. }))
+        );
+    });
+}
