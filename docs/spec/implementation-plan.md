@@ -142,8 +142,8 @@ the binary where `--out` says.
 | 2 | Workspace, SDK, registries, paint; engines v2 (D10-D13), laser removed, line merged, D24/D26 fixed | done (see Phase 2b notes and deferrals) |
 | 3 | Designs and themes v2 (D8, D9), default theme, layout defects | done (see Phase 3 notes and deferrals) |
 | 4 | Presenter view, per-slide transitions, slide jump, `--theme`, `export --at`; generated assets and `mdeck ai` (D14) | done |
-| 5 | Extensibility tooling: `mdeck build`, packs, external visual programs, `mdeck sdk new/preview`, SDK docs and tutorials | done |
-| 6 | Documentation, README, gallery, format reference, CHANGELOG, release workflow (publish `mdeck-sdk`), v2.0.0 | in progress: release workflow, packaging and CI done (see Release readiness); docs being rewritten |
+| 5 | Extensibility tooling: `mdeck build`, packs, external visual programs, `mdeck sdk new/preview`, SDK docs and tutorials | done; packs read every EXT-09 folder (`themes/`, `designs/`, `point-clouds/`, `styles/`, `fonts/`). Deferred: there is no `mdeck sdk preview` (an extension is tried with `mdeck build`); built-in visuals, transitions and the two built-in design sets are not yet registered through the SDK (see CHANGELOG "Deferred to 2.x"); the point cloud folders are still named `illustrations/` |
+| 6 | Documentation, README, gallery, format reference, CHANGELOG, release workflow (publish `mdeck-sdk`), v2.0.0 | in progress: release workflow, packaging and CI done (see Release readiness); v2 docs merged; product gaps (packs, `mdeck point-cloud`, CLI help) closed; v2.0.0 not yet tagged |
 
 ## Phase 1 notes
 

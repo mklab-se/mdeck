@@ -59,11 +59,12 @@ pub struct Cli {
     #[arg(long, global = false)]
     pub reduced_motion: bool,
 
-    /// Validate presentation and report problems without launching GUI
+    /// Validate presentation and report problems without launching GUI (with -v:
+    /// per-slide details)
     #[arg(long, global = false)]
     pub check: bool,
 
-    /// Increase output verbosity (with --check: print per-slide details)
+    /// Increase output verbosity
     #[arg(short, long, action = ArgAction::Count, global = true)]
     pub verbose: u8,
 
@@ -155,10 +156,11 @@ pub enum Commands {
         presenter_view: bool,
     },
 
-    /// Point cloud illustrations for the particle field (import, list, show; `mdeck ai point-cloud` generates)
-    Illustration {
+    /// Point clouds, the `.mdpc` pictures engines draw (import, list, show, contribute; `mdeck ai point-cloud` generates)
+    #[command(alias = "illustration")]
+    PointCloud {
         #[command(subcommand)]
-        command: IllustrationCommands,
+        command: PointCloudCommands,
     },
 
     /// Custom themes: list, check, create and preview (`mdeck ai theme` converts a design system)
@@ -182,34 +184,35 @@ pub enum Commands {
 }
 
 #[derive(Subcommand)]
-pub enum IllustrationCommands {
-    /// Convert an image (light strokes on dark) into an illustration
+pub enum PointCloudCommands {
+    /// Convert an image (light strokes on dark) into a point cloud
     Import {
         /// Image file (PNG, JPEG or WebP)
         image: PathBuf,
         /// Name to save it under (lowercase letters, digits and hyphens)
         #[arg(long)]
         name: String,
-        /// Save to the user library instead of ./illustrations
+        /// Save to the user library (in the user config folder, see `mdeck config
+        /// show`) instead of ./illustrations
         #[arg(long)]
         user: bool,
-        /// Overwrite an existing illustration of the same name
+        /// Overwrite an existing point cloud of the same name
         #[arg(long)]
         force: bool,
     },
-    /// List every illustration visible from the current directory
+    /// List every point cloud visible from the current directory
     List,
-    /// Preview an illustration as an image
+    /// Preview a point cloud as an image
     Show {
-        /// Illustration name
+        /// Point cloud name
         name: String,
         /// Save the preview PNG here instead of a temporary file
         #[arg(long)]
         output: Option<PathBuf>,
     },
-    /// Offer one of your illustrations to MDeck's built-in set (opens a prefilled GitHub issue)
+    /// Offer one of your point clouds to MDeck's built-in set (opens a prefilled GitHub issue)
     Contribute {
-        /// Illustration name (a deck or user illustration, not a built-in)
+        /// Point cloud name (a deck, user or pack point cloud, not a built-in)
         name: String,
         /// Print the issue link instead of opening it in the browser
         #[arg(long)]
@@ -260,9 +263,11 @@ pub enum ConfigCommands {
 
     /// Set a configuration value
     Set {
-        /// Configuration key: defaults.theme (a built-in or user theme), defaults.transition
-        /// (slide|fade|spatial|none), defaults.aspect (16:9|4:3|16:10),
-        /// defaults.start_mode (first|overview|<slide number>)
+        /// Configuration key: defaults.theme (a built-in, user or pack theme),
+        /// defaults.transition (slide|fade|spatial|none), defaults.start_mode
+        /// (first|overview|<slide number>), defaults.reduced_motion (true|false),
+        /// defaults.image_style and defaults.icon_style (a named style from
+        /// `mdeck ai style list`)
         key: String,
 
         /// Value to set
@@ -285,8 +290,8 @@ impl Cli {
                 crate::commands::util::block_on(crate::commands::ai::run(args, self.quiet))?
             }
             Some(Commands::Config { command }) => crate::commands::config::run(command),
-            Some(Commands::Illustration { command }) => {
-                crate::commands::illustration::run(command, self.quiet)
+            Some(Commands::PointCloud { command }) => {
+                crate::commands::point_cloud::run(command, self.quiet)
             }
             Some(Commands::Completion { shell }) => {
                 crate::commands::completion::run(shell);
@@ -367,5 +372,56 @@ impl Cli {
             reduced_motion: self.reduced_motion,
             presenter: self.presenter,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::{CommandFactory, Parser};
+
+    #[test]
+    fn point_clouds_have_their_own_command_and_the_old_name_still_parses() {
+        // CON-01: the user-facing term is "point cloud"
+        for name in ["point-cloud", "illustration"] {
+            let cli = Cli::try_parse_from(["mdeck", name, "list"]).unwrap();
+            assert!(matches!(
+                cli.command,
+                Some(Commands::PointCloud {
+                    command: PointCloudCommands::List
+                })
+            ));
+        }
+        let help = Cli::command().render_help().to_string();
+        assert!(
+            help.contains("point-cloud") && !help.contains("illustration"),
+            "{help}"
+        );
+        assert_eq!(
+            crate::check::CheckCategory::PointCloud.to_string(),
+            "point-cloud"
+        );
+    }
+
+    #[test]
+    fn config_set_help_names_every_key_and_no_dead_one() {
+        let mut cmd = Cli::command();
+        let help = cmd
+            .find_subcommand_mut("config")
+            .and_then(|c| c.find_subcommand_mut("set"))
+            .unwrap()
+            .render_long_help()
+            .to_string();
+        for key in [
+            "defaults.theme",
+            "defaults.transition",
+            "defaults.start_mode",
+            "defaults.reduced_motion",
+            "defaults.image_style",
+            "defaults.icon_style",
+        ] {
+            assert!(help.contains(key), "{key} missing from {help}");
+        }
+        assert!(!help.contains("aspect"), "{help}");
     }
 }

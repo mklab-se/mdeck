@@ -101,7 +101,7 @@ pub async fn run(
 ) -> Result<()> {
     let pres = read_deck(file)?;
     check_slide(select, pres.slides.len())?;
-    let config = Config::load_or_default();
+    let config = Config::load_or_default().with_packs(file.parent());
     let styles = style::resolve(&config, &pres.meta, style_override);
     let style = match which {
         Which::Images => styles.image,
@@ -285,7 +285,7 @@ pub async fn one_off(
     style_name: Option<&str>,
     output: Option<std::path::PathBuf>,
 ) -> Result<()> {
-    let config = Config::load_or_default();
+    let config = Config::load_or_default().with_packs(Some(Path::new(".")));
     let meta = crate::parser::PresentationMeta::default();
     let styles = style::resolve(&config, &meta, style_name);
     let (style, job_prompt) = match which {

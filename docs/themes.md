@@ -136,6 +136,23 @@ set does not depend on the engine: `designs: editorial` with `engine: plain` is 
 still screen, and `designs: standard` with `engine: particles` puts centred slides over the
 particle field.
 
+**Your own design sets.** `designs:` can also name a set file, `designs/<name>.yaml`, in the
+deck's `designs/` folder, the `designs/` folder of your user folder or an installed
+[pack](#packs), looked up in that order before the built-ins. A set file has the keys of
+`arrangements:` split in two, `base` (every design) and `designs` (per design), merged over the
+set it `extends` (`standard` when it names none), so it only says what differs:
+
+```yaml
+# designs/roomy.yaml
+extends: editorial
+base:
+  roles:
+    body: { color: accent }
+designs:
+  quote:
+    ornaments: { quote-marks: true }
+```
+
 **Arrangements.** Override anything about a design under `arrangements:`, naming only what
 differs; `all:` applies to every design. Overrides merge key by key through `extends`, like
 colours.
@@ -292,9 +309,27 @@ system and a hand-written theme.
 
 ## Packs
 
-A **pack** shares themes and point clouds as plain files, no compiler needed: a folder (or a
-`.zip` of one, or a git repository) with an `mdeck-pack.yaml` manifest and a `themes/` or
-`point-clouds/` folder.
+A **pack** shares themes, design sets, point clouds, AI styles and fonts as plain files, no
+compiler needed: a folder (or a `.zip` of one, or a git repository) with an `mdeck-pack.yaml`
+manifest and any of these folders:
+
+- `themes/`: themes, chosen by name like your own (`theme: acme`).
+- `designs/`: design sets a theme names with `designs:` (see
+  [your own design sets](#designs-and-arrangements)).
+- `point-clouds/`: `.mdpc` point clouds, used by name (`<!-- picture: name -->`).
+- `styles/`: named AI styles, one `<name>.yaml` each, usable wherever a style name is
+  (`--style`, `image-style`, `icon-style`, `defaults.image_style`) and listed by
+  `mdeck ai style list` with `(pack)`. Your own styles of the same name win.
+- `fonts/`: font files the pack's own themes name. A pack theme writes
+  `fonts: { body: AcmeSans-Regular.ttf }` and mdeck finds the file in the theme's folder or,
+  failing that, in the pack's `fonts/`.
+
+```yaml
+# styles/brand.yaml
+prompt: Flat shapes in Acme orange and navy, soft grain, no text
+kind: image                    # image (the default) or icon
+references: [refs/look.png]    # optional, relative to styles/
+```
 
 ```yaml
 # mdeck-pack.yaml
@@ -311,11 +346,9 @@ mdeck pack list
 mdeck pack remove acme-brand
 ```
 
-A pack's themes and point clouds are found after the deck's own and your user folder's, and
-before the built-ins (the deck's packs before your user packs). A deck that depends on a pack can
-say so with `requires: [acme-brand]` in its frontmatter; `mdeck --check` then warns when it is
-not installed. The manifest also accepts `designs/`, `styles/` and `fonts/` folders, which mdeck
-2.0 does not read yet; put a theme's font files in the theme's own folder, beside
-`themes/acme/theme.yaml`.
+A pack's themes, design sets and point clouds are found after the deck's own and your user
+folder's, and before the built-ins (the deck's packs before your user packs). A deck that depends
+on a pack can say so with `requires: [acme-brand]` in its frontmatter; `mdeck --check` then warns
+when it is not installed, and about pack style files it cannot read (category `assets`).
 
 Themes are data. For a new engine, visual or design set in code, see the [SDK](sdk/README.md).

@@ -786,7 +786,7 @@ eyebrow, display type and a staggered entry.
 A wall of RGB LEDs in a dark room, on the **LED engine** (section 9.6):
 near-black with the faint grid of unlit lenses, hot pink and cyan light,
 warm amber bulbs chasing around the title slide, and Hanken Grotesk for the
-copy. Illustrations, the countdown digits and the end words appear by
+copy. Point clouds, the countdown digits and the end words appear by
 lighting LEDs.
 
 | Property        | Value           |
@@ -961,15 +961,15 @@ dark ground:
 ```bash
 mdeck ai point-cloud talk.md     # every picture name the deck uses that resolves nowhere
 mdeck ai point-cloud --name server --description "A server rack in a datacenter"
-mdeck illustration import sketch.png --name sketch
-mdeck illustration list          # every name visible from here, and what shadows what
-mdeck illustration show server   # a preview image
+mdeck point-cloud import sketch.png --name sketch
+mdeck point-cloud list          # every name visible from here, and what shadows what
+mdeck point-cloud show server   # a preview image
 ```
 
 `mdeck ai point-cloud` asks the configured image provider for a sparse
 constellation of glowing particles forming the subject, then reduces the
 image to a cloud. Given a deck, it writes every missing name into
-`<deck>.assets/point-clouds/`; with `--name`, and `mdeck illustration import`,
+`<deck>.assets/point-clouds/`; with `--name`, and `mdeck point-cloud import`,
 it writes `./illustrations/<name>.mdpc` (`--user` writes to the user library
 instead, and `--force` overwrites an import). A cloud is JSON: a name, a
 description, the prompt that made it, the bounding box's height over width,
@@ -977,11 +977,11 @@ and up to 1500 points in the unit square, stored in **importance order** so
 that the first sixty points already sketch the whole subject and the first
 six hundred fill it in. The field takes as many as it has particles to
 spend, which is why the same file serves a small stage picture and a
-full-frame backdrop, and why an illustration hints at its subject rather than
+full-frame backdrop, and why a point cloud hints at its subject rather than
 copying it.
 
 A cloud worth sharing can be offered to the built-in set without installing
-anything: `mdeck illustration contribute <name>` writes a `.json` copy GitHub
+anything: `mdeck point-cloud contribute <name>` writes a `.json` copy GitHub
 accepts as an attachment and opens a new issue on the MDeck repository with
 the name, description, prompt and a braille sketch filled in. Drag the file
 onto the issue and submit; if it is accepted it ships as a built-in in the
@@ -1064,7 +1064,7 @@ engine:                    # the engine and its settings (section 9.6); `engine:
   kind: line               # art engines: line | tonal (section 9.7)
   style: "graphite and ink, cross-hatching"   # art engines: the style prompt
   references: [refs/teacup.jpg]               # art engines: style swatches in the theme folder
-designs: standard          # standard | editorial: how the slide designs look (section 9.9)
+designs: standard          # standard | editorial | a set in designs/: how the slide designs look (section 9.9)
 arrangements: {}           # per-design overrides of the design set (section 9.9)
 countdown: off             # on | off: the 3-2-1 opener (the engine decides its look)
 transition: fade           # slide | fade | spatial | none (a deck's `transition` wins)
@@ -1098,7 +1098,7 @@ annotations:               # the presenter's pen (drag) and arrow (right drag) t
   pen-outline: "#1e82b4"
   arrow: "#ffc832"
   arrow-outline: "#c88c00"
-fonts:                     # a bundled face, or a .ttf/.otf file in the theme folder
+fonts:                     # a bundled face, or a .ttf/.otf file in the theme folder (or a pack's fonts/)
   display: fonts/Acme-Display.ttf   # headings
   body: hanken-regular     # body text and list items
   lead: hanken-light       # lead paragraphs where the design set uses it (editorial; default: body)
@@ -1337,8 +1337,8 @@ flickering as it strikes, and then shimmers slowly between the theme's
 `accent`, `accent-soft` and `engine.cool`; the hottest cores whiten toward
 `engine.light`. Brightness follows the point cloud's density, so strokes
 stay brighter than fills and the picture keeps its structure. Title slides get
-a marquee border of chasing bulbs in `secondary`; slides without an
-illustration get a slow, faint aurora on the side away from the copy. A reveal
+a marquee border of chasing bulbs in `secondary`; slides without a
+picture get a slow, faint aurora on the side away from the copy. A reveal
 sends one band of light across the wall. On charts and diagrams the wall
 serves the content: a peak marker floats over each bar like a level meter's,
 lines and routed edges leave a soft trail, pies and donuts get a halo ring,
@@ -1385,8 +1385,8 @@ grouped into pieces of two to four, and the pieces drop from above the slide,
 bottom row first, land with a small bounce and settle into the picture. The
 blocks are bevelled, in `accent`, `secondary`, `engine.cool`,
 `accent-soft` and the fifth `series` colour. Leaving a slide, the stack
-flashes and clears row by row, like a completed line. Slides without an
-illustration stay calm. Exports show the settled stack.
+flashes and clears row by row, like a completed line. Slides without a
+picture stay calm. Exports show the settled stack.
 
 **The line engine.** Line art drawn on a surface the theme chooses with
 `surface:` (`sheet`, the default, or `slate`). Line art is the same on both,
@@ -1493,7 +1493,7 @@ deck's `countdown`, then the theme's; an engine without a countdown of its
 own shows plain numerals.
 
 **Content an engine does not show.** Engines differ in what they can show:
-the plain engine draws no illustrations, and the
+the plain engine draws no pictures, and the
 split-flap board shows text only. `mdeck --check`
 lists every such slide under the `engine` category (for example
 `slide 4 (line 31): [engine] picture: server is not shown by the plain engine`),
@@ -1505,7 +1505,7 @@ the themes that run on them: `ember`, `autumn` and `winter` on particles,
 `marquee` on led, `departures` on splitflap, `stack` on blocks, `blueprint`
 and `chalkboard` on line, `sketchbook` on sketch, `watercolour` on
 watercolour, `darkroom` on darkroom, `thermal` on thermal, and the built-in
-illustrations); themes and
+point clouds); themes and
 decks that ask for one then use `plain`, with a warning.
 
 ### 9.7 Generated art
@@ -1690,6 +1690,20 @@ and recognise slides the same way. The set is independent of the engine:
 `designs: editorial` with `engine: plain` is Ember's look on a still
 screen; `designs: standard` with `engine: particles` puts centred slides
 over the particle field.
+
+`designs:` may also name a set file, `designs/<name>.yaml`, found in the
+deck's `designs/` folder, then the `designs/` folder of the user folder, then
+installed packs' `designs/` (section 18), then the built-ins. A set file has
+`base` (keys for every design) and `designs` (keys per design), merged over
+the set it `extends` (default `standard`):
+
+```yaml
+# designs/roomy.yaml
+extends: editorial
+base:
+  roles:
+    body: { color: accent }
+```
 
 **Arrangements.** `arrangements:` overrides any key of any design's
 arrangement; `all:` applies to every design. Overrides are partial and
@@ -2716,7 +2730,7 @@ slide, its line in the file and a category:
 | `visual` | unknown or v1 fence tags, and lines inside a visual it cannot read (section 14.1) |
 | `content` | markdown that will not show as written: an image inside running text, a remote image, an HTML `<video>`, an unknown or invalid image option |
 | `engine` | content the deck's engine does not show, and an unknown `engine` |
-| `illustration` | a `picture` that resolves nowhere, or that the slide's design cannot show |
+| `point-cloud` | a `picture` that resolves nowhere, or that the slide's design cannot show |
 | `assets` | generated assets that are missing or stale, and a manifest that cannot be read (section 9.7) |
 | `background` | background images that are missing or unreadable, opacities that do not parse |
 | `theme` | an unknown or invalid theme, fallbacks, contrast below WCAG AA |
@@ -2758,10 +2772,25 @@ mdeck pack list
 mdeck pack remove acme-brand
 ```
 
-Themes and point clouds in packs are found after the deck's own and the
-user's, and before the built-ins: deck packs first, then user packs. The
-`designs/`, `styles/` and `fonts/` folders are installed with the pack but not
-read yet.
+Themes, design sets and point clouds in packs are found after the deck's own
+and the user's, and before the built-ins: deck packs first, then user packs.
+What each folder provides:
+
+- `themes/`: themes, chosen by name (`theme: acme`).
+- `designs/`: design sets a theme names with `designs:` (section 9.9).
+- `point-clouds/`: `.mdpc` point clouds, used by name (`<!-- picture: name -->`).
+- `styles/`: named AI styles, one `<name>.yaml` each, usable wherever a style
+  name is (`--style`, `image-style`, `icon-style`, `defaults.image_style`,
+  `defaults.icon_style`); the user's own styles of the same name win.
+- `fonts/`: font files the pack's own themes name. A font file a pack theme
+  names is looked up in the theme's folder, then in the pack's `fonts/`.
+
+```yaml
+# styles/brand.yaml
+prompt: Flat shapes in Acme orange and navy, soft grain, no text
+kind: image                    # image (default) or icon
+references: [refs/look.png]    # optional, relative to styles/
+```
 
 **Code extensions** (engines, visual kinds, design sets, transitions) are Rust
 crates built on the `mdeck-sdk` crate:
@@ -2869,6 +2898,8 @@ comment, one `key: value` per line.
 | `<deck>.art.yaml` and `art/` | `<deck>.assets/manifest.yaml` and `<deck>.assets/artworks/` |
 | `mdeck ai art`, `mdeck ai create`, `mdeck ai generate` | `mdeck ai pictures`, `mdeck ai deck`, `mdeck ai images` and `mdeck ai icons` |
 | `mdeck illustration generate` | `mdeck ai point-cloud` |
+| `mdeck illustration import`, `list`, `show`, `contribute` | `mdeck point-cloud import`, `list`, `show`, `contribute` |
+| `--check` category `illustration` | `point-cloud` |
 | `mdeck theme new --from <dir>` | `mdeck ai theme <name> --from <dir>` |
 | `MDECK_EXPORT_AT`, `MDECK_EXPORT_MOMENT` | `mdeck export --at`, `--moment` |
 

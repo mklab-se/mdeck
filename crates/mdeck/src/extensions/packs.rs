@@ -1,12 +1,20 @@
 //! Packs (EXT-09 to EXT-11): data extensions that need no compiler. A pack
 //! is a folder (or a zip of one) with a manifest, `mdeck-pack.yaml`, and any
-//! of the folders in [`Folder`].
+//! of the folders in [`Folder`]:
 //!
-//! Packs install into the user folder (`~/.config/mdeck/packs/<name>/`) or a
-//! deck's own `packs/<name>/`. Lookups that take files from packs ask
-//! [`theme_dirs`], [`point_cloud_dirs`] or [`dirs_for`]: deck packs first,
-//! then user packs, each in name order. They come after the deck's and the
-//! user's own folders and before the built-ins (THM-04).
+//! - `themes/`: themes, found by name like the user's own;
+//! - `designs/`: design sets a theme names with `designs:`;
+//! - `point-clouds/`: `.mdpc` point clouds, found by name;
+//! - `styles/`: named AI styles (`<name>.yaml`: a prompt and reference
+//!   images), see [`styles`];
+//! - `fonts/`: font files the pack's own themes name.
+//!
+//! Packs install into the `packs/` folder of the user config folder (see
+//! `mdeck config show`) or a deck's own `packs/<name>/`. Lookups that take
+//! files from packs ask [`theme_dirs`], [`point_cloud_dirs`] or
+//! [`dirs_for`]: deck packs first, then user packs, each in name order.
+//! They come after the deck's and the user's own folders and before the
+//! built-ins (THM-04).
 
 use std::path::{Path, PathBuf};
 
@@ -165,9 +173,113 @@ pub fn theme_dirs(deck_dir: Option<&Path>) -> Vec<PathBuf> {
     dirs_for(deck_dir, Folder::Themes)
 }
 
-/// Point cloud folders from packs, for the illustration lookup.
+/// Point cloud folders from packs, for the point cloud lookup.
 pub fn point_cloud_dirs(deck_dir: Option<&Path>) -> Vec<PathBuf> {
     dirs_for(deck_dir, Folder::PointClouds)
+}
+
+/// The installed pack a file belongs to: the nearest folder above `path`
+/// holding a manifest (a pack's files sit at most two folders down).
+pub fn pack_of(path: &Path) -> Option<PathBuf> {
+    path.ancestors()
+        .skip(1)
+        .take(3)
+        .find(|d| d.join(MANIFEST).is_file())
+        .map(Path::to_path_buf)
+}
+
+/// Which `mdeck ai` style table a pack style goes in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum StyleKind {
+    /// Images (`mdeck ai images`, `image-style`).
+    #[default]
+    Image,
+    /// Icons (`mdeck ai icons`, `icon-style`).
+    Icon,
+}
+
+/// `styles/<name>.yaml` in a pack.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StyleFile {
+    prompt: String,
+    #[serde(default)]
+    kind: StyleKind,
+    /// Reference images, relative to the style file's folder.
+    #[serde(default)]
+    references: Vec<String>,
+}
+
+/// A named AI style a pack provides.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PackStyle {
+    pub name: String,
+    pub kind: StyleKind,
+    pub prompt: String,
+    /// Absolute paths of the reference images.
+    pub references: Vec<PathBuf>,
+}
+
+/// The named styles in the packs' `styles/` folders, the first of each
+/// name and kind winning (deck packs before user packs). A file that cannot
+/// be read is reported in the second list and left out.
+pub fn styles(deck_dir: Option<&Path>) -> (Vec<PackStyle>, Vec<String>) {
+    styles_in(&dirs_for(deck_dir, Folder::Styles))
+}
+
+/// [`styles`] over explicit `styles/` folders.
+pub fn styles_in(dirs: &[PathBuf]) -> (Vec<PackStyle>, Vec<String>) {
+    let mut out: Vec<PackStyle> = Vec::new();
+    let mut problems = Vec::new();
+    for dir in dirs {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            continue;
+        };
+        let mut files: Vec<PathBuf> = entries
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| matches!(p.extension().and_then(|x| x.to_str()), Some("yaml" | "yml")))
+            .collect();
+        files.sort();
+        for path in files {
+            let Some(name) = path.file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            match read_style(&path) {
+                Ok(file) => {
+                    if out.iter().any(|s| s.name == name && s.kind == file.kind) {
+                        continue;
+                    }
+                    let mut references = Vec::new();
+                    for r in &file.references {
+                        match crate::theme::confined_path(dir, r) {
+                            Ok(p) => references.push(p),
+                            Err(e) => problems.push(format!("{}: {e}", path.display())),
+                        }
+                    }
+                    out.push(PackStyle {
+                        name: name.to_string(),
+                        kind: file.kind,
+                        prompt: file.prompt.trim().to_string(),
+                        references,
+                    });
+                }
+                Err(e) => problems.push(e),
+            }
+        }
+    }
+    (out, problems)
+}
+
+fn read_style(path: &Path) -> std::result::Result<StyleFile, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let file: StyleFile =
+        serde_norway::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+    if file.prompt.trim().is_empty() {
+        return Err(format!("{}: the prompt is empty", path.display()));
+    }
+    Ok(file)
 }
 
 /// Read and validate a pack's manifest.
@@ -458,6 +570,68 @@ mod tests {
         remove(&user, "acme-brand").unwrap();
         assert!(remove(&user, "acme-brand").is_err());
         assert_eq!(installed_in(None, Some(&user)).len(), 0);
+        std::fs::remove_dir_all(&work).unwrap();
+    }
+
+    #[test]
+    fn pack_styles_are_read_with_their_references() {
+        let work = tempdir("pack-styles").unwrap();
+        let a = work.join("a/styles");
+        let b = work.join("b/styles");
+        std::fs::create_dir_all(a.join("refs")).unwrap();
+        std::fs::create_dir_all(&b).unwrap();
+        std::fs::write(a.join("refs/look.png"), b"png").unwrap();
+        std::fs::write(
+            a.join("brand.yaml"),
+            "prompt: flat brand colours\nreferences: [refs/look.png]\n",
+        )
+        .unwrap();
+        std::fs::write(
+            a.join("glyph.yaml"),
+            "prompt: thin line icons\nkind: icon\n",
+        )
+        .unwrap();
+        std::fs::write(a.join("broken.yaml"), "prompt: ''\n").unwrap();
+        std::fs::write(b.join("brand.yaml"), "prompt: shadowed\n").unwrap();
+        std::fs::write(
+            b.join("escape.yaml"),
+            "prompt: x\nreferences: [../../x.png]\n",
+        )
+        .unwrap();
+        let (styles, problems) = styles_in(&[a.clone(), b]);
+        let names: Vec<_> = styles.iter().map(|s| (s.name.as_str(), s.kind)).collect();
+        assert_eq!(
+            names,
+            [
+                ("brand", StyleKind::Image),
+                ("glyph", StyleKind::Icon),
+                ("escape", StyleKind::Image)
+            ]
+        );
+        assert_eq!(
+            styles[0].prompt, "flat brand colours",
+            "the first pack wins"
+        );
+        assert!(styles[0].references[0].ends_with("refs/look.png"));
+        assert!(styles[0].references[0].is_absolute());
+        assert!(styles[2].references.is_empty());
+        assert_eq!(problems.len(), 2, "{problems:?}");
+        std::fs::remove_dir_all(&work).unwrap();
+    }
+
+    #[test]
+    fn a_file_knows_its_pack() {
+        let work = tempdir("pack-of").unwrap();
+        write_pack(&work.join("p"), "p", None);
+        assert_eq!(
+            pack_of(&work.join("p/themes/acme.yaml")),
+            Some(work.join("p"))
+        );
+        assert_eq!(
+            pack_of(&work.join("p/themes/acme/theme.yaml")),
+            Some(work.join("p"))
+        );
+        assert_eq!(pack_of(&work.join("other.yaml")), None);
         std::fs::remove_dir_all(&work).unwrap();
     }
 

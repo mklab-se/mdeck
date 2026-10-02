@@ -207,7 +207,7 @@ fn builtin(name: &str) -> Option<Arc<Cloud>> {
     let text = String::from_utf8_lossy(bytes);
     let cloud = Arc::new(
         Cloud::parse(&text)
-            .unwrap_or_else(|e| panic!("built-in illustration `{name}` is invalid: {e}")),
+            .unwrap_or_else(|e| panic!("built-in point cloud `{name}` is invalid: {e}")),
     );
     guard.push((name.to_string(), Arc::clone(&cloud)));
     Some(cloud)

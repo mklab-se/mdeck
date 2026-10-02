@@ -23,7 +23,7 @@ pub fn style() -> Style {
 }
 
 fn illustration_prompt_template() -> String {
-    crate::commands::illustration::image_prompt("{subject}")
+    crate::commands::point_cloud::image_prompt("{subject}")
 }
 
 /// A name the deck asks for, with the first slide that uses it.
@@ -106,7 +106,7 @@ pub async fn run_deck(
     let mut failures = 0;
     for w in &todo {
         let subject = description.unwrap_or(&w.name).to_string();
-        let prompt = crate::commands::illustration::image_prompt(&subject);
+        let prompt = crate::commands::point_cloud::image_prompt(&subject);
         let made = async {
             let response = client.generate_image(&prompt).await?;
             let img =

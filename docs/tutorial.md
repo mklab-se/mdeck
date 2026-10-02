@@ -180,7 +180,7 @@ Put a `picture` setting in an HTML comment under a slide's heading:
 </p>
 
 The particles settle into a rocket beside your copy. Thirty-eight pictures are built in
-(`person`, `laptop`, `server`, `lightbulb`, `globe` and more; `mdeck illustration list` shows
+(`person`, `laptop`, `server`, `lightbulb`, `globe` and more; `mdeck point-cloud list` shows
 them all). The comment is invisible on GitHub, so the file stays a clean markdown document.
 
 Try `theme: marquee` for the same slide on a wall of LEDs:

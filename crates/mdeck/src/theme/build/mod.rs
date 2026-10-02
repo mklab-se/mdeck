@@ -28,8 +28,20 @@ impl Theme {
     /// Build a theme from a fully merged file whose font and syntax paths
     /// are already absolute and confined (see [`super::lookup`]). Invalid
     /// values are errors; a font or syntax file that cannot be used falls
-    /// back with a warning.
+    /// back with a warning. Only built-in design sets are known here.
+    #[cfg(test)]
     pub fn build(name: &str, f: &ThemeFile) -> Result<Built, ThemeError> {
+        Self::build_in(name, f, &[])
+    }
+
+    /// [`Self::build`], looking the design set up in `design_dirs` (the
+    /// deck's, the user's and the packs' `designs/` folders) before the
+    /// built-in sets.
+    pub fn build_in(
+        name: &str,
+        f: &ThemeFile,
+        design_dirs: &[std::path::PathBuf],
+    ) -> Result<Built, ThemeError> {
         let mut warnings = Vec::new();
         let palette = Palette::resolve(f, &mut warnings)?;
         let (engine, countdown, transition) = settings::engine_and_countdown(f, &mut warnings)?;
@@ -43,11 +55,12 @@ impl Theme {
         let art = extras::art(f)?;
         extras::heat(&f.heat()?)?;
         let [h1_size, h2_size, h3_size, body_size, code_size] = settings::sizes(&f.sizes)?;
-        let arrangements = super::arrangement::Arrangements::resolve(
+        let arrangements = super::arrangement::Arrangements::resolve_in(
             f.designs
                 .as_deref()
                 .map(str::trim)
                 .unwrap_or(super::arrangement::DEFAULT_SET),
+            design_dirs,
             f.arrangements.as_ref(),
         )?;
         let spacing = super::spacing::Spacing::resolve(&f.spacing)?;

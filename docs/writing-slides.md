@@ -259,5 +259,5 @@ mdeck talk.md --check -v     # also every slide's design, steps and settings
 
 `--check` exits with status 1 when it finds something, so it fits in CI. Each warning names its
 category: `settings`, `content`, `visual`, `architecture`, `thermal`, `math`, `fonts`, `theme`,
-`background`, `illustration` (pictures), `assets` (generated assets), `engine` (what the chosen
+`background`, `point-cloud` (pictures), `assets` (generated assets), `engine` (what the chosen
 engine does not show) and `extensions` (what `requires` names but is not installed).

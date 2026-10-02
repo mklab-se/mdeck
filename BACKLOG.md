@@ -224,10 +224,10 @@ egui's default sans (any theme can now pick faces with `fonts:`)
 Funnel, word cloud and git graph only get the quiet frame today.
 
 ### 6.8 A shared illustration library (L)
-`mdeck illustration contribute` files a prefilled issue and the
+`mdeck point-cloud contribute` files a prefilled issue and the
 `/include-illustrations` skill folds accepted clouds into the built-in set at
 the next release. If contributions pile up, a separate `mdeck-illustrations`
-repository that `mdeck illustration get <name>` fetches from would make a cloud
+repository that `mdeck point-cloud get <name>` fetches from would make a cloud
 usable the day it is merged.
 
 ### 6.10 Art engines: what is left after #17 (M)
