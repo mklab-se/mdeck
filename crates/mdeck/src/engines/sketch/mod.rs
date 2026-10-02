@@ -59,6 +59,15 @@ const LINE_REVEAL: Reveal = Reveal {
     grain: 0.0,
 };
 
+/// A point cloud without an artwork: its lines in pencil, the shape shaded
+/// with hatching and cross-hatched on its shadow side.
+const FILL: crate::engines::art::Fill =
+    crate::engines::art::Fill::Lines(Some(crate::engines::art::Shading {
+        spacing: 0.024,
+        everywhere: true,
+        cross: true,
+    }));
+
 pub struct Sketch {
     canvas: Canvas,
 }
@@ -66,7 +75,7 @@ pub struct Sketch {
 impl Sketch {
     pub fn new() -> Self {
         Self {
-            canvas: Canvas::new(DRAW, 0.0, END_WORDS, 0.6),
+            canvas: Canvas::new(DRAW, 0.0, END_WORDS, 0.6).with_fill(FILL),
         }
     }
 }

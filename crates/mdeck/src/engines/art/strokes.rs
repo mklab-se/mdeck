@@ -19,6 +19,9 @@ pub struct Strokes {
     /// `pen[i]`: the move from point `i - 1` to `i` is drawn (else the
     /// pen is lifted and jumps).
     pub pen: Vec<bool>,
+    /// `fill[i]`: point `i` belongs to shading (hatching) rather than to a
+    /// line of the drawing; a medium draws it lighter.
+    pub fill: Vec<bool>,
     /// When the pen reaches each point, from the start of the drawing.
     pub at: Vec<f32>,
     pub duration: f32,
@@ -96,10 +99,15 @@ pub fn untangle(pts: &[Pos2], order: &mut [usize], aspect: f32) {
 }
 
 /// Round each pen-down run of the picture with two passes of Chaikin's
-/// corner cutting; the pen state and run ends are kept.
-pub fn smooth(points: Vec<Pos2>, pen: Vec<bool>) -> (Vec<Pos2>, Vec<bool>) {
+/// corner cutting; the pen state, the fill flags and run ends are kept.
+pub fn smooth(
+    points: Vec<Pos2>,
+    pen: Vec<bool>,
+    fill: Vec<bool>,
+) -> (Vec<Pos2>, Vec<bool>, Vec<bool>) {
     let mut out_p = Vec::with_capacity(points.len() * 2);
     let mut out_pen = Vec::with_capacity(points.len() * 2);
+    let mut out_fill = Vec::with_capacity(points.len() * 2);
     let mut i = 0;
     while i < points.len() {
         // a run: point i with pen up (or the first), then pen-down points
@@ -123,10 +131,11 @@ pub fn smooth(points: Vec<Pos2>, pen: Vec<bool>) -> (Vec<Pos2>, Vec<bool>) {
         for (k, p) in run.into_iter().enumerate() {
             out_p.push(p);
             out_pen.push(k > 0 || pen[i]);
+            out_fill.push(fill[i]);
         }
         i = j;
     }
-    (out_p, out_pen)
+    (out_p, out_pen, out_fill)
 }
 
 /// Nearest-neighbour tour from the top-left point. Distances are measured
@@ -178,10 +187,28 @@ pub fn plan(
     aspect: f32,
     born: f32,
 ) -> Strokes {
+    plan_layers(strokes, Vec::new(), duration, weight, aspect, born)
+}
+
+/// [`plan`] for a drawing in two layers: its `lines`, then the `shading`
+/// strokes (marked in [`Strokes::fill`]), in that order.
+pub fn plan_layers(
+    lines: Vec<Vec<Pos2>>,
+    shading: Vec<Vec<Pos2>>,
+    duration: f32,
+    weight: f32,
+    aspect: f32,
+    born: f32,
+) -> Strokes {
     let dist = |a: Pos2, b: Pos2| (((a.x - b.x) * aspect).powi(2) + (a.y - b.y).powi(2)).sqrt();
     let mut points = Vec::new();
     let mut pen = Vec::new();
-    for stroke in strokes {
+    let mut fill = Vec::new();
+    let layers = lines
+        .into_iter()
+        .map(|s| (s, false))
+        .chain(shading.into_iter().map(|s| (s, true)));
+    for (stroke, shade) in layers {
         if stroke.is_empty() {
             continue;
         }
@@ -194,9 +221,10 @@ pub fn plan(
             let on = k > 0 && dist(stroke[k - 1], *p) <= lift.max(1e-4);
             points.push(*p);
             pen.push(on);
+            fill.push(shade);
         }
     }
-    let (points, pen) = smooth(points, pen);
+    let (points, pen, fill) = smooth(points, pen, fill);
     let mut cost = vec![0.0f32; points.len()];
     for i in 1..points.len() {
         let d = dist(points[i - 1], points[i]);
@@ -212,6 +240,7 @@ pub fn plan(
     Strokes {
         points,
         pen,
+        fill,
         at,
         duration,
         weight,

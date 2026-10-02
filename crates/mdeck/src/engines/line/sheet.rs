@@ -435,6 +435,17 @@ pub(super) fn pen_lines(
         let Some((a, b)) = drawn_segment(pic, i, t, rect) else {
             continue;
         };
+        if pic.fill[i] {
+            // section hatching: a fine, even line
+            inked.push((
+                [a, b],
+                Stroke::new(
+                    w * 0.4,
+                    premul(ink.line, 0.55 * opacity * pic.weight.max(0.4)),
+                ),
+            ));
+            continue;
+        }
         bleed.push((
             [a, b],
             Stroke::new(w * 2.6, premul(ink.line, 0.10 * opacity * pic.weight)),

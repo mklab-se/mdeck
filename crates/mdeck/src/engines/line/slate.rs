@@ -193,6 +193,14 @@ pub(super) fn chalk_lines(
             1.0
         };
         let k = opacity * pic.weight.max(0.4);
+        if pic.fill[i] {
+            // shading: the side of the chalk, light and broad
+            painter.line_segment(
+                [a, b],
+                Stroke::new(w * 0.6, premul(c.white, 0.38 * skip * k)),
+            );
+            continue;
+        }
         painter.line_segment([a, b], Stroke::new(w * 2.4, premul(c.white, 0.07 * k)));
         painter.line_segment([a, b], Stroke::new(w, premul(c.white, 0.82 * skip * k)));
     }

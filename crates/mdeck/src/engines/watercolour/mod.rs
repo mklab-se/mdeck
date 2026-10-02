@@ -58,6 +58,15 @@ const LINE_REVEAL: Reveal = Reveal {
     grain: 0.0,
 };
 
+/// A point cloud without an artwork: its lines in ink and the shape laid in
+/// with washes, the brush following loose diagonal strokes.
+const FILL: crate::engines::art::Fill =
+    crate::engines::art::Fill::Lines(Some(crate::engines::art::Shading {
+        spacing: 0.05,
+        everywhere: true,
+        cross: false,
+    }));
+
 pub struct Watercolour {
     canvas: Canvas,
 }
@@ -65,7 +74,7 @@ pub struct Watercolour {
 impl Watercolour {
     pub fn new() -> Self {
         Self {
-            canvas: Canvas::new(DRAW, 0.0, END_WORDS, 0.8),
+            canvas: Canvas::new(DRAW, 0.0, END_WORDS, 0.8).with_fill(FILL),
         }
     }
 }
@@ -151,6 +160,9 @@ fn ink_and_wash(
     }
     let t = now - pic.born;
     let wash_t = t - 0.5;
+    // a shaded drawing is washed where it is shaded; plain strokes along
+    // their lines
+    let shaded = pic.fill.iter().any(|f| *f);
     let mut washes = Vec::new();
     let mut lines = Vec::new();
     for i in 1..pic.points.len() {
@@ -159,19 +171,25 @@ fn ink_and_wash(
         }
         let a = to_screen(pic.points[i - 1], rect);
         let b = to_screen(pic.points[i], rect);
-        if pic.at[i - 1] <= wash_t {
+        if pic.at[i - 1] <= wash_t && pic.fill[i] == shaded {
             let colour = paint.washes[(i / 40) % 3];
             let off = Vec2::new(
                 hash01(i as u32 / 12) - 0.5,
                 hash01(i as u32 / 12 + 99) - 0.5,
             ) * 14.0
                 * scale;
+            let (width, alpha) = if pic.fill[i] {
+                (44.0, 0.075)
+            } else {
+                (30.0, 0.10)
+            };
             washes.push((
                 [a + off, b + off],
-                Stroke::new(30.0 * scale, premul(colour, 0.10 * opacity * pic.weight)),
+                Stroke::new(width * scale, premul(colour, alpha * opacity * pic.weight)),
             ));
         }
-        if pic.at[i - 1] > t {
+        // the shading is all wash, no ink
+        if pic.at[i - 1] > t || pic.fill[i] {
             continue;
         }
         let mut b = b;

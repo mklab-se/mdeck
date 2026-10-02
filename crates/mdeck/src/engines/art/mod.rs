@@ -11,6 +11,7 @@
 
 pub mod reveal;
 pub mod strokes;
+pub mod trace;
 
 use std::sync::Arc;
 
@@ -22,7 +23,8 @@ use mdeck_sdk::paint::{
 use mdeck_sdk::stage::{Artwork, Frame, Look, Moment, PictureSource, Place, Stage};
 
 pub use reveal::{Reveal, Reveals};
-use strokes::{Strokes, plan, to_screen, toured};
+use strokes::{Strokes, plan, plan_layers, to_screen, toured};
+pub use trace::{Fill, Shading};
 
 /// What an art engine can do: show the slide's picture (its generated
 /// artwork, else its point cloud as pen strokes).
@@ -166,6 +168,8 @@ pub struct Canvas {
     end_words: f32,
     /// How long the old picture takes to fade.
     fade: f32,
+    /// How a point cloud picture is drawn without an artwork.
+    fill: Fill,
 }
 
 impl Canvas {
@@ -184,7 +188,14 @@ impl Canvas {
             after,
             end_words,
             fade,
+            fill: Fill::Tour,
         }
+    }
+
+    /// Draw point cloud pictures with `fill` instead of one pen tour.
+    pub fn with_fill(mut self, fill: Fill) -> Self {
+        self.fill = fill;
+        self
     }
 
     fn retire(&mut self) {
@@ -228,7 +239,7 @@ impl Canvas {
                             self.draw,
                         ));
                     } else {
-                        self.strokes = fallback_strokes(frame, stage, self.now);
+                        self.strokes = fallback_strokes(frame, stage, self.now, self.fill);
                     }
                 }
             }
@@ -412,9 +423,9 @@ pub trait Hand {
 }
 
 /// The pen strokes for a moment without an artwork: the slide's point
-/// cloud picture, a countdown digit or the end words. `None` when there is
-/// nothing to draw.
-pub fn fallback_strokes(frame: &Frame, stage: &Stage, now: f32) -> Option<Strokes> {
+/// cloud picture (drawn as `fill` says), a countdown digit or the end
+/// words. `None` when there is nothing to draw.
+pub fn fallback_strokes(frame: &Frame, stage: &Stage, now: f32, fill: Fill) -> Option<Strokes> {
     let rect = frame.rect;
     let aspect = rect.width() / rect.height();
     let place_mask = |mask: &Mask, h: f32| -> Place {
@@ -449,6 +460,21 @@ pub fn fallback_strokes(frame: &Frame, stage: &Stage, now: f32) -> Option<Stroke
                 return None;
             };
             let weight = if pic.backdrop { 0.4 } else { 1.0 };
+            if let Fill::Lines(shading) = fill {
+                let traced = trace::trace(&cloud.points, cloud.aspect, shading);
+                let place = |l: Vec<[f32; 2]>| -> Vec<Pos2> {
+                    l.into_iter()
+                        .map(|p| {
+                            let pl = pic.place;
+                            Pos2::new(pl.u + p[0] * pl.w, pl.v + p[1] * pl.h)
+                        })
+                        .collect()
+                };
+                let lines = traced.lines.into_iter().map(place).collect();
+                let hatch = traced.hatch.into_iter().map(place).collect();
+                let duration = if shading.is_some() { 3.2 } else { 2.4 };
+                return Some(plan_layers(lines, hatch, duration, weight, aspect, now));
+            }
             (vec![toured(&cloud.points, pic.place, aspect)], 2.4, weight)
         }
         Moment::Burst { .. } => return None,
@@ -495,6 +521,7 @@ mod tests {
                 Pos2::new(1.0, 1.0),
             ],
             pen: vec![true, true, false],
+            fill: vec![false; 3],
             at: vec![0.0, 1.0, 2.0],
             duration: 2.0,
             born: 0.0,
@@ -542,6 +569,6 @@ mod tests {
         assert!(!canvas.busy(), "a still shows the finished drawing");
         assert!(canvas.tip.is_none());
         // no picture: nothing to draw on a slide
-        assert!(fallback_strokes(&frame, &Stage::new(Moment::Slide), 0.0).is_none());
+        assert!(fallback_strokes(&frame, &Stage::new(Moment::Slide), 0.0, Fill::Tour).is_none());
     }
 }

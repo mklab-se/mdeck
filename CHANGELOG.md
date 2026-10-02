@@ -240,6 +240,10 @@ an AI harness can convert a deck.
   `SIGN UPS`.
 - `mdeck export --moment countdown|end` writes one image (`countdown.png`, `end.png`) instead of
   the same image once per slide; `--slide` picks the slide it is drawn on.
+- Without a generated picture, the line, sketch and watercolour engines draw a slide's point cloud
+  as a finished drawing instead of one wandering pen line: the cloud's own lines traced clean and
+  smooth, section hatching on the shadow side in line, hatching and cross-hatching in sketch, and
+  washes laid over the shape in watercolour.
 
 ### Deferred to 2.x
 

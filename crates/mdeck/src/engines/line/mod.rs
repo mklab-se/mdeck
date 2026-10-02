@@ -96,6 +96,15 @@ fn pace(surface: Surface) -> Pace {
     }
 }
 
+/// A point cloud without an artwork: its lines traced clean, with section
+/// hatching on the shadow side, the way a drafter marks a cut surface.
+const FILL: crate::engines::art::Fill =
+    crate::engines::art::Fill::Lines(Some(crate::engines::art::Shading {
+        spacing: 0.045,
+        everywhere: false,
+        cross: false,
+    }));
+
 pub struct Line {
     surface: Surface,
     canvas: Canvas,
@@ -110,7 +119,7 @@ impl Line {
         let p = pace(surface);
         Self {
             surface,
-            canvas: Canvas::new(p.draw, p.after, END_WORDS, p.fade),
+            canvas: Canvas::new(p.draw, p.after, END_WORDS, p.fade).with_fill(FILL),
             motes: Vec::new(),
             seed: 0x1234_5679,
             sprites: Sprites::new("mdeck-line-sprites"),

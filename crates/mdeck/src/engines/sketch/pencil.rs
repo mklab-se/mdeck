@@ -221,6 +221,17 @@ pub(super) fn graphite_lines(
             b = a + (b - a) * f.clamp(0.0, 1.0);
         }
         let pressure = 0.7 + 0.3 * hash01(i as u32 * 7);
+        if pic.fill[i] {
+            // shading: light, quick hatching
+            painter.line_segment(
+                [a, b],
+                Stroke::new(
+                    w * 0.45,
+                    premul(g.lead, 0.42 * pressure * opacity * pic.weight.max(0.4)),
+                ),
+            );
+            continue;
+        }
         let n = across((b - a).normalized()) * (0.9 * scale);
         painter.line_segment(
             [a, b],
