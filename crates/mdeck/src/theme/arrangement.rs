@@ -160,6 +160,9 @@ pub struct Plate {
     pub region: Frac,
     #[serde(default)]
     pub place: Place,
+    /// Where an image smaller than the plate sits in it.
+    #[serde(default = "center")]
+    pub align: HAlign,
     #[serde(default)]
     pub valign: VAlign,
     /// Between gallery cells, columns or stacked visuals.
@@ -168,6 +171,10 @@ pub struct Plate {
     /// A hairline above each column (columns) or under the plate's caption.
     #[serde(default)]
     pub rule: bool,
+}
+
+fn center() -> HAlign {
+    HAlign::Center
 }
 
 fn default_gap() -> Space {

@@ -313,7 +313,7 @@ mod tests {
         let line = slide_summary(4, s);
         assert!(line.contains("slide   5:"), "{line}");
         assert!(
-            line.contains("slide   5: points (a heading + one list"),
+            line.contains("slide   5: points (a heading + one list,"),
             "{line}"
         );
         assert!(line.contains("2 blocks"), "{line}");

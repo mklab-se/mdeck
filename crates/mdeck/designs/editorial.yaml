@@ -69,7 +69,7 @@ designs:
     stage: none
   media:
     copy: { region: [0.07, 0.08, 0.86, 0.84], align: left, valign: top }
-    plate: { region: [0.07, 0.08, 0.86, 0.84], place: below, valign: middle, gap: sm }
+    plate: { region: [0.07, 0.08, 0.86, 0.84], place: below, align: left, valign: top, gap: sm }
     stage: none
     roles:
       title: { scale: 0.8, gap: 24 }

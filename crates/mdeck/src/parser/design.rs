@@ -218,7 +218,7 @@ pub struct Rule {
 pub const RULES: &[Rule] = &[
     Rule {
         design: Design::Columns,
-        when: "a column separator (+++)",
+        when: "a column separator, +++",
         test: |s| s.separators > 0,
     },
     Rule {
@@ -228,7 +228,7 @@ pub const RULES: &[Rule] = &[
     },
     Rule {
         design: Design::Title,
-        when: "an H1 + one short line (an H2 or a paragraph)",
+        when: "an H1 + one short line, an H2 or a paragraph",
         test: |s| {
             s.h1_first()
                 && s.others() == 0
@@ -246,7 +246,7 @@ pub const RULES: &[Rule] = &[
     },
     Rule {
         design: Design::Section,
-        when: "a heading + a deeper heading (its kicker)",
+        when: "a heading + a deeper heading, its kicker",
         test: |s| s.kicker_heading && s.total() == 2,
     },
     Rule {
@@ -261,7 +261,7 @@ pub const RULES: &[Rule] = &[
     },
     Rule {
         design: Design::Points,
-        when: "a heading + one list (a lead paragraph before it allowed)",
+        when: "a heading + one list, optionally a lead paragraph before it",
         test: |s| {
             s.headings.len() == 1
                 && s.lists == 1
@@ -272,7 +272,7 @@ pub const RULES: &[Rule] = &[
     },
     Rule {
         design: Design::Quote,
-        when: "one quote (a heading and an attribution after it allowed)",
+        when: "one quote, optionally a heading and an attribution after it",
         test: |s| {
             s.quotes == 1
                 && s.headings.len() <= 1
@@ -283,7 +283,7 @@ pub const RULES: &[Rule] = &[
     },
     Rule {
         design: Design::Media,
-        when: "one image (a heading, a lead paragraph before it and a caption after it allowed)",
+        when: "one image, optionally a heading, a lead before it and a caption after it",
         test: |s| {
             s.images == 1
                 && s.headings.len() <= 1
@@ -294,14 +294,14 @@ pub const RULES: &[Rule] = &[
     },
     Rule {
         design: Design::Gallery,
-        when: "two or more images (a heading allowed)",
+        when: "two or more images, optionally a heading",
         test: |s| {
             s.images >= 2 && s.headings.len() <= 1 && s.paragraphs == 0 && s.others() == s.images
         },
     },
     Rule {
         design: Design::Split,
-        when: "one image + text (paragraphs or a list)",
+        when: "one image + text: paragraphs or one list",
         test: |s| {
             s.images == 1
                 && s.headings.len() <= 1
@@ -312,17 +312,17 @@ pub const RULES: &[Rule] = &[
     },
     Rule {
         design: Design::Code,
-        when: "one code block (a heading and a short paragraph allowed)",
+        when: "one code block, optionally a heading and a short paragraph",
         test: |s| lead_and(s, s.code),
     },
     Rule {
         design: Design::Visual,
-        when: "one chart or diagram (a heading and a short paragraph allowed)",
+        when: "one chart or diagram, optionally a heading and a short paragraph",
         test: |s| lead_and(s, s.visuals),
     },
     Rule {
         design: Design::Table,
-        when: "one table (a heading and a short paragraph allowed)",
+        when: "one table, optionally a heading and a short paragraph",
         test: |s| lead_and(s, s.tables),
     },
     Rule {

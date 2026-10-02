@@ -13,6 +13,8 @@ pub mod parts;
 pub mod pillow;
 pub mod plate;
 pub mod style;
+#[cfg(test)]
+mod tests;
 
 use eframe::egui::{self, Pos2, Rect};
 
@@ -498,6 +500,33 @@ fn paint(
     // the plate first: a band and the copy may lie over it
     let entry = &a.entry;
     let reveal_age = cx.reveal_timestamp.map(|t| t.elapsed().as_secs_f32());
+    // a lone image smaller than its plate sits where the plate's alignment
+    // says, and what follows it (the caption) moves up to meet it
+    let mut plate_shift = egui::Vec2::ZERO;
+    let mut foot_shift = 0.0;
+    if let ([item], Some(p)) = (plan.plate.as_slice(), a.plate.as_ref())
+        && let Block::Image {
+            path, directives, ..
+        } = item.block
+        && !directives.fill
+        && let Some(f) = crate::render::text::image_rect_in(cx, path, directives, item.rect)
+    {
+        use crate::theme::arrangement::HAlign;
+        let r = item.rect;
+        let free = r.height() - f.height();
+        let dx = match p.align {
+            HAlign::Left => r.left() - f.left(),
+            HAlign::Center => 0.0,
+            HAlign::Right => r.right() - f.right(),
+        };
+        let top = match p.valign {
+            VAlign::Top => r.top(),
+            VAlign::Middle => r.top() + free / 2.0,
+            VAlign::Bottom => r.bottom() - f.height(),
+        };
+        plate_shift = egui::vec2(dx, top - f.top());
+        foot_shift = (top + f.height()) - r.bottom();
+    }
     if age >= 0.0 {
         let pp = motion::entry_progress(entry, age, plan.plate_nth);
         let off = motion::offset(entry, pp, false) * s;
@@ -506,7 +535,7 @@ fn paint(
             ..*cx
         };
         for item in &plan.plate {
-            let rect = item.rect.translate(off);
+            let rect = item.rect.translate(off + plate_shift);
             if matches!(item.block, Block::Chart { .. } | Block::Diagram { .. }) {
                 crate::render::hints::push(cx.ui.ctx(), crate::render::hints::Hint::Frame(rect));
             }
@@ -561,7 +590,10 @@ fn paint(
         let revealed = piece.step > 0
             && piece.step == cx.reveal_step
             && reveal_age.is_some_and(|r| r < a.entry.reveal_ms / 500.0);
-        let off = motion::offset(entry, p, revealed) * s;
+        let mut off = motion::offset(entry, p, revealed) * s;
+        if piece.nth >= plan.plate_nth && !plan.plate.is_empty() {
+            off.y += foot_shift;
+        }
         let alpha = cx.opacity * p;
         match &piece.kind {
             Kind::Text {
