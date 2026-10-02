@@ -5,7 +5,10 @@
 # are drawn in pencil.
 name: Sketchbook
 extends: light
-engine: sketch
+engine:
+  name: sketch
+  light: "#ffffff"
+  cool: "#2f5d50"            # the pencil's painted body
 designs: editorial
 countdown: on
 colors:
@@ -30,9 +33,6 @@ colors:
     - "#45423c" # graphite
     - "#c98a5e" # sienna
     - "#7f9aa8" # grey blue
-particles:
-  light: "#ffffff"
-  cool: "#2f5d50"            # the pencil's painted body
 fonts:
   display: spectral-light
   body: hanken-regular

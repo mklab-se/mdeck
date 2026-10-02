@@ -326,17 +326,20 @@ fn absolutize(file: &mut ThemeFile, base: &Path, warnings: &mut Vec<String>) {
             }
         }
     }
-    if let Some(refs) = file.art.references.as_mut() {
+    let refs = file.engine.as_ref().and_then(|b| b.list("references").ok().flatten());
+    if let (Some(mut refs), Some(block)) = (refs, file.engine.as_mut()) {
         refs.retain_mut(|v| match super::confined_path(base, v) {
             Ok(p) => {
                 *v = p.to_string_lossy().to_string();
                 true
             }
             Err(e) => {
-                warnings.push(format!("art.references: {e}; left out"));
+                warnings.push(format!("engine.references: {e}; left out"));
                 false
             }
         });
+        let list = refs.into_iter().map(serde_norway::Value::String).collect();
+        block.set("references", serde_norway::Value::Sequence(list));
     }
 }
 

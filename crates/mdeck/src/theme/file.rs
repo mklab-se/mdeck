@@ -14,13 +14,14 @@ pub struct ThemeFile {
     pub name: Option<String>,
     /// Theme to inherit unset keys from (default: `dark`).
     pub extends: Option<String>,
-    /// `plain` or `particles`.
-    pub engine: Option<String>,
+    /// The theme this one recolours (`autumn` is a variant of `ember`):
+    /// lists and `Shift+T` show variants after the themes.
+    pub variant_of: Option<String>,
+    /// The engine and its settings: `engine: plain`, or
+    /// `engine: { name: thermal, palette: iron }`.
+    pub engine: Option<EngineBlock>,
     /// `on` or `off`: whether decks open with the 3-2-1 countdown.
     pub countdown: Option<String>,
-    /// The line engine's surface: `sheet` or `slate` (interim, see
-    /// [`super::Surface`]).
-    pub surface: Option<String>,
     /// `slide`, `fade`, `spatial` or `none`.
     pub transition: Option<String>,
     /// The design set: `standard` or `editorial`.
@@ -37,8 +38,6 @@ pub struct ThemeFile {
     #[serde(default)]
     pub annotations: Annotations,
     #[serde(default)]
-    pub particles: Particles,
-    #[serde(default)]
     pub fonts: Fonts,
     #[serde(default)]
     pub sizes: Sizes,
@@ -52,10 +51,129 @@ pub struct ThemeFile {
     pub logo: Logo,
     #[serde(default)]
     pub page: Page,
-    #[serde(default)]
-    pub art: Art,
-    #[serde(default)]
-    pub heat: Heat,
+    /// v1 keys that moved into the engine block; reported, never read.
+    #[serde(rename = "particles")]
+    pub moved_particles: Option<serde_norway::Value>,
+    #[serde(rename = "heat")]
+    pub moved_heat: Option<serde_norway::Value>,
+    #[serde(rename = "art")]
+    pub moved_art: Option<serde_norway::Value>,
+    #[serde(rename = "surface")]
+    pub moved_surface: Option<serde_norway::Value>,
+}
+
+/// The `engine:` block: the engine's name and its settings, as written
+/// (THM-11). `engine: led` is short for `engine: { name: led }`.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct EngineBlock {
+    pub name: Option<String>,
+    /// Every key but `name`, in the order written.
+    pub settings: Vec<(String, serde_norway::Value)>,
+}
+
+impl<'de> Deserialize<'de> for EngineBlock {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        use serde::de::Error;
+        use serde_norway::Value;
+        match Value::deserialize(d)? {
+            Value::Null => Ok(EngineBlock::default()),
+            Value::String(name) => Ok(EngineBlock {
+                name: Some(name),
+                settings: Vec::new(),
+            }),
+            Value::Mapping(map) => {
+                let mut block = EngineBlock::default();
+                for (k, v) in map {
+                    let Some(key) = k.as_str() else {
+                        return Err(D::Error::custom("engine: keys must be names"));
+                    };
+                    if key == "name" {
+                        match v {
+                            Value::String(n) => block.name = Some(n),
+                            _ => return Err(D::Error::custom("engine.name must be an engine name")),
+                        }
+                    } else {
+                        block.settings.push((key.to_string(), v));
+                    }
+                }
+                Ok(block)
+            }
+            _ => Err(D::Error::custom(
+                "engine must be a name (`engine: plain`) or a block (`engine: { name: thermal, palette: iron }`)",
+            )),
+        }
+    }
+}
+
+impl EngineBlock {
+    pub fn get(&self, key: &str) -> Option<&serde_norway::Value> {
+        self.settings.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+    }
+
+    /// A text setting; another type is an error naming `engine.<key>`.
+    pub fn str(&self, key: &str) -> Result<Option<String>, ThemeError> {
+        match self.get(key) {
+            None | Some(serde_norway::Value::Null) => Ok(None),
+            Some(serde_norway::Value::String(s)) => Ok(Some(s.clone())),
+            Some(_) => Err(ThemeError::invalid(format!("engine.{key}"), "must be text")),
+        }
+    }
+
+    pub fn bool(&self, key: &str) -> Result<Option<bool>, ThemeError> {
+        match self.get(key) {
+            None | Some(serde_norway::Value::Null) => Ok(None),
+            Some(serde_norway::Value::Bool(b)) => Ok(Some(*b)),
+            Some(_) => Err(ThemeError::invalid(
+                format!("engine.{key}"),
+                "must be true or false",
+            )),
+        }
+    }
+
+    pub fn list(&self, key: &str) -> Result<Option<Vec<String>>, ThemeError> {
+        match self.get(key) {
+            None | Some(serde_norway::Value::Null) => Ok(None),
+            Some(serde_norway::Value::Sequence(items)) => items
+                .iter()
+                .map(|v| {
+                    v.as_str().map(str::to_string).ok_or_else(|| {
+                        ThemeError::invalid(format!("engine.{key}"), "must be a list of file names")
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .map(Some),
+            Some(_) => Err(ThemeError::invalid(
+                format!("engine.{key}"),
+                "must be a list of file names",
+            )),
+        }
+    }
+
+    /// Replace (or add) a setting.
+    pub fn set(&mut self, key: &str, value: serde_norway::Value) {
+        match self.settings.iter_mut().find(|(k, _)| k == key) {
+            Some(slot) => slot.1 = value,
+            None => self.settings.push((key.to_string(), value)),
+        }
+    }
+
+    /// This block over `parent`'s. Settings merge key by key while both
+    /// name the same engine; a child that names a different engine starts
+    /// from its own settings only (the parent's belong to another engine).
+    pub fn over(&self, parent: &EngineBlock) -> EngineBlock {
+        let switched = matches!((&self.name, &parent.name), (Some(c), Some(p)) if c.trim() != p.trim());
+        if switched {
+            return self.clone();
+        }
+        let mut merged = parent.clone();
+        if self.name.is_some() {
+            merged.name = self.name.clone();
+        }
+        for (k, v) in &self.settings {
+            merged.set(k, v.clone());
+        }
+        merged
+    }
 }
 
 /// The spacing scale, px at 1920x1080 (THM-07).
@@ -97,9 +215,9 @@ pub struct Annotations {
     pub arrow_outline: Option<String>,
 }
 
-/// The heat field of the thermal engine.
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+/// The heat field of the thermal engine (`engine: { name: thermal,
+/// palette, drift }`).
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Heat {
     /// The palette the field glows in: iron, white-hot, black-hot, rainbow,
     /// arctic or lava.
@@ -109,8 +227,7 @@ pub struct Heat {
     pub drift: Option<bool>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Particles {
     pub light: Option<String>,
     pub cool: Option<String>,
@@ -186,8 +303,7 @@ pub struct Page {
 
 /// Generated artwork: what kind of picture the deck's art engine asks for,
 /// in what style, with which reference images.
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Art {
     /// `line` (ink lines on white, drawn in the engine's medium) or `tonal`
     /// (a picture in the medium itself).
@@ -205,7 +321,66 @@ fn pick<T: Clone>(child: &Option<T>, parent: &Option<T>) -> Option<T> {
 
 impl ThemeFile {
     pub fn parse(yaml: &str) -> Result<Self, ThemeError> {
-        serde_norway::from_str(yaml).map_err(|e| ThemeError::Parse(e.to_string()))
+        let f: ThemeFile =
+            serde_norway::from_str(yaml).map_err(|e| ThemeError::Parse(e.to_string()))?;
+        let moved = [
+            ("particles", f.moved_particles.is_some(), "light: ..., cool: ..."),
+            ("heat", f.moved_heat.is_some(), "palette: ..., drift: ..."),
+            ("art", f.moved_art.is_some(), "kind: ..., style: ..., references: [...]"),
+            ("surface", f.moved_surface.is_some(), "surface: sheet"),
+        ];
+        if let Some((key, _, example)) = moved.into_iter().find(|(_, set, _)| *set) {
+            return Err(ThemeError::invalid(
+                key,
+                format!(
+                    "moved into the engine block in v2: write `engine: {{ name: <engine>, {example} }}`"
+                ),
+            ));
+        }
+        Ok(f)
+    }
+
+    /// The engine block (empty when the file names no engine).
+    pub fn engine_block(&self) -> EngineBlock {
+        self.engine.clone().unwrap_or_default()
+    }
+
+    /// The engine's name, when the file (or what it extends) names one.
+    pub fn engine_name(&self) -> Option<&str> {
+        self.engine.as_ref().and_then(|e| e.name.as_deref())
+    }
+
+    /// The particle tints (`light`, `cool`) from the engine block.
+    pub fn particles(&self) -> Result<Particles, ThemeError> {
+        let b = self.engine_block();
+        Ok(Particles {
+            light: b.str("light")?,
+            cool: b.str("cool")?,
+        })
+    }
+
+    /// The thermal engine's `palette` and `drift` from the engine block.
+    pub fn heat(&self) -> Result<Heat, ThemeError> {
+        let b = self.engine_block();
+        Ok(Heat {
+            palette: b.str("palette")?,
+            drift: b.bool("drift")?,
+        })
+    }
+
+    /// An art engine's `kind`, `style` and `references` from the engine block.
+    pub fn art(&self) -> Result<Art, ThemeError> {
+        let b = self.engine_block();
+        Ok(Art {
+            kind: b.str("kind")?,
+            style: b.str("style")?,
+            references: b.list("references")?,
+        })
+    }
+
+    /// The line engine's `surface` from the engine block.
+    pub fn surface(&self) -> Result<Option<String>, ThemeError> {
+        self.engine_block().str("surface")
     }
 
     /// This file with every unset key taken from `parent`. `name` and
@@ -218,9 +393,12 @@ impl ThemeFile {
         ThemeFile {
             name: self.name.clone(),
             extends: self.extends.clone(),
-            engine: pick(&self.engine, &parent.engine),
+            variant_of: self.variant_of.clone(),
+            engine: match (&self.engine, &parent.engine) {
+                (Some(c), Some(p)) => Some(c.over(p)),
+                (c, p) => c.clone().or_else(|| p.clone()),
+            },
             countdown: pick(&self.countdown, &parent.countdown),
-            surface: pick(&self.surface, &parent.surface),
             transition: pick(&self.transition, &parent.transition),
             designs: pick(&self.designs, &parent.designs),
             arrangements: match (&self.arrangements, &parent.arrangements) {
@@ -261,10 +439,6 @@ impl ThemeFile {
                 arrow: pick(&a.arrow, &pa.arrow),
                 arrow_outline: pick(&a.arrow_outline, &pa.arrow_outline),
             },
-            particles: Particles {
-                light: pick(&self.particles.light, &parent.particles.light),
-                cool: pick(&self.particles.cool, &parent.particles.cool),
-            },
             fonts: Fonts {
                 display: pick(&f.display, &pf.display),
                 body: pick(&f.body, &pf.body),
@@ -301,15 +475,10 @@ impl ThemeFile {
                 grain: pick(&self.page.grain, &parent.page.grain),
                 radius: pick(&self.page.radius, &parent.page.radius),
             },
-            heat: Heat {
-                palette: pick(&self.heat.palette, &parent.heat.palette),
-                drift: pick(&self.heat.drift, &parent.heat.drift),
-            },
-            art: Art {
-                kind: pick(&self.art.kind, &parent.art.kind),
-                style: pick(&self.art.style, &parent.art.style),
-                references: pick(&self.art.references, &parent.art.references),
-            },
+            moved_particles: None,
+            moved_heat: None,
+            moved_art: None,
+            moved_surface: None,
         }
     }
 }
@@ -366,10 +535,52 @@ mod tests {
         let child = ThemeFile::parse("name: x\ncolors: { accent: '#0f0' }\n").unwrap();
         let m = child.over(&parent);
         assert_eq!(m.name.as_deref(), Some("x"));
-        assert_eq!(m.engine.as_deref(), Some("particles"));
+        assert_eq!(m.engine_name(), Some("particles"));
         assert_eq!(m.colors.background.as_deref(), Some("#000"));
         assert_eq!(m.colors.accent.as_deref(), Some("#0f0"));
         assert_eq!(m.sizes.h1, Some(90.0));
+    }
+
+    #[test]
+    fn the_engine_block_merges_per_engine() {
+        let parent =
+            ThemeFile::parse("engine: { name: thermal, palette: iron, drift: true }\n").unwrap();
+        // the same engine: settings merge key by key
+        let child = ThemeFile::parse("engine: { palette: lava }\n").unwrap();
+        let m = child.over(&parent);
+        assert_eq!(m.engine_name(), Some("thermal"));
+        let heat = m.heat().unwrap();
+        assert_eq!(heat.palette.as_deref(), Some("lava"));
+        assert_eq!(heat.drift, Some(true));
+        // the shorthand names the engine only
+        let child = ThemeFile::parse("engine: thermal\n").unwrap();
+        assert_eq!(child.over(&parent).heat().unwrap().drift, Some(true));
+        // another engine: the parent's settings are for the old one
+        let child = ThemeFile::parse("engine: { name: led, light: '#fff' }\n").unwrap();
+        let m = child.over(&parent);
+        assert_eq!(m.engine_name(), Some("led"));
+        assert_eq!(m.heat().unwrap().palette, None);
+        assert_eq!(m.particles().unwrap().light.as_deref(), Some("#fff"));
+    }
+
+    #[test]
+    fn v1_engine_keys_say_where_they_moved() {
+        for (yaml, key) in [
+            ("particles: { light: '#fff' }", "particles"),
+            ("heat: { palette: iron }", "heat"),
+            ("art: { kind: line }", "art"),
+            ("surface: slate", "surface"),
+        ] {
+            let e = ThemeFile::parse(yaml).unwrap_err().to_string();
+            assert!(e.starts_with(key) && e.contains("engine block"), "{e}");
+        }
+        let e = ThemeFile::parse("engine: { name: thermal, drift: 3 }")
+            .unwrap()
+            .heat()
+            .unwrap_err()
+            .to_string();
+        assert_eq!(e, "engine.drift: must be true or false");
+        assert!(ThemeFile::parse("engine: [a]").is_err());
     }
 
     #[test]

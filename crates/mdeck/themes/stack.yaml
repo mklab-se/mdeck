@@ -3,7 +3,10 @@
 # rounded grotesk for the copy (blocks engine).
 name: Stack
 extends: dark
-engine: blocks
+engine:
+  name: blocks
+  light: "#ffffff"
+  cool: "#3ec9ff"            # cyan blocks
 designs: editorial
 countdown: on
 colors:
@@ -28,9 +31,6 @@ colors:
     - "#ff9a3d" # orange
     - "#f5f6ff" # white
     - "#6c7cff" # blue
-particles:
-  light: "#ffffff"
-  cool: "#3ec9ff"            # cyan blocks
 fonts:
   display: hanken-medium
   body: hanken-regular

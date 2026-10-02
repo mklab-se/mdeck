@@ -30,9 +30,6 @@ colors:
     - "#d98fa0" # rose
     - "#6aa6a0" # teal
     - "#8f8a80" # grey
-particles:
-  light: "#ffffff"
-  cool: "#4d7ea8"
 fonts:
   display: spectral-light
   body: hanken-regular
