@@ -1,4 +1,4 @@
-//! `mdeck ai create`: create a presentation from content using AI.
+//! `mdeck ai deck`: create a presentation from content using AI.
 //!
 //! Accepts text, markdown, PDF, or DOCX input and generates a complete
 //! mdeck-format presentation with speaker notes, visualizations, and
@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use colored::Colorize;
 
-use crate::cli::CreateArgs;
+use crate::cli::DeckArgs;
 use crate::commands::ai;
 
 use self::interactive::run_interactive_chat;
@@ -30,7 +30,7 @@ const DEFAULT_OUTPUT: &str = "presentation.md";
 
 // ── Entry point ─────────────────────────────────────────────────────────────
 
-pub async fn run(args: CreateArgs, quiet: bool) -> Result<()> {
+pub async fn run(args: DeckArgs, quiet: bool) -> Result<()> {
     if !ai::has_capability("chat") {
         anyhow::bail!(
             "Chat AI not configured. Run `{APP_NAME} ai config` to set up a chat provider."
@@ -110,7 +110,7 @@ pub async fn run(args: CreateArgs, quiet: bool) -> Result<()> {
 /// `--prompt` (or a sensible default) otherwise.
 async fn gather_context(
     client: &ailloy::Client,
-    args: &CreateArgs,
+    args: &DeckArgs,
     content: &str,
     quiet: bool,
 ) -> Result<String> {

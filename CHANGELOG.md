@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Generated assets, one model (GEN-02..GEN-05).** Everything `mdeck ai` makes for `talk.md` now
+  lives in `talk.assets/` (`artworks/`, `images/`, `icons/`, `point-clouds/`) with one
+  `talk.assets/manifest.yaml` recording, per asset, its kind, what it is for (slide number and a
+  hash of its source, or a placeholder's prompt), the prompt, the style, the file and its state:
+  `current`, `stale` (still shown, reported by `--check`) or `pinned` (`state: pinned`, never
+  regenerated). Replaces `<deck>.art.yaml` and `art/`; the repo's sample decks are converted.
+- **Placeholders stay in the source (GEN-04).** Images are `![prompt](generate:)` (was
+  `(image-generation)`), diagram icons `(icon: generate:, prompt: "...")` (was
+  `icon: generate-image`; the label is the prompt when `prompt:` is left out). Generation never
+  rewrites the deck: placeholders are resolved through the manifest when the deck opens, and one
+  that is not generated yet shows as a quiet card with its prompt (an icon as the generic one).
+- **Everything AI makes is under `mdeck ai`.** `mdeck ai images`, `mdeck ai icons` (each also
+  `--prompt "..."` for one picture, replacing `mdeck ai generate-image`), `mdeck ai pictures`
+  (was `mdeck ai art`), `mdeck ai point-cloud` (was `mdeck illustration generate`; given a deck it
+  generates every `@illustration` name that resolves nowhere into `talk.assets/point-clouds/`),
+  `mdeck ai theme <name> --from <dir>` (was `mdeck theme new --from`), `mdeck ai deck` (was
+  `mdeck ai create`) and `mdeck ai skill`. Bare `mdeck ai talk.md` generates everything the deck is
+  missing. The deck forms share `--slide N`, `--stale`, `--force` and `--dry-run`. `mdeck ai
+  generate` and its in-place rewriting are gone.
+- **One style system (GEN-05).** A named style is a prompt plus optional reference images
+  (`mdeck ai style add <name> "..." --reference look.png`); each kind has a default style, the
+  deck's `@image-style` / `@icon-style` override it, and artworks use their medium's style card
+  (or the theme's `art:`). Every asset records its style, so a style change makes it stale.
+- `--check` category `art` is now `assets`: missing and stale artworks, images and icons, missing
+  point cloud files, and a manifest that cannot be read.
+
 ### Removed
 
 - Stories (PIC-06): the ```` ```@story ```` and ```` ```@scene ```` fences, the `@story` deck key,

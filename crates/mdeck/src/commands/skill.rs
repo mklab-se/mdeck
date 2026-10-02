@@ -69,7 +69,7 @@ types, and incremental reveal that you need to write correct presentations.
 
 - `mdeck <file.md>` — launch presentation
 - `mdeck <file.md> --check` — validate without launching
-- `mdeck ai generate <file.md>` — generate AI images
+- `mdeck ai <file.md>`: generate every AI asset the deck is missing (`![prompt](generate:)` images, `icon: generate:` icons, artworks, point clouds)
 - `mdeck export <file.md>` — export slides as PNG images
 - `mdeck spec` — print format specification
 - `mdeck spec --short` — print quick reference card
@@ -81,7 +81,7 @@ types, and incremental reveal that you need to write correct presentations.
 1. Run `mdeck ai skill --reference` to load the full spec
 2. Write or edit the presentation markdown
 3. Run `mdeck <file.md> --check` to validate
-4. If using AI images, run `mdeck ai generate <file.md>`
+4. If using AI images (`![prompt](generate:)`), run `mdeck ai <file.md>`
 "#
     );
 }

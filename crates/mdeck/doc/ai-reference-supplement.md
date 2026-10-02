@@ -36,7 +36,7 @@ mdeck export <file.md> --theme winter           # In another theme, without edit
 ```bash
 mdeck theme list                        # Every theme visible from here (deck, user, built-in)
 mdeck theme new <name>                  # Commented starter theme in ./themes/<name>.yaml
-mdeck theme new <name> --from <dir>     # Convert a design system folder with AI (copies fonts and logos)
+mdeck ai theme <name> --from <dir>      # Convert a design system folder with AI (copies fonts and logos)
 mdeck theme check <name>                # Errors, fallbacks, weak contrast (exit 1 when invalid)
 mdeck theme preview <name> -o <dir>     # Sampler deck in the theme, as PNGs to look at
 ```
@@ -65,13 +65,13 @@ mdeck config set <key> <value> # Set a config value
 Available config keys:
 - `defaults.theme`: default theme, a built-in (`light`, `dark`, `nord`, `ember`,
   `spring`, `summer`, `autumn`, `winter`) or a user theme
-- `mdeck ai art <deck.md> [--slide N] [--stale] [--force] [--dry-run] [--engine E] [--node N]`:
+- `mdeck ai pictures <deck.md> [--slide N] [--stale] [--force] [--dry-run] [--engine E] [--node N]`:
   draw a picture per slide for an art engine (`blueprint`, `sketch`, `chalkboard`, `watercolour`, `darkroom`) with the image model; pictures go in
-  `art/` next to the deck and `<deck>.art.yaml` records them. `@art: "..."` in the frontmatter is
+  `<deck>.assets/artworks/` and `<deck>.assets/manifest.yaml` records them. `@art: "..."` in the frontmatter is
   the deck's world (setting, era, characters); under a slide's heading it is that slide's scene
   (otherwise the chat model writes one from the copy and notes); `@art: none` skips a slide.
   Only title, section, quote, bullet and copy slides take art. Pictures never contain text.
-- `mdeck illustration generate --name <n> --description "..."` — make a point cloud
+- `mdeck ai point-cloud <deck.md>` (the deck's missing names) or `mdeck ai point-cloud --name <n> --description "..."`: make a point cloud
   illustration for the Ember field (`--user` for the user library, `--force` to overwrite);
   `mdeck illustration import <image> --name <n>` converts an existing image, `list` shows what
   resolves from here, `show <n>` previews. A slide asks for one with `@illustration: <n>` at its
@@ -100,25 +100,27 @@ mdeck ai test                  # Test AI integration
 ### AI Presentation Creation
 
 ```bash
-mdeck ai create --input <file-or-text> --output <path>  # Create presentation from content
-mdeck ai create --input report.pdf --output slides.md    # From PDF
-mdeck ai create --input manual.docx --output slides.md   # From DOCX
-mdeck ai create --input "A talk about Rust" --output slides.md  # From text prompt
-cat notes.txt | mdeck ai create --output slides.md       # From piped input
-mdeck ai create -i --input doc.md --output slides.md     # Interactive mode
-mdeck ai create --input doc.md --prompt "For engineers" --output slides.md  # With audience context
+mdeck ai deck --input <file-or-text> --output <path>  # Create presentation from content
+mdeck ai deck --input report.pdf --output slides.md    # From PDF
+mdeck ai deck --input manual.docx --output slides.md   # From DOCX
+mdeck ai deck --input "A talk about Rust" --output slides.md  # From text prompt
+cat notes.txt | mdeck ai deck --output slides.md       # From piped input
+mdeck ai deck -i --input doc.md --output slides.md     # Interactive mode
+mdeck ai deck --input doc.md --prompt "For engineers" --output slides.md  # With audience context
 ```
 
 ### AI Image Generation
 
 ```bash
-mdeck ai generate <file.md>              # Generate all AI images in a presentation
-mdeck ai generate <file.md> --force      # Skip confirmation prompt
-mdeck ai generate <file.md> --style name # Override the image style
-mdeck ai generate-image --prompt "..."   # Generate a single image
-mdeck ai generate-image --prompt "..." --style "watercolor"
-mdeck ai generate-image --prompt "..." --icon   # Generate as icon
-mdeck ai generate-image --prompt "..." --output path.png
+mdeck ai <file.md>                       # Generate every asset the deck is missing
+mdeck ai images <file.md>                # Images for ![prompt](generate:) placeholders
+mdeck ai images <file.md> --dry-run      # List what would be generated
+mdeck ai images <file.md> --style name   # Override the image style
+mdeck ai icons <file.md>                 # Diagram icons for icon: generate:
+mdeck ai images --prompt "..."           # Generate a single image
+mdeck ai images --prompt "..." --style "watercolor"
+mdeck ai icons --prompt "..."            # Generate a single icon
+mdeck ai images --prompt "..." --output path.png
 ```
 
 ### AI Style Management
@@ -140,16 +142,16 @@ mdeck ai style show-defaults               # Show current default styles
 
 ### Marking Images for Generation
 
-Use `image-generation` as the image path to mark an image for AI generation:
+Use `generate:` as the image path to mark an image for AI generation:
 
 ```markdown
-![A futuristic cityscape at sunset](image-generation)
+![A futuristic cityscape at sunset](generate:)
 ```
 
 The alt text becomes the image prompt. Leave alt text empty for auto-prompting from slide context (requires chat capability):
 
 ```markdown
-![](image-generation)
+![](generate:)
 ```
 
 ### Image Style Control
@@ -167,23 +169,23 @@ For icons (used in architecture diagrams):
 
 ### Diagram Icon Generation
 
-In architecture diagrams, use `icon: generate-image` with a `prompt` to mark a node for AI icon generation:
+In architecture diagrams, use `icon: generate:` with a `prompt` to mark a node for AI icon generation:
 
 ````markdown
 ```@architecture
-- Gateway (icon: generate-image, prompt: "An API gateway router icon", pos: 1,2)
+- Gateway (icon: generate:, prompt: "An API gateway router icon", pos: 1,2)
 - Database (icon: database, pos: 2,2)
 - Gateway -> Database: queries
 ```
 ````
 
-### The `mdeck ai generate` Workflow
+### The `mdeck ai images` Workflow
 
-1. Write your presentation with `image-generation` markers and/or diagram icon prompts
-2. Run `mdeck ai generate <file.md>`
+1. Write your presentation with `generate:` placeholders and/or diagram icon prompts
+2. Run `mdeck ai <file.md>` (or `mdeck ai images` / `mdeck ai icons`)
 3. The command detects orientation automatically (horizontal for full-slide images, vertical for side-panel layouts)
 4. It applies the configured image style
-5. The markdown file is rewritten in-place, replacing `image-generation` with actual file paths
+5. The files go in `<deck>.assets/` and are recorded in `<deck>.assets/manifest.yaml`; the markdown is never rewritten, so a placeholder can be regenerated at any time
 
 ### Tips for AI Agents Writing Presentations
 
@@ -202,4 +204,4 @@ In architecture diagrams, use `icon: generate-image` with a `prompt` to mark a n
 - Use `@layout: two-column` with `+++` separator for side-by-side comparisons
 - Write formulas in LaTeX (KaTeX syntax): `$E = mc^2$` inline, `$$\frac{-b \pm \sqrt{b^2-4ac}}{2a}$$` on a line of its own; run `mdeck <file> --check` to catch formulas that do not parse
 - Add speaker notes after `???` on every slide — explain the slide's intent and delivery guidance
-- Use `mdeck ai create` to generate presentations from any content, then refine with an AI agent
+- Use `mdeck ai deck` to generate presentations from any content, then refine with an AI agent

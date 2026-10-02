@@ -1,6 +1,6 @@
 //! The blueprint engine: a draftsman's sheet. Every slide is a Prussian
 //! blue drawing sheet with a fine grid, a ruled border and a title block;
-//! the slide's generated line art (`mdeck ai art`) is inked onto it the way
+//! the slide's generated line art (`mdeck ai pictures`) is inked onto it the way
 //! a draughtsman works: faint construction lines run ahead, the ink follows
 //! stroke by stroke under a drafting machine's crosshair, and dimension
 //! lines are ruled around the finished drawing. Without art, the slide's

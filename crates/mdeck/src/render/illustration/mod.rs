@@ -322,6 +322,9 @@ pub fn catalogue(deck_base: Option<&Path>) -> Vec<(String, Source, Vec<Source>)>
 /// [`Library::reset`].
 #[derive(Debug, Default)]
 pub struct Library {
+    /// Point clouds generated for the deck (`talk.assets/point-clouds/`),
+    /// looked up before the deck's own folder.
+    assets: Option<PathBuf>,
     deck: Option<PathBuf>,
     user: Option<PathBuf>,
     cache: std::collections::HashMap<String, Option<Arc<Cloud>>>,
@@ -334,6 +337,7 @@ impl Library {
     /// user library.
     pub fn for_deck(deck_base: Option<&Path>) -> Self {
         Self {
+            assets: None,
             deck: deck_base.map(deck_dir),
             user: user_dir(),
             cache: Default::default(),
@@ -341,10 +345,17 @@ impl Library {
         }
     }
 
+    /// Also look in `dir`, the deck's generated point clouds, first.
+    pub fn with_assets(mut self, dir: PathBuf) -> Self {
+        self.assets = Some(dir);
+        self
+    }
+
     /// A library over explicit folders (tests).
     #[cfg(test)]
     pub fn with_dirs(deck: Option<PathBuf>, user: Option<PathBuf>) -> Self {
         Self {
+            assets: None,
             deck,
             user,
             cache: Default::default(),
@@ -363,7 +374,16 @@ impl Library {
         if let Some(hit) = self.cache.get(name) {
             return hit.clone();
         }
-        let found = match resolve_in(name, self.deck.as_deref(), self.user.as_deref()) {
+        let generated = self
+            .assets
+            .as_ref()
+            .map(|d| d.join(format!("{name}.{EXTENSION}")))
+            .filter(|p| validate_name(name).is_ok() && p.is_file());
+        let found = match generated {
+            Some(path) => load_file(&path).map(|c| Some((Source::Deck(path), Arc::new(c)))),
+            None => resolve_in(name, self.deck.as_deref(), self.user.as_deref()),
+        };
+        let found = match found {
             Ok(found) => found.map(|(_, c)| c),
             Err(e) => {
                 let e = e.to_string();

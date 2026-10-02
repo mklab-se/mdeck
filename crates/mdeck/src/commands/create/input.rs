@@ -1,4 +1,4 @@
-//! Where `ai create` gets its source content: an argument, piped stdin or a
+//! Where `mdeck ai deck` gets its source content: an argument, piped stdin or a
 //! question asked in interactive mode.
 
 use std::io::{self, IsTerminal, Read, Write};
@@ -7,35 +7,35 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use colored::Colorize;
 
-use crate::cli::CreateArgs;
+use crate::cli::DeckArgs;
 
 use super::extractors::extract_from_file;
 
 /// The label an input gets when it is typed text rather than a file or stdin.
 pub(super) const TEXT_INPUT: &str = "(text input)";
 
-/// Print the help text of `mdeck ai create`.
+/// Print the help text of `mdeck ai deck`.
 pub(super) fn print_create_help() -> Result<()> {
     use clap::CommandFactory;
     let mut cmd = crate::cli::Cli::command();
     for sub in cmd.get_subcommands_mut() {
         if sub.get_name() == "ai" {
             for sub2 in sub.get_subcommands_mut() {
-                if sub2.get_name() == "create" {
-                    sub2.clone().name("mdeck ai create").print_help()?;
+                if sub2.get_name() == "deck" {
+                    sub2.clone().name("mdeck ai deck").print_help()?;
                     println!();
                     return Ok(());
                 }
             }
         }
     }
-    anyhow::bail!("No input provided. Run `mdeck ai create --help` for usage.");
+    anyhow::bail!("No input provided. Run `mdeck ai deck --help` for usage.");
 }
 
 /// Resolve the input source and extract text content.
 /// Returns `Some((source_label, extracted_text))`, or `None` when no input
 /// was given at all (the caller shows help in that case).
-pub(super) fn resolve_input(args: &CreateArgs, quiet: bool) -> Result<Option<(String, String)>> {
+pub(super) fn resolve_input(args: &DeckArgs, quiet: bool) -> Result<Option<(String, String)>> {
     let stdin = io::stdin();
     let piped: Option<Box<dyn Read>> = if stdin.is_terminal() {
         None
@@ -48,7 +48,7 @@ pub(super) fn resolve_input(args: &CreateArgs, quiet: bool) -> Result<Option<(St
 /// Like [`resolve_input`], but with the piped stdin (if any) passed in so the
 /// logic can be tested without touching the process's real stdin.
 fn resolve_input_with(
-    args: &CreateArgs,
+    args: &DeckArgs,
     quiet: bool,
     piped_stdin: Option<Box<dyn Read>>,
 ) -> Result<Option<(String, String)>> {
@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     fn test_resolve_input_literal_text() {
-        let args = CreateArgs {
+        let args = DeckArgs {
             input: Some("A presentation about Rust programming".to_string()),
             output: Some(PathBuf::from("out.md")),
             prompt: None,
@@ -133,7 +133,7 @@ mod tests {
     fn test_resolve_input_existing_file() {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let cargo_toml = format!("{manifest_dir}/Cargo.toml");
-        let args = CreateArgs {
+        let args = DeckArgs {
             input: Some(cargo_toml),
             output: Some(PathBuf::from("out.md")),
             prompt: None,
@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_resolve_input_reads_piped_stdin() {
-        let args = CreateArgs {
+        let args = DeckArgs {
             input: None,
             output: Some(PathBuf::from("out.md")),
             prompt: None,
@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn test_resolve_input_no_input_no_stdin() {
-        let args = CreateArgs {
+        let args = DeckArgs {
             input: None,
             output: Some(PathBuf::from("out.md")),
             prompt: None,
@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_resolve_input_interactive_with_input_provided() {
-        let args = CreateArgs {
+        let args = DeckArgs {
             input: Some("A talk about functional programming".to_string()),
             output: Some(PathBuf::from("out.md")),
             prompt: None,

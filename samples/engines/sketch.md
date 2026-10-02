@@ -12,7 +12,7 @@ A sketchbook deck, drawn as it opens
 
 # Every slide gets a drawing
 
-- `mdeck ai art` draws a picture for each slide
+- `mdeck ai pictures` draws a picture for each slide
 - Graphite and ink, old craft meeting modern technology
 - Drawn in with a pencil: outlines first, then the shading
 

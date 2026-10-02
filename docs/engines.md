@@ -41,9 +41,10 @@ slides never repeats itself. None of this needs a line of authoring.
 **It can draw a thing.** Put `@illustration: server` under a slide's heading
 and the particles settle into a server beside the copy (behind it, faded, on
 a title slide). Thirty-eight illustrations are built in, from `person` and `laptop`
-to `robot`, `rocket`, `lightbulb` and `account`; `mdeck illustration generate --name server
---description "A server rack"` asks the image model for a new one and reduces
-it to a point cloud file you keep next to the deck or in your user library.
+to `robot`, `rocket`, `lightbulb` and `account`; `mdeck ai point-cloud talk.md` asks the
+image model for every name the deck uses that does not exist yet and reduces
+each to a point cloud file in `talk.assets/` (or `mdeck ai point-cloud --name
+server --description "A server rack"` for one you keep in a library).
 Made one worth sharing? `mdeck illustration contribute <name>`
 opens a prefilled issue; drag the file in and it can become a built-in.
 
@@ -153,9 +154,9 @@ greys. Without a photograph, the `@illustration` becomes a photogram.
 **Making the art** is one command, and it only runs when you ask:
 
 ```bash
-mdeck ai art talk.md            # a picture for every slide that takes one
-mdeck ai art talk.md --dry-run  # which slides, and where each scene comes from
-mdeck ai art talk.md --slide 4  # redraw one
+mdeck ai pictures talk.md            # a picture for every slide that takes one
+mdeck ai pictures talk.md --dry-run  # which slides, and where each scene comes from
+mdeck ai pictures talk.md --slide 4  # redraw one
 ```
 
 Say what a slide's picture shows with `@art:` under its heading, or let the
@@ -174,11 +175,11 @@ only slides with room beside or behind the copy get one:
 @art: A great iron suspension bridge under construction across a harbour.
 ```
 
-The pictures go in `art/` next to the deck and `talk.art.yaml` records which
-slide each belongs to. Presenting never calls the AI: no waiting, no cost,
-and it works offline. Edit a slide and its picture goes stale (still shown,
-and `mdeck talk.md --check` says so; `mdeck ai art talk.md --stale` redraws
-those). Press `S` while presenting to draw the current slide's picture in
+The pictures go in `talk.assets/artworks/` and `talk.assets/manifest.yaml`
+records which slide each belongs to ([AI](ai.md#generated-assets)).
+Presenting never calls the AI: no waiting, no cost, and it works offline.
+Edit a slide and its picture goes stale (still shown, and `mdeck talk.md
+--check` says so; `mdeck ai pictures talk.md --stale` redraws those). Press `S` while presenting to draw the current slide's picture in
 the background. A slide without a picture still works: its `@illustration`
 is drawn in the medium: a technical pen, pencil, chalk, ink and wash, or a photogram.
 

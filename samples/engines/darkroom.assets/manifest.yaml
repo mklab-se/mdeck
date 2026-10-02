@@ -1,0 +1,50 @@
+# Generated assets for this deck, written by `mdeck ai`.
+# state: current | stale | pinned. Set `state: pinned` to keep an asset whatever its slide says.
+# Files are relative to this folder; replace one by hand and it is used as it is.
+version: 2
+assets:
+- kind: artwork
+  file: artworks/darkroom-01-darkroom-380877.jpg
+  slide: 1
+  title: The Night Shift
+  hash: 84a50ec6a06a6637
+  style: darkroom-30821963
+  prompt: A lone dock worker walking along a wet quay at night under a streetlight, fishing boats moored beside him.
+  generated: 2026-09-28 12:59
+  state: current
+- kind: artwork
+  file: artworks/darkroom-02-darkroom-390043.jpg
+  slide: 2
+  title: Every slide gets a photograph
+  hash: 44e07dad1e94666c
+  style: darkroom-30821963
+  prompt: In a cramped harbour darkroom, a dock worker leans over a shallow tray as a rain-streaked photograph of fishing boats slowly emerges beneath a red safelight; beyond the window, the wet pier waits in darkness for dawn.
+  generated: 2026-09-28 12:59
+  state: current
+- kind: artwork
+  file: artworks/darkroom-03-darkroom-380416.jpg
+  slide: 3
+  title: The boats come in
+  hash: fbcc7192b8549be8
+  style: darkroom-30821963
+  prompt: A fishing boat coming into harbour at dawn, gulls following it, mist on the water.
+  generated: 2026-09-28 12:59
+  state: current
+- kind: artwork
+  file: artworks/darkroom-04-darkroom-386744.jpg
+  slide: 4
+  title: Patience
+  hash: b7203db7e00188fd
+  style: darkroom-30821963
+  prompt: A patient photographer stands motionless beside a glowing enlarger while a fishing boat’s image gradually appears in a tray, its reflected light trembling across the darkroom floor and the rain-blurred harbour beyond.
+  generated: 2026-09-28 12:59
+  state: current
+- kind: artwork
+  file: artworks/darkroom-07-darkroom-427771.jpg
+  slide: 7
+  title: Lights on
+  hash: d3e9866f32e8feda
+  style: darkroom-30821963
+  prompt: A harbour café at dawn, a waiter setting out chairs, the first sunlight on the wet cobbles.
+  generated: 2026-09-28 13:00
+  state: current

@@ -72,11 +72,12 @@ impl Deck {
     /// (export). Problems are printed unless `quiet`.
     pub fn open(
         file: PathBuf,
-        presentation: Presentation,
+        mut presentation: Presentation,
         theme: &Theme,
         background_art: bool,
         quiet: bool,
     ) -> Self {
+        resolve_assets(&mut presentation, &file, quiet);
         let dir = deck_dir(&file).to_path_buf();
         let mut image_cache = ImageCache::new(dir);
         load_thermal(&mut image_cache, &presentation, quiet);
@@ -85,7 +86,8 @@ impl Deck {
         art.sync(&presentation, theme);
         let mut deck = Self {
             image_cache,
-            illustrations: Library::for_deck(file.parent()),
+            illustrations: Library::for_deck(file.parent())
+                .with_assets(crate::assets::point_cloud_dir(&file)),
             presentation,
             file,
             max_steps,
@@ -111,7 +113,8 @@ impl Deck {
 
     /// Swap in a re-parsed presentation and drop everything resolved for the
     /// old one.
-    pub fn replace(&mut self, presentation: Presentation, theme: &Theme) {
+    pub fn replace(&mut self, mut presentation: Presentation, theme: &Theme) {
+        resolve_assets(&mut presentation, &self.file, false);
         self.presentation = presentation;
         self.image_cache.clear();
         load_thermal(&mut self.image_cache, &self.presentation, false);
@@ -327,6 +330,15 @@ pub fn deck_engine(
 pub fn report_theme_problems(problems: &[String]) {
     for p in problems {
         eprintln!("warning: theme: {p}");
+    }
+}
+
+/// Point the deck's `generate:` placeholders at their generated assets.
+fn resolve_assets(presentation: &mut Presentation, file: &Path, quiet: bool) {
+    if let Some(problem) = crate::assets::resolve_placeholders(presentation, file)
+        && !quiet
+    {
+        eprintln!("warning: {problem}");
     }
 }
 

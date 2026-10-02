@@ -28,7 +28,7 @@ Every illustration is a point cloud: a few hundred points the particles settle
 into, warm and breathing, beside the copy.
 
 + Built in: person, laptop, server, robot and sixteen more
-+ Your own: `mdeck illustration generate --name kettle --description "A kettle"`
++ Your own: `mdeck ai point-cloud --name kettle --description "A kettle"`
 + Kept next to the deck in `illustrations/`, or in your user library
 
 ---

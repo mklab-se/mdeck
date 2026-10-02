@@ -1,0 +1,50 @@
+# Generated assets for this deck, written by `mdeck ai`.
+# state: current | stale | pinned. Set `state: pinned` to keep an asset whatever its slide says.
+# Files are relative to this folder; replace one by hand and it is used as it is.
+version: 2
+assets:
+- kind: artwork
+  file: artworks/watercolour-01-watercolour-278597.jpg
+  slide: 1
+  title: A Year in the Garden
+  hash: 80a7d17c2f8ef986
+  style: watercolour-b355a195
+  prompt: A cottage garden in full summer bloom, a greenhouse glinting behind it and the sea beyond.
+  generated: 2026-09-28 12:57
+  state: current
+- kind: artwork
+  file: artworks/watercolour-02-watercolour-274843.jpg
+  slide: 2
+  title: Spring
+  hash: 94161376e1493c99
+  style: watercolour-b355a195
+  prompt: The gardener in a straw hat carries a tray of green seedlings from the sunlit greenhouse toward freshly prepared garden beds, where the first shoots already rise among neat rows, with the spring sea glimmering beyond the cottage.
+  generated: 2026-09-28 12:57
+  state: current
+- kind: artwork
+  file: artworks/watercolour-03-watercolour-277564.jpg
+  slide: 3
+  title: Summer
+  hash: 695d53accc45bfe5
+  style: watercolour-b355a195
+  prompt: The gardener in a straw hat resting on a wooden bench among tall hollyhocks and sunflowers on a hot afternoon.
+  generated: 2026-09-28 12:57
+  state: current
+- kind: artwork
+  file: artworks/watercolour-04-watercolour-275242.jpg
+  slide: 4
+  title: Autumn
+  hash: fd3e4897364a5324
+  style: watercolour-b355a195
+  prompt: In the autumn garden, the gardener in a straw hat gently plants a small sapling beside the wooden bench, surrounded by fallen leaves, while the greenhouse and calm sea recede behind it under a clearing golden sky.
+  generated: 2026-09-28 12:57
+  state: current
+- kind: artwork
+  file: artworks/watercolour-07-watercolour-327552.jpg
+  slide: 7
+  title: Until next spring
+  hash: 98c0bfa0de5db77c
+  style: watercolour-b355a195
+  prompt: The garden under a light snow at dusk, a warm light in the cottage window and a robin on the garden gate.
+  generated: 2026-09-28 12:58
+  state: current

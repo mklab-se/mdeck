@@ -1,6 +1,6 @@
 //! The chalkboard engine: every slide is a slate in a wooden frame (the
 //! theme's `page:`), with the ghosts of earlier drawings wiped off it. The
-//! slide's generated line art (`mdeck ai art`) is drawn in chalk, stroke by
+//! slide's generated line art (`mdeck ai pictures`) is drawn in chalk, stroke by
 //! stroke, the chalk breaking up on the slate and shedding dust as it goes.
 //! Without art, the slide's `@illustration` is drawn in chalk; the
 //! countdown and the end words are drawn the same way. Exports show the

@@ -5,7 +5,7 @@ title: "Custom themes: from a design system"
 
 # From a design system to a theme
 
-Written by mdeck theme new --from, from a design system
+Written by mdeck ai theme --from, from a design system
 
 ---
 

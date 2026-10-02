@@ -22,7 +22,7 @@ All visualizations (charts, diagrams, etc.) must follow these principles:
 
 - **When adding or changing visualizations, update ALL of these** (they must stay in sync):
   1. `crates/mdeck/doc/mdeck-spec.md`: the format spec (embedded in binary)
-  2. `commands/create/prompts.rs` `ANALYSIS_SYSTEM_PROMPT`: the visualization list with syntax hints (so `ai create` uses them)
+  2. `commands/create/prompts.rs` `ANALYSIS_SYSTEM_PROMPT`: the visualization list with syntax hints (so `mdeck ai deck` uses them)
   3. `crates/mdeck/doc/ai-reference-supplement.md`: the AI agent tips (used by `mdeck ai skill --reference`)
   4. `commands/spec.rs`: the quick reference card (used by `mdeck spec --short`)
   5. `docs/visualizations.md`: the visualization table

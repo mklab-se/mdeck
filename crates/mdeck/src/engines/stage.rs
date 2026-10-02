@@ -99,7 +99,7 @@ pub struct Figure {
     pub place: Place,
 }
 
-/// A slide's generated picture (`mdeck ai art`), loaded and prepared.
+/// A slide's generated picture (`mdeck ai pictures`), loaded and prepared.
 #[derive(Clone)]
 pub struct Art {
     pub picture: Arc<crate::render::art::prepare::Prepared>,

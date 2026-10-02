@@ -1,5 +1,5 @@
 //! The darkroom engine: slides in a darkroom under a red safelight. The
-//! slide's generated black-and-white photograph (`mdeck ai art`) is a print
+//! slide's generated black-and-white photograph (`mdeck ai pictures`) is a print
 //! on white fibre paper that develops in place, the shadows first and the
 //! highlights last, under the safelight's red; when it is done the white
 //! light comes on and the print shows its true greys. Without art, the

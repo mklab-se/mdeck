@@ -134,11 +134,10 @@ mod tests {
 
     #[test]
     fn test_parse_metadata_with_prompt() {
-        let meta = parse_node_metadata(
-            "Gateway (icon: generate-image, prompt: \"An API gateway\", pos: 1, 1)",
-        );
+        let meta =
+            parse_node_metadata("Gateway (icon: generate:, prompt: \"An API gateway\", pos: 1, 1)");
         assert_eq!(meta.before, "Gateway");
-        assert_eq!(meta.icon, "generate-image");
+        assert_eq!(meta.icon, "generate:");
         assert_eq!(meta.grid_pos, Some((1, 1)));
         assert_eq!(meta.prompt.as_deref(), Some("An API gateway"));
     }

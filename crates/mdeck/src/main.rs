@@ -1,4 +1,5 @@
 mod app;
+mod assets;
 mod banner;
 mod check;
 mod cli;

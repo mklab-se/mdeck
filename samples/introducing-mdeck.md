@@ -204,7 +204,7 @@ The same slides, a whole different show:
 - **splitflap**: every slide on a departure board
 - **laser**: a beam etches each picture onto the slide
 - **blocks**: pictures built from falling blocks
-- **blueprint**: a drawing made for every slide (`mdeck ai art`), inked onto a blue sheet
+- **blueprint**: a drawing made for every slide (`mdeck ai pictures`), inked onto a blue sheet
 - **sketch**: a drawing made for every slide, pencilled into a sketchbook
 - **chalkboard**: the same drawings in chalk on a slate
 - **watercolour** and **darkroom**: paintings that bloom, photographs that develop
@@ -226,7 +226,7 @@ logo:
 ```
 
 Add a logo to any deck with `@logo: logo.svg`, or turn a design system into a
-theme with `mdeck theme new acme --from ./brand`.
+theme with `mdeck ai theme acme --from ./brand`.
 
 ---
 

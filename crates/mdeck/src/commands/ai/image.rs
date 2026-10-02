@@ -1,35 +1,41 @@
-//! Ad-hoc image generation (`mdeck ai generate-image`) and the helpers that
+//! One-off image generation (`mdeck ai images --prompt`) and the helpers that
 //! show a generated image in the terminal.
 
 use anyhow::Result;
 use colored::Colorize;
 
 use super::{APP_NAME, has_capability};
-use crate::config::Config;
-use crate::prompt;
 
-pub(super) async fn generate_image_cmd(args: crate::cli::GenerateImageArgs) -> Result<()> {
+/// One picture from a full prompt (`mdeck ai images --prompt`, `mdeck ai
+/// icons --prompt`), written to `output` or a temporary file and shown.
+pub async fn generate_one(
+    full_prompt: &str,
+    references: &[std::path::PathBuf],
+    output: Option<std::path::PathBuf>,
+) -> Result<()> {
     if !has_capability("image") {
         anyhow::bail!(
             "Image generation not configured. Run `{APP_NAME} ai config` to set up an image provider."
         );
     }
-
-    let config = Config::load_or_default();
-    let style = resolve_style(&config, args.style.as_deref(), args.icon);
-    let combined_prompt = if args.icon {
-        prompt::build_icon_prompt(&style, &args.prompt)
+    println!("Generating image...");
+    let client = ailloy::Client::for_capability("image")?;
+    let response = if references.is_empty() {
+        client.generate_image(full_prompt).await?
     } else {
-        prompt::build_image_prompt(&style, &args.prompt, prompt::Orientation::Horizontal)
+        let options = ailloy::ImageOptions::builder()
+            .reference_images(references.to_vec())
+            .build();
+        client
+            .generate_images_with(full_prompt, &options)
+            .await?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("the model returned no image"))?
     };
 
-    println!("Generating image...");
-
-    let client = ailloy::Client::for_capability("image")?;
-    let response = client.generate_image(&combined_prompt).await?;
-
     let ext = image_ext(&response.format);
-    let path = if let Some(ref output) = args.output {
+    let path = if let Some(ref output) = output {
         output.clone()
     } else {
         std::env::temp_dir().join(format!("mdeck-generated.{ext}"))
@@ -52,21 +58,11 @@ pub(super) async fn generate_image_cmd(args: crate::cli::GenerateImageArgs) -> R
     println!();
     display_image_result(&path);
 
-    if args.output.is_none() {
+    if output.is_none() {
         offer_cleanup(&path);
     }
 
     Ok(())
-}
-
-/// Explicit `--style` (name lookup or literal) > config default > hardcoded.
-fn resolve_style(config: &Config, style: Option<&str>, icon: bool) -> String {
-    match (style, icon) {
-        (Some(s), true) => config.get_icon_style(s).unwrap_or(s).to_string(),
-        (Some(s), false) => config.get_style(s).unwrap_or(s).to_string(),
-        (None, true) => config.resolve_icon_style().to_string(),
-        (None, false) => config.resolve_image_style().to_string(),
-    }
 }
 
 pub fn image_ext(format: &ailloy::ImageFormat) -> &'static str {

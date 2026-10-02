@@ -1,4 +1,4 @@
-//! What `ai create` does after writing the deck: generate its images and
+//! What `mdeck ai deck` does after writing the deck: generate its images and
 //! point at visualizations mdeck does not have yet.
 
 use std::path::Path;
@@ -15,7 +15,7 @@ fn plural(n: usize) -> &'static str {
     if n == 1 { "" } else { "s" }
 }
 
-/// Generate the deck's `(image-generation)` images when an image provider is
+/// Generate the deck's `![prompt](generate:)` images when an image provider is
 /// configured; otherwise say how to do it later.
 pub(super) async fn generate_images(
     output_file: &Path,
@@ -23,7 +23,7 @@ pub(super) async fn generate_images(
     style: &Option<String>,
     quiet: bool,
 ) -> Result<()> {
-    let image_count = presentation_md.matches("(image-generation)").count();
+    let image_count = presentation_md.matches("](generate:)").count();
     if image_count == 0 {
         return Ok(());
     }
@@ -38,8 +38,14 @@ pub(super) async fn generate_images(
             );
         }
         // Run generate with quiet=true to suppress inline image display in terminal
-        crate::commands::generate::run(output_file.to_path_buf(), true, style.clone(), true)
-            .await?;
+        crate::commands::assets::images::run(
+            output_file,
+            crate::commands::assets::images::Which::Images,
+            &crate::cli::Select::default(),
+            style.as_deref(),
+            true,
+        )
+        .await?;
         if !quiet {
             eprintln!(
                 "  {} {} image{} generated.",
@@ -58,7 +64,7 @@ pub(super) async fn generate_images(
         eprintln!("    Run `{APP_NAME} ai config` to add an image provider, then:");
         eprintln!(
             "    {}",
-            format!("mdeck ai generate {}", output_file.display()).cyan()
+            format!("mdeck ai images {}", output_file.display()).cyan()
         );
     }
     Ok(())

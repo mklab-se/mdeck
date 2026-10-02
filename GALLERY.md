@@ -38,7 +38,7 @@ routed edges in their direction while dust keeps to the margins.
 
 `@illustration: robot` under the slide's heading, and the particles settle into a
 point cloud beside the copy: a hint of the thing, never a picture of it. Thirty-eight
-are built in; `mdeck illustration generate` makes more from a description.
+are built in; `mdeck ai point-cloud` makes more from a description.
 
 <img src="media/gallery/ember-illustration.png" width="720">
 
@@ -123,7 +123,7 @@ On a title slide the stack stands dim behind the copy.
 ### Blueprint
 
 The first art engine, `blueprint`, and its theme: each slide gets line art
-generated for it (`mdeck ai art`), inked onto a Prussian blue sheet.
+generated for it (`mdeck ai pictures`), inked onto a Prussian blue sheet.
 Mid-drawing, construction lines run ahead of the ink under the drafting
 machine's crosshair:
 
@@ -238,7 +238,7 @@ particles engine in their own colours. The same slide in each:
 
 ### From a design system
 
-`mdeck theme new mdeck-co --from samples/design-systems/mdeck-co` read a Claude
+`mdeck ai theme mdeck-co --from samples/design-systems/mdeck-co` read a Claude
 Design export and wrote this theme: the brand's palette, type and particle
 field, and its logo quiet in the corner.
 
@@ -450,9 +450,9 @@ Artifacts from the teams that produce them, through shared infrastructure, to th
 
 ## AI-Generated Images
 
-MDeck integrates with AI image generation. Add `![prompt](image-generation)` to your slides, then run `mdeck ai generate` to create images automatically.
+MDeck integrates with AI image generation. Add `![prompt](generate:)` to your slides, then run `mdeck ai images` to create images automatically.
 
-The images below were generated using `mdeck ai generate` with the style: *"Cinematic landscape photography style. Vivid colors, dramatic lighting, sweeping vistas."*
+The images below were generated using `mdeck ai images` with the style: *"Cinematic landscape photography style. Vivid colors, dramatic lighting, sweeping vistas."*
 
 <img src="media/gallery/africa.png" width="720">
 

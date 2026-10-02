@@ -1,4 +1,4 @@
-//! Chat helpers for `ai generate`: prompts for empty alt texts and file names
+//! Chat helpers for `mdeck ai images`: prompts for empty alt texts and file names
 //! for the generated images.
 
 use std::path::Path;

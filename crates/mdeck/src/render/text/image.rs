@@ -47,6 +47,15 @@ pub fn draw_image_in_area(
         }
         // Reserve the space quietly; the decode thread repaints when done.
         ImageState::Loading => available,
+        ImageState::Missing if crate::assets::placeholders::is_image(path) => {
+            // a 3:2 card, as large as the area allows, centred in it
+            let w = available.width();
+            let h = (w * 2.0 / 3.0).min(available.height()).max(160.0 * scale);
+            let rect = egui::Rect::from_center_size(available.center(), egui::vec2(w, h));
+            let rect = rect.translate(egui::vec2(0.0, (available.top() - rect.top()).max(0.0)));
+            draw_pending_image(&cx.text(), alt, rect);
+            rect
+        }
         ImageState::Missing => {
             let height =
                 draw_image_placeholder(&cx.text(), alt, available.left_top(), available.width());
@@ -143,6 +152,69 @@ pub fn draw_image_placeholder(cx: &TextCx, alt: &str, pos: Pos2, max_width: f32)
     crate::render::math::galley(ui.painter(), text_pos, galley, color);
 
     height
+}
+
+/// A `generate:` image that has not been generated: the prompt in italics
+/// on a soft card in `rect`, and a quiet note on what makes it.
+fn draw_pending_image(cx: &TextCx, prompt: &str, rect: egui::Rect) {
+    let (ui, theme, opacity, scale) = (cx.ui, cx.theme, cx.opacity, cx.scale);
+    let painter = ui.painter();
+    painter.rect_filled(
+        rect,
+        12.0 * scale,
+        Theme::with_opacity(theme.code_background, opacity * 0.7),
+    );
+    painter.rect_stroke(
+        rect.shrink(8.0 * scale),
+        8.0 * scale,
+        Stroke::new(
+            1.0 * scale,
+            Theme::with_opacity(theme.accent, opacity * 0.3),
+        ),
+        egui::StrokeKind::Inside,
+    );
+    let wrap = (rect.width() - 96.0 * scale).max(40.0 * scale);
+    let label = if prompt.trim().is_empty() {
+        "A picture for this slide"
+    } else {
+        prompt.trim()
+    };
+    let centred = |text: &str, size: f32, italics: bool, color: Color32| {
+        let mut job = egui::text::LayoutJob::single_section(
+            text.to_string(),
+            egui::TextFormat {
+                font_id: FontId::new(size, theme.body_family()),
+                color,
+                italics,
+                ..Default::default()
+            },
+        );
+        job.wrap.max_width = wrap;
+        job.halign = egui::Align::Center;
+        painter.layout_job(job)
+    };
+    let main = centred(
+        label,
+        theme.body_size * 0.75 * scale,
+        true,
+        Theme::with_opacity(theme.foreground, opacity * 0.75),
+    );
+    let note = centred(
+        "not generated yet \u{00b7} mdeck ai images",
+        theme.body_size * 0.5 * scale,
+        false,
+        Theme::with_opacity(theme.foreground, opacity * 0.4),
+    );
+    let gap = 18.0 * scale;
+    let total = main.rect.height() + gap + note.rect.height();
+    let top = rect.center().y - total / 2.0;
+    let x = rect.center().x;
+    painter.galley(Pos2::new(x, top), main, Color32::WHITE);
+    painter.galley(
+        Pos2::new(x, top + total - note.rect.height()),
+        note,
+        Color32::WHITE,
+    );
 }
 
 #[cfg(test)]

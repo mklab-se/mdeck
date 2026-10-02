@@ -40,6 +40,19 @@ pub(super) fn draw_nodes(cx: &DiagramCx, nodes: &[DiagramNode], scene: &Scene, s
     }
 }
 
+/// Where an icon's image is: a path as written, a name in
+/// `media/diagram-icons/`, nothing for no icon or an unfilled `generate:`.
+fn icon_image_path(icon: &str) -> Option<String> {
+    let icon = icon.trim();
+    if icon.is_empty() || icon.ends_with(':') || icon == "generate" {
+        return None;
+    }
+    if icon.contains('/') {
+        return Some(icon.to_string());
+    }
+    Some(format!("media/diagram-icons/{icon}.png"))
+}
+
 /// A card with a drop shadow: icon in the upper half, label below.
 fn draw_node(cx: &DiagramCx, style: &NodeStyle, node: &DiagramNode, b: &NodeBox) {
     let painter = cx.painter;
@@ -88,13 +101,14 @@ fn draw_node(cx: &DiagramCx, style: &NodeStyle, node: &DiagramNode, b: &NodeBox)
     painter.galley(text_pos, galley, style.label);
 }
 
-/// Draw `media/diagram-icons/{icon}.png` if it loads, keeping its aspect
-/// ratio. Returns whether an image was drawn.
+/// Draw the icon image if it loads, keeping its aspect ratio: a path (a
+/// generated icon the deck resolved, `talk.assets/icons/x.png`) as it is, a
+/// name as `media/diagram-icons/{icon}.png`. Returns whether an image was
+/// drawn.
 fn draw_icon_image(cx: &DiagramCx, icon: &str, center: Pos2, icon_size: f32) -> bool {
-    if icon.is_empty() {
+    let Some(icon_path) = icon_image_path(icon) else {
         return false;
-    }
-    let icon_path = format!("media/diagram-icons/{icon}.png");
+    };
     let Some(texture) = cx.image_cache.get_or_load(cx.ui, &icon_path) else {
         return false;
     };
@@ -115,4 +129,24 @@ fn draw_icon_image(cx: &DiagramCx, icon: &str, center: Pos2, icon_size: f32) -> 
         tint,
     );
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::icon_image_path;
+
+    #[test]
+    fn icons_are_names_or_resolved_paths() {
+        assert_eq!(
+            icon_image_path("server").as_deref(),
+            Some("media/diagram-icons/server.png")
+        );
+        assert_eq!(
+            icon_image_path("talk.assets/icons/gw.png").as_deref(),
+            Some("talk.assets/icons/gw.png")
+        );
+        assert_eq!(icon_image_path(""), None);
+        assert_eq!(icon_image_path("generate:"), None, "not generated yet");
+        assert_eq!(icon_image_path("generate"), None);
+    }
 }

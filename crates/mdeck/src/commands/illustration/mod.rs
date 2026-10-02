@@ -1,5 +1,7 @@
-//! `mdeck illustration`: make, import, list and preview point cloud
-//! illustrations for the particle field.
+//! `mdeck illustration`: import, list and preview point cloud
+//! illustrations for the particle field. Generating one is `mdeck ai
+//! point-cloud` ([`generate`] here for a library cloud,
+//! `commands::assets::point_clouds` for a deck's).
 
 use std::path::{Path, PathBuf};
 
@@ -12,14 +14,8 @@ use crate::render::illustration::{self, Cloud, EXTENSION, Source, convert};
 
 mod contribute;
 
-pub async fn run(command: IllustrationCommands, quiet: bool) -> Result<()> {
+pub fn run(command: IllustrationCommands, quiet: bool) -> Result<()> {
     match command {
-        IllustrationCommands::Generate {
-            name,
-            description,
-            user,
-            force,
-        } => generate(&name, &description, user, force, quiet).await,
         IllustrationCommands::Import {
             image,
             name,
@@ -74,7 +70,9 @@ fn write_cloud(cloud: &Cloud, user: bool, force: bool) -> Result<PathBuf> {
     Ok(path)
 }
 
-async fn generate(
+/// `mdeck ai point-cloud --name --description`: a library cloud in
+/// `./illustrations` (or the user library).
+pub async fn generate(
     name: &str,
     description: &str,
     user: bool,
@@ -193,7 +191,7 @@ fn show(name: &str, output: Option<PathBuf>, quiet: bool) -> Result<()> {
 }
 
 /// Plot the cloud as glowing dots on black and show it (or save it).
-fn preview(cloud: &Cloud, output: Option<PathBuf>, quiet: bool) -> Result<()> {
+pub fn preview(cloud: &Cloud, output: Option<PathBuf>, quiet: bool) -> Result<()> {
     let path =
         output.unwrap_or_else(|| std::env::temp_dir().join(format!("mdeck-{}.png", cloud.name)));
     let img = render_preview(cloud, 720);

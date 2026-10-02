@@ -104,7 +104,7 @@ pub struct Capabilities {
     pub countdown: bool,
     /// Plays an act of its own on the end slide.
     pub end_act: bool,
-    /// Draws generated art (`@art`, `mdeck ai art`) in its medium.
+    /// Draws generated art (`@art`, `mdeck ai pictures`) in its medium.
     pub art: bool,
     /// Prints the slide number itself, so the editorial counter is left out.
     pub numbers_slides: bool,

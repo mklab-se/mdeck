@@ -60,7 +60,7 @@ Mention that `????` (four or more) also works as a notes separator.
 
 ## Notes in AI-Generated Presentations
 
-When MDeck creates a presentation with `mdeck ai create`:
+When MDeck creates a presentation with `mdeck ai deck`:
 
 - Every slide gets detailed speaker notes
 - Notes explain the slide's purpose and intent

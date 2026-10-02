@@ -5,7 +5,7 @@ mod ai;
 use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
-pub use ai::{AiCommands, CreateArgs, GenerateImageArgs, StyleCommands};
+pub use ai::{AiArgs, AiCommands, DeckArgs, ImagesArgs, Select, StyleCommands};
 
 #[derive(Parser)]
 #[command(name = "mdeck")]
@@ -68,11 +68,9 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Manage AI features (shows status when run without a subcommand)
-    Ai {
-        #[command(subcommand)]
-        command: Option<AiCommands>,
-    },
+    /// Everything AI makes (images, icons, pictures, point clouds, themes, decks) and its setup.
+    /// `mdeck ai <deck.md>` generates every asset the deck is missing; `mdeck ai` shows the status
+    Ai(AiArgs),
 
     /// View and modify configuration
     Config {
@@ -133,13 +131,13 @@ pub enum Commands {
         engine: Option<String>,
     },
 
-    /// Point cloud illustrations for the particle field (generate, import, list, show)
+    /// Point cloud illustrations for the particle field (import, list, show; `mdeck ai point-cloud` generates)
     Illustration {
         #[command(subcommand)]
         command: IllustrationCommands,
     },
 
-    /// Custom themes: list, check, create (optionally from a design system) and preview
+    /// Custom themes: list, check, create and preview (`mdeck ai theme` converts a design system)
     Theme {
         #[command(subcommand)]
         command: ThemeCommands,
@@ -158,21 +156,6 @@ pub enum Commands {
 
 #[derive(Subcommand)]
 pub enum IllustrationCommands {
-    /// Generate an illustration from a description with the AI image provider
-    Generate {
-        /// Name to save it under (lowercase letters, digits and hyphens)
-        #[arg(long)]
-        name: String,
-        /// What to draw, e.g. "A server, in a rack, in a datacenter"
-        #[arg(long)]
-        description: String,
-        /// Save to the user library (~/.config/mdeck/illustrations) instead of ./illustrations
-        #[arg(long)]
-        user: bool,
-        /// Overwrite an existing illustration of the same name
-        #[arg(long)]
-        force: bool,
-    },
     /// Convert an image (light strokes on dark) into an illustration
     Import {
         /// Image file (PNG, JPEG or WebP)
@@ -216,13 +199,10 @@ pub enum ThemeCommands {
         /// Theme name, or a path to a theme file
         name: String,
     },
-    /// Write a new theme to ./themes (a commented starter, or from a design system with AI)
+    /// Write a commented starter theme to ./themes (`mdeck ai theme` converts a design system)
     New {
         /// Theme name (lowercase letters, digits, '-' and '_')
         name: String,
-        /// Design system folder to convert with AI (SKILL.md, readme.md, CSS tokens, *.tokens.json); its fonts and logos are copied into the theme
-        #[arg(long)]
-        from: Option<PathBuf>,
         /// Write to the user theme folder instead of ./themes
         #[arg(long)]
         user: bool,
@@ -274,13 +254,13 @@ pub enum Shell {
 impl Cli {
     pub fn run(self) -> anyhow::Result<()> {
         match self.command {
-            Some(Commands::Ai { command }) => {
-                crate::commands::util::block_on(crate::commands::ai::run(command, self.quiet))?
+            Some(Commands::Ai(args)) => {
+                crate::commands::util::block_on(crate::commands::ai::run(args, self.quiet))?
             }
             Some(Commands::Config { command }) => crate::commands::config::run(command),
-            Some(Commands::Illustration { command }) => crate::commands::util::block_on(
-                crate::commands::illustration::run(command, self.quiet),
-            )?,
+            Some(Commands::Illustration { command }) => {
+                crate::commands::illustration::run(command, self.quiet)
+            }
             Some(Commands::Completion { shell }) => {
                 crate::commands::completion::run(shell);
                 Ok(())
