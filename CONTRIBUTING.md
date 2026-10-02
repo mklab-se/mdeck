@@ -125,7 +125,7 @@ proposal submitted as a theme is accepted as a variant or not at all.
 | `crates/mdeck/themes/<name>.yaml` | The theme. `extends` the closest built-in and states only what differs. Open with a two- or three-line comment that says what the theme is, like the existing files. |
 | `crates/mdeck/src/theme/lookup.rs` | One line in `BUILTIN`: `("<name>", include_str!("../../themes/<name>.yaml"))`, among the themes or after them among the variants. A theme whose engine is a cargo feature sits behind that feature (`#[cfg(feature = "led")]`), so a build without the engine leaves the theme out. |
 | `samples/themes/<name>.md` or `samples/engines/<engine>.md` | A sample deck when the theme shows something no existing sample shows (a page, a logo, an engine). A variant needs none. |
-| `media/gallery/theme-<name>.jpg` | One exported slide, 1280 by 720, JPEG, that shows the theme at its best. |
+| `media/gallery/theme-<name>.jpg` | One exported slide, 1280 by 720, JPEG, that shows the theme at its best, made by a line in `scripts/doc-images.sh`. |
 | Docs | The table in [`docs/themes.md`](docs/themes.md#built-in-themes), the list in section 9.1 of [`crates/mdeck/doc/mdeck-spec.md`](crates/mdeck/doc/mdeck-spec.md), the Themes section of [`GALLERY.md`](GALLERY.md), and `CHANGELOG.md`. |
 
 **Names.** The file name is the theme's name: lowercase letters, digits, `-` and `_`, short, a
@@ -246,7 +246,7 @@ built-in engine):
 | `.github/workflows/ci.yml` | The feature in the `features` matrix: CI builds mdeck with your engine alone. |
 | `crates/mdeck/themes/<theme>.yaml` and `crates/mdeck/src/theme/lookup.rs` | A showcase theme that selects the engine, in `BUILTIN` behind the engine's feature ([Contributing a theme](#contributing-a-theme) applies). |
 | `samples/engines/<name>.md` | A deck that shows what the engine is good at: titles, pictures, charts, images, its moments. |
-| `media/gallery/engine-<name>*.jpg` | Two or three exported slides, 1280 by 720, JPEG. |
+| `media/gallery/engine-<name>*.jpg` | Two or three exported slides, 1280 by 720, JPEG, each made by a line in `scripts/doc-images.sh`. |
 | Docs | [`docs/engines.md`](docs/engines.md) (a section for the engine), the engine table in [`README.md`](README.md), the engine list and table in section 9.6 of [`crates/mdeck/doc/mdeck-spec.md`](crates/mdeck/doc/mdeck-spec.md) (and the `engine: name:` comment in 9.4), the lists in `crates/mdeck/src/commands/spec.rs` (`mdeck spec --short`) where engines are named, [`docs/themes.md`](docs/themes.md), [`GALLERY.md`](GALLERY.md), [`samples/README.md`](samples/README.md), the engine table in [`docs/spec/05-engines.md`](docs/spec/05-engines.md) (ENG-17a), and `CHANGELOG.md`. |
 
 The engine must stay inside its boundary: files under `engines/` (except `engines/host/`) use

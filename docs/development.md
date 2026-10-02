@@ -18,7 +18,8 @@ designs, themes, the window, export, commands and the built-in engines and visua
 Sample decks live in `samples/`, with one deck per design (`samples/layouts/`), visual
 (`samples/visualizations/`), engine (`samples/engines/`) and feature (`samples/features/`) for
 quick visual checks; export one with `cargo run -p mdeck -- export <deck> --slide N` and look at
-the PNG. `scripts/engine-golden.sh` proves a change did not move the other engines.
+the PNG. `scripts/engine-golden.sh` proves a change did not move the other engines, and
+`scripts/doc-images.sh` re-exports every image the README, gallery, tutorial and spec show.
 
 - The format reference is [`crates/mdeck/doc/mdeck-spec.md`](../crates/mdeck/doc/mdeck-spec.md),
   embedded in the binary (`mdeck spec`); its settings and design tables are generated from the

@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="media/showcase/hero.gif" width="100%" alt="An ember slide: particles gather into a light bulb beside the copy">
+  <img src="media/showcase/hero.webp" width="100%" alt="Six engines in motion: particles gather into a light bulb, an LED wall powers on, a departure board flips into place, a blueprint inks itself, a watercolour blooms, and a thermal image shows its hotspot">
 </p>
 
 <p align="center">

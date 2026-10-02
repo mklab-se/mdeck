@@ -59,9 +59,10 @@ switches with one line (`theme: ember`), or try one without editing with
 
 ### plain: `dark`, `light`, `nord`
 
-The default. A still, clean page that shows that mdeck is simple.
+The default. A still, clean page that shows that mdeck is simple. A slide's point cloud picture
+shows as a stipple of dots in the theme's accent, beside the copy.
 
-<img src="media/gallery/engine-plain.jpg" width="720" alt="A points slide on the plain dark theme">
+<img src="media/gallery/engine-plain.jpg" width="720" alt="A points slide beside a stippled light bulb on the plain dark theme">
 
 *Source: [`samples/showcase/launch.md`](samples/showcase/launch.md), theme `dark`.*
 

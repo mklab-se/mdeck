@@ -183,6 +183,7 @@ The particles settle into a rocket beside your copy. Thirty-eight pictures are b
 (`person`, `laptop`, `server`, `lightbulb`, `globe` and more; `mdeck point-cloud list` shows
 them all). The comment is invisible on GitHub, so the file stays a clean markdown document.
 
+On the default `dark` theme the same picture shows as a still stipple of dots beside the copy.
 Try `theme: marquee` for the same slide on a wall of LEDs:
 
 <p align="center">
