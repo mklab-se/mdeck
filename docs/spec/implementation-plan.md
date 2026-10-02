@@ -243,6 +243,8 @@ What later phases build on:
   under 0.06%): contour band edges move about a pixel, because a heading now reaches the engine
   as one `Hint::Text` per glyph instead of a galley. Split-flap (9 images, 0.02%): the labels
   under the board, drawn per character without letter spacing (the SDK text API has none).
+  After merging phase 3, the same decks exported with main (phase 3) and with this branch
+  differ in exactly the same 65 images and nothing else.
 - **SDK additions from the ports:** `Painter::glyph_ink` (ink pixels of a text at their layout
   positions, for the thermal cold opening), `Painter::glyph_mesh` (glyph quads on the font atlas,
   for the split flaps; `Texture` can refer to the atlas). Note: the SDK's `Vec2::rot90` turns the
