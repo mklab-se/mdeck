@@ -1,130 +1,53 @@
 # 07. The authoring language
 
-Everything mdeck adds on top of markdown, why today's syntax falls short, and the proposed v2
-language.
-
-## Today
-
-mdeck layers seven kinds of extra syntax on markdown:
+Everything mdeck adds on top of markdown. The language is small on purpose:
 
 | Syntax | Where | Example |
 |---|---|---|
-| `@key: value` in the frontmatter | deck settings | `@theme: ember` |
-| `@key: value` lines in the body | slide settings | `@layout: quote`, `@illustration: rocket` |
-| `@tag` fence info strings | visuals | ```` ```@barchart ```` |
-| `@word` / `@word:value` in image alt text | image options | `![Team @width:60%](team.png)` |
-| `+` / `*` list markers | reveal steps | `+ appears on click` |
+| `key: value` in the frontmatter | deck settings | `theme: ember` |
+| `key: value` lines in an HTML comment | slide settings | `<!-- design: quote -->` |
+| `@tag` fence info strings | visuals and notes | ```` ```@bar ````, ```` ```@notes ```` |
+| `@option` in image alt text | image options | `![Team @width: 60%](team.png)` |
+| `+` list marker | steps | `+ appears on click` |
 | `+++` line | column break | |
-| `???` line | speaker notes | |
+| `generate:` link target | AI placeholders | `![a rocket at dawn](generate:)` |
 
-### Frontmatter
+Every addition is invisible on a standard markdown renderer (frontmatter, comments, alt text) or
+reads as meaningful markdown there (a fenced block of chart data, a bullet, a notes block). The
+choices follow Marp's precedent: plain YAML keys for the deck, HTML comments for slides.
 
-- **Recognised keys** (`parser/frontmatter.rs:102`):
-  - plain keys: `title`, `author`, `date` (`date` is parsed and never used);
-  - `@` keys: `@theme`, `@engine`, `@transition`, `@slide-level`, `@countdown`, `@story`,
-    `@image-style`, `@icon-style`, `@palette`, `@art`, `@logo`, `@logo-position`, `@logo-opacity`,
-    `@logo-height`, `@background`, `@background-opacity`;
-  - `@aspect`, `@code-theme` and `@footer`, which are reserved or half-implemented.
-- **`@` is not valid at the start of a YAML key.** mdeck pre-quotes these lines before parsing.
-  Every other tool sees invalid YAML.
-- **Unknown keys are dropped silently.** `theme: dark` without the `@` is ignored, and so is
-  `@thme: nord`. Invalid values (`@transition: wipe`) are not reported either.
-
-### Slide directives (`parser/directives.rs`)
-
-- **Known names.** `SLIDE_DIRECTIVES`:
-  - `layout`, `illustration`, `logo`, `art`, `background`, `background-opacity`;
-  - `thermal-window`, `zoom`;
-  - `class` (reserved, unused).
-- **How a line is taken:**
-  - At the start of a slide, any `@name: value` line is taken, known or not, and unknown ones
-    vanish.
-  - After that, only known names are taken, and only at column 0 outside fences.
-  - Unknown names after the start stay visible as text.
-- **Last wins** when a name repeats.
-- **Lines move across slides.** A run of directive lines just before a splitting heading moves to
-  the next slide ([02](02-markdown-and-slides.md)).
-- **Deck settings inside a slide.** Global names written in a slide are removed and ignored, and
-  `--check` reports them.
-- **Layout values.** An unknown `@layout` value becomes `content` without a warning.
-
-### Visual fences
-
-- There are 20 tags, matched by prefix.
-- `@story` and `@scene` are authoring fences that are never rendered.
-- Ordinary code fences take a language and line highlights: ```` ```rust {3,5-7} ````.
-
-### Other
-
-- **Image hints.** No space after the colon (`@width:80%`). Unknown hints vanish from the alt text.
-- **AI placeholders.** `![prompt](image-generation)` and `(icon: generate-image, prompt: "...")` are
-  rewritten in place by `mdeck ai generate`.
-
-### Precedents
-
-| Tool | Deck settings | Slide settings | Invisible on GitHub? |
-|---|---|---|---|
-| Marp | plain YAML keys (`theme:`) | `<!-- _class: lead -->` HTML comments | yes |
-| Slidev | plain YAML keys | per-slide YAML block after `---` | partly |
-| reveal.js (markdown) | n/a | `<!-- .slide: data-background=... -->` | yes |
-| Deckset | `theme:` lines at the top | `[.background-color: #000]` | no |
-| Pandoc/Quarto | YAML (`format:`) | `{.class key=value}` attributes, `::: columns` fenced divs | no |
-| mdeck v1 | `@key:` YAML (invalid) | `@key: value` lines | no |
-
-## Assessment
-
-1. **The `@` in the frontmatter is the most expensive choice in the language, and it buys
-   nothing.** It makes nearly every deck's line 2 invalid YAML for every tool except mdeck,
-   breaking VIS-03 and mdeck's own "graceful degradation" principle. Frontmatter keys are already
-   namespaced by position. Meanwhile, the natural thing (`theme: dark`) is silently ignored.
-2. **Slide directives are visible on every other renderer.** On GitHub, `@illustration: rocket`
-   is a stray paragraph, and in issues and PRs `@layout` may even render as a user mention.
-3. **Directive extraction rules cannot be explained in one sentence.** The
-   start/known/column-0/migration rules are exactly what made the owner believe slide settings
-   only work with `---`.
-4. **Five micro-grammars for "key: value":**
-   - `@k: v`;
-   - `@k:v` in alt text;
-   - `# k: v` in charts;
-   - `k: v` in thermal;
-   - `(k: v)` on items.
-5. **Silence on mistakes everywhere.** There are no checks for:
-   - frontmatter keys or values;
-   - layout names;
-   - fence tags;
-   - image hints;
-   - content that will show as raw syntax.
-6. **Reserved names look supported.** `@aspect`, `@code-theme`, `@class` and `date` are accepted
-   and do nothing. `@footer` works in the window but not in export. `@countdown: true` cannot turn
-   a countdown on.
-
-## Requirements: the v2 language
+## Requirements
 
 ### Principles
 
-- **LANG-01** MUST `new`: The language has exactly **one way to write a setting**: `key: value`,
-  with the same key names wherever they appear.
+- **LANG-01** MUST `implemented`: The language has exactly **one way to write a setting**:
+  `key: value`, with the same key names wherever they appear.
   - A key in the frontmatter is the **deck value**.
   - The same key in a slide's settings is **that slide's value**, overriding the deck's.
-  - Keys that only make sense deck-wide (for example `theme`, `engine`, `slide-level`) are errors
-    in a slide.
-- **LANG-02** MUST `new`: Every mdeck addition is either **invisible** on a standard markdown
-  renderer (frontmatter, HTML comments, alt text) or **reads as meaningful markdown** there (a
-  fenced code block of chart data, a `+` bullet, a notes block). Nothing renders as stray mdeck
-  syntax.
-- **LANG-03** MUST `new`: Every name and value in the language is validated. Unknown keys, unknown
-  values, unknown visual tags and unknown image hints are `--check` errors, with a "did you mean"
-  suggestion. Nothing the author writes is silently ignored (VIS-13).
-- **LANG-04** MUST `new`: The language is generated from one table in the code (name, scope, type,
-  allowed values, description, since-version). The format reference, `mdeck spec --short`, the
-  `--check` validation, editor completion and the AI skill are all produced from that table, so
-  they cannot drift.
-- **LANG-05** MUST `remove`: Reserved-but-unimplemented names are not accepted. A name exists when
-  it works.
+  - Keys that only make sense deck-wide (for example `theme`, `engine`, `slide-level`) are
+    reported by `--check` when written in a slide, and slide-only keys when written in the
+    frontmatter.
+- **LANG-02** MUST `implemented`: Every mdeck addition is either **invisible** on a standard
+  markdown renderer (frontmatter, HTML comments, alt text) or **reads as meaningful markdown**
+  there (a fenced code block of chart data, a `+` bullet, a notes block). Nothing renders as stray
+  mdeck syntax.
+- **LANG-03** MUST `implemented`: Every name and value in the language is validated. Unknown keys,
+  unknown values, unknown visual tags and unknown image options are reported by `--check`, with a
+  "did you mean" suggestion when one is close. Nothing the author writes is silently ignored
+  (VIS-13).
+- **LANG-04** MUST `deferred to 2.x`: The language is one table in the code (`crate::language`: name,
+  scope, kind, allowed values, default, summary, since-version, and the list of mdeck fences). The
+  parser reads settings by these names, `--check` validates against it, and the settings
+  sections of the format reference (`mdeck spec`), `mdeck spec --short` and the AI skill (made
+  from the format reference) are generated from it, so they cannot drift. *Deferred:* editor
+  completion generated from the table does not exist yet; the rest is built.
+- **LANG-05** MUST `implemented`: Reserved-but-unimplemented names are not accepted. A name exists
+  when it works. v1's `aspect`, `code-theme`, `class` and `date` are reported as removed.
 
 ### Deck settings (frontmatter)
 
-- **LANG-06** MUST `change`: The frontmatter is plain, valid YAML with plain keys:
+- **LANG-06** MUST `implemented`: The frontmatter is plain, valid YAML with plain top-level keys
+  (Marp and Slidev style), not nested under an `mdeck:` map:
 
   ```yaml
   ---
@@ -136,25 +59,25 @@ mdeck layers seven kinds of extra syntax on markdown:
   ---
   ```
 
-  - **Decided:** plain top-level keys (Marp and Slidev style), not nested under an `mdeck:` map.
-    Decks are written for mdeck, and simplicity wins over avoiding collisions with other tools'
-    keys.
-- **LANG-07** MUST `new`: v2.0 breaks cleanly with the v1 syntax. There is no migration tool, and
-  v2 does not honour v1 syntax. Instead:
+  A v1 `@key` is not honoured; `--check` reports it with its plain form.
+- **LANG-07** MUST `implemented`: v2.0 breaks cleanly with the v1 syntax. There is no migration
+  tool, and v2 does not honour v1 syntax. Instead:
   - the v2 format is completely specified in the format reference (`mdeck spec`), which is
     precise enough for a user to hand to their AI harness with "convert this deck to the v2
     format";
-  - the v2.0 release notes and the format reference have an "Upgrading from v1" section that maps
-    every v1 construct to its v2 form (the "Replaces" columns below);
-  - `--check` recognises v1 constructs (`@` frontmatter keys, `@key:` slide lines, renamed tags)
-    and names the v2 form in its message, for example
-    `slide 4: "@layout: quote" is v1 syntax; write <!-- design: quote -->`. This is a validation
-    message (LANG-03), not a converter.
+  - the format reference (section "Upgrading from v1"), `docs/upgrading-from-v1.md` and the
+    release notes map every v1 construct to its v2 form;
+  - `--check` recognises v1 constructs (`@` frontmatter keys, visible `@key:` slide lines, `???`
+    notes, renamed fence tags, image options and an `illustrations/` folder) and names the v2 form
+    in its message, for example
+    `"@layout: quote" is v1 syntax; write <!-- design: quote -->`. This is a validation message
+    (LANG-03), not a converter. The removed `@story` and `@scene` fences are reported as unknown
+    fences that show as code.
 
 ### Slide settings
 
-- **LANG-08** MUST `change`: Slide settings are written in an **HTML comment** inside the slide.
-  The comment holds one or more `key: value` lines:
+- **LANG-08** MUST `implemented`: Slide settings are written in an **HTML comment** inside the
+  slide. The comment holds one or more `key: value` lines:
 
   ```markdown
   ## Why now
@@ -175,70 +98,74 @@ mdeck layers seven kinds of extra syntax on markdown:
   - Private
   ```
 
-  - A comment is treated as mdeck settings when its first line is `key: value` with a known slide
-    setting key.
+  - A comment is a settings comment when its first line is `key: value` with a known setting
+    key; every line in it is then a setting. There is no explicit marker: the validation in
+    LANG-03 catches typos.
   - Any other comment is an ordinary comment. `--check` warns when it looks like a setting with a
     misspelt key.
-  - **Decided:** no explicit marker. Marp's convention has shown that plain keys work, and the
-    validation in LANG-03 catches typos.
-- **LANG-09** MUST `change`: A settings comment applies to the slide it is in, wherever in the slide
-  it is written (MD-07). It never moves to another slide.
-- **LANG-10** MUST `remove`: Visible `@key: value` lines are no longer settings. `--check` points
-  at each one and names its v2 form (LANG-07).
+- **LANG-09** MUST `implemented`: A settings comment applies to the slide it is in, wherever in the
+  slide it is written (MD-07). It never moves to another slide.
+- **LANG-10** MUST `implemented`: Visible `@key: value` lines are not settings; they are plain
+  text. `--check` points at each one and names its v2 form (LANG-07).
 
-### Slide settings in v2
+### Slide settings
 
-| Key | Scope | Values | Replaces |
-|---|---|---|---|
-| `design` | slide | a design name ([03](03-slide-designs.md)) | `@layout` |
-| `picture` | slide + deck default | point cloud name, image path, or `none` | `@illustration`, `@art: none` |
-| `picture-prompt` | slide | text for `mdeck ai art` | `@art:` (slide) |
-| `background` | slide + deck | image path or `none` | same |
-| `background-opacity` | slide + deck | 0-1 or % | same |
-| `logo` | slide + deck | path or `none` | same |
-| `transition` | slide + deck | `slide`, `fade`, `spatial`, `zoom`, `none` | deck `@transition`; slide `@zoom` becomes `transition: zoom` + `zoom-to:` |
-| `zoom-to` | slide | a thermal spot name | `@zoom` |
-| `thermal-window` | slide | `25..90 °C` | same |
-| `reveal` | slide + deck | `steps`, `none` | new (MD-21) |
-
-### Deck settings in v2
-
-| Key | Values | Replaces |
+| Key | Scope | Values |
 |---|---|---|
-| `title`, `author` | text | same (`date` is removed until it is used) |
-| `theme` | a theme name or path | `@theme` |
-| `engine` | an engine name | `@engine` |
-| `transition` | as above | `@transition` |
-| `slide-level` | 1-6 | `@slide-level` |
-| `countdown` | `on`, `off` | `@countdown` (now both directions work) |
-| `reveal` | `steps`, `none` | new |
-| `footer` | text | `@footer` (implemented in the window *and* export, or removed) |
-| `logo`, `logo-position`, `logo-opacity`, `logo-height` | as today | `@logo*` |
-| `background`, `background-opacity` | as today | `@background*` |
-| `palette` | thermal palette name | `@palette` (it names thermal colour maps only) |
-| `art-world` | text for `mdeck ai art` | `@art` (deck) |
-| `image-style`, `icon-style` | style name | `@image-style`, `@icon-style` |
+| `design` | slide | a design name ([03](03-slide-designs.md)) |
+| `picture` | slide | point cloud name, image path, or `none` |
+| `picture-prompt` | slide | text for `mdeck ai pictures` |
+| `background` | slide + deck | image path or `none` |
+| `background-opacity` | slide + deck | 0 to 1, or a percentage |
+| `logo` | slide + deck | path or `none` |
+| `transition` | slide + deck | `fade`, `slide`, `spatial`, `zoom` (slide only, with `zoom-to`), `none` |
+| `zoom-to` | slide | a thermal spot name on the slide before |
+| `thermal-window` | slide | `25..90 °C` |
+| `reveal` | slide + deck | `steps`, `none` (MD-21) |
+
+### Deck settings
+
+| Key | Values |
+|---|---|
+| `title`, `author` | text |
+| `theme` | a theme name or path (default `dark`) |
+| `engine` | an engine name (default: the theme's) |
+| `transition` | as above (default: the theme's, else the config's, else `fade`) |
+| `slide-level` | 1 to 6 (default: inferred) |
+| `countdown` | `on`, `off` (both directions work) |
+| `reveal` | `steps`, `none` |
+| `footer` | text, drawn in the window and in export |
+| `logo`, `logo-position`, `logo-opacity`, `logo-height` | path; corner; opacity; pixels |
+| `background`, `background-opacity` | as above |
+| `palette` | thermal palette name (it names thermal colour maps only) |
+| `requires` | packs and extensions the deck expects; `--check` names missing ones |
+| `art-world` | text for `mdeck ai pictures` |
+| `image-style`, `icon-style` | style name for `mdeck ai images` and `mdeck ai icons` |
+
+The generated reference (`mdeck spec`, section 7.3) is the authoritative list with defaults.
 
 ### Visuals, images, steps, columns, notes
 
-- **LANG-11** MUST `change`: mdeck's fences keep the `@` prefix (```` ```@bar ````,
+- **LANG-11** MUST `implemented`: mdeck's fences keep the `@` prefix (```` ```@bar ````,
   ```` ```@notes ````). It is the one place where `@` earns its keep: it namespaces mdeck's kinds
   against real programming languages, and on GitHub the block reads as data. Tags match exactly,
   with one name per kind and no aliases (VIZ-02), and one grammar inside (VIZ-03).
-- **LANG-12** MUST `change`: Image options stay in the alt text, which is invisible when the image
-  renders. They use the settings grammar: `![Team @width: 60% @fill](team.png)`, with an optional
-  space after the colon. Unknown options are errors.
+- **LANG-12** MUST `implemented`: Image options stay in the alt text, which is invisible when the
+  image renders. They use the settings grammar: `![Team @width: 60% @fill](team.png)`, with an
+  optional space after the colon. The options are `@width`, `@height` and `@fill`; unknown
+  options are reported.
   - Image placement that is really a design choice (side, full-bleed) belongs to the design and
-    its arrangement, not to image options.
-- **LANG-13** MUST `keep`: `+` list items are steps ([02](02-markdown-and-slides.md)). `*` loses its
-  special meaning.
-- **LANG-14** MUST `keep`: `+++` on its own line separates columns (the `columns` design).
-  - **Decided:** keep `+++`. It is short and memorable, and Hugo's TOML conflict only applies at
-    the very top of a file.
-- **LANG-15** MUST `change`: Speaker notes are a ```` ```@notes ```` fenced block holding markdown
-  (MD-14). `???` is removed.
-- **LANG-16** MUST `keep`: AI placeholders (`![prompt](image-generation)`, generated icons) remain,
-  and are documented under [10](10-generated-assets-and-ai.md).
+    its arrangement, not to image options; v1's `@fit`, `@left`, `@right` and `@center` are
+    reported as removed.
+- **LANG-13** MUST `implemented`: `+` list items are steps ([02](02-markdown-and-slides.md)). `*`
+  has no special meaning.
+- **LANG-14** MUST `implemented`: `+++` on its own line separates columns (the `columns` design).
+  It is short and memorable, and Hugo's TOML conflict only applies at the very top of a file.
+- **LANG-15** MUST `implemented`: Speaker notes are a ```` ```@notes ```` fenced block holding
+  markdown (MD-14). There is no `???` separator.
+- **LANG-16** MUST `implemented`: AI placeholders stay in the source: `![prompt](generate:)` for
+  an image and `(icon: generate:, prompt: "...")` for a diagram icon. `mdeck ai` resolves them
+  through the asset manifest and never rewrites the deck ([10](10-generated-assets-and-ai.md)).
 
 ### The whole language on one card
 

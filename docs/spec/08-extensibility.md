@@ -9,166 +9,161 @@ A company that wants its own brand theme, its own engine, or a visual that draws
 architecture vocabulary must be able to build it **without forking mdeck and without publishing
 it**. Extensions are owned by whoever writes them.
 
-## Today
+mdeck 2 has two tiers of extension:
 
-- **Themes, point clouds and fonts are already data** and can live outside the binary:
-  - the deck's `themes/` and `illustrations/` folders;
-  - the user's config folder;
-  - fonts and logos inside a theme folder.
-
-  These can be private today.
-- **Everything else is compiled in:**
-  - engines are modules in the single `mdeck` crate, registered in a closed `EngineKind` enum;
-  - visual kinds are a closed `Chart` enum, with `@architecture` and `@thermal` as special cases;
-  - layouts are a closed `Layout` enum.
-- **The only way to add code is to fork mdeck.**
-- **The engine guide** (`crates/mdeck/doc/engines.md`, "Why engines are modules, not crates")
-  records the decision from #16 to keep engines as modules. Its reasoning: an engine needs nearly
-  all of mdeck (stage, theme, slide, point clouds, hints, render helpers), so a separate core
-  crate would hold almost everything and isolate little.
-
-## Assessment
-
-The #16 reasoning is correct for mdeck's *own* engines, but it answered a different question:
-"does splitting our engines into crates make *our* code better?" Private extension asks
-something else: "can someone else add an engine without touching our code?" Today the answer is
-no, and the closed enums make it structurally impossible. Private extension requires:
-
-1. a **public, versioned interface** for each extension point;
-2. **registries by name** instead of closed enums;
-3. a **way to get extension code into the running program** that does not need the mdeck source.
-
-The useful observation from #16 survives: the extension interface is roughly "what an engine sees
-today" (stage, theme tokens, slide, point clouds, published geometry). That boundary already
-exists as a module boundary, and a boundary test enforces it (`engines/mod.rs:357`). It is a good
-starting point for a public SDK.
+- **Data** (no compiler needed): themes, design sets, point clouds, AI styles and fonts, as files
+  next to the deck, in the user's folder, or bundled in a **pack**.
+- **Code** (Rust): engines, visual kinds, design sets and transitions, written against the
+  public `mdeck-sdk` crate and compiled into a **custom build** of mdeck with `mdeck build`.
+  Teams that do not write Rust can add a visual kind as an **external visual program** in any
+  language.
 
 ## Trust model
 
-- **EXT-01** MUST `new`: Extensions are trusted like any program the user installs. An extension
-  may run native code, read and write files, use the network and render anything. mdeck does not
-  sandbox, sign-check or police extensions (VIS-19, NG-06).
-- **EXT-02** MUST `new`: Only the user installs extensions, with an explicit command or by building
-  their own mdeck. Nothing installs implicitly.
-- **EXT-03** MUST `new`: A deck never causes code to be fetched, installed or run. A deck may
-  *name* an extension it needs; when that extension is not installed, mdeck presents the deck
-  with fallbacks and `--check` says what is missing (VIS-20). This is the one hard security line:
-  opening a markdown file from someone else is safe.
-- **EXT-04** SHOULD `new`: `mdeck extensions list` shows every installed extension, where it came
-  from and what it provides, so the owner always knows what runs.
+- **EXT-01** MUST `implemented`: Extensions are trusted like any program the user installs. An
+  extension may run native code, read and write files, use the network and render anything. mdeck
+  does not sandbox, sign-check or police extensions (VIS-19, NG-06).
+- **EXT-02** MUST `implemented`: Only the user installs extensions, with an explicit command
+  (`mdeck pack install`) or by building their own mdeck (`mdeck build`). Nothing installs
+  implicitly.
+- **EXT-03** MUST `implemented`: A deck never causes code to be fetched, installed or run. A deck
+  may *name* the extensions it needs (`requires:`, EXT-11); when one is not installed, mdeck
+  presents the deck with fallbacks (EXT-07) and `--check` says what is missing (VIS-20). This is
+  the one hard security line: opening a markdown file from someone else is safe. (An external
+  visual program the user configured runs when a deck uses its tag and the cached image is
+  missing; the deck cannot add one.)
+- **EXT-04** SHOULD `implemented`: `mdeck extensions list` shows the installed packs, the external
+  visual programs, and every engine, visual, transition and theme this mdeck provides, with where
+  each came from (`built-in` or the extension crate), so the owner always knows what runs.
 
 ## Extension points
 
 | Extension point | Data or code | Examples |
 |---|---|---|
 | **Theme** | data | a company brand theme with fonts and logos |
-| **Arrangements / design set** | data | a company's own title, quote and points designs |
+| **Design set** | data (YAML arrangements) | a company's own title, quote and points designs |
 | **Point cloud** | data | the company mascot as a picture |
-| **Artwork style card** | data | a company illustration style for `mdeck ai art` |
-| **Visual kind** | code | `@acme-roadmap`, a chart of the company's own planning format |
+| **AI style** | data | a company illustration style for `mdeck ai` |
+| **Visual kind** | code, or an external program | `@acme-roadmap`, a chart of the company's own planning format |
 | **Engine** | code | an engine that animates the company's brand motif |
 | **Design set (code)** | code | a board-like renderer for a kiosk wall |
 | **Transition** | code | a branded slide transition |
 
-- **EXT-05** MUST `new`: Every extension point in the table is available to third parties.
-- **EXT-06** MUST `new`: mdeck's built-ins use the same extension points, registered the same
-  way (VIS-18). Built-in engines, visuals and design sets are extensions that happen to ship with
-  mdeck.
-- **EXT-07** MUST `change`: Engines, visual kinds, design sets and transitions are looked up in
-  registries by name, not in closed enums. `--check` reports a name that resolves to nothing,
-  and the deck falls back:
-  - a visual becomes a code block of its source;
-  - an engine becomes `plain`;
-  - a design set becomes `standard`;
-  - a theme becomes the default theme.
-- **EXT-08** MUST `new`: Extension names cannot shadow built-in names, except themes and point
-  clouds, which the user can deliberately override by lookup order (deck, user, extension,
-  built-in). Two extensions providing the same name is an error at startup that names both.
+- **EXT-05** MUST `deferred to 2.x`: Every extension point in the table is available to third parties,
+  except the two below that are deferred. *Deferred:* a code design set or a code transition can
+  be written (the SDK traits, `mdeck sdk new design-set|transition`) and registered, but mdeck does
+  not yet look either up by name: a theme's `designs:` resolves only YAML design sets, and
+  `transition:` takes only the built-in names. A code design set is used today only as a board
+  engine's own set.
+- **EXT-06** MUST `deferred to 2.x`: mdeck's built-ins use the same extension points, registered the
+  same way (VIS-18): `mdeck::builtins` fills the same `mdeck_sdk::registry::Registry` an extension
+  fills, with the built-in engines, visuals, themes and point clouds. *Deferred to 2.x:* the
+  built-in transitions and the `standard` and `editorial` design sets are not registered through
+  the SDK, and built-in visuals draw through an internal bridge rather than `mdeck_sdk::paint`.
+- **EXT-07** MUST `implemented`: Engines, visual kinds and themes are looked up in registries by
+  name, not in closed enums. `--check` reports a name that resolves to nothing, and the deck falls
+  back:
+  - an unknown visual tag shows its source as a code block;
+  - an unknown engine gives way to the theme's engine;
+  - an unknown design set (a theme's `designs:`) or an unknown theme falls back to the default
+    theme, `dark`.
+- **EXT-08** MUST `implemented`: Registered names are unique: an extension registering an engine,
+  visual, design set, transition, theme or point cloud under a name already taken (by a built-in
+  or another extension) is an error at startup that names both. Themes and point clouds can
+  still be overridden deliberately by lookup order: the deck's folders, the user's folders, packs
+  (the deck's, then the user's), then what the binary registers.
 
 ## Data extensions: packs
 
-- **EXT-09** MUST `new`: A **pack** is a folder (or zip of one) with a manifest, `mdeck-pack.yaml`
-  (name, version, description, minimum mdeck version), and any of these subfolders:
-  - `themes/`
-  - `designs/`
-  - `point-clouds/`
-  - `styles/`
-  - `fonts/`
-- **EXT-10** MUST `new`: Packs install from a local path or a git URL:
-  - `mdeck pack install <path|url>` installs into the user folder;
-  - a deck can also carry packs in a deck-local `packs/` folder.
+- **EXT-09** MUST `implemented`: A **pack** is a folder (or a zip of one) with a manifest,
+  `mdeck-pack.yaml` (`name`, `version`, `description`, `min-mdeck`), and any of these subfolders:
+  - `themes/`: themes, chosen by name;
+  - `designs/`: design sets a theme names with `designs:`;
+  - `point-clouds/`: `.mdpc` point clouds, used by name;
+  - `styles/`: named AI styles (a prompt and reference images);
+  - `fonts/`: font files the pack's own themes name.
+- **EXT-10** MUST `implemented`: Packs install from a folder, a zip or a git URL:
+  - `mdeck pack install <path|zip|git-url>` installs into the user folder, `--deck` into the
+    current deck folder's `packs/`;
+  - `mdeck pack list` and `mdeck pack remove <name>` manage them.
 
   Both are private by default: nothing is published anywhere.
-- **EXT-11** SHOULD `new`: A deck may declare the packs and extensions it expects
-  (`requires: [acme-brand]` in its settings), so `--check` can say "this deck expects acme-brand,
-  which is not installed".
+- **EXT-11** SHOULD `implemented`: A deck may declare the packs and extensions it expects
+  (`requires: [acme-brand]` in its frontmatter), so `--check` can say "this deck expects
+  acme-brand, which is not installed" and how to get it.
 
 ## Code extensions
 
+An extension crate exposes one function, `pub fn register(r: &mut mdeck_sdk::Registry)`, that
+registers what it brings. `mdeck build --with <path|crate[@version]|git-url[#ref]>...` generates
+a small cargo project that depends on `mdeck` and the extensions, calls `mdeck::run` with the
+built-ins plus each `register`, and builds a release binary. The same code path serves the
+built-ins, so an extension is as fast and as capable as a built-in.
+
+Custom builds were chosen over dynamic plugins and WebAssembly: Rust has no stable ABI, a C ABI
+or WASM boundary would force every drawing call through a command interface, and the sandbox WASM
+offers is not needed (EXT-01). A custom build needs a Rust toolchain to build, not to run.
+
 ### Requirements
 
-- **EXT-12** MUST `new`: mdeck publishes an **SDK**: a Rust crate (`mdeck-sdk`) with the
+- **EXT-12** MUST `implemented`: mdeck publishes an **SDK**: a Rust crate (`mdeck-sdk`) with the
   interfaces for engines, visual kinds, design sets and transitions, together with the types they
-  receive (stage, theme tokens, slide model, point clouds, published geometry, drawing context).
-  The SDK is versioned in lockstep with mdeck: SDK 2.x supports mdeck 2.x, and an extension
-  states the mdeck version it was built for. See the compatibility promise below.
-- **EXT-13** MUST `new`: A code extension is an ordinary Rust crate that depends on `mdeck-sdk`.
-  It can live in a private repository and never be published.
-- **EXT-14** MUST `new`: A user can produce an mdeck that includes any set of extension crates
-  without editing mdeck's source.
-- **EXT-15** MUST `new`: The SDK's documentation includes a complete example extension for every
-  extension point. Each example is built and tested in mdeck's CI, so it cannot rot (ENG-13). See
-  [SDK documentation](#sdk-documentation) for what the documentation must cover.
-- **EXT-16** MUST `new`: An extension has the same quality contract as a built-in:
+  receive (stage, theme tokens, slide content model, point clouds, published geometry, the
+  drawing interface). The SDK is versioned in lockstep with mdeck: SDK 2.x supports mdeck 2.x
+  (`mdeck_sdk::VERSION` is the mdeck version it ships with). See the compatibility promise below.
+- **EXT-13** MUST `implemented`: A code extension is an ordinary Rust crate that depends on
+  `mdeck-sdk`. It can live in a private repository and never be published.
+- **EXT-14** MUST `implemented`: A user can produce an mdeck that includes any set of extension
+  crates without editing mdeck's source: `mdeck build --with` takes a crate folder, a crate name
+  with an optional version (`acme-engines@1.2`) or a git repository (`git+https://...#v0.2.0`).
+- **EXT-15** MUST `deferred to 2.x`: The SDK's documentation includes complete example extensions,
+  built and tested in mdeck's CI so they cannot rot (ENG-13): the tutorial engines
+  (`examples/engine-aurora`, `engine-ambience`, `engine-pictures`, `engine-reactive`) and the instantiated engine scaffold (`examples/template-engine`) are
+  workspace members. *Deferred to 2.x:* the visual, design-set and transition scaffolds are
+  checked for their files and placeholders but not compiled in CI.
+- **EXT-16** MUST `implemented`: An extension has the same quality contract as a built-in,
+  written down in the SDK concepts guide:
   - deterministic stills;
   - honours reduced motion;
   - scales with the slide;
-  - reports its own problems to `--check`;
+  - reports its own problems to `--check` (`mdeck_sdk::problem`);
   - works in export.
-
-### Mechanisms considered
-
-| Mechanism | How it works | Strengths | Weaknesses |
-|---|---|---|---|
-| **A. Custom build** (recommended) | mdeck becomes a library plus a thin binary. A company's crate `acme-mdeck` depends on `mdeck` and its extension crates and calls `mdeck::App::new().engine(Glow).visual(Roadmap).run()`. A helper command, `mdeck build --with acme-glow --with ../roadmap`, generates and compiles that crate, like Caddy's `xcaddy` or the OpenTelemetry Collector Builder. | Full power, full speed, no ABI problems, compile-time checked, private by construction, and the same code path as the built-ins. | Needs a Rust toolchain to build (but not to run). The custom binary is rebuilt for each mdeck release. |
-| **B. Native dynamic plugins** | `.dylib` / `.so` / `.dll` loaded at startup from the user's plugin folder. | No rebuild of mdeck; drop-in installation. | Rust has no stable ABI: plugins must be built with the exact same compiler and mdeck version, or go through a C ABI or `abi_stable`. Engines paint with egui types, which do not cross a C ABI easily. High maintenance for the SDK. |
-| **C. WebAssembly components** | Extensions compiled to WASM run inside mdeck (wasmtime). | Portable binaries, any source language, one build for every platform and version within an SDK major. | Drawing must go through a command interface, not egui. Particle-scale engines pay a performance cost. Large runtime dependency. The sandbox is not needed (EXT-01). |
-| **D. External visual programs** | A visual kind backed by an executable: mdeck passes the fence source, the theme tokens and the size as JSON and receives SVG or PNG back. Registered in config: `visuals: { acme-roadmap: /usr/local/bin/acme-roadmap }`. Rendered before presenting and cached. | Any language, trivial to write, no Rust needed, private. | Static output only: no animation, no reveal beyond whole-image steps, no engine reactions. |
-
-### Recommendation
-
-- **EXT-17** MUST `new`: **Custom builds (A)** are the primary code extension mechanism. `mdeck
-  build` makes them a single command.
-- **EXT-18** MUST `new`: **External visual programs (D)** are a second, lightweight tier for
-  visuals, for teams that do not write Rust. Their output is cached like other generated assets
-  ([10](10-generated-assets-and-ai.md)), so presenting never runs them live unless the cache is
-  stale.
-- **EXT-19** MAY `new`: Dynamic loading (B or C) is reconsidered once the SDK has been stable
-  across at least one major version. Nothing in the SDK may prevent adding it later; the own
-  drawing interface (EXT-25) keeps option C open.
-- **Decided:** extensions draw through mdeck's own drawing interface, not through `egui`
-  directly (see EXT-25). An earlier decision to re-export `egui` was reversed, because it would
-  have let every egui release break extensions in the middle of a major version.
+- **EXT-17** MUST `implemented`: **Custom builds** are the primary code extension mechanism, and
+  `mdeck build` makes them a single command.
+- **EXT-18** MUST `implemented`: **External visual programs** are a second, lightweight tier for
+  visuals, for teams that do not write Rust. The user config maps a fence tag to a command
+  (`visuals: { acme-roadmap: ~/bin/acme-roadmap }`); mdeck passes the fence source, the theme
+  tokens and the size as JSON on stdin and reads a PNG from stdout. The image is cached in the
+  deck's `<stem>.assets/visuals/`, keyed by the command and the request, so a program runs at most
+  once per block, when the deck opens and its image is missing, never while presenting a frame.
+  Without an image the block shows its source.
+- **EXT-19** MAY `deferred to 2.x`: Dynamic loading (native plugins or WebAssembly) is
+  reconsidered once the SDK has been stable across at least one major version. Nothing in the SDK
+  prevents adding it later; the own drawing interface (EXT-25) keeps a WebAssembly route open.
+  *Deferred:* by design, not before the SDK has proven stable.
 
 ## SDK documentation
 
 An SDK is only as useful as its documentation. The goal: a Rust developer who has never seen
 mdeck's source writes a simple engine in an afternoon, and a serious one (pictures, reactions to
-charts, its own countdown and end act) without having to read mdeck's internals. If they need the
-source to understand something, the documentation has a gap.
+charts, its own countdown and end act) without having to read mdeck's internals. The guides live
+in [`docs/sdk/`](../sdk/README.md).
 
-- **EXT-28** MUST `new`: **A scaffold.** `mdeck sdk new <kind> <name>` (kinds: `engine`,
-  `visual`, `design-set`, `transition`) creates a crate that builds and runs immediately. It
-  contains:
+- **EXT-28** MUST `implemented`: **A scaffold.** `mdeck sdk new <kind> <name>` (kinds: `engine`,
+  `visual`, `design-set`, `transition`) creates a crate that builds immediately. It contains:
   - a working minimal implementation with comments that explain each hook;
   - a showcase theme and a sample deck that exercises it;
   - a test with a golden image;
   - a README with the commands to build, run, export and test it.
-- **EXT-29** MUST `new`: **A getting-started guide.** It takes a developer from nothing to their
-  own engine running in a custom mdeck build (`mdeck build --with ./my-engine`), in one page, and
-  tells them how to see it live, export stills and run its tests.
-- **EXT-30** MUST `new`: **A tutorial in three steps.** Each step is a complete, tested engine
-  in the SDK repository, with screenshots, built on the previous one:
+
+  (The design-set and transition scaffolds build, but their themes do not take effect until
+  EXT-05's deferral is resolved.)
+- **EXT-29** MUST `implemented`: **A getting-started guide** (`docs/sdk/getting-started.md`, with
+  `prerequisites.md` and the full-cycle `tutorial-0-your-first-engine.md`) takes a developer from nothing to their own engine running in a custom mdeck build (`mdeck build --with
+  ./my-engine`), and tells them how to see it live, export stills and run its tests.
+- **EXT-30** MUST `implemented`: **A tutorial in three steps.** Each step is a complete, tested
+  engine in the repository (`examples/engine-ambience`, `engine-pictures`, `engine-reactive`),
+  with screenshots, built on the previous one:
   1. **Ambience.** A calm animated ground: the frame lifecycle (`update`, then `paint`), the
      drawing interface, scaling, theme colours, reduced motion and deterministic stills.
   2. **Pictures and moments.** Drawing the slide's picture (a point cloud) in the engine's own
@@ -177,74 +172,81 @@ source to understand something, the documentation has a gap.
      charts and stay dark behind images; typed, validated engine settings from the theme; what
      the engine needs from the theme; reporting problems to `--check`; performance.
 
-  A board engine and a visual kind each get their own shorter guide.
-- **EXT-31** MUST `new`: **A concepts guide.** It explains the model an extension lives in, with
-  diagrams: deck, slide, design, theme and engine ([01](01-concepts.md)); what the core does and
-  what the extension does; the frame lifecycle and the stage; the contract every extension must
-  keep (EXT-16, ENG-07 to ENG-12); and the compatibility promise (EXT-23).
-- **EXT-32** MUST `new`: **A complete API reference.** Every public item in `mdeck-sdk` has rustdoc
-  with a short example, the examples compile as doctests, and the reference is published on
-  docs.rs for every SDK version. CI fails on an undocumented public item.
-- **EXT-33** MUST `new`: **Tools for extension authors**, documented in the guides:
-  - export a still at any moment of the motion (`mdeck export --at <seconds>`, with `--moment
-    countdown|end`), the documented successor of today's `MDECK_EXPORT_AT` and
-    `MDECK_EXPORT_MOMENT` environment variables;
-  - a preview deck that shows an extension on every design, a chart, an image and both moments
-    (`mdeck sdk preview <name>`);
-  - a test helper in the SDK (`mdeck_sdk::testing`) that renders frames headlessly and compares
-    them against golden images, which is how mdeck tests its own engines.
-- **EXT-34** MUST `new`: **Honest change notes.** The documentation is versioned with the SDK.
-  Each major version has an "Upgrading your extension" page that lists every breaking change with
-  before and after code.
-- **EXT-35** SHOULD `new`: The built-in engines are the advanced examples. Their source is linked
-  from the guides and follows the same documentation standard, so "how does the particles engine
-  do this?" always has a readable answer.
+  A board engine and a visual kind each get their own shorter guide (`design-sets.md`,
+  `visuals.md`).
+- **EXT-31** MUST `implemented`: **A concepts guide** (`docs/sdk/concepts.md`) explains the model
+  an extension lives in: deck, slide, design, theme and engine ([01](01-concepts.md)); what the
+  core does and what the extension does; the frame lifecycle and the stage; the contract every
+  extension must keep (EXT-16, ENG-07 to ENG-12); and the compatibility promise (EXT-23).
+- **EXT-32** MUST `implemented`: **A complete API reference.** Every public item in `mdeck-sdk`
+  has rustdoc (the crate denies `missing_docs`, so CI fails on an undocumented public item), the
+  examples compile as doctests, and the reference is published on docs.rs with every SDK release.
+- **EXT-33** MUST `implemented`: **Tools for extension authors**, documented in the guides:
+  - export a still at any moment of the motion: `mdeck export --at <seconds>`, and `--moment
+    countdown|end` for the opening and ending (these replace v1's `MDECK_EXPORT_AT` and
+    `MDECK_EXPORT_MOMENT` environment variables);
+  - `mdeck sdk preview [--engine <name>] [--theme <name>]` exports a built-in preview deck that
+    shows an extension on every design, a chart, images and a picture, plus both moments;
+  - a test helper in the SDK (`mdeck_sdk::testing`) that renders engines, visuals, designs and
+    transitions headlessly and compares them against golden images, which is how mdeck tests its
+    own engines.
+- **EXT-34** MUST `implemented`: **Honest change notes.** The documentation is versioned with the
+  SDK. Each major version has a section in "Upgrading your extension" (`docs/sdk/upgrading.md`)
+  that lists every breaking change with before and after code.
+- **EXT-35** SHOULD `implemented`: The built-in engines are the advanced examples. Their source
+  (`crates/mdeck/src/engines/`) is linked from the guides and uses only `mdeck_sdk`, so "how does
+  the particles engine do this?" always has a readable answer.
 
 ## Compatibility promise
 
 Whoever builds on mdeck (a deck author, a theme designer, a company with a private engine) must
-be able to rely on it for a whole major version.
+be able to rely on it for a whole major version. The SDK's side of the promise is written out in
+`docs/sdk/compatibility.md`.
 
-- **EXT-23** MUST `new`: Within a major version, nothing that users build on breaks:
+- **EXT-23** MUST `implemented`: Within a major version, nothing that users build on breaks:
   - the deck format;
-  - the theme, arrangement and pack formats;
+  - the theme, design set and pack formats;
   - the CLI commands and flags;
   - the stable SDK surface.
 
   A deck, theme or extension made for 2.0 works unchanged on every 2.x release. Breaking changes
   are collected and shipped only in the next major version.
-- **EXT-24** MUST `new`: The stable SDK surface exposes **no third-party types**. Anything an
-  extension touches is an mdeck type, so upgrading a dependency can never break an extension by
-  accident.
-- **EXT-25** MUST `new`: Extensions draw through mdeck's own drawing interface
-  (`mdeck_sdk::paint`). It covers what the built-in engines and visuals use today:
+- **EXT-24** MUST `implemented`: The stable SDK surface exposes **no third-party types**. Anything
+  an extension touches is an mdeck type (`mdeck_sdk::paint` has its own `Color`, `Pos2`, `Vec2`,
+  `Rect`, `Stroke`, `Mesh`, `Texture` and `Painter`), so upgrading a dependency can never break an
+  extension by accident. The SDK depends on egui privately.
+- **EXT-25** MUST `deferred to 2.x`: Extensions draw through mdeck's own drawing interface
+  (`mdeck_sdk::paint`). It covers what the built-in engines use:
   - shapes, paths and meshes;
-  - text laid out in the theme's fonts, including math;
+  - text laid out in the theme's fonts, glyph meshes and glyph ink;
   - images and textures;
-  - clipping, opacity and blend modes, including the additive blending the particle glow uses.
+  - clipping, opacity and sprite blending, including the additive blending the particle glow
+    uses.
 
-  mdeck's own engines and visuals use the same interface (VIS-18). Today it is a thin layer over
-  egui. Because only mdeck depends on egui directly, mdeck can upgrade egui freely without
-  touching any extension.
-- **EXT-26** MAY `new`: An extension that needs something the drawing interface does not offer
-  yet can opt into raw egui access through an `unstable-egui` cargo feature. That feature is
-  explicitly outside the compatibility promise, and every need for it is a request to extend
-  `mdeck_sdk::paint` in the next minor version.
-- **EXT-27** MUST `change`: The dependency policy (keep every dependency at its latest version) is
-  kept, with one constraint: an upgrade that would break anything in EXT-23 waits for the next
-  major version. Thanks to EXT-24 and EXT-25 this is rare. A dependency upgrade normally changes
-  only mdeck's internals, and goes out in a minor or patch release as today. When an upgrade has
-  to wait, `Cargo.toml` says why with a `# Stays on ...` comment, as the existing exceptions do.
+  mdeck's own engines use only this interface (a test keeps egui out of `engines/`). Because only
+  mdeck depends on egui directly, mdeck can upgrade egui freely without touching any extension.
+  *Deferred to 2.x:* built-in visuals still draw with egui through an internal bridge, and the
+  painter has no math layout yet.
+- **EXT-26** MAY `implemented`: An extension that needs something the drawing interface does not
+  offer yet can opt into raw egui access through the `unstable-egui` cargo feature
+  (`Painter::egui_painter`). That feature is explicitly outside the compatibility promise, and
+  every need for it is a request to extend `mdeck_sdk::paint` in a later minor version.
+- **EXT-27** MUST `implemented`: The dependency policy (keep every dependency at its latest
+  version) is kept, with one constraint: an upgrade that would break anything in EXT-23 waits for
+  the next major version. Thanks to EXT-24 and EXT-25 this is rare: a dependency upgrade normally
+  changes only mdeck's internals and goes out in a minor or patch release. When an upgrade has to
+  wait, `Cargo.toml` says why with a `# Stays on ...` comment.
 
 ## Consequences for the codebase
 
-- **EXT-20** MUST `change`: The workspace splits into at least:
-  - `mdeck-sdk` (the public interfaces and the types they use);
-  - `mdeck` (the library: parser, designs, built-in extensions, app, export);
-  - the `mdeck` binary.
-
-  The split follows the existing engine boundary test, which becomes the SDK's definition.
-- **EXT-21** MUST `change`: `EngineKind`, `Chart` and `Layout` become registries. Capabilities stay
-  as the interface between core and engine (ENG-04).
-- **EXT-22** SHOULD `keep`: Built-in engines and visuals remain cargo features. A custom build can
-  leave out what it does not need.
+- **EXT-20** MUST `implemented`: The workspace has:
+  - `crates/mdeck-sdk` (the public interfaces and the types they use);
+  - `crates/mdeck`, the library (parser, designs, built-in extensions, app, export, commands) and
+    the `mdeck` binary, which is `mdeck::run` called with `mdeck::builtins`.
+- **EXT-21** MUST `implemented`: Engines and visual kinds are registries filled at startup (v1's
+  closed `EngineKind` and `Chart` enums are gone); designs are a fixed catalogue of 13, and design
+  sets are YAML files found by name. Capabilities stay as the interface between core and engine
+  (ENG-04).
+- **EXT-22** SHOULD `deferred to 2.x`: Built-in engines remain cargo features, so a custom build can
+  leave out the engines it does not need (CI builds with none and with each alone). *Deferred to
+  2.x:* built-in visuals are always compiled in.

@@ -13,7 +13,7 @@ requirement has an ID (`MD-07`, `THM-14`), a keyword and a status. Keywords foll
 | Status | Meaning |
 |---|---|
 | `implemented` | mdeck 2.0 does this, checked against the code. |
-| `deferred to 2.x` | Still wanted, not in 2.0; the requirement says why. Listed below. |
+| `deferred to 2.x` | Still wanted, but not (or not fully) in 2.0; the requirement says what is missing and why. Listed below. |
 | `dropped` | No longer wanted; the requirement says why (usually a later decision). |
 
 The owner's decisions on the questions this specification raised are in
@@ -40,7 +40,60 @@ The owner's decisions on the questions this specification raised are in
 
 ## Deferred to 2.x
 
-DEFERRED_LIST
+Everything mdeck 2.0 leaves for a 2.x release, with the requirements that record it. The
+release notes (`CHANGELOG.md`, "Deferred to 2.x") carry the same list.
+
+**Extensions and the SDK**
+
+- Built-in visuals still draw with egui through an internal bridge (the SDK's `unstable-egui`
+  feature), not through the SDK's `paint` interface, which has no math layout yet; `@thermal` and
+  `@architecture` keep their own renderers (VIS-18, VIZ-07, EXT-25).
+- The built-in transitions and the `standard` and `editorial` design sets are not registered
+  through the SDK, and mdeck never looks up a transition or a code design set an extension
+  registers: a theme's `transition:` takes the built-in names, its `designs:` a YAML design set,
+  and a code design set works only as a board engine's own (VIS-18, DES-14, EXT-05, EXT-06).
+- Only the engine examples and scaffold are compiled in CI; the visual, design-set and transition
+  scaffolds are checked for their files only (EXT-15).
+- Built-in visuals are not cargo features; engines are (EXT-22).
+- Dynamic loading (native plugins or WebAssembly), by design not before the SDK has proven stable
+  (EXT-19).
+- The SDK content model is converted from the parser's: quotes and callouts reach an extension as
+  one run of text and lists carry no start number (the split-flap board numbers lists from 1). A
+  heading reaches engines as one `Hint::Text` per glyph, without letter spacing.
+
+**Pictures and visuals**
+
+- `picture:` naming an image file: the host resolves it, but no engine draws an image picture and
+  `--check` reports the path as an invalid point cloud name (PIC-02, step 3).
+- A generated artwork shows on any slide the art pipeline has one for, also where the design has
+  no stage; point clouds follow the design (ENG-14).
+- Diagram icons and point clouds have separate name vocabularies (`database` against `db`)
+  (VIZ-10).
+
+**Checking**
+
+- `--check -v` does not say that a theme's engine settings are ignored when the deck or
+  `--engine` runs another engine (THM-11, ENG-11).
+- `--check` does not warn that a slide's `transition` has no effect on a board engine (RUN-10).
+- `--check --json` (RUN-22).
+- Editor completion generated from the language table (LANG-04).
+
+**Presenting, export and AI**
+
+- Video or animated export (RUN-18, decision Q13).
+- `mdeck ai deck` does not check the deck it writes and ask again with the problems, and a
+  malformed scene reply in `mdeck ai pictures` fails without a second request (GEN-07).
+- The split-flap board shows the empty panel colour while a panel image is still loading.
+- Inline images in a copy column sit in a fixed box (60% of the column width, at most 400 px), so
+  a portrait image is letterboxed.
+- Italic display text is a synthetic slant; no italic faces are bundled.
+
+**Code**
+
+- Two internal modules keep v1 names: `render::ember` (the editorial chrome, and the
+  `ember-hints` store id) and `render::illustration` (point clouds) (CON-02, CON-03).
+- mdeck's tests that read `docs/`, `samples/` or `examples/` run from the repository only, not
+  from the published crate.
 
 ## Relationship to other documents
 

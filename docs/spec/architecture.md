@@ -140,10 +140,10 @@ export only read the folder.
 ## D15. Custom builds
 
 An extension crate exposes `pub fn register(r: &mut mdeck_sdk::Registry)`. `mdeck build --with
-<source>...` generates a cargo project that depends on `mdeck` and the extensions, calls
+<path|crate[@version]|git source>...` generates a cargo project that depends on `mdeck` and the extensions, calls
 `mdeck::run` with the built-ins plus each `register`, builds it in release mode and installs the
 binary where `--out` says. `mdeck sdk new` scaffolds an extension crate from templates embedded
-in the SDK.
+in the SDK, and `mdeck sdk preview` exports a preview deck with a chosen engine and theme.
 
 ## D16. Packs and external visual programs
 

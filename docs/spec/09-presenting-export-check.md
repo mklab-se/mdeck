@@ -1,213 +1,105 @@
 # 09. Presenting, export and checking
 
-The runtime: the presenting window, navigation, transitions, export and `--check`.
+The runtime: the presenting window and the presenter view, navigation, transitions, the opening
+and the ending, export and `--check`.
 
-## Today
-
-### Presenting
-
-`mdeck deck.md` opens a window. It takes these flags:
-
-- `--windowed`
-- `--slide N`
-- `--overview`
-- `--engine E`
-- `--reduced-motion`
-- `--check`
-
-There is no `--theme` flag for presenting, although `export` has one.
-
-### Keys
-
-One table, `app/keys.rs`, drives key handling, the HUD and `mdeck spec --short`.
-
-| Purpose | Keys |
-|---|---|
-| Forward | Space, N, Right, PageDown, Enter |
-| Back | P, Left, PageUp, Backspace |
-| Scroll | Up, Down |
-| First / last slide | Home, End |
-| Grid overview | G |
-| Cycle transition / theme | T / Shift+T |
-| Fullscreen / next monitor | F / M |
-| HUD | H |
-| Blackout | `.` or B |
-| Debug overlay | R |
-| Generate AI art or story for the slide (v2: art only) | S |
-| Thermal palette / reset | C / Shift+C |
-| Clear drawings | Esc |
-| Quit | Esc×2, Q×2, Ctrl+C×2 |
-
-Mouse:
-
-- left click: next;
-- right click: back;
-- left drag: draws with the pen;
-- right drag: draws arrows.
-
-Missing:
-
-- a presenter view and notes on screen;
-- a timer;
-- jumping to a slide by number.
-
-### Other runtime behaviour
-
-**Transitions.** `slide`, `fade`, `spatial`, `none`, plus the thermal `@zoom`. They are set per
-deck, and per slide only through `@zoom`. A board engine forces `none` and runs its own.
-
-**Overview.** An animated zoom into a grid of all slides.
-
-**Opening and ending.**
-
-- A countdown before slide 1, configured in two places:
-  - the theme: `countdown: none|plain|burst`;
-  - the deck: `@countdown`, where only `false` has an effect.
-- A virtual end slide after the last one: either the engine's end act, or "The End" with the
-  mdeck logo.
-
-**Reduced motion.** `--reduced-motion` or `defaults.reduced_motion` shows every settled state:
-
-- no transitions;
-- no reveal animation;
-- still engine frames;
-- no countdown.
-
-**Live reload.** Edits to the deck reload while presenting.
-
-### Export
-
-`mdeck export deck.md` writes PNG or PDF. Options:
-
-- `--width` / `--height`;
-- `--slide N` or `--range A-B`;
-- `--debug`: one image per reveal step;
-- `--notes`: PDF notes pages;
-- `--theme`, `--engine`.
-
-It uses the same deck and drawing code as the window. Stills of motion come from the
-`MDECK_EXPORT_AT` / `MDECK_EXPORT_MOMENT` environment variables.
-
-Parity gap: `@footer` is drawn in the window but not in export.
-
-### `--check`
-
-Prints warnings with line numbers, and exits with 1 when there are any. Categories:
-
-- `architecture`
-- `story`
-- `illustration`
-- `fonts`
-- `math`
-- `theme`
-- `directive`
-- `engine`
-- `art`
-- `background`
-- `thermal`
-
-`-v` prints each slide's layout and step count.
-
-Not checked:
-
-- frontmatter keys and values;
-- layout names;
-- fence tags;
-- visual syntax;
-- image hints;
-- content that will render as raw syntax;
-- dropped content.
-
-## Assessment
-
-1. **The window is strong; the presenter is underserved.** Notes exist but can only be printed.
-   For a tool whose promise is a better presentation than Keynote, a presenter view with notes,
-   the next slide and a timer is expected.
-2. **The countdown has two switches that disagree.** The theme can set `none`, and the deck
-   cannot turn it on.
-3. **`--check` is strong where it exists and blind where most author mistakes happen** (see
-   [07](07-authoring-language.md)).
-4. **Transitions are deck-wide only.** The one per-slide transition (`@zoom`) is a thermal-specific
-   directive with its own name.
+`mdeck deck.md` opens the slide window; `mdeck export deck.md` writes PNG or PDF through the same
+deck and drawing code; `mdeck --check deck.md` reports everything in the deck that will not show
+as the author wrote it. The three share one understanding of the deck, so what `--check -v`
+describes is what the window presents and what export writes.
 
 ## Requirements
 
 ### Presenting
 
-- **RUN-01** MUST `keep`: Presenting is a native, full-screen, GPU-rendered window. It is smooth
-  at the display's refresh rate, resolution-independent (scale factor `min(w/1920, h/1080)`), and
-  works on macOS, Linux and Windows.
-- **RUN-02** MUST `keep`: One key table drives handling, the HUD, the format reference and
-  `mdeck spec --short`. Every binding has exactly one meaning per mode.
-- **RUN-03** MUST `new`: v2.0 has a presenter view on a second display. It shows:
-  - the current slide;
-  - the next slide or step;
+- **RUN-01** MUST `implemented`: Presenting is a native, full-screen, GPU-rendered window. It is
+  smooth at the display's refresh rate, resolution-independent (scale factor
+  `min(w/1920, h/1080)`), and works on macOS, Linux and Windows.
+- **RUN-02** MUST `implemented`: One key table (`app/keys.rs`) drives key handling, the HUD, the
+  format reference and `mdeck spec --short`. Every binding has exactly one meaning per mode.
+- **RUN-03** MUST `implemented`: There is a presenter view, opened with `V` while presenting or
+  with `--presenter` at launch, in a second window placed on another display when there is one.
+  It shows:
+  - the current slide, with the engine's layer;
+  - the next step or slide;
   - the notes, rendered as markdown (MD-15);
-  - the elapsed time.
+  - the elapsed time (`Shift+V` resets it).
 
-  With one display, a toggleable notes overlay is visible only on the presenter's screen when
-  mirroring is off.
-- **RUN-04** SHOULD `new`: Typing a number and pressing Enter jumps to that slide.
-- **RUN-05** MUST `keep`: Live reload keeps the current slide and step when the deck changes on
-  disk.
-- **RUN-06** MUST `keep`: Pen and arrow annotations are drawn with the mouse, are cleared with Esc,
-  and are never saved into the deck.
-- **RUN-07** MUST `new`: `--theme` works for presenting as well as for export.
+  With one display, `V` shows a notes overlay over the slides instead.
+- **RUN-04** SHOULD `implemented`: Typing a slide number and pressing Enter jumps to that slide.
+- **RUN-05** MUST `implemented`: Live reload keeps the current slide and step when the deck
+  changes on disk.
+- **RUN-06** MUST `implemented`: Pen (left drag) and arrow (right drag) annotations are drawn with
+  the mouse, are cleared with Esc, and are never saved into the deck.
+- **RUN-07** MUST `implemented`: `--theme` works for presenting as well as for export and
+  `--check`.
 
 ### Transitions
 
-- **RUN-08** MUST `change`: Transitions are `slide`, `fade`, `spatial` and `none`, with smooth
-  easing. The transition is set by the deck, then the theme, then the user config, then the
-  built-in default, which is `fade` (today it is `slide`).
-- **RUN-09** MUST `change`: A slide can set its own transition into it (`transition:` in its
-  settings). The thermal spot zoom becomes `transition: zoom` with `zoom-to: <spot>`.
-- **RUN-10** MUST `keep`: A board engine owns transitions. A per-slide transition on a board is
-  ignored and reported.
-- **RUN-11** MUST `keep`: The overview zooms in and out with animation.
+- **RUN-08** MUST `implemented`: Transitions are `slide`, `fade`, `spatial` and `none`, with
+  smooth easing. The transition is set by the deck, then the theme's `transition:`, then the user
+  config, then the built-in default, `fade` (the default theme is `dark`, VIS-07). A blank or
+  unknown value falls through to the next in line. `T` cycles the transition while presenting.
+- **RUN-09** MUST `implemented`: A slide can set its own transition into it (`transition:` in its
+  settings), used when it is entered going forward and when it is left going back. The thermal
+  spot zoom is `transition: zoom` with `zoom-to: <spot>` on the same slide.
+- **RUN-10** MUST `deferred to 2.x`: A board engine owns transitions; a per-slide transition on a
+  board is ignored, and `--check` says so. *Deferred:* the board ignores it, but `--check` does
+  not yet warn that a slide's `transition` has no effect on a board engine.
+- **RUN-11** MUST `implemented`: The overview (`G`) zooms in and out with animation.
 
 ### Opening and ending
 
-- **RUN-12** MUST `change`: The countdown has one switch with a clear precedence:
+- **RUN-12** MUST `implemented`: The countdown has one switch with a clear precedence:
   - the deck's `countdown: on|off` wins;
-  - otherwise the theme's default applies;
+  - otherwise the theme's `countdown:` default applies;
   - the engine decides how it looks;
   - an engine without its own countdown shows plain numerals.
-- **RUN-13** MUST `keep`: Navigating past the last slide shows the end: the engine's end act or
-  the default end slide.
+- **RUN-13** MUST `implemented`: Navigating past the last slide shows the end: the engine's end
+  act or the default end slide.
 
 ### Reduced motion
 
-- **RUN-14** MUST `keep`: Reduced motion shows every settled state: no transitions, no reveal
-  animation, still engine frames, no countdown. Content is never lost under reduced motion.
+- **RUN-14** MUST `implemented`: Reduced motion (`--reduced-motion` or
+  `defaults.reduced_motion`) shows every settled state: no transitions, no reveal animation,
+  still engine frames, no countdown. Content is never lost under reduced motion.
 
 ### Export
 
-- **RUN-15** MUST `keep`: Export shows exactly what the window shows (VIS-21), including chrome
-  such as the footer.
-- **RUN-16** MUST `keep`: PNG output is exactly the requested size on any display. PDF has one
-  page per slide (or per step with `--debug`), an outline entry per slide, and optional notes
-  pages.
-- **RUN-17** MUST `keep`: Exports are reproducible: the same deck, theme and engine always give
-  the same pixels.
-- **RUN-18** MAY `new`: A later version can export a video or animated image of a slide's motion
-  (rehearsed with the same clock as `MDECK_EXPORT_AT`), so decks can be shared with their wow
-  effect intact. Not in v2.0.
+- **RUN-15** MUST `implemented`: Export shows exactly what the window shows (VIS-21), including
+  chrome such as the footer and the slide counter.
+- **RUN-16** MUST `implemented`: PNG output is exactly the requested size on any display. PDF has
+  one page per slide (or per step with `--debug`), an outline entry per slide, and optional notes
+  pages (`--notes`).
+- **RUN-17** MUST `implemented`: Exports are reproducible: the same deck, theme and engine always
+  give the same pixels. Stills of motion are rehearsed on a fixed clock: `--at <seconds>` runs
+  the engine that long from a cold start, and `--moment countdown|3|2|1|burst|end` exports the
+  opening or the ending as one image.
+- **RUN-18** MAY `deferred to 2.x`: Export a video or animated image of a slide's motion
+  (rehearsed with the same clock as `--at`), so decks can be shared with their wow effect intact.
+  *Deferred:* decided as later, not in v2.0 (Q13).
 
 ### Checking
 
-- **RUN-19** MUST `change`: `mdeck --check` validates everything the author writes:
-  - deck and slide settings: names and values;
+- **RUN-19** MUST `implemented`: `mdeck --check` validates everything the author writes:
+  - deck and slide settings: names and values, and v1 syntax with its v2 form (`settings`);
   - slide boundaries and which settings apply to which slide;
-  - design names, and designs that cannot hold their content;
-  - visual tags and visual syntax;
-  - image options;
-  - content that cannot be presented;
-  - missing assets and extensions;
-  - engine support for what the deck uses;
-  - fonts, math and contrast.
-- **RUN-20** MUST `keep`: Every warning names its file line and slide, and says what to do.
-- **RUN-21** MUST `new`: `--check -v` prints the deck as mdeck understands it: for each slide, the
-  design (and why), the settings that apply, the steps, the picture and any fallbacks. This is the
-  primary debugging tool for authors and AI agents.
-- **RUN-22** SHOULD `new`: `--check --json` produces the same report as machine-readable JSON, for
-  editors and AI agents.
+  - design names, and chosen designs that cannot hold their content (`settings`);
+  - visual tags and visual syntax (`visual`);
+  - image options and content that cannot be presented (`content`);
+  - missing or stale generated assets (`assets`), required packs and extensions (`extensions`),
+    background images (`background`), point clouds (`point-cloud`), thermal sources (`thermal`);
+  - engine support for what the deck uses (`engine`);
+  - fonts, math, theme problems and contrast (`fonts`, `math`, `theme`), and diagram routing
+    (`architecture`).
+
+  It exits with 1 when there are warnings. `--check --theme <name>` checks the deck in that
+  theme.
+- **RUN-20** MUST `implemented`: Every warning names its file line and slide, and says what to do.
+- **RUN-21** MUST `implemented`: `--check -v` prints the deck as mdeck understands it: for each
+  slide, the design and the rule that recognised it (or why a chosen design fell back), the
+  settings that apply and where they come from, the steps, the picture and whether it has notes.
+  This is the primary debugging tool for authors and AI agents.
+- **RUN-22** SHOULD `deferred to 2.x`: `--check --json` produces the same report as
+  machine-readable JSON, for editors and AI agents. *Deferred:* not built for 2.0; the text report
+  is stable enough for agents to read.
