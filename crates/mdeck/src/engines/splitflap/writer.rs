@@ -52,6 +52,8 @@ impl Writer {
                 Inline::Math { .. } => {
                     self.unsupported.insert("formulas".into());
                 }
+                // an inline kind newer than the board
+                _ => {}
             }
         }
     }
@@ -341,7 +343,7 @@ impl Writer {
         let mut first_heading = true;
         for (i, block) in blocks.iter().enumerate() {
             match block {
-                Block::Heading { level, inlines } => {
+                Block::Heading { level, inlines, .. } => {
                     let style = if title && !first_heading && *level > 1 {
                         Style::Normal
                     } else {
@@ -356,24 +358,48 @@ impl Writer {
                     }
                     first_heading = false;
                 }
-                Block::Paragraph { inlines } => {
+                Block::Paragraph { inlines, .. } => {
                     let style = if title { Style::Dim } else { Style::Normal };
                     let mut cells = Vec::new();
                     self.styled(inlines, style, &mut cells);
                     self.blank(0);
                     self.wrap(Vec::new(), cells, 0, width, 0);
                 }
-                Block::List { ordered, items } => {
+                Block::List {
+                    ordered,
+                    start,
+                    items,
+                    ..
+                } => {
                     self.blank(0);
-                    self.list(items, *ordered, 0, 1, width);
+                    // a numbered list counts from its first number (`3.`)
+                    self.list(items, *ordered, 0, *start, width);
                 }
-                Block::BlockQuote { inlines } => {
+                Block::Callout { kind, blocks, .. } => {
+                    // the label in the accent, then the text running on
+                    let mut prefix: Vec<Cell> = kind
+                        .label()
+                        .to_uppercase()
+                        .chars()
+                        .map(|ch| Cell {
+                            ch,
+                            style: Style::Accent,
+                        })
+                        .collect();
+                    prefix.push(Cell::BLANK);
+                    let hang = prefix.len();
+                    let mut cells = Vec::new();
+                    self.styled(&Block::quote_text(blocks), Style::Normal, &mut cells);
+                    self.blank(0);
+                    self.wrap(prefix, cells, hang, width, 0);
+                }
+                Block::BlockQuote { blocks, .. } => {
                     let mut cells = vec![Cell {
                         ch: '"',
                         style: Style::Accent,
                     }];
                     // the quote's paragraphs (joined by line breaks) run on
-                    self.styled(inlines, Style::Normal, &mut cells);
+                    self.styled(&Block::quote_text(blocks), Style::Normal, &mut cells);
                     cells.push(Cell {
                         ch: '"',
                         style: Style::Accent,
@@ -381,7 +407,7 @@ impl Writer {
                     self.blank(0);
                     self.wrap(Vec::new(), cells, 1, width, 0);
                 }
-                Block::Table { headers, rows } => {
+                Block::Table { headers, rows, .. } => {
                     self.blank(0);
                     self.table(headers, rows, width);
                 }
@@ -403,6 +429,8 @@ impl Writer {
                 Block::Visual { tag, .. } => {
                     self.unsupported.insert(visual_name(tag));
                 }
+                // a block kind newer than the board
+                _ => {}
             }
         }
     }

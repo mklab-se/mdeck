@@ -149,6 +149,7 @@ pub(crate) fn collect(
     add(point_cloud_warnings(presentation, file, &theme));
     add(design_warnings(presentation));
     add(engine_warnings(presentation, theme.engine));
+    add(engine::design_set_warnings(presentation, &theme));
     add(asset_warnings(file, presentation, &theme));
     Ok(report)
 }

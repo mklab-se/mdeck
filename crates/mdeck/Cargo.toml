@@ -61,6 +61,15 @@ engine-ambience = { path = "../../examples/engine-ambience" }
 name = "extension_engine"
 harness = false
 
+# EXT-05 end to end: a code design set and a transition an extension registers.
+[[test]]
+name = "extension_design_set"
+harness = false
+
+[[test]]
+name = "extension_transition"
+harness = false
+
 [features]
 default = [
     "particles",

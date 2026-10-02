@@ -16,9 +16,7 @@
 //! the countdown and the end words are drawn the same way. Exports show the
 //! finished drawing.
 
-use mdeck_sdk::engine::{
-    Capabilities, Engine, EngineDef, Medium, MediumKind, Needs, SettingKind, SettingSpec,
-};
+use mdeck_sdk::engine::{Engine, EngineDef, Medium, MediumKind, Needs, SettingKind, SettingSpec};
 use mdeck_sdk::paint::Painter;
 use mdeck_sdk::stage::{Frame, Moment, Stage, Strategy};
 use mdeck_sdk::tokens::EngineSettings;
@@ -30,32 +28,24 @@ mod slate;
 
 /// The line engine asks for line art and draws it itself; tonal pictures
 /// (a theme's `art:` choosing them) are hatched in like a sketch.
-pub const MEDIUM: Medium = Medium {
-    name: "line",
-    kind: MediumKind::Line,
-    strategy: Strategy::Hatch,
-};
+pub const MEDIUM: Medium = Medium::new("line", MediumKind::Line, Strategy::Hatch);
 
 /// The surfaces the line engine draws on.
 const SURFACES: &[&str] = &["sheet", "slate"];
 
-pub static DEF: EngineDef = EngineDef {
-    name: "line",
-    summary: "Generated line art inked onto a blueprint sheet or drawn in chalk on a slate.",
-    capabilities: Capabilities {
-        medium: Some(MEDIUM),
-        ..super::art::CAPABILITIES
-    },
-    settings: &[SettingSpec {
-        key: "surface",
-        kind: SettingKind::OneOf(SURFACES),
-        summary: "What the lines are drawn on: a blueprint `sheet` (the default) or a chalk `slate`.",
-    }],
-    needs: Needs { page: true },
-    ending_caption_delay: 5.2,
-    create: |settings| Box::new(Line::new(Surface::of(settings))),
-    board: None,
-};
+pub static DEF: EngineDef = EngineDef::new(
+    "line",
+    "Generated line art inked onto a blueprint sheet or drawn in chalk on a slate.",
+    |settings| Box::new(Line::new(Surface::of(settings))),
+)
+.with_capabilities(super::art::CAPABILITIES.with_medium(MEDIUM))
+.with_settings(&[SettingSpec::new(
+    "surface",
+    SettingKind::OneOf(SURFACES),
+    "What the lines are drawn on: a blueprint `sheet` (the default) or a chalk `slate`.",
+)])
+.with_needs(Needs::NONE.with_page())
+.with_ending_caption_delay(5.2);
 
 /// The end words hold this long, then fade.
 const END_WORDS: f32 = 3.6;

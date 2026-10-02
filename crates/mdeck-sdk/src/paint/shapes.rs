@@ -286,6 +286,7 @@ impl ImageData {
 /// assert_ne!(TextureFilter::Linear, TextureFilter::Nearest);
 /// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TextureFilter {
     /// Smooth interpolation (photos, sprites).
     #[default]
@@ -382,6 +383,7 @@ impl std::fmt::Debug for Texture {
 /// assert_eq!(FontRole::ALL.len(), 5);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum FontRole {
     /// Headings and display type (titles, countdown digits).
     Display,
@@ -414,6 +416,7 @@ impl FontRole {
 /// assert_eq!(f.size, 72.0);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Font {
     /// Which of the theme's faces.
     pub role: FontRole,

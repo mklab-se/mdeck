@@ -1,10 +1,11 @@
 //! The scaffold templates for `mdeck sdk new <kind> <name>` (EXT-28).
 //!
-//! Building every template in a test would be slow, so the engine template
-//! is instantiated once, as the workspace crate `examples/template-engine`,
-//! which CI builds, lints and tests. This test keeps that copy identical to
-//! what the template produces, and checks every template for the files the
-//! scaffold promises and for unknown placeholders.
+//! Building every template in a test would be slow, so each template is
+//! instantiated once, as the workspace crates `examples/template-engine`,
+//! `template-visual`, `template-design-set` and `template-transition`,
+//! which CI builds, lints and tests (EXT-15). This test keeps those copies
+//! identical to what the templates produce, and checks every template for
+//! the files the scaffold promises and for unknown placeholders.
 
 use std::path::{Path, PathBuf};
 
@@ -111,26 +112,32 @@ fn no_template_stores_a_cargo_toml_or_gitignore() {
 }
 
 #[test]
-fn the_engine_example_is_the_instantiated_template() {
-    let example = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/template-engine");
-    if !example.exists() {
+fn the_examples_are_the_instantiated_templates() {
+    let examples = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples");
+    if !examples.exists() {
         return; // outside the mdeck repository (a packaged crate)
     }
-    for file in [
-        ".gitignore",
-        "src/lib.rs",
-        "tests/golden.rs",
-        "theme.yaml",
-        "deck.md",
-        "README.md",
-    ] {
-        let template = std::fs::read_to_string(source("engine", file)).unwrap();
-        let copy = std::fs::read_to_string(example.join(file)).unwrap();
-        assert_eq!(
-            instantiate(&template, "template-engine"),
-            copy,
-            "examples/template-engine/{file} differs from templates/engine/{file}: \
-             regenerate the example from the template"
-        );
+    for kind in KINDS {
+        let name = format!("template-{kind}");
+        let example = examples.join(&name);
+        for file in [
+            ".gitignore",
+            "src/lib.rs",
+            "tests/golden.rs",
+            "theme.yaml",
+            "deck.md",
+            "README.md",
+        ] {
+            let template = std::fs::read_to_string(source(kind, file)).unwrap();
+            let copy = std::fs::read_to_string(example.join(file)).unwrap_or_else(|e| {
+                panic!("examples/{name}/{file}: {e}: instantiate the {kind} template there")
+            });
+            assert_eq!(
+                instantiate(&template, &name),
+                copy,
+                "examples/{name}/{file} differs from templates/{kind}/{file}: \
+                 regenerate the example from the template"
+            );
+        }
     }
 }

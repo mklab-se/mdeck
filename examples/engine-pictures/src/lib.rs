@@ -15,31 +15,28 @@
 //! The walkthrough is `docs/sdk/tutorial-2-pictures.md`.
 
 use mdeck_sdk::cloud::Cloud;
-use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Needs};
+use mdeck_sdk::engine::{Capabilities, Engine, EngineDef};
 use mdeck_sdk::paint::{Painter, Pos2, Rect, Sprite, SpriteBlend, SpriteLayer, Vec2, mix};
 use mdeck_sdk::registry::{Registry, RegistryError};
 use mdeck_sdk::stage::{Frame, Look, Moment, Picture, PictureSource, Stage};
 use mdeck_sdk::tokens::EngineSettings;
 
 /// The engine as mdeck registers it: `engine: pictures` in a theme.
-pub static DEF: EngineDef = EngineDef {
-    name: "pictures",
-    summary: "Glowing motes gather into the slide's picture, the countdown and the end.",
-    // The core resolves the slide's picture for us, hands us the countdown
-    // digits and plays our end act instead of its plain "The End".
-    capabilities: Capabilities {
-        picture: true,
-        countdown: true,
-        ending: true,
-        ..Capabilities::NONE
-    },
-    settings: &[],
-    needs: Needs { page: false },
-    // The end words take about two seconds to gather; the caption follows.
-    ending_caption_delay: 2.5,
+pub static DEF: EngineDef = EngineDef::new(
+    "pictures",
+    "Glowing motes gather into the slide's picture, the countdown and the end.",
     create,
-    board: None,
-};
+)
+// The core resolves the slide's picture for us, hands us the countdown
+// digits and plays our end act instead of its plain "The End".
+.with_capabilities(
+    Capabilities::NONE
+        .with_picture()
+        .with_countdown()
+        .with_ending(),
+)
+// The end words take about two seconds to gather; the caption follows.
+.with_ending_caption_delay(2.5);
 
 /// The showcase theme.
 pub const THEME: &str = include_str!("../themes/fireflies.yaml");
@@ -149,7 +146,7 @@ impl Motes {
                     self.rest(stage.index);
                 }
             }
-            Moment::End { words, elapsed } if *elapsed < END_WORDS && !words.is_empty() => {
+            Moment::End { words, elapsed, .. } if *elapsed < END_WORDS && !words.is_empty() => {
                 let box_ = fit(rect, rect.height() * 0.2, words.aspect, 0.8);
                 for (i, m) in self.motes.iter_mut().enumerate() {
                     let [x, y] = words.points[i % words.points.len()];
@@ -178,6 +175,8 @@ impl Motes {
                 // artwork or an image): rest. A slide is never left empty.
                 None => self.rest(stage.index),
             },
+            // A moment newer than this engine: rest.
+            _ => self.rest(stage.index),
         }
     }
 
@@ -358,16 +357,17 @@ mod tests {
 
     fn with_picture(backdrop: bool) -> Stage<'static> {
         let mut s = Stage::new(Moment::Slide);
-        s.picture = Some(Picture {
-            source: PictureSource::Cloud(ring()),
-            backdrop,
-            place: Place {
+        let mut p = Picture::new(
+            PictureSource::Cloud(ring()),
+            Place {
                 u: 0.55,
                 v: 0.1,
                 w: 0.4,
                 h: 0.8,
             },
-        });
+        );
+        p.backdrop = backdrop;
+        s.picture = Some(p);
         s
     }
 
@@ -430,11 +430,7 @@ mod tests {
     #[test]
     fn the_countdown_digit_is_centred() {
         let mask = Mask::new(vec![[0.0, 0.0], [1.0, 1.0], [0.5, 0.5]], 0.6);
-        let stage = Stage::new(Moment::Countdown {
-            digit: 3,
-            mask,
-            progress: 0.0,
-        });
+        let stage = Stage::new(Moment::countdown(3, mask, 0.0));
         let mut e = Motes::new();
         step(&mut e, &stage, true, 0.0);
         let xs: Vec<f32> = e.motes().iter().map(|m| m.pos[0]).collect();
@@ -447,10 +443,7 @@ mod tests {
     #[test]
     fn after_the_end_words_everything_fades() {
         let words = Mask::new(vec![[0.5, 0.5]], 4.0);
-        let stage = Stage::new(Moment::End {
-            elapsed: END_WORDS + 1.0,
-            words,
-        });
+        let stage = Stage::new(Moment::end(END_WORDS + 1.0, words));
         let mut e = Motes::new();
         step(&mut e, &stage, true, 0.0);
         assert!(e.motes().iter().all(|m| m.glow == 0.0));

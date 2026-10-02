@@ -24,6 +24,34 @@ fn range(key: &str, v: Option<f32>, lo: f32, hi: f32) -> Result<Option<f32>, The
     }
 }
 
+/// The data design set a theme's `designs:` names and the code design set
+/// it names instead, if any (EXT-05). Data sets (built-in or in a
+/// `designs/` folder) come first, then sets extensions registered; a name
+/// that is neither falls back to `standard` with a warning.
+fn design_set<'f>(
+    f: &'f ThemeFile,
+    design_dirs: &[std::path::PathBuf],
+    warnings: &mut Vec<String>,
+) -> (&'f str, Option<&'static str>) {
+    use super::arrangement::{DEFAULT_SET, all_set_names};
+    let name = f.designs.as_deref().map(str::trim).unwrap_or(DEFAULT_SET);
+    let data = all_set_names(design_dirs);
+    if data.iter().any(|n| n == name) {
+        return (name, None);
+    }
+    let registry = crate::registry::get();
+    if let Some(set) = registry.design_set_for(name) {
+        return (DEFAULT_SET, Some(set.name()));
+    }
+    let mut known = data;
+    known.extend(registry.design_sets().map(|s| s.name().to_string()));
+    warnings.push(format!(
+        "designs: '{name}' is not a design set ({}); using {DEFAULT_SET}",
+        known.join(", ")
+    ));
+    (DEFAULT_SET, None)
+}
+
 impl Theme {
     /// Build a theme from a fully merged file whose font and syntax paths
     /// are already absolute and confined (see [`super::lookup`]). Invalid
@@ -54,11 +82,9 @@ impl Theme {
         let art = extras::art(f)?;
         extras::heat(&f.heat()?)?;
         let [h1_size, h2_size, h3_size, body_size, code_size] = settings::sizes(&f.sizes)?;
+        let (set, code_designs) = design_set(f, design_dirs, &mut warnings);
         let arrangements = super::arrangement::Arrangements::resolve_in(
-            f.designs
-                .as_deref()
-                .map(str::trim)
-                .unwrap_or(super::arrangement::DEFAULT_SET),
+            set,
             design_dirs,
             f.arrangements.as_ref(),
         )?;
@@ -87,6 +113,7 @@ impl Theme {
             countdown,
             engine_block,
             arrangements,
+            code_designs,
             spacing,
             radius,
             transition,
@@ -230,5 +257,43 @@ mod tests {
         let bad = |yaml: &str| Theme::build("x", &over_dark(yaml)).unwrap_err().to_string();
         assert!(bad("countdown: burst").contains("on or off"));
         assert!(bad("transition: wipe").contains("transition"));
+        // EXT-05: a transition an extension registered is a known name
+        assert_eq!(
+            t("transition: test-drop").transition.as_deref(),
+            Some("test-drop")
+        );
+        assert!(
+            bad("transition: wipe").contains("test-drop"),
+            "names the registered ones"
+        );
+    }
+
+    /// EXT-05: `designs:` names a data set first, then a code set an
+    /// extension registered; anything else falls back to `standard` with a
+    /// warning (it used to fail the whole theme).
+    #[test]
+    fn designs_names_a_data_set_a_code_set_or_falls_back() {
+        use crate::registry::test_extensions::DESIGN_SET;
+        let built = |yaml: &str| Theme::build("x", &over_dark(yaml)).unwrap();
+        let editorial = built("designs: editorial");
+        assert_eq!(editorial.theme.code_designs, None);
+        assert!(editorial.theme.arrangements.is_editorial());
+        let code = built("designs: test-cards");
+        assert_eq!(code.theme.code_designs, Some(DESIGN_SET));
+        assert_eq!(
+            code.theme.code_design_set().map(|s| s.name()),
+            Some(DESIGN_SET)
+        );
+        assert!(!code.theme.arrangements.is_editorial());
+        assert!(code.warnings.is_empty(), "{:?}", code.warnings);
+        let unknown = built("designs: nonesuch");
+        assert_eq!(unknown.theme.code_designs, None);
+        assert!(!unknown.theme.arrangements.is_editorial());
+        let w = unknown.warnings.join("|");
+        assert!(w.contains("'nonesuch' is not a design set"), "{w}");
+        assert!(
+            w.contains("test-cards") && w.contains("using standard"),
+            "{w}"
+        );
     }
 }

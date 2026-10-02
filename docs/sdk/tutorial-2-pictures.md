@@ -30,21 +30,18 @@ engine yourself, see [Try it](#try-it) at the end.
 **READ** `examples/engine-pictures/src/lib.rs`, the definition:
 
 ```rust
-pub static DEF: EngineDef = EngineDef {
-    name: "pictures",
-    summary: "Glowing motes gather into the slide's picture, the countdown and the end.",
-    capabilities: Capabilities {
-        picture: true,
-        countdown: true,
-        ending: true,
-        ..Capabilities::NONE
-    },
-    settings: &[],
-    needs: Needs { page: false },
-    ending_caption_delay: 2.5,
+pub static DEF: EngineDef = EngineDef::new(
+    "pictures",
+    "Glowing motes gather into the slide's picture, the countdown and the end.",
     create,
-    board: None,
-};
+)
+.with_capabilities(
+    Capabilities::NONE
+        .with_picture()
+        .with_countdown()
+        .with_ending(),
+)
+.with_ending_caption_delay(2.5);
 ```
 
 Each capability changes what the *core* does:
@@ -52,11 +49,15 @@ Each capability changes what the *core* does:
 - `picture`: the core resolves the slide's picture (`picture: rocket` in the slide's settings, or
   the deck's default) and puts it on `stage.picture`, placed where the slide's design has a stage.
 - `countdown`: the core asks this engine to draw the opening countdown. The stage's moment becomes
-  `Moment::Countdown { digit, mask, progress }` for each digit, then `Moment::Burst` as the last
-  digit leaves.
-- `ending`: after the last slide, the moment becomes `Moment::End { elapsed, words }` and the core
-  does not draw its plain "The End". `ending_caption_delay` tells it when to fade in the small
-  "made with mdeck" caption: after the words have gathered.
+  `Moment::Countdown { digit, mask, progress, .. }` for each digit, then `Moment::Burst` as the
+  last digit leaves.
+- `ending`: after the last slide, the moment becomes `Moment::End { elapsed, words, .. }` and the
+  core does not draw its plain "The End". `with_ending_caption_delay` tells it when to fade in the
+  small "made with mdeck" caption: after the words have gathered.
+
+`Moment` may gain moments in a later 2.x, so `form` ends its `match` with a wildcard arm that
+rests the motes, and patterns its variants with `..`. In tests, build moments with
+`Moment::countdown(digit, mask, progress)` and `Moment::end(elapsed, words)`.
 
 An engine without these never sees those moments, and the core draws the countdown and the end
 itself.

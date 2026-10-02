@@ -46,16 +46,15 @@ The heart of `src/lib.rs` is three things: a definition, an entry point and the 
 **READ** `src/lib.rs` (generated; shortened here):
 
 ```rust
-pub static DEF: EngineDef = EngineDef {
-    name: "glow",                        // themes select it with `engine: glow`
-    summary: "A few slow glows breathing under every slide.",
-    capabilities: Capabilities::NONE,    // it only decorates
-    settings: &[],                       // it reads no settings
-    needs: Needs { page: false },
-    ending_caption_delay: 1.0,
-    create: |_settings| Box::new(Glow::default()),
-    board: None,
-};
+pub static DEF: EngineDef = EngineDef::new(
+    "glow", // themes select it with `engine: glow`
+    "A few slow glows breathing under every slide.",
+    |_settings| Box::new(Glow::default()),
+)
+.with_capabilities(Capabilities::NONE) // it only decorates
+.with_settings(&[])                    // it reads no settings
+.with_needs(Needs::NONE)
+.with_ending_caption_delay(1.0);
 
 pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
     r.engine(&DEF)?;

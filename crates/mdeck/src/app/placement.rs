@@ -5,6 +5,7 @@
 use eframe::egui;
 
 use super::PresentationApp;
+use crate::render::transition::TransitionKind;
 
 /// One slide on screen: where, how opaque, its scroll, and how much it is
 /// magnified (the zoom transition).
@@ -81,7 +82,7 @@ impl PresentationApp {
     /// Where each slide on screen is drawn in `rect`: the current one, or
     /// the outgoing and incoming slides mid-transition (outgoing first).
     pub(super) fn slide_placements(&self, rect: egui::Rect) -> Vec<Placement> {
-        use crate::render::transition::{TransitionDirection, TransitionKind};
+        use crate::render::transition::TransitionDirection;
         let at = |index, rect, opacity, scroll| Placement {
             index,
             rect,
@@ -99,49 +100,58 @@ impl PresentationApp {
         if let Some(anchor) = t.zoom.as_ref().and_then(|z| z.anchor) {
             return zoom_placements(rect, anchor, (from, to), from_scroll, progress);
         }
-        // a board turns its own flaps from one slide to the next
-        let kind = if self.theme.engine.is_board() {
+        let kind = self.drawn_transition(t.kind);
+        let forward = t.direction == TransitionDirection::Forward;
+        let spatial = t.spatial_direction(super::GridLayout::columns(self.slide_count()));
+        let sides = crate::render::transition::sides(kind, progress, forward, rect, spatial);
+        let leaving = sides.len() > 1;
+        sides
+            .into_iter()
+            .enumerate()
+            .map(|(i, s)| {
+                let (index, scroll) = if leaving && i == 0 {
+                    (from, from_scroll)
+                } else {
+                    (to, 0.0)
+                };
+                Placement {
+                    index,
+                    rect: s.rect,
+                    opacity: s.opacity,
+                    scroll,
+                    zoom: s.zoom,
+                }
+            })
+            .collect()
+    }
+
+    /// The transition as drawn: a board turns its own flaps from one slide
+    /// to the next.
+    pub(super) fn drawn_transition(&self, kind: TransitionKind) -> TransitionKind {
+        if self.theme.engine.is_board() {
             TransitionKind::None
         } else {
-            t.kind
+            kind
+        }
+    }
+
+    /// Let an extension transition paint over both slides.
+    pub(super) fn paint_transition_over(&self, ui: &egui::Ui, rect: egui::Rect) {
+        use crate::render::transition::TransitionDirection;
+        let Some(t) = &self.transition else {
+            return;
         };
-        let (from_rect, to_rect) = match kind {
-            TransitionKind::Fade => {
-                return vec![
-                    at(from, rect, 1.0 - progress, from_scroll),
-                    at(to, rect, progress, 0.0),
-                ];
-            }
-            TransitionKind::None => return vec![at(to, rect, 1.0, 0.0)],
-            TransitionKind::SlideHorizontal => {
-                let w = rect.width();
-                let sign = match t.direction {
-                    TransitionDirection::Forward => -1.0,
-                    TransitionDirection::Backward => 1.0,
-                };
-                let from_offset = sign * progress * w;
-                let to_offset = from_offset - sign * w;
-                (
-                    rect.translate(egui::vec2(from_offset, 0.0)),
-                    rect.translate(egui::vec2(to_offset, 0.0)),
-                )
-            }
-            TransitionKind::Spatial => {
-                let (dx, dy) = t.spatial_direction(super::GridLayout::columns(self.slide_count()));
-                let (w, h) = (rect.width(), rect.height());
-                (
-                    rect.translate(egui::vec2(-dx * progress * w, -dy * progress * h)),
-                    rect.translate(egui::vec2(
-                        dx * (1.0 - progress) * w,
-                        dy * (1.0 - progress) * h,
-                    )),
-                )
-            }
-        };
-        vec![
-            at(from, from_rect, 1.0, from_scroll),
-            at(to, to_rect, 1.0, 0.0),
-        ]
+        if t.zoom.as_ref().is_some_and(|z| z.anchor.is_some()) {
+            return;
+        }
+        crate::render::transition::paint_over(
+            self.drawn_transition(t.kind),
+            ui,
+            &self.theme,
+            rect,
+            t.progress(),
+            t.direction == TransitionDirection::Forward,
+        );
     }
 
     /// The background images of the slides on screen, moving with their

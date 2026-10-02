@@ -8,7 +8,7 @@
 use std::sync::Arc;
 
 use mdeck_sdk::cloud::Mask;
-use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Needs};
+use mdeck_sdk::engine::{Capabilities, Engine, EngineDef};
 use mdeck_sdk::paint::{Color as Color32, Mesh, Painter, Pos2, Rect, Vec2, mix, premul};
 use mdeck_sdk::stage::{Frame, Look, Moment, PictureSource, Place, Stage};
 use mdeck_sdk::tokens::Tokens;
@@ -19,19 +19,13 @@ use crate::engines::hash01;
 /// landed, held, and cleared.
 pub const END_CAPTION_DELAY: f32 = 5.4;
 
-pub static DEF: EngineDef = EngineDef {
-    name: "blocks",
-    summary: "Pictures built from falling blocks that land, settle and clear row by row.",
-    capabilities: Capabilities {
-        picture: true,
-        ..Capabilities::NONE
-    },
-    settings: &[],
-    needs: Needs { page: false },
-    ending_caption_delay: END_CAPTION_DELAY,
-    create: |_| Box::new(Blocks::new()),
-    board: None,
-};
+pub static DEF: EngineDef = EngineDef::new(
+    "blocks",
+    "Pictures built from falling blocks that land, settle and clear row by row.",
+    |_| Box::new(Blocks::new()),
+)
+.with_capabilities(Capabilities::NONE.with_picture())
+.with_ending_caption_delay(END_CAPTION_DELAY);
 const END_WORDS: f32 = 3.6;
 /// Gravity, px/s² on a 1920x1080 slide.
 const GRAVITY: f32 = 7200.0;
@@ -169,7 +163,7 @@ impl Engine for Blocks {
             }
             self.key = Some(key);
         }
-        if let Moment::Burst { progress } = stage.moment {
+        if let Moment::Burst { progress, .. } = stage.moment {
             self.burst = Some(progress);
         }
         if cx.still {

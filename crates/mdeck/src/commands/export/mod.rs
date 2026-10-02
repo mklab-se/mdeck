@@ -185,12 +185,16 @@ pub fn run(args: ExportArgs) -> anyhow::Result<()> {
             notes: notes.then(|| Box::new(NotesPages::new())),
         },
     };
+    let mut rehearsal = rehearsal::Rehearsal::new(at, moment);
+    if moment == Some(Moment::Transition) {
+        rehearsal.transition = Some(transition_into(&deck, &theme, targets[0]));
+    }
     let job = Job {
         width,
         height,
         debug,
         targets,
-        rehearsal: rehearsal::Rehearsal::new(at, moment),
+        rehearsal,
         presenter_view,
     };
     render_pages(deck, theme, output, job)?;
@@ -204,6 +208,35 @@ pub fn run(args: ExportArgs) -> anyhow::Result<()> {
 }
 
 /// Parse the deck and resolve its theme with the same precedence as
+/// The transition into slide `index`, as the window resolves it going
+/// forward: the slide's own, then the deck's, the theme's and the user
+/// config's, then `fade`; a board turns its own flaps.
+fn transition_into(
+    deck: &crate::deck::Deck,
+    theme: &crate::theme::Theme,
+    index: usize,
+) -> crate::render::transition::TransitionKind {
+    use crate::render::transition as tr;
+    if theme.engine.is_board() {
+        return tr::TransitionKind::None;
+    }
+    let config = crate::config::Config::load_or_default()
+        .defaults
+        .unwrap_or_default()
+        .transition;
+    deck.presentation
+        .slides
+        .get(index)
+        .and_then(tr::slide_transition)
+        .unwrap_or_else(|| {
+            tr::resolve(
+                deck.presentation.meta.transition.as_deref(),
+                theme.transition.as_deref(),
+                config.as_deref(),
+            )
+        })
+}
+
 /// presenting: `--theme`, then `theme`, then the config default, then the
 /// built-in default (an explicit `--theme` must exist); and its engine:
 /// `--engine`, then `engine`, then the theme's own.

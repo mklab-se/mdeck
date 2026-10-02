@@ -54,8 +54,9 @@ or your configured default (`mdeck config set defaults.theme nord`). Press `Shif
 presenting to try every theme on your deck without editing it, or present and export with
 `--theme <name>`.
 
-**Transitions** are `fade` (the default), `slide`, `spatial` and `none`, and a slide with
-`zoom-to` is entered by zooming into a thermal spot. They come from the deck's `transition`, then the theme's
+**Transitions** are `fade` (the default), `slide`, `spatial` and `none` (a custom build may add
+its own, named the same way), and a slide with `zoom-to` is entered by zooming into a thermal
+spot. They come from the deck's `transition`, then the theme's
 `transition:`, then `defaults.transition` in your config, then `fade`; `T` cycles them live.
 
 Every theme draws symbols (①, ✓, →) from bundled fallback faces, and Chinese, Japanese and

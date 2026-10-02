@@ -34,13 +34,23 @@ pub(super) fn engine_and_countdown(
             ));
         }
     };
+    // a built-in or a transition an extension registered
     let transition = match f.transition.as_deref().map(str::trim) {
         None => None,
         Some(t) if TRANSITIONS.contains(&t) => Some(t.to_string()),
+        Some(t) if crate::render::transition::TransitionKind::parse(t).is_some() => {
+            Some(t.to_string())
+        }
         Some(t) => {
+            let mut known: Vec<String> = TRANSITIONS.iter().map(|s| s.to_string()).collect();
+            known.extend(
+                crate::registry::get()
+                    .transitions()
+                    .map(|t| t.name().to_string()),
+            );
             return Err(ThemeError::invalid(
                 "transition",
-                format!("'{t}' is not {}", TRANSITIONS.join(", ")),
+                format!("'{t}' is not {}", known.join(", ")),
             ));
         }
     };

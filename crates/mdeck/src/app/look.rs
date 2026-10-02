@@ -8,27 +8,16 @@ use crate::theme::Theme;
 use super::PresentationApp;
 use super::toast::Toast;
 
-/// Resolve the transition by precedence: the deck, then the theme, then
-/// the user config, then the built-in `fade`. A blank or unknown value is
-/// skipped, so the next one in line applies.
-pub(super) fn resolve_transition(
-    deck: Option<&str>,
-    theme: Option<&str>,
-    config: Option<&str>,
-) -> TransitionKind {
-    [deck, theme, config]
-        .into_iter()
-        .flatten()
-        .find_map(TransitionKind::parse)
-        .unwrap_or(TransitionKind::Fade)
-}
+use crate::render::transition::{resolve as resolve_transition, slide_transition};
 
-/// A slide's own transition into it (RUN-09): its `transition` setting.
-/// `zoom` is set up by the navigation from `zoom-to`, so it is not one here.
-pub(super) fn slide_transition(slide: &crate::parser::Slide) -> Option<TransitionKind> {
-    crate::parser::setting(&slide.settings, "transition")
-        .filter(|t| *t != "zoom")
-        .and_then(TransitionKind::parse)
+/// The transition after `current` in `all`, wrapping round (the first
+/// when `current` is not in it).
+fn next_transition(current: TransitionKind, all: &[TransitionKind]) -> TransitionKind {
+    let i = all.iter().position(|k| *k == current);
+    match i {
+        Some(i) => all[(i + 1) % all.len()],
+        None => all.first().copied().unwrap_or(TransitionKind::Fade),
+    }
 }
 
 impl PresentationApp {
@@ -75,21 +64,17 @@ impl PresentationApp {
 
     /// `T`: the next transition, for the rest of the session.
     pub(super) fn cycle_transition(&mut self) {
-        let next = match self
+        let current = self
             .cycled_transition
-            .unwrap_or_else(|| self.resolved_transition())
-        {
-            TransitionKind::SlideHorizontal => TransitionKind::Fade,
-            TransitionKind::Fade => TransitionKind::Spatial,
-            TransitionKind::Spatial => TransitionKind::None,
-            TransitionKind::None => TransitionKind::SlideHorizontal,
-        };
+            .unwrap_or_else(|| self.resolved_transition());
+        let next = next_transition(current, &TransitionKind::all());
         self.cycled_transition = Some(next);
         let name = match next {
             TransitionKind::SlideHorizontal => "Slide",
             TransitionKind::Fade => "Fade",
             TransitionKind::Spatial => "Spatial",
             TransitionKind::None => "None",
+            TransitionKind::Extension(name) => name,
         };
         self.toast = Some(Toast::new(format!("Transition: {name}")));
     }
@@ -204,6 +189,28 @@ mod tests {
             TransitionKind::SlideHorizontal
         );
         assert_eq!(r(Some(" Fade "), None, None), TransitionKind::Fade);
+    }
+
+    #[test]
+    fn t_cycles_through_the_builtins_then_the_registered_ones() {
+        let all = [
+            TransitionKind::SlideHorizontal,
+            TransitionKind::Fade,
+            TransitionKind::Spatial,
+            TransitionKind::None,
+            TransitionKind::Extension("drop"),
+        ];
+        let n = |k| next_transition(k, &all);
+        assert_eq!(n(TransitionKind::SlideHorizontal), TransitionKind::Fade);
+        assert_eq!(n(TransitionKind::None), TransitionKind::Extension("drop"));
+        assert_eq!(
+            n(TransitionKind::Extension("drop")),
+            TransitionKind::SlideHorizontal
+        );
+        assert_eq!(
+            n(TransitionKind::Extension("gone")),
+            TransitionKind::SlideHorizontal
+        );
     }
 
     #[test]

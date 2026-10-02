@@ -108,16 +108,15 @@ mdeck-sdk = "2.0.0"
 
 ```rust
 /// The engine as mdeck sees it. A theme selects it with `engine: aurora`.
-pub static DEF: EngineDef = EngineDef {
-    name: "aurora",
-    summary: "A few slow glows breathing under every slide.",
-    capabilities: Capabilities::NONE,   // it only decorates
-    settings: &[],                      // it reads no settings (yet)
-    needs: Needs { page: false },
-    ending_caption_delay: 1.0,
-    create: |_settings: &EngineSettings| Box::new(Glow::default()),
-    board: None,
-};
+pub static DEF: EngineDef = EngineDef::new(
+    "aurora",
+    "A few slow glows breathing under every slide.",
+    |_settings: &EngineSettings| Box::new(Glow::default()),
+)
+.with_capabilities(Capabilities::NONE) // it only decorates
+.with_settings(&[])                    // it reads no settings (yet)
+.with_needs(Needs::NONE)
+.with_ending_caption_delay(1.0);
 
 /// The entry point `mdeck build --with` calls: register what this crate brings.
 pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
@@ -292,12 +291,12 @@ the standard way, so your file keeps matching the code shown here.
 
 The engine struct is still called `Glow`, from the template. Rename it.
 
-**TYPE** `src/lib.rs`: replace every `Glow` with `Aurora` (four places: in `create`, the
+**TYPE** `src/lib.rs`: replace every `Glow` with `Aurora` (four places: in the `create` function in `DEF`, the
 `pub struct`, `impl Engine for`, and the reduced-motion test). Your editor's find and replace does
 it. Afterwards those lines read:
 
 ```rust
-    create: |_settings: &EngineSettings| Box::new(Aurora::default()),
+    |_settings: &EngineSettings| Box::new(Aurora::default()),
 pub struct Aurora {
 impl Engine for Aurora {
         let mut e = Aurora::default();
@@ -482,16 +481,16 @@ use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Needs, SettingKind, Set
 /// The settings this engine reads from the theme's `engine:` block. mdeck
 /// uses this list to check themes and to show the settings to authors.
 pub const SETTINGS: &[SettingSpec] = &[
-    SettingSpec {
-        key: "speed",
-        kind: SettingKind::Number,
-        summary: "How fast the curtain moves, from 0 to 3 (default 1).",
-    },
-    SettingSpec {
-        key: "height",
-        kind: SettingKind::Number,
-        summary: "How tall the curtain is, from 0.5 to 2 (default 1).",
-    },
+    SettingSpec::new(
+        "speed",
+        SettingKind::Number,
+        "How fast the curtain moves, from 0 to 3 (default 1).",
+    ),
+    SettingSpec::new(
+        "height",
+        SettingKind::Number,
+        "How tall the curtain is, from 0.5 to 2 (default 1).",
+    ),
 ];
 
 /// The settings, read once when the engine starts.
@@ -533,16 +532,16 @@ impl Settings {
 }
 ```
 
-**TYPE** `src/lib.rs`: in `DEF`, change two fields. `settings: &[],` becomes:
+**TYPE** `src/lib.rs`: in `DEF`, change two things. `.with_settings(&[])` becomes:
 
 ```rust
-    settings: SETTINGS,
+.with_settings(SETTINGS)
 ```
 
-and the `create:` line becomes:
+and the `create` function (the third argument of `EngineDef::new`) becomes:
 
 ```rust
-    create: |settings: &EngineSettings| {
+    |settings: &EngineSettings| {
         Box::new(Aurora {
             settings: Settings::read(settings),
             ..Aurora::default()
@@ -550,10 +549,11 @@ and the `create:` line becomes:
     },
 ```
 
-While you are in `DEF`, give it a truthful summary (it shows in `mdeck extensions list`):
+While you are in `DEF`, give it a truthful summary, its second argument (it shows in
+`mdeck extensions list`):
 
 ```rust
-    summary: "Northern lights ripple across the top of every slide.",
+    "Northern lights ripple across the top of every slide.",
 ```
 
 **TYPE** `src/lib.rs`: add a field at the end of `pub struct Aurora`, after `layer: SpriteLayer,`:

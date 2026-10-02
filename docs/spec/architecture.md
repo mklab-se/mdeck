@@ -65,7 +65,10 @@ parameterised entirely by an `Arrangement` value, and never drops content. The d
 `standard` and `editorial` are YAML files embedded in the binary (`crates/mdeck/designs/*.yaml`);
 a pack may add more. A theme picks one with `designs:` and overrides any arrangement key with
 `arrangements:` (`all:` applies to every design). Editorial's eyebrow, column, pillow and stagger
-are arrangement values, so a design set never falls back to another one.
+are arrangement values, so a design set never falls back to another one. A `designs:` name that no
+YAML set has may name a code design set an extension registered (`mdeck_sdk::design::DesignSet`,
+EXT-05), which then draws every slide through `render::board`, the path a board engine's set
+takes; a name that is neither falls back to `standard` with a warning.
 
 ## D9. Themes
 
@@ -99,7 +102,9 @@ Engines, visual kinds and embedded themes and point clouds are name-keyed regist
 startup. `mdeck::builtins(&mut Registry)` registers the built-ins, `mdeck::run(registry)` (and
 `run_with_args`) is the library entry point, and `src/main.rs` is the two of them.
 `crate::registry::get()` is the registry in use, so an extension's engines, visuals, themes and
-point clouds are found exactly like the built-ins (EXT-06). `mdeck extensions list` shows each
+point clouds are found exactly like the built-ins (EXT-06), and its transitions and code design
+sets by name next to the built-in ones (`render::transition::TransitionKind::Extension`,
+`Theme::code_design_set`; EXT-05). `mdeck extensions list` shows each
 registration and where it came from.
 
 ## D12. Engines

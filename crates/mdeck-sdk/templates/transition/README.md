@@ -18,6 +18,7 @@ A slide transition for [mdeck](https://github.com/mklab-se/mdeck), made with
 ```bash
 mdeck build --with .            # writes ./target/release/mdeck
 ./target/release/mdeck deck.md  # present the sample deck; press the arrows
+./target/release/mdeck export deck.md --moment transition --slide 2 --output-dir out # halfway into slide 2
 ```
 
 ## Test

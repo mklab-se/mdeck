@@ -38,16 +38,13 @@ impl Transition for Rise {
     fn look(&self, t: f32, forward: bool, rect: Rect) -> (SideLook, SideLook) {
         let lift = 0.08 * rect.height();
         let dir = if forward { 1.0 } else { -1.0 };
-        let from = SideLook {
-            offset: Vec2::new(0.0, -dir * lift * t),
-            opacity: 1.0 - t,
-            scale: 1.0 - 0.02 * t,
-        };
-        let to = SideLook {
-            offset: Vec2::new(0.0, dir * lift * (1.0 - t)),
-            opacity: t,
-            scale: 1.0,
-        };
+        let from = SideLook::SHOWN
+            .with_offset(Vec2::new(0.0, -dir * lift * t))
+            .with_opacity(1.0 - t)
+            .with_scale(1.0 - 0.02 * t);
+        let to = SideLook::SHOWN
+            .with_offset(Vec2::new(0.0, dir * lift * (1.0 - t)))
+            .with_opacity(t);
         (from, to)
     }
 

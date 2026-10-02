@@ -4852,7 +4852,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "template-design-set"
+version = "1.19.0"
+dependencies = [
+ "mdeck-sdk",
+]
+
+[[package]]
 name = "template-engine"
+version = "1.19.0"
+dependencies = [
+ "mdeck-sdk",
+]
+
+[[package]]
+name = "template-transition"
+version = "1.19.0"
+dependencies = [
+ "mdeck-sdk",
+]
+
+[[package]]
+name = "template-visual"
 version = "1.19.0"
 dependencies = [
  "mdeck-sdk",

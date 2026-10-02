@@ -3,12 +3,15 @@ resolver = "2"
 members = [
     "crates/mdeck",
     "crates/mdeck-sdk",
-    # SDK tutorial engines and the instantiated engine template (EXT-15, EXT-30)
+    # SDK tutorial engines and the instantiated scaffold templates (EXT-15, EXT-30)
     "examples/engine-ambience",
     "examples/engine-pictures",
     "examples/engine-reactive",
     "examples/engine-aurora",
     "examples/template-engine",
+    "examples/template-visual",
+    "examples/template-design-set",
+    "examples/template-transition",
 ]
 
 [workspace.package]

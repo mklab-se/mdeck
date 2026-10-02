@@ -25,9 +25,7 @@ mod field;
 mod trace;
 
 use mdeck_sdk::cloud::Mask;
-use mdeck_sdk::engine::{
-    Annotation, Capabilities, Engine, EngineDef, Needs, SettingKind, SettingSpec,
-};
+use mdeck_sdk::engine::{Annotation, Capabilities, Engine, EngineDef, SettingKind, SettingSpec};
 use mdeck_sdk::geometry::Hint;
 use mdeck_sdk::paint::{Color, Painter, Pos2, Rect, Texture, TextureFilter};
 use mdeck_sdk::stage::{Frame, Look, Moment, PictureSource, Stage};
@@ -79,32 +77,30 @@ const PALETTES: &[&str] = &[
     "lava",
 ];
 
-pub static DEF: EngineDef = EngineDef {
-    name: "thermal",
-    summary: "A heat field under the slides: headings form in heat, pictures glow like warm bodies.",
-    capabilities: Capabilities {
-        picture: true,
-        countdown: true,
-        ending: true,
-        ..Capabilities::NONE
-    },
-    settings: &[
-        SettingSpec {
-            key: "palette",
-            kind: SettingKind::OneOf(PALETTES),
-            summary: "The palette the heat glows in (default iron).",
-        },
-        SettingSpec {
-            key: "drift",
-            kind: SettingKind::Bool,
-            summary: "Embers drift through the dark on ordinary slides (default false).",
-        },
-    ],
-    needs: Needs { page: false },
-    ending_caption_delay: END_CAPTION_DELAY,
-    create: |s| Box::new(Thermal::new(s)),
-    board: None,
-};
+pub static DEF: EngineDef = EngineDef::new(
+    "thermal",
+    "A heat field under the slides: headings form in heat, pictures glow like warm bodies.",
+    |s| Box::new(Thermal::new(s)),
+)
+.with_capabilities(
+    Capabilities::NONE
+        .with_picture()
+        .with_countdown()
+        .with_ending(),
+)
+.with_settings(&[
+    SettingSpec::new(
+        "palette",
+        SettingKind::OneOf(PALETTES),
+        "The palette the heat glows in (default iron).",
+    ),
+    SettingSpec::new(
+        "drift",
+        SettingKind::Bool,
+        "Embers drift through the dark on ordinary slides (default false).",
+    ),
+])
+.with_ending_caption_delay(END_CAPTION_DELAY);
 
 /// A heading's glyphs in field cells, with a rank per cell that decides
 /// when it starts to glow.
@@ -204,7 +200,7 @@ impl Thermal {
                 stamp_mask(field, mask, 0.5, v);
             }
             Moment::Burst { .. } => {}
-            Moment::End { words, elapsed } => {
+            Moment::End { words, elapsed, .. } => {
                 let v = end_heat(*elapsed, frame.settled());
                 if v > 0.0 {
                     stamp_mask(field, words, 0.16, v);
@@ -248,6 +244,7 @@ impl Thermal {
                     }
                 }
             }
+            _ => {}
         }
     }
 
@@ -577,10 +574,7 @@ mod tests {
             .map(|k| [(k % 20) as f32 / 19.0, (k / 20) as f32 / 19.0])
             .collect();
         let words = Mask::new(points, 4.0);
-        let stage = Stage::new(Moment::End {
-            elapsed: 0.0,
-            words,
-        });
+        let stage = Stage::new(Moment::end(0.0, words));
         t.update(&f, &stage);
         assert!(t.field.as_ref().unwrap().peak() > 0.5, "the end words glow");
         assert_eq!(t.age, 60.0);

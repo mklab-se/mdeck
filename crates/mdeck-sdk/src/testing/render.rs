@@ -13,6 +13,7 @@ use crate::visual::Visual;
 
 /// What [`Headless::render_visual`] and [`Headless::render_design`] return.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct Rendered {
     /// The canvas, with the theme's background under the drawing.
     pub image: ImageData,
@@ -139,7 +140,7 @@ impl Headless {
     ///     fn name(&self) -> &str { "flash" }
     ///     fn summary(&self) -> &str { "A white flash." }
     ///     fn look(&self, t: f32, _: bool, _: Rect) -> (SideLook, SideLook) {
-    ///         (SideLook { opacity: 1.0 - t, ..SideLook::SHOWN }, SideLook { opacity: t, ..SideLook::SHOWN })
+    ///         (SideLook::SHOWN.with_opacity(1.0 - t), SideLook::SHOWN.with_opacity(t))
     ///     }
     ///     fn paint_over(&self, cx: &mut TransitionCx, _t: f32) {
     ///         cx.painter().rect_filled(cx.rect(), 0.0, mdeck_sdk::paint::Color::WHITE);

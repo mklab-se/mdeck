@@ -43,12 +43,14 @@ To capture a moment of the motion instead:
 mdeck export talk.md --slide 3 --at 0.8            # the engine 0.8 s after the slide opens
 mdeck export talk.md --moment countdown            # the opening countdown (its 3)
 mdeck export talk.md --moment burst                # or 3, 2, 1, burst, end
+mdeck export talk.md --moment transition --slide 4 # the change into slide 4, halfway
 ```
 
 `--at <seconds>` runs the engine from a cold start for that long (simulated at 60 frames a
 second) and exports that frame. `--moment` exports the opening countdown, one of its digits, the
-burst after it, or the engine's end act, instead of the slides. Both are reproducible: the same
+burst after it, the engine's end act, or the transition into a slide (halfway, or `--at` seconds
+into it), instead of the slides. Both are reproducible: the same
 command gives the same picture.
-A moment is one image, `countdown.png` (`countdown-2.png`, `countdown-burst.png`, ...) or
-`end.png`, drawn on the slide `--slide` names, else the first slide for the countdown and the
-last for the end.
+A moment is one image, `countdown.png` (`countdown-2.png`, `countdown-burst.png`, ...),
+`end.png` or `transition.png`, drawn on the slide `--slide` names, else the first slide for the
+countdown, the last for the end and the second for a transition.

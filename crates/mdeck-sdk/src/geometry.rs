@@ -11,6 +11,8 @@ use crate::paint::{Color, Font, Pos2, Rect};
 
 /// One piece of drawn geometry, in points.
 ///
+/// New kinds may be added in a 2.x release: match with a wildcard arm.
+///
 /// ```
 /// use mdeck_sdk::geometry::Hint;
 /// use mdeck_sdk::paint::Pos2;
@@ -18,6 +20,7 @@ use crate::paint::{Color, Font, Pos2, Rect};
 /// assert!(matches!(h, Hint::Circle { .. }));
 /// ```
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum Hint {
     /// A filled bar (vertical or horizontal).
     Bar(Rect),
@@ -42,7 +45,9 @@ pub enum Hint {
     Copy(Rect),
     /// A heading as laid out, at the place it settles: an engine that forms
     /// titles itself draws it (for example with
-    /// [`crate::paint::Painter::glyph_points`]).
+    /// [`crate::paint::Painter::glyph_points`]). Build one with
+    /// [`Hint::text`].
+    #[non_exhaustive]
     Text {
         /// The heading's text.
         text: String,
@@ -55,6 +60,33 @@ pub enum Hint {
         /// The slide it belongs to (during a transition two slides draw).
         slide: usize,
     },
+}
+
+impl Hint {
+    /// A heading `text` in `font` and `color`, its top-left corner at
+    /// `pos`, on slide `slide`.
+    ///
+    /// ```
+    /// use mdeck_sdk::geometry::Hint;
+    /// use mdeck_sdk::paint::{Color, Font, Pos2};
+    /// let h = Hint::text("Hello", Font::display(96.0), Pos2::ZERO, Color::WHITE, 0);
+    /// assert!(matches!(h, Hint::Text { .. }));
+    /// ```
+    pub fn text(
+        text: impl Into<String>,
+        font: Font,
+        pos: Pos2,
+        color: Color,
+        slide: usize,
+    ) -> Self {
+        Hint::Text {
+            text: text.into(),
+            font,
+            pos,
+            color,
+            slide,
+        }
+    }
 }
 
 /// A stable fingerprint of a hint set, quantised to 4-point steps so

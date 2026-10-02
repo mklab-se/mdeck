@@ -22,7 +22,7 @@ pub use scene::{DEFAULT_TINTS, Drift, Group, Home, Palette, Scene, Tint};
 use std::sync::Arc;
 
 use mdeck_sdk::content::{Block, Slide};
-use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Needs};
+use mdeck_sdk::engine::{Capabilities, Engine, EngineDef};
 use mdeck_sdk::geometry::Hint;
 use mdeck_sdk::paint::{Painter, Rect};
 use mdeck_sdk::stage::{Frame, Moment, PictureSource, Stage};
@@ -34,23 +34,18 @@ pub const DEFAULT_COUNT: usize = 900;
 /// faded to black.
 pub const END_CAPTION_DELAY: f32 = 7.4;
 
-pub static DEF: EngineDef = EngineDef {
-    name: "particles",
-    summary: "A living field of glowing particles that takes the shape of each slide.",
-    capabilities: Capabilities {
-        picture: true,
-        countdown: true,
-        ending: true,
-        board: false,
-        transition: false,
-        medium: None,
-    },
-    settings: &[],
-    needs: Needs { page: false },
-    ending_caption_delay: END_CAPTION_DELAY,
-    create: |_| Box::new(Particles::new()),
-    board: None,
-};
+pub static DEF: EngineDef = EngineDef::new(
+    "particles",
+    "A living field of glowing particles that takes the shape of each slide.",
+    |_| Box::new(Particles::new()),
+)
+.with_capabilities(
+    Capabilities::NONE
+        .with_picture()
+        .with_countdown()
+        .with_ending(),
+)
+.with_ending_caption_delay(END_CAPTION_DELAY);
 
 /// Where the opening countdown is.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -67,7 +62,7 @@ fn count_phase(moment: &Moment) -> Option<(CountPhase, f32)> {
         Moment::Countdown {
             digit, progress, ..
         } => Some((CountPhase::Digit(*digit), *progress)),
-        Moment::Burst { progress } => Some((CountPhase::Burst, *progress)),
+        Moment::Burst { progress, .. } => Some((CountPhase::Burst, *progress)),
         _ => None,
     }
 }
@@ -292,18 +287,11 @@ mod tests {
 
     #[test]
     fn charts_and_images_follow_their_geometry() {
-        let mut s = Slide {
-            design: "visual".into(),
-            ..Default::default()
-        };
+        let mut s = Slide::new("visual");
         assert!(uses_geometry(&s));
         s.design = "points".into();
         assert!(!uses_geometry(&s));
-        s.blocks.push(Block::Image {
-            alt: String::new(),
-            path: "a.png".into(),
-            directives: Default::default(),
-        });
+        s.blocks.push(Block::image("", "a.png"));
         assert!(uses_geometry(&s));
     }
 
@@ -318,10 +306,7 @@ mod tests {
         );
         let mut frame = Frame::new(rect, &tokens, &settings);
         frame.still = true;
-        let slide = Slide {
-            design: "title".into(),
-            ..Default::default()
-        };
+        let slide = Slide::new("title");
         let mut stage = Stage::new(Moment::Slide);
         stage.slide = Some(&slide);
         let mut engine = Particles::new();

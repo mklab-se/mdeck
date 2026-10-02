@@ -77,10 +77,11 @@ pub trait Engine {
 /// ```
 /// use mdeck_sdk::engine::Annotation;
 /// use mdeck_sdk::paint::{Color, Pos2};
-/// let a = Annotation { points: vec![Pos2::ZERO], color: Color::WHITE, width: 4.0, age: 0.0 };
-/// assert_eq!(a.points.len(), 1);
+/// let a = Annotation::new(vec![Pos2::ZERO], Color::WHITE, 4.0);
+/// assert_eq!((a.points.len(), a.age), (1, 0.0));
 /// ```
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Annotation {
     /// The stroke's points in order, in points on the slide.
     pub points: Vec<Pos2>,
@@ -92,14 +93,34 @@ pub struct Annotation {
     pub age: f32,
 }
 
+impl Annotation {
+    /// A stroke through `points` in `color`, `width` points wide, being
+    /// drawn (age 0).
+    ///
+    /// See [`Annotation`] for an example.
+    pub fn new(points: Vec<Pos2>, color: Color, width: f32) -> Self {
+        Self {
+            points,
+            color,
+            width,
+            age: 0.0,
+        }
+    }
+}
+
 /// What the core must do differently for an engine (ENG-04).
+///
+/// New capabilities may be added in a 2.x release, so build a value from
+/// [`Capabilities::NONE`] with the `with_` methods (they are `const`, for
+/// a `static` [`EngineDef`]):
 ///
 /// ```
 /// use mdeck_sdk::engine::Capabilities;
-/// let c = Capabilities { countdown: true, ..Capabilities::NONE };
-/// assert!(c.countdown && !c.board);
+/// const CAPS: Capabilities = Capabilities::NONE.with_countdown().with_picture();
+/// assert!(CAPS.countdown && CAPS.picture && !CAPS.board);
 /// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct Capabilities {
     /// Shows the slide's picture (a point cloud, an artwork or an image).
     pub picture: bool,
@@ -126,6 +147,66 @@ impl Capabilities {
         transition: false,
         medium: None,
     };
+
+    /// With [`Capabilities::picture`].
+    ///
+    /// See [`Capabilities`] for an example.
+    pub const fn with_picture(mut self) -> Self {
+        self.picture = true;
+        self
+    }
+
+    /// With [`Capabilities::countdown`].
+    ///
+    /// See [`Capabilities`] for an example.
+    pub const fn with_countdown(mut self) -> Self {
+        self.countdown = true;
+        self
+    }
+
+    /// With [`Capabilities::ending`].
+    ///
+    /// ```
+    /// assert!(mdeck_sdk::engine::Capabilities::NONE.with_ending().ending);
+    /// ```
+    pub const fn with_ending(mut self) -> Self {
+        self.ending = true;
+        self
+    }
+
+    /// With [`Capabilities::board`]: the engine draws every slide through
+    /// [`EngineDef::board`].
+    ///
+    /// ```
+    /// assert!(mdeck_sdk::engine::Capabilities::NONE.with_board().board);
+    /// ```
+    pub const fn with_board(mut self) -> Self {
+        self.board = true;
+        self
+    }
+
+    /// With [`Capabilities::transition`].
+    ///
+    /// ```
+    /// assert!(mdeck_sdk::engine::Capabilities::NONE.with_transition().transition);
+    /// ```
+    pub const fn with_transition(mut self) -> Self {
+        self.transition = true;
+        self
+    }
+
+    /// With [`Capabilities::medium`]: an art engine drawing in `medium`.
+    ///
+    /// ```
+    /// use mdeck_sdk::engine::{Capabilities, Medium, MediumKind};
+    /// use mdeck_sdk::stage::Strategy;
+    /// let c = Capabilities::NONE.with_medium(Medium::new("ink", MediumKind::Line, Strategy::Draw));
+    /// assert_eq!(c.medium.map(|m| m.name), Some("ink"));
+    /// ```
+    pub const fn with_medium(mut self, medium: Medium) -> Self {
+        self.medium = Some(medium);
+        self
+    }
 }
 
 /// The medium of an art engine: how generated pictures are prepared for it.
@@ -133,10 +214,11 @@ impl Capabilities {
 /// ```
 /// use mdeck_sdk::engine::{Medium, MediumKind};
 /// use mdeck_sdk::stage::Strategy;
-/// let m = Medium { name: "watercolour", kind: MediumKind::Tonal, strategy: Strategy::Bloom };
+/// let m = Medium::new("watercolour", MediumKind::Tonal, Strategy::Bloom);
 /// assert_eq!(m.kind, MediumKind::Tonal);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub struct Medium {
     /// The medium's name (`line`, `watercolour`, `darkroom`, ...).
     pub name: &'static str,
@@ -144,6 +226,19 @@ pub struct Medium {
     pub kind: MediumKind,
     /// How the prepared picture is revealed.
     pub strategy: Strategy,
+}
+
+impl Medium {
+    /// The medium `name`, of `kind`, revealed with `strategy`.
+    ///
+    /// See [`Medium`] for an example.
+    pub const fn new(name: &'static str, kind: MediumKind, strategy: Strategy) -> Self {
+        Self {
+            name,
+            kind,
+            strategy,
+        }
+    }
 }
 
 /// Whether a medium draws line art or full tone.
@@ -161,18 +256,36 @@ pub enum MediumKind {
 ///
 /// ```
 /// use mdeck_sdk::engine::Needs;
-/// assert!(!Needs::default().page);
+/// assert!(!Needs::NONE.page);
+/// assert!(Needs::NONE.with_page().page);
 /// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct Needs {
     /// The slide must be a sheet on a surface (the theme's `page:` block).
     pub page: bool,
 }
 
+impl Needs {
+    /// Nothing: the engine runs on any theme.
+    pub const NONE: Needs = Needs { page: false };
+
+    /// With [`Needs::page`].
+    ///
+    /// See [`Needs`] for an example.
+    pub const fn with_page(mut self) -> Self {
+        self.page = true;
+        self
+    }
+}
+
 /// The type of an engine setting.
+///
+/// New kinds may be added in a 2.x release: match with a wildcard arm.
 ///
 /// See [`SettingSpec`] for an example.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum SettingKind {
     /// Text.
     Text,
@@ -190,14 +303,15 @@ pub enum SettingKind {
 ///
 /// ```
 /// use mdeck_sdk::engine::{SettingKind, SettingSpec};
-/// const SURFACE: SettingSpec = SettingSpec {
-///     key: "surface",
-///     kind: SettingKind::OneOf(&["sheet", "slate"]),
-///     summary: "Paper or a blackboard.",
-/// };
+/// const SURFACE: SettingSpec = SettingSpec::new(
+///     "surface",
+///     SettingKind::OneOf(&["sheet", "slate"]),
+///     "Paper or a blackboard.",
+/// );
 /// assert_eq!(SURFACE.key, "surface");
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct SettingSpec {
     /// The key in the `engine:` block.
     pub key: &'static str,
@@ -207,7 +321,19 @@ pub struct SettingSpec {
     pub summary: &'static str,
 }
 
+impl SettingSpec {
+    /// The setting `key` of `kind`, described by `summary`.
+    ///
+    /// See [`SettingSpec`] for an example.
+    pub const fn new(key: &'static str, kind: SettingKind, summary: &'static str) -> Self {
+        Self { key, kind, summary }
+    }
+}
+
 /// An engine as registered: its name, what it can do and how to make one.
+///
+/// Fields may be added in a 2.x release, so build one with the `const`
+/// [`EngineDef::new`] and the `with_` methods, usually as a `static`:
 ///
 /// ```
 /// use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Needs, SettingKind, SettingSpec};
@@ -222,20 +348,20 @@ pub struct SettingSpec {
 ///     fn animating(&self) -> bool { false }
 /// }
 ///
-/// static CALM: EngineDef = EngineDef {
-///     name: "calm",
-///     summary: "Nothing moves.",
-///     capabilities: Capabilities::NONE,
-///     settings: &[SettingSpec { key: "depth", kind: SettingKind::Number, summary: "How deep." }],
-///     needs: Needs { page: false },
-///     ending_caption_delay: 1.0,
-///     create: |_| Box::new(Calm),
-///     board: None,
-/// };
+/// fn create(_: &EngineSettings) -> Box<dyn Engine> {
+///     Box::new(Calm)
+/// }
 ///
+/// static CALM: EngineDef = EngineDef::new("calm", "Nothing moves.", create)
+///     .with_settings(&[SettingSpec::new("depth", SettingKind::Number, "How deep.")])
+///     .with_ending_caption_delay(1.0);
+///
+/// assert_eq!(CALM.capabilities, Capabilities::NONE);
+/// assert_eq!(CALM.needs, Needs::NONE);
 /// let s = EngineSettings::from_pairs([("depth", Value::Bool(true)), ("hue", Value::Null)]);
 /// assert_eq!(CALM.check_settings(&s).len(), 2);
 /// ```
+#[non_exhaustive]
 pub struct EngineDef {
     /// The name themes and decks use (`engine: calm`).
     pub name: &'static str,
@@ -268,6 +394,94 @@ impl std::fmt::Debug for EngineDef {
 }
 
 impl EngineDef {
+    /// An engine called `name`, described by `summary`, made by `create`,
+    /// with no capabilities, settings or needs, no board and the caption
+    /// on the end slide after one second.
+    ///
+    /// See [`EngineDef`] for an example.
+    pub const fn new(
+        name: &'static str,
+        summary: &'static str,
+        create: fn(&EngineSettings) -> Box<dyn Engine>,
+    ) -> Self {
+        Self {
+            name,
+            summary,
+            capabilities: Capabilities::NONE,
+            settings: &[],
+            needs: Needs::NONE,
+            ending_caption_delay: 1.0,
+            create,
+            board: None,
+        }
+    }
+
+    /// With `capabilities`.
+    ///
+    /// ```
+    /// # use mdeck_sdk::engine::{Capabilities, Engine, EngineDef};
+    /// # use mdeck_sdk::{paint::Painter, stage::{Frame, Stage}, tokens::EngineSettings};
+    /// # struct Calm;
+    /// # impl Engine for Calm {
+    /// #     fn update(&mut self, _: &Frame, _: &Stage) {}
+    /// #     fn paint(&mut self, _: &mut Painter, _: &Frame, _: &Stage) {}
+    /// # }
+    /// # fn create(_: &EngineSettings) -> Box<dyn Engine> { Box::new(Calm) }
+    /// static DEF: EngineDef = EngineDef::new("calm", "Calm.", create)
+    ///     .with_capabilities(Capabilities::NONE.with_countdown());
+    /// assert!(DEF.capabilities.countdown);
+    /// ```
+    pub const fn with_capabilities(mut self, capabilities: Capabilities) -> Self {
+        self.capabilities = capabilities;
+        self
+    }
+
+    /// With the `settings` it reads from the theme's `engine:` block.
+    ///
+    /// See [`EngineDef`] for an example.
+    pub const fn with_settings(mut self, settings: &'static [SettingSpec]) -> Self {
+        self.settings = settings;
+        self
+    }
+
+    /// With what it `needs` from the theme.
+    ///
+    /// ```
+    /// # use mdeck_sdk::engine::{Engine, EngineDef, Needs};
+    /// # use mdeck_sdk::{paint::Painter, stage::{Frame, Stage}, tokens::EngineSettings};
+    /// # struct Calm;
+    /// # impl Engine for Calm {
+    /// #     fn update(&mut self, _: &Frame, _: &Stage) {}
+    /// #     fn paint(&mut self, _: &mut Painter, _: &Frame, _: &Stage) {}
+    /// # }
+    /// # fn create(_: &EngineSettings) -> Box<dyn Engine> { Box::new(Calm) }
+    /// static DEF: EngineDef = EngineDef::new("paper", "On paper.", create)
+    ///     .with_needs(Needs::NONE.with_page());
+    /// assert!(DEF.needs.page);
+    /// ```
+    pub const fn with_needs(mut self, needs: Needs) -> Self {
+        self.needs = needs;
+        self
+    }
+
+    /// With the "powered by" caption fading in `seconds` into the end slide.
+    ///
+    /// See [`EngineDef`] for an example.
+    pub const fn with_ending_caption_delay(mut self, seconds: f32) -> Self {
+        self.ending_caption_delay = seconds;
+        self
+    }
+
+    /// A board engine: it draws every slide with `set` (sets
+    /// [`Capabilities::board`] too).
+    ///
+    /// See `docs/sdk/design-sets.md` for a board engine.
+    pub const fn with_board(mut self, set: &'static dyn DesignSet) -> Self {
+        self.board = Some(set);
+        self.capabilities.board = true;
+        self
+    }
+
     /// Check `settings` against [`EngineDef::settings`]: every value of the
     /// wrong type and every key the engine does not declare is a problem.
     /// Runs without creating the engine.
@@ -309,27 +523,13 @@ mod tests {
         fn paint(&mut self, _: &mut Painter, _: &Frame, _: &Stage) {}
     }
 
-    static DEF: EngineDef = EngineDef {
-        name: "still",
-        summary: "",
-        capabilities: Capabilities::NONE,
-        settings: &[
-            SettingSpec {
-                key: "surface",
-                kind: SettingKind::OneOf(&["sheet", "slate"]),
-                summary: "",
-            },
-            SettingSpec {
-                key: "ink",
-                kind: SettingKind::Color,
-                summary: "",
-            },
-        ],
-        needs: Needs { page: true },
-        ending_caption_delay: 0.0,
-        create: |_| Box::new(Still),
-        board: None,
-    };
+    static DEF: EngineDef = EngineDef::new("still", "", |_| Box::new(Still))
+        .with_settings(&[
+            SettingSpec::new("surface", SettingKind::OneOf(&["sheet", "slate"]), ""),
+            SettingSpec::new("ink", SettingKind::Color, ""),
+        ])
+        .with_needs(Needs::NONE.with_page())
+        .with_ending_caption_delay(0.0);
 
     #[test]
     fn valid_settings_pass_and_the_original_is_untouched() {

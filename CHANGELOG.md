@@ -111,6 +111,16 @@ an AI harness can convert a deck.
     about each one that is not installed. Frontmatter lists (`[a, b]`) read as `a, b`.
   - `mdeck extensions list` shows installed packs, the engines, visuals, transitions and themes
     this mdeck provides with their origin, and the configured external visual programs.
+  - **Extension transitions and design sets are used by name.** A deck's, slide's or theme's
+    `transition:` that names a transition an extension registers changes slides through it (its
+    duration, how the leaving and arriving slide look, what it paints over them), and `T` cycles
+    through it after the built-ins. A theme's `designs:` that names a design set an extension
+    registers in code draws every slide with it, and `--check` reports what the set says it does
+    not show. A `designs:` name that resolves to nothing falls back to `standard` with a warning.
+  - `mdeck export --moment transition` exports the change into a slide (`--slide`, else the
+    second) halfway through, or `--at <seconds>` into it, as `transition.png`.
+  - The visual, design-set and transition scaffolds are built and tested in CI like the engine
+    scaffold (`examples/template-*`).
   - **Visuals in any language:** `visuals: { <tag>: <command> }` in the config maps a fence tag to
     a program that reads the fence, theme colours and size as JSON on stdin and writes a PNG. The
     image is made when the deck opens and cached in `<deck>.assets/visuals/`; when none can be
@@ -167,6 +177,17 @@ an AI harness can convert a deck.
 - The countdown is one switch: a deck's `countdown: on|off` wins, otherwise the theme's. The engine
   decides how it looks (plain numerals without an engine countdown). Theme files say `on` or `off`;
   `none`, `plain` and `burst` are no longer accepted.
+- **`mdeck-sdk` 2.0 is ready to freeze.** The content model carries what the parser knows: a
+  list's start number (`3.` counts from 3, on the split-flap board too), quotes and callouts with
+  the blocks inside them (the board shows a callout's label), table column alignment and task
+  boxes. `ListMarker::WithPrev` (never produced) and the unused image `fit` and `align` options
+  are gone, and `Slide::illustration` is `Slide::picture`. Types that may grow in 2.x are
+  `#[non_exhaustive]` (the content model, `Hint`, `Moment`, `PictureSource`, `EngineDef`,
+  `Capabilities`, `Needs`, `SettingKind`, `SettingSpec`, `SideLook`, `Tokens` and more), so a
+  later field or variant cannot break an extension; build them with the new constructors
+  (`EngineDef::new(..).with_capabilities(..)`, `Capabilities::NONE.with_picture()`,
+  `SettingSpec::new`, `Moment::countdown`, `Block::list`, `ListItem::new`, ...). See
+  [compatibility](docs/sdk/compatibility.md).
 - **Every built-in engine is written against `mdeck-sdk`**, exactly as an extension's engine
   is. Engines and visual kinds live in registries instead of closed lists, so an unknown engine
   name in a theme or deck warns and falls back to `plain`, and an unknown fence tag shows as code.
@@ -325,11 +346,9 @@ The full list, with the requirements behind each item, is in
 
 - Built-in visuals still draw through an internal bridge rather than the SDK's drawing interface.
 - The built-in transitions and the `standard` and `editorial` design sets are not registered
-  through the SDK, and mdeck does not yet use a transition or a code design set an extension
-  registers (a code design set works as a board engine's own). Only the engine scaffold is
-  compiled in CI; built-in visuals are not cargo features; no dynamic loading.
-- The SDK content model flattens quotes and callouts and has no list start number (the split-flap
-  board numbers lists from 1); headings reach engines one glyph at a time.
+  through the SDK (the built-ins draw through the same code, but not through the `Transition` and
+  `DesignSet` traits); built-in visuals are not cargo features; no dynamic loading.
+- Headings reach engines one glyph at a time, without letter spacing.
 - A generated artwork also shows on designs without a stage; diagram icons and point clouds have
   separate names.
 - `--check -v` does not yet say that a theme's engine settings are ignored when the deck or

@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use mdeck_sdk::cloud::Cloud;
-use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Needs};
+use mdeck_sdk::engine::{Capabilities, Engine, EngineDef};
 use mdeck_sdk::geometry::Hint;
 use mdeck_sdk::paint::{Painter, Pos2, Rect, Texture, TextureFilter, smoothstep, sprite_sheet};
 use mdeck_sdk::stage::{Frame, Look, Moment, Picture, PictureSource, Place, Stage};
@@ -25,19 +25,13 @@ mod light;
 /// and every LED has died out.
 pub const END_CAPTION_DELAY: f32 = 5.4;
 
-pub static DEF: EngineDef = EngineDef {
-    name: "led",
-    summary: "A wall of RGB LEDs behind every slide; pictures light up, nothing moves.",
-    capabilities: Capabilities {
-        picture: true,
-        ..Capabilities::NONE
-    },
-    settings: &[],
-    needs: Needs { page: false },
-    ending_caption_delay: END_CAPTION_DELAY,
-    create: |_| Box::new(Led::new()),
-    board: None,
-};
+pub static DEF: EngineDef = EngineDef::new(
+    "led",
+    "A wall of RGB LEDs behind every slide; pictures light up, nothing moves.",
+    |_| Box::new(Led::new()),
+)
+.with_capabilities(Capabilities::NONE.with_picture())
+.with_ending_caption_delay(END_CAPTION_DELAY);
 
 /// LED pitch in px on a 1920x1080 slide.
 const PITCH: f32 = 13.5;
@@ -404,7 +398,7 @@ impl Engine for Led {
         }
         self.reveal = (stage.index, stage.step);
         self.burst = match stage.moment {
-            Moment::Burst { progress } => Some(progress),
+            Moment::Burst { progress, .. } => Some(progress),
             _ => None,
         };
         if cx.still {

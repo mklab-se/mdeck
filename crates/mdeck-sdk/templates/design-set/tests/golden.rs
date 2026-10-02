@@ -13,25 +13,12 @@ fn text(s: &str) -> Vec<Inline> {
 
 #[test]
 fn a_poster_slide() {
-    let item = |s: &str| ListItem {
-        marker: ListMarker::Static,
-        inlines: text(s),
-        children: vec![],
-        step: 0,
-    };
-    let slide = Slide {
-        blocks: vec![
-            Block::Heading {
-                level: 2,
-                inlines: text("Why posters"),
-            },
-            Block::List {
-                ordered: false,
-                items: vec![item("One idea per slide"), item("Big type")],
-            },
-        ],
-        ..Default::default()
-    };
+    let item = |s: &str| ListItem::new(ListMarker::Static, text(s));
+    let mut slide = Slide::new("bullet");
+    slide.blocks = vec![
+        Block::heading(2, text("Why posters")),
+        Block::list(vec![item("One idea per slide"), item("Big type")]),
+    ];
     let out = Headless::new(480, 270).render_design(
         &{{crate_name}}::Poster,
         &slide,

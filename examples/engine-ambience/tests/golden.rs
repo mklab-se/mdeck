@@ -31,10 +31,8 @@ fn dark_ground() {
 
 #[test]
 fn light_ground() {
-    let tokens = Tokens {
-        background: Color::from_rgb(246, 243, 236),
-        light: true,
-        ..Tokens::default()
-    };
+    let mut tokens = Tokens::default();
+    tokens.background = Color::from_rgb(246, 243, 236);
+    tokens.light = true;
     assert_golden(golden("light"), &render(&tokens, 2), GOLDEN_TOLERANCE);
 }

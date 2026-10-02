@@ -262,6 +262,7 @@ impl PresentationApp {
         for p in self.slide_placements(rect) {
             self.draw_slide(ui, p.index, p.rect, p.opacity, scale * p.zoom, p.scroll);
         }
+        self.paint_transition_over(ui, rect);
         if self.transition.is_some() {
             ctx.request_repaint();
         }

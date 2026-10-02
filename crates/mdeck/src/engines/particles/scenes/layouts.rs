@@ -259,30 +259,29 @@ mod tests {
     use mdeck_sdk::content::{Inline, ListMarker};
 
     fn item(marker: ListMarker, step: usize) -> ListItem {
-        ListItem {
-            marker,
-            inlines: vec![Inline::Text("x".into())],
-            children: vec![],
-            step,
-        }
+        let mut item = ListItem::new(marker, vec![Inline::text("x")]);
+        item.step = step;
+        item
+    }
+
+    fn slide(design: &str, blocks: Vec<Block>) -> Slide {
+        let mut s = Slide::new(design);
+        s.blocks = blocks;
+        s
     }
 
     #[test]
     fn bullet_scene_has_one_cluster_per_item_with_its_step() {
         // What the parser makes of "- a, + b (- b1), + c, - d".
-        let slide = Slide {
-            blocks: vec![Block::List {
-                ordered: false,
-                items: vec![
-                    item(ListMarker::Static, 0),
-                    item(ListMarker::NextStep, 1),
-                    item(ListMarker::NextStep, 2),
-                    item(ListMarker::Static, 0),
-                ],
-            }],
-            design: "points".into(),
-            ..Default::default()
-        };
+        let slide = slide(
+            "points",
+            vec![Block::list(vec![
+                item(ListMarker::Static, 0),
+                item(ListMarker::NextStep, 1),
+                item(ListMarker::NextStep, 2),
+                item(ListMarker::Static, 0),
+            ])],
+        );
         let scene = for_slide(&slide, 3, false);
         let steps: Vec<Option<usize>> = scene
             .groups
@@ -295,14 +294,12 @@ mod tests {
     }
 
     fn bullets(n: usize) -> Slide {
-        Slide {
-            blocks: vec![Block::List {
-                ordered: false,
-                items: (0..n).map(|_| item(ListMarker::Static, 0)).collect(),
-            }],
-            design: "points".into(),
-            ..Default::default()
-        }
+        slide(
+            "points",
+            vec![Block::list(
+                (0..n).map(|_| item(ListMarker::Static, 0)).collect(),
+            )],
+        )
     }
 
     fn cluster_centres(scene: &Scene) -> Vec<(f32, f32)> {
@@ -353,10 +350,7 @@ mod tests {
             "gallery",
             "visual",
         ] {
-            let slide = Slide {
-                design: layout.into(),
-                ..Default::default()
-            };
+            let slide = Slide::new(layout);
             let scene = for_slide(&slide, 1, false);
             assert!(scene.groups.len() >= 2, "{layout:?} has too few groups");
             let total: f32 = scene.groups.iter().map(|g| g.share).sum();

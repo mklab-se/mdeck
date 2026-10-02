@@ -130,11 +130,11 @@ design set, and declares what it cannot show.
   colours. Unknown keys and out-of-range values are theme errors.
 - **DES-13** MUST `implemented`: Layout geometry is either part of an arrangement (themeable) or a
   documented invariant of the design renderer (the fit floors of DES-16, the gallery grid).
-- **DES-14** MUST `deferred to 2.x`: A code extension can provide a whole design set (see
-  [08](08-extensibility.md)). A board engine supplies its design set through the SDK and declares
-  which designs and blocks it cannot show, so `--check` reports them; that part is built.
-  *Deferred:* the built-in `standard` and `editorial` sets are not registered through the SDK, so
-  a code extension cannot register a named design set for other engines (data design sets work).
+- **DES-14** MUST `implemented`: A code extension can provide a whole design set (see
+  [08](08-extensibility.md), EXT-05): a theme's `designs:` names it, and it draws every slide on
+  any engine. A board engine supplies its own design set the same way. Either declares which
+  designs and blocks it cannot show, so `--check` reports them. (The built-in `standard` and
+  `editorial` sets are data, not registered through the SDK; VIS-18.)
 
 An arrangement override, as a theme writes it:
 

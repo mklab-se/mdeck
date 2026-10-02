@@ -17,6 +17,7 @@ use crate::problem::Problem;
 /// assert_eq!(t.series.len(), 8);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Tokens {
     /// The slide background.
     pub background: Color,

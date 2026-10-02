@@ -13,6 +13,7 @@ use std::sync::Arc;
 /// assert_eq!(c.points.len(), 1);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Cloud {
     /// The name decks use (`<!-- picture: <name> -->`).
     pub name: String,
@@ -49,6 +50,7 @@ impl Cloud {
 /// assert_eq!(m.aspect, 0.6);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Mask {
     /// Points in the unit square.
     pub points: Arc<Vec<[f32; 2]>>,

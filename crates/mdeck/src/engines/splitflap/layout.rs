@@ -343,58 +343,40 @@ mod tests {
     }
 
     fn h1(s: &str) -> Block {
-        Block::Heading {
-            level: 1,
-            inlines: text(s),
-        }
+        Block::heading(1, text(s))
     }
 
     fn para(inlines: Vec<Inline>) -> Block {
-        Block::Paragraph { inlines }
+        Block::paragraph(inlines)
     }
 
     fn item(s: &str, step: usize) -> ListItem {
-        ListItem {
-            marker: if step > 0 {
-                ListMarker::NextStep
-            } else {
-                ListMarker::Static
-            },
-            inlines: text(s),
-            children: Vec::new(),
-            step,
-        }
+        let marker = if step > 0 {
+            ListMarker::NextStep
+        } else {
+            ListMarker::Static
+        };
+        let mut item = ListItem::new(marker, text(s));
+        item.step = step;
+        item
     }
 
     fn list(items: Vec<ListItem>) -> Block {
-        Block::List {
-            ordered: false,
-            items,
-        }
+        Block::list(items)
     }
 
     fn visual(tag: &str, content: &str) -> Block {
-        Block::Visual {
-            tag: tag.into(),
-            content: content.into(),
-            step_base: 0,
-        }
+        Block::visual(tag, content)
     }
 
     fn image(path: &str) -> Block {
-        Block::Image {
-            alt: String::new(),
-            path: path.into(),
-            directives: Default::default(),
-        }
+        Block::image("", path)
     }
 
     fn slide(blocks: Vec<Block>) -> Slide {
-        Slide {
-            blocks,
-            design: "points".into(),
-            ..Default::default()
-        }
+        let mut s = Slide::new("points");
+        s.blocks = blocks;
+        s
     }
 
     #[test]
@@ -444,10 +426,8 @@ mod tests {
 
     #[test]
     fn a_title_is_centred() {
-        let s = Slide {
-            design: "title".into(),
-            ..slide(vec![h1("On Time"), para(text("Every train, every day"))])
-        };
+        let mut s = slide(vec![h1("On Time"), para(text("Every train, every day"))]);
+        s.design = "title".into();
         assert!(is_title(&s, 3));
         let b = lay_out(&s, true, 0);
         let t = b.text();
@@ -486,13 +466,13 @@ mod tests {
         let b = lay_out(
             &slide(vec![
                 h1("T"),
-                Block::Table {
-                    headers: vec![text("Train"), text("Track")],
-                    rows: vec![
+                Block::table(
+                    vec![text("Train"), text("Track")],
+                    vec![
                         vec![text("X2000"), text("4")],
                         vec![text("Regional"), text("12")],
                     ],
-                },
+                ),
             ]),
             false,
             usize::MAX,
@@ -507,22 +487,56 @@ mod tests {
     #[test]
     fn quotes_run_their_paragraphs_on() {
         let b = lay_out(
-            &slide(vec![Block::BlockQuote {
-                inlines: text("Mind\nthe gap"),
-            }]),
+            &slide(vec![Block::quote(vec![
+                para(text("Mind")),
+                para(text("the gap")),
+            ])]),
             false,
             usize::MAX,
         );
         assert_eq!(b.text()[0], " \"MIND THE GAP\"");
     }
 
+    /// A numbered list counts from its first number, as the deck wrote it
+    /// (the board used to number every list from 1).
+    #[test]
+    fn a_numbered_list_counts_from_its_start() {
+        let items = vec![
+            ListItem::new(ListMarker::Ordered, text("Board")),
+            ListItem::new(ListMarker::Ordered, text("Depart")),
+        ];
+        let b = lay_out(
+            &slide(vec![h1("T"), Block::ordered_list(3, items)]),
+            false,
+            usize::MAX,
+        );
+        let t = b.text();
+        assert_eq!(t[2], " 3. BOARD");
+        assert_eq!(t[3], " 4. DEPART");
+    }
+
+    /// A callout shows its label in the accent, then its text.
+    #[test]
+    fn a_callout_shows_its_label_and_text() {
+        use mdeck_sdk::content::CalloutKind;
+        let b = lay_out(
+            &slide(vec![Block::callout(
+                CalloutKind::Warning,
+                vec![para(text("Mind the gap"))],
+            )]),
+            false,
+            usize::MAX,
+        );
+        assert_eq!(b.text()[0], " WARNING MIND THE GAP");
+        assert_eq!(b.get(1, 0).style, Style::Accent);
+        assert!(problems(&slide(vec![h1("T")])).is_empty());
+    }
+
     #[test]
     fn overflow_and_missing_characters_are_reported() {
         let items = (0..20).map(|i| item(&format!("item {i}"), 0)).collect();
-        let s = Slide {
-            line: 7,
-            ..slide(vec![h1("Many"), list(items)])
-        };
+        let mut s = slide(vec![h1("Many"), list(items)]);
+        s.line = 7;
         let b = lay_out(&s, false, usize::MAX);
         assert!(b.needed > ROWS);
         assert!(b.text()[ROWS - 1].ends_with('…'), "{:?}", b.text());
@@ -545,17 +559,10 @@ mod tests {
             h1("T"),
             para(vec![
                 Inline::Text("The ".into()),
-                Inline::Math {
-                    tex: "x^2".into(),
-                    display: false,
-                },
+                Inline::math("x^2", false),
                 Inline::Text(" rule".into()),
             ]),
-            Block::CodeBlock {
-                language: Some("rust".into()),
-                code: "fn main() {}".into(),
-                highlight_lines: Vec::new(),
-            },
+            Block::code(Some("rust"), "fn main() {}"),
             visual("bar", "A: 1"),
             visual("architecture", "a -> b"),
             visual("sparkle", "x"),

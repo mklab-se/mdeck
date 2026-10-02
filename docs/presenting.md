@@ -19,7 +19,7 @@ shortcuts.
 | V | Presenter view (a notes overlay with one display) |
 | Shift+V | Reset the presenter timer |
 | `.` or B | Black out the screen |
-| T | Next transition (fade, slide, spatial, none) |
+| T | Next transition (fade, slide, spatial, none, then any an extension adds) |
 | Shift+T | Next theme (the built-ins, then your own) |
 | F | Toggle fullscreen |
 | M | Move to the next monitor (remembered next time) |

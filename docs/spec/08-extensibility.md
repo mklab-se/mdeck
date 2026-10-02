@@ -49,24 +49,33 @@ mdeck 2 has two tiers of extension:
 | **Design set (code)** | code | a board-like renderer for a kiosk wall |
 | **Transition** | code | a branded slide transition |
 
-- **EXT-05** MUST `deferred to 2.x`: Every extension point in the table is available to third parties,
-  except the two below that are deferred. *Deferred:* a code design set or a code transition can
-  be written (the SDK traits, `mdeck sdk new design-set|transition`) and registered, but mdeck does
-  not yet look either up by name: a theme's `designs:` resolves only YAML design sets, and
-  `transition:` takes only the built-in names. A code design set is used today only as a board
-  engine's own set.
+- **EXT-05** MUST `implemented`: Every extension point in the table is available to third parties.
+  A code design set and a code transition are written with the SDK traits (`DesignSet`,
+  `Transition`; `mdeck sdk new design-set|transition`), registered, and looked up by name like the
+  built-ins:
+  - a theme's `designs:` names a data design set first, then a registered code design set, which
+    then draws every slide (as a board engine's own set does); `--check` reports what its
+    `unsupported` returns;
+  - a deck's, a slide's or a theme's `transition:` names a built-in or a registered transition,
+    which drives the slide change (its `duration`, the `look` of both slides, `paint_over`); `T`
+    cycles through the registered ones after the built-ins, and `mdeck export --moment
+    transition` shows one in a still.
 - **EXT-06** MUST `deferred to 2.x`: mdeck's built-ins use the same extension points, registered the
   same way (VIS-18): `mdeck::builtins` fills the same `mdeck_sdk::registry::Registry` an extension
-  fills, with the built-in engines, visuals, themes and point clouds. *Deferred to 2.x:* the
-  built-in transitions and the `standard` and `editorial` design sets are not registered through
-  the SDK, and built-in visuals draw through an internal bridge rather than `mdeck_sdk::paint`.
+  fills, with the built-in engines, visuals, themes and point clouds, and an extension's
+  transitions and design sets are looked up in it next to the built-ins (EXT-05). *Deferred to
+  2.x:* the built-in transitions and the `standard` and `editorial` design sets are not
+  registered through the SDK (a spatial transition needs the overview grid, which the
+  `Transition` trait does not see, and the data design sets are arrangements, not code), and
+  built-in visuals draw through an internal bridge rather than `mdeck_sdk::paint`.
 - **EXT-07** MUST `implemented`: Engines, visual kinds and themes are looked up in registries by
   name, not in closed enums. `--check` reports a name that resolves to nothing, and the deck falls
   back:
   - an unknown visual tag shows its source as a code block;
   - an unknown engine gives way to the theme's engine;
-  - an unknown design set (a theme's `designs:`) or an unknown theme falls back to the default
-    theme, `dark`.
+  - an unknown design set (a theme's `designs:`) falls back to `standard`, and an unknown theme to
+    the default theme, `dark`;
+  - an unknown transition passes to the next one in line (RUN-08).
 - **EXT-08** MUST `implemented`: Registered names are unique: an extension registering an engine,
   visual, design set, transition, theme or point cloud under a name already taken (by a built-in
   or another extension) is an error at startup that names both. Themes and point clouds can
@@ -116,11 +125,12 @@ offers is not needed (EXT-01). A custom build needs a Rust toolchain to build, n
 - **EXT-14** MUST `implemented`: A user can produce an mdeck that includes any set of extension
   crates without editing mdeck's source: `mdeck build --with` takes a crate folder, a crate name
   with an optional version (`acme-engines@1.2`) or a git repository (`git+https://...#v0.2.0`).
-- **EXT-15** MUST `deferred to 2.x`: The SDK's documentation includes complete example extensions,
+- **EXT-15** MUST `implemented`: The SDK's documentation includes complete example extensions,
   built and tested in mdeck's CI so they cannot rot (ENG-13): the tutorial engines
-  (`examples/engine-aurora`, `engine-ambience`, `engine-pictures`, `engine-reactive`) and the instantiated engine scaffold (`examples/template-engine`) are
-  workspace members. *Deferred to 2.x:* the visual, design-set and transition scaffolds are
-  checked for their files and placeholders but not compiled in CI.
+  (`examples/engine-aurora`, `engine-ambience`, `engine-pictures`, `engine-reactive`) and every
+  scaffold, instantiated (`examples/template-engine`, `template-visual`, `template-design-set`,
+  `template-transition`), are workspace members. A test keeps each instantiated scaffold identical
+  to what `mdeck sdk new` writes.
 - **EXT-16** MUST `implemented`: An extension has the same quality contract as a built-in,
   written down in the SDK concepts guide:
   - deterministic stills;
@@ -156,8 +166,6 @@ in [`docs/sdk/`](../sdk/README.md).
   - a test with a golden image;
   - a README with the commands to build, run, export and test it.
 
-  (The design-set and transition scaffolds build, but their themes do not take effect until
-  EXT-05's deferral is resolved.)
 - **EXT-29** MUST `implemented`: **A getting-started guide** (`docs/sdk/getting-started.md`, with
   `prerequisites.md` and the full-cycle `tutorial-0-your-first-engine.md`) takes a developer from nothing to their own engine running in a custom mdeck build (`mdeck build --with
   ./my-engine`), and tells them how to see it live, export stills and run its tests.
@@ -245,8 +253,8 @@ be able to rely on it for a whole major version. The SDK's side of the promise i
     the `mdeck` binary, which is `mdeck::run` called with `mdeck::builtins`.
 - **EXT-21** MUST `implemented`: Engines and visual kinds are registries filled at startup (v1's
   closed `EngineKind` and `Chart` enums are gone); designs are a fixed catalogue of 13, and design
-  sets are YAML files found by name. Capabilities stay as the interface between core and engine
-  (ENG-04).
+  sets are YAML files found by name, or code design sets in the registry (EXT-05). Capabilities
+  stay as the interface between core and engine (ENG-04).
 - **EXT-22** SHOULD `deferred to 2.x`: Built-in engines remain cargo features, so a custom build can
   leave out the engines it does not need (CI builds with none and with each alone). *Deferred to
   2.x:* built-in visuals are always compiled in.

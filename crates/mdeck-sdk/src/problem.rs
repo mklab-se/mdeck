@@ -11,6 +11,7 @@ use std::fmt;
 /// assert_eq!(p.to_string(), "line 12: engine: unknown setting `glow`");
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub struct Problem {
     /// 1-based line in the deck (or theme) file, when known.
     pub line: Option<usize>,

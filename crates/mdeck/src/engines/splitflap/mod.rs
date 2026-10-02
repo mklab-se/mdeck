@@ -12,7 +12,7 @@ pub mod layout;
 mod wheel;
 mod writer;
 
-use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Needs};
+use mdeck_sdk::engine::{Capabilities, Engine, EngineDef};
 use mdeck_sdk::paint::{Painter, Rect};
 use mdeck_sdk::stage::{Frame, Look, Moment, Stage};
 
@@ -23,22 +23,19 @@ use layout::{Board, COLS, Cell, PANEL, ROWS, Style};
 /// shown and the board has cleared.
 pub const END_CAPTION_DELAY: f32 = 5.8;
 
-pub static DEF: EngineDef = EngineDef {
-    name: "splitflap",
-    summary: "A departure board: every slide in split flaps that turn to the next.",
-    capabilities: Capabilities {
-        board: true,
-        transition: true,
-        countdown: true,
-        ending: true,
-        ..Capabilities::NONE
-    },
-    settings: &[],
-    needs: Needs { page: false },
-    ending_caption_delay: END_CAPTION_DELAY,
-    create: |_| Box::new(SplitFlap::new()),
-    board: Some(&design::BOARD),
-};
+pub static DEF: EngineDef = EngineDef::new(
+    "splitflap",
+    "A departure board: every slide in split flaps that turn to the next.",
+    |_| Box::new(SplitFlap::new()),
+)
+.with_capabilities(
+    Capabilities::NONE
+        .with_transition()
+        .with_countdown()
+        .with_ending(),
+)
+.with_board(&design::BOARD)
+.with_ending_caption_delay(END_CAPTION_DELAY);
 /// The end words stay this long, then the board clears.
 const END_WORDS: f32 = 3.6;
 /// A cell's whole turn from one character to another takes about this long,
@@ -180,7 +177,7 @@ impl Engine for SplitFlap {
                 Look::Digit(d) => layout::digit(d),
                 Look::Burst => layout::scramble(7),
                 Look::EndWords => layout::words("THE END"),
-                Look::EndOut => Board::blank(),
+                _ => Board::blank(),
             };
             self.panel = look == Look::Slide && board.image.is_some();
             let brisk = !matches!(look, Look::Slide);
@@ -279,14 +276,11 @@ mod tests {
         use mdeck_sdk::testing::Headless;
         use mdeck_sdk::tokens::{EngineSettings, Tokens};
 
-        let slide = Slide {
-            blocks: vec![Block::Heading {
-                level: 1,
-                inlines: vec![Inline::Text("MMMMMMMMMMMMMMMMMMMMMMMMMMMMMM".into())],
-            }],
-            design: "points".into(),
-            ..Default::default()
-        };
+        let mut slide = Slide::new("points");
+        slide.blocks = vec![Block::heading(
+            1,
+            vec![Inline::text("MMMMMMMMMMMMMMMMMMMMMMMMMMMMMM")],
+        )];
         let mut h = Headless::new(480, 270);
         let tokens = Tokens::default();
         let settings = EngineSettings::new();

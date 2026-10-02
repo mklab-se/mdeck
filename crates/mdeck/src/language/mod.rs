@@ -41,6 +41,9 @@ pub enum Kind {
     Path,
     /// One of these words.
     Choice(&'static [&'static str]),
+    /// A built-in transition ([`TRANSITIONS`]) or one an extension
+    /// registered.
+    Transition,
     /// A whole number in this range.
     Integer(u32, u32),
     /// 0 to 1, or a percentage.
@@ -66,6 +69,10 @@ impl Kind {
                 .map(|v| format!("`{v}`"))
                 .collect::<Vec<_>>()
                 .join(", "),
+            Kind::Transition => format!(
+                "{}, or a registered transition",
+                Kind::Choice(TRANSITIONS).describe()
+            ),
             Kind::Integer(lo, hi) => format!("{lo} to {hi}"),
             Kind::Opacity => "0 to 1, or a percentage".into(),
             Kind::Pixels => "pixels on a 1920x1080 slide".into(),
@@ -148,7 +155,7 @@ pub const SETTINGS: &[SettingDef] = &[
     def(
         "transition",
         Scope::Both,
-        Kind::Choice(TRANSITIONS),
+        Kind::Transition,
         "the theme's",
         "How slides change; on a slide, how it is entered (`zoom` needs `zoom-to`)",
     ),
@@ -313,6 +320,18 @@ pub fn invalid_value(def: &SettingDef, value: &str) -> Option<String> {
             } else {
                 let mut msg = format!("expected {}", def.kind.describe());
                 if let Some(s) = suggestion(v, values.iter().copied()) {
+                    msg.push_str(&format!("; did you mean `{s}`?"));
+                }
+                bad(msg)
+            }
+        }
+        Kind::Transition => {
+            if crate::render::transition::is_known(v) {
+                None
+            } else {
+                let names = crate::render::transition::names();
+                let mut msg = format!("expected {}", def.kind.describe());
+                if let Some(s) = suggestion(v, names.iter().map(String::as_str)) {
                     msg.push_str(&format!("; did you mean `{s}`?"));
                 }
                 bad(msg)
@@ -547,6 +566,13 @@ mod tests {
         let check = |name: &str, value: &str| invalid_value(setting(name).unwrap(), value);
         assert_eq!(check("transition", "fade"), None);
         assert!(check("transition", "wipe").is_some());
+        // EXT-05: a registered transition is a valid value
+        assert_eq!(check("transition", "test-drop"), None);
+        assert!(
+            check("transition", "test-drp")
+                .unwrap()
+                .contains("did you mean `test-drop`")
+        );
         assert!(
             check("transition", "fad")
                 .unwrap()

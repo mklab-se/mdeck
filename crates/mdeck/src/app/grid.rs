@@ -65,11 +65,7 @@ impl GridLayout {
 
     /// Columns for a deck of `count` slides.
     pub(super) fn columns(count: usize) -> usize {
-        match count {
-            0..=4 => 2,
-            5..=9 => 3,
-            _ => 4,
-        }
+        crate::render::transition::overview_columns(count)
     }
 
     /// Top edge of the first row (below the grid's title line).
