@@ -215,6 +215,20 @@ impl Extension {
         self.package().replace('-', "_")
     }
 
+    /// Whether what it names can move on while the arguments stay the same:
+    /// a branch (or the default branch) of a git repository, or a crates.io
+    /// version requirement. A rebuild then updates it in the generated
+    /// project's lock file, so `--with ...#main` picks up new commits.
+    fn floats(&self) -> bool {
+        match self {
+            Extension::Path { .. } => false,
+            Extension::Crate { .. } => true,
+            Extension::Git { reference, .. } => {
+                matches!(reference, None | Some(GitRef::Branch(_)))
+            }
+        }
+    }
+
     fn dependency(&self) -> String {
         match self {
             Extension::Path { dir, package } => {
@@ -442,12 +456,18 @@ pub struct BuildArgs {
     pub quiet: bool,
 }
 
-/// Where the binary goes: `--out` (a file, or a folder to put it in), else
-/// `./target/release/<name>`.
+/// Where the binary goes: `--out` (a file, or a folder to put it in: one
+/// that exists or ends in a slash), else `./target/release/<name>`.
 pub fn output_path(out: Option<PathBuf>, bin: &str) -> PathBuf {
     let file = format!("{bin}{}", std::env::consts::EXE_SUFFIX);
+    let folder = |p: &Path| {
+        p.is_dir() || {
+            let s = p.to_string_lossy();
+            s.ends_with('/') || s.ends_with('\\')
+        }
+    };
     match out {
-        Some(p) if p.is_dir() => p.join(file),
+        Some(p) if folder(&p) => p.join(file),
         Some(p) => p,
         None => Path::new("target").join("release").join(file),
     }
@@ -472,6 +492,17 @@ pub fn build(args: BuildArgs) -> Result<PathBuf> {
     let root = build_root()?;
     let dir = root.join(project.hash());
     project.write(&dir)?;
+    if dir.join("Cargo.lock").exists() {
+        for e in extensions.iter().filter(|e| e.floats()) {
+            // Ignore failures (offline, say): cargo build then uses what the
+            // lock file has, as before.
+            let _ = Command::new(cargo())
+                .args(["update", "--quiet", "--manifest-path"])
+                .arg(dir.join("Cargo.toml"))
+                .args(["--package", e.package()])
+                .status();
+        }
+    }
     let target = root.join("target");
     if !args.quiet {
         let names: Vec<&str> = extensions.iter().map(Extension::package).collect();
@@ -741,6 +772,23 @@ mod tests {
             output_path(Some(dir.clone()), "x"),
             dir.join(format!("x{exe}"))
         );
+        // A folder that does not exist yet, marked as one by its slash.
+        assert_eq!(
+            output_path(Some("no-such-bin/".into()), "mdeck"),
+            PathBuf::from(format!("no-such-bin/mdeck{exe}"))
+        );
+    }
+
+    #[test]
+    fn branches_and_crates_io_requirements_float_tags_and_commits_do_not() {
+        let floats = |a: &str| Extension::parse(a).unwrap().floats();
+        assert!(floats("git+https://host/acme/aurora"));
+        assert!(floats("git+https://host/acme/aurora#main"));
+        assert!(!floats("git+https://host/acme/aurora#v1.0.0"));
+        assert!(!floats("git+https://host/acme/aurora#1a2b3c4d"));
+        assert!(floats("acme-engines@1.2"));
+        let ambience = checkout().join("examples/engine-ambience");
+        assert!(!floats(ambience.to_str().unwrap()));
     }
 
     #[test]
