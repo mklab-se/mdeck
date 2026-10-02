@@ -356,8 +356,16 @@ impl Chart {
     /// registered under that tag.
     pub fn from_info(info: &str) -> Option<Chart> {
         let tag = info.split_whitespace().next()?.strip_prefix('@')?;
-        let visual = crate::registry::get().visual_for(tag)?;
-        Some(Chart(visual.tag()))
+        if let Some(visual) = crate::registry::get().visual_for(tag) {
+            return Some(Chart(visual.tag()));
+        }
+        crate::extensions::external::configured_tag(tag).map(Chart)
+    }
+
+    /// Whether this is an external visual program's tag (EXT-18) rather
+    /// than a registered visual.
+    pub fn is_external(self) -> bool {
+        crate::registry::get().visual_for(self.0).is_none()
     }
 
     /// The fence tag without `@` (`bar`).

@@ -61,6 +61,9 @@ pub struct ImageCache {
     thermal: super::thermal::Library,
     textures: RefCell<HashMap<String, Option<egui::TextureHandle>>>,
     pending: RefCell<HashMap<String, Receiver<Option<DecodedImage>>>>,
+    /// The images external visual programs made for the deck's fences, by
+    /// tag (without `@`) and source.
+    external: HashMap<(String, String), PathBuf>,
 }
 
 impl ImageCache {
@@ -70,7 +73,22 @@ impl ImageCache {
             base_path,
             textures: RefCell::new(HashMap::new()),
             pending: RefCell::new(HashMap::new()),
+            external: HashMap::new(),
         }
+    }
+
+    /// Record the image an external visual program made for a fence.
+    pub fn set_external(&mut self, tag: &str, source: &str, image: PathBuf) {
+        self.external.insert(
+            (tag.trim_start_matches('@').to_string(), source.to_string()),
+            image,
+        );
+    }
+
+    /// The image made for the external visual fence `tag` with `source`.
+    pub fn external(&self, tag: &str, source: &str) -> Option<&PathBuf> {
+        self.external
+            .get(&(tag.trim_start_matches('@').to_string(), source.to_string()))
     }
 
     /// The deck's thermal sources.

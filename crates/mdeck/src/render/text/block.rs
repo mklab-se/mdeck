@@ -186,6 +186,9 @@ pub fn draw_block(cx: &BlockCx, block: &Block, pos: Pos2, max_width: f32) -> f32
         } => {
             crate::render::thermal::draw(&cx.after_steps(*step_base), content, pos, max_width, 0.0)
         }
+        Block::Chart { kind, content, .. } if kind.is_external() => {
+            draw_external(cx, kind.tag(), content, pos, max_width)
+        }
         Block::Chart {
             kind,
             content,
@@ -208,6 +211,25 @@ pub fn draw_block(cx: &BlockCx, block: &Block, pos: Pos2, max_width: f32) -> f32
         }
         Block::ColumnSeparator => 0.0, // handled by two-column layout
     }
+}
+
+/// An external visual program's fence (EXT-18): the image it made, in a
+/// box with the program's aspect, or the fence's source as code when there
+/// is none (the EXT-07 fallback). Returns the height used.
+fn draw_external(cx: &BlockCx, tag: &str, content: &str, pos: Pos2, max_width: f32) -> f32 {
+    let Some(image) = cx.image_cache.external(tag, content) else {
+        let code = Block::CodeBlock {
+            language: None,
+            code: content.trim_end().to_string(),
+            highlight_lines: Vec::new(),
+        };
+        return draw_block(cx, &code, pos, max_width);
+    };
+    let (w, h) = crate::extensions::external::BOX;
+    let height = max_width * h as f32 / w as f32;
+    let rect = egui::Rect::from_min_size(pos, egui::vec2(max_width, height));
+    crate::extensions::external::draw(cx.ui, cx.image_cache, image, rect, cx.opacity);
+    height
 }
 
 #[cfg(test)]

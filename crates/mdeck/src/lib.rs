@@ -79,7 +79,10 @@ where
 
     // The renderer never reads configuration; what it needs is handed over here.
     let config = config::Config::load_or_default();
-    render::diagram::set_routing_weights(config.routing.unwrap_or_default().to_cost_weights());
+    render::diagram::set_routing_weights(
+        config.routing.clone().unwrap_or_default().to_cost_weights(),
+    );
+    extensions::external::configure(&config);
 
     if cli.no_color {
         colored::control::set_override(false);

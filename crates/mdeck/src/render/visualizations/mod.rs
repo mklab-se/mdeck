@@ -127,8 +127,10 @@ pub fn check_tag(tag: &str, content: &str) -> Option<Vec<Problem>> {
 
 /// Whether a registered visual has the fence tag `tag` (with its `@`).
 pub fn is_visual_tag(tag: &str) -> bool {
-    tag.strip_prefix('@')
-        .is_some_and(|t| crate::registry::get().visual_for(t).is_some())
+    tag.strip_prefix('@').is_some_and(|t| {
+        crate::registry::get().visual_for(t).is_some()
+            || crate::extensions::external::configured_tag(t).is_some()
+    })
 }
 
 pub use builtin::{draw_tag, register};
