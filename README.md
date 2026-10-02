@@ -18,8 +18,8 @@
 </p>
 
 <p align="center">
-  <strong>New in 1.18:</strong> background images behind every slide, or one slide, with
-  <code>@background</code> and <code>@background-opacity</code>.<br>
+  <strong>New in 1.19:</strong> a thermal look for infrared talks: headings that form in heat,
+  and <code>@thermal</code> images with palettes, a lens, threshold reveals and measured spots.<br>
   <a href="CHANGELOG.md"><strong>What's new</strong></a> &middot;
   <a href="https://github.com/mklab-se/mdeck/releases">All releases</a> &middot;
   <a href="BACKLOG.md">Roadmap</a>

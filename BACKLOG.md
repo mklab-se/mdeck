@@ -239,10 +239,11 @@ Collected while shipping 1.0. All are polish on a working feature.
 The `say` lines exist for a second display (see 1.1). Until then `H` shows the
 current line in the HUD.
 
-### 6.2 Reduced motion and a particle budget — S
-A `--reduced-motion` flag (and the OS setting where egui exposes it) that
-lowers particle count, disables wakes and shortens the countdown; a budget
-that scales with window size and drops on slow GPUs.
+### 6.2 Reduced motion from the OS, and a particle budget (S)
+`--reduced-motion` and `defaults.reduced_motion` shipped with #20 (settled
+states, no transitions, countdown or engine motion). Still open: following
+the OS setting where egui exposes it, and a particle budget that scales with
+window size and drops on slow GPUs.
 
 ### 6.3 Theme as an enum (done)
 See 5.3: `is_ember()` and the name comparisons are gone.

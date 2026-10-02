@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.19.0] - 2026-10-02
 
 ### Added
 
@@ -19,10 +19,6 @@ All notable changes to this project will be documented in this file.
   arrow with its label at its quieter end. Without edges, everything flows through the services.
   Sample: `samples/visualizations/artifactflow.md`; spec section 14.19.
 - Three more built-in icons: `team`, `package` and `code`, for architecture diagrams too.
-
-## [Unreleased]
-
-### Added
 
 - Thermal images and a thermal look for infrared talks ([#20](https://github.com/mklab-se/mdeck/issues/20)).
   - **`@thermal` blocks** show one thermal image and help explain it. A grayscale white-hot
