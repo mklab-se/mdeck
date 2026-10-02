@@ -132,6 +132,9 @@ impl ExportApp {
 
     /// File name for the current slide/step, zero-padded to the deck size.
     fn output_filename(&self) -> String {
+        if let Some(moment) = self.rehearsal.moment {
+            return moment.file_name().to_string();
+        }
         super::export_filename(
             self.cursor.slide(),
             self.deck.slide_count(),

@@ -233,6 +233,8 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   the diagrams and charts the split-flap board cannot show instead of finding no issues.
 - The split-flap board shows a hyphen as a bar above the hinge, so `Sign-ups` no longer reads
   `SIGN UPS`.
+- `mdeck export --moment countdown|end` writes one image (`countdown.png`, `end.png`) instead of
+  the same image once per slide; `--slide` picks the slide it is drawn on.
 
 ## [1.19.0] - 2026-10-02
 

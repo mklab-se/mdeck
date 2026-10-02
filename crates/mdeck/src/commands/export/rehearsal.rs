@@ -20,6 +20,33 @@ pub enum Moment {
     End,
 }
 
+impl Moment {
+    /// The file a moment exports to (`countdown.png`, `end.png`, ...).
+    pub fn file_name(self) -> &'static str {
+        match self {
+            Moment::Countdown => "countdown.png",
+            Moment::Three => "countdown-3.png",
+            Moment::Two => "countdown-2.png",
+            Moment::One => "countdown-1.png",
+            Moment::Burst => "countdown-burst.png",
+            Moment::End => "end.png",
+        }
+    }
+
+    /// The one slide a moment is drawn on: `--slide` (or the first of
+    /// `--range`) when given, else the first slide for the countdown and
+    /// the last for the end. `selected` is what `--slide` / `--range`
+    /// chose, every slide when neither was given.
+    pub fn target(self, selected: &[usize], chose: bool, count: usize) -> Vec<usize> {
+        let slide = match (chose, self) {
+            (true, _) => selected.first().copied().unwrap_or(0),
+            (false, Moment::End) => count.saturating_sub(1),
+            (false, _) => 0,
+        };
+        vec![slide]
+    }
+}
+
 /// Settings for looking at an engine's motion in export.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub(super) struct Rehearsal {
@@ -27,6 +54,8 @@ pub(super) struct Rehearsal {
     pub(super) at: Option<f32>,
     pub(super) countdown: Option<(crate::engines::CountPhase, f32)>,
     pub(super) end: bool,
+    /// The moment exported, which names the one file it writes.
+    pub(super) moment: Option<Moment>,
 }
 
 impl Rehearsal {
@@ -43,6 +72,7 @@ impl Rehearsal {
             at,
             countdown,
             end: moment == Some(Moment::End),
+            moment,
         }
     }
 
@@ -69,8 +99,22 @@ mod tests {
         );
         let end = Rehearsal::new(Some(2.0), Some(Moment::End));
         assert!(end.end && end.countdown.is_none());
+        assert_eq!(end.moment.map(Moment::file_name), Some("end.png"));
         let plain = Rehearsal::new(Some(1.5), None);
         assert!(!plain.moment());
         assert_eq!(plain.at, Some(1.5));
+    }
+
+    // `--moment` wrote the same image once per slide; it is one image, on
+    // the slide `--slide` names (or the countdown's first, the end's last).
+    #[test]
+    fn a_moment_is_one_image_on_one_slide() {
+        let all: Vec<usize> = (0..8).collect();
+        assert_eq!(Moment::Countdown.target(&all, false, 8), vec![0]);
+        assert_eq!(Moment::End.target(&all, false, 8), vec![7]);
+        assert_eq!(Moment::End.target(&[3], true, 8), vec![3]);
+        assert_eq!(Moment::Burst.target(&[2, 3, 4], true, 8), vec![2]);
+        assert_eq!(Moment::Countdown.file_name(), "countdown.png");
+        assert_eq!(Moment::Two.file_name(), "countdown-2.png");
     }
 }

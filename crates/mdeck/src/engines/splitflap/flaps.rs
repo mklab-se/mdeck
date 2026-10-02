@@ -276,7 +276,10 @@ mod tests {
         let hinge = cell.y * 0.035;
         assert!(bar.bottom() < -hinge, "clear of the hinge: {bar:?}");
         assert!(bar.height() > hinge * 1.5, "{bar:?}");
-        assert!(bar.width() > bar.height() * 2.0, "a hyphen is wide, not a dot");
+        assert!(
+            bar.width() > bar.height() * 2.0,
+            "a hyphen is wide, not a dot"
+        );
         assert!(bar_rect('A', cell).is_none());
         assert!(super::super::wheel::wheel_index('-').is_some());
     }

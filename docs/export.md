@@ -24,7 +24,10 @@ in export exactly as in the window.
 `--at <seconds>` runs the engine from a cold start for that long (simulated
 at 60 frames a second) and exports that frame; `--moment countdown|end`
 exports the opening countdown or the end act instead of the slide (`3`, `2`,
-`1` and `burst` pick a single countdown phase). They replace the
+`1` and `burst` pick a single countdown phase). A moment is one image,
+`countdown.png` (`countdown-2.png`, `countdown-burst.png`, ...) or `end.png`,
+drawn on the slide `--slide` names, else the first slide for the countdown
+and the last for the end. They replace the
 `MDECK_EXPORT_AT` and `MDECK_EXPORT_MOMENT` environment variables.
 
 Output is always exactly the requested size, independent of your screen's
