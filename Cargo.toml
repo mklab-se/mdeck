@@ -19,6 +19,8 @@ repository = "https://github.com/mklab-se/mdeck"
 rust-version = "1.95"
 
 [workspace.dependencies]
+# The SDK is versioned in lockstep with mdeck (EXT-12).
+mdeck-sdk = { path = "crates/mdeck-sdk", version = "=1.19.0" }
 eframe = { version = "0.36", default-features = false, features = ["glow", "default_fonts", "links", "wayland", "x11"] }
 # mdeck-sdk draws through egui privately. These track the versions eframe uses,
 # so one copy of each is built.

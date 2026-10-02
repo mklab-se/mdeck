@@ -22,7 +22,7 @@ path = "src/main.rs"
 [dependencies]
 # The extension interfaces the built-ins register through (EXT-06).
 # `unstable-egui`: built-in visuals still draw with egui (a 2.0 deferral).
-mdeck-sdk = { path = "../mdeck-sdk", version = "1.19.0", features = ["unstable-egui"] }
+mdeck-sdk = { workspace = true, features = ["unstable-egui"] }
 eframe.workspace = true
 clap.workspace = true
 clap_complete.workspace = true

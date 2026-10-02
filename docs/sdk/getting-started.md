@@ -80,13 +80,18 @@ look at both. The helpers are in [`mdeck_sdk::testing`](https://docs.rs/mdeck-sd
 mdeck build --with .
 ```
 
-`mdeck build` generates a small crate that depends on mdeck and on every extension you name, calls
-each extension's `register`, and compiles it in release mode. It prints where the new binary is
-(`./target/release/mdeck`). Name as many extensions as you like, as paths or crate names:
+`mdeck build` generates a small crate (in mdeck's cache folder) that depends on mdeck and on
+every extension you name, registers mdeck's built-ins and then calls each extension's `register`,
+and compiles it in release mode. It copies the binary to `./target/release/mdeck` and prints that
+path; `--out <file|folder>` puts it elsewhere and `--name` names it. Name as many extensions as
+you like, as paths or crate names (with an optional version):
 
 ```bash
-mdeck build --with ./glow --with ../acme-roadmap --with acme-brand-engines
+mdeck build --with ./glow --with ../acme-roadmap --with acme-brand-engines@1.2
 ```
+
+An extension that registers a name another one (or a built-in) already has stops the build's
+start-up with an error that names both.
 
 Nothing about mdeck's source changes: the custom build is mdeck plus your crates, compiled together.
 
