@@ -34,8 +34,11 @@ jobs:
     strategy:
       matrix:
         include:
+          # Pinned, not ubuntu-latest: the binary links against the build
+          # image's glibc, so the oldest supported image keeps it running on
+          # the most distros. Move it up when this image is retired.
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
+            os: ubuntu-24.04
             archive: tar.gz
           - target: x86_64-apple-darwin
             os: macos-latest
@@ -57,10 +60,14 @@ jobs:
 
       # aws-lc-sys (reqwest's default TLS crypto provider) needs NASM to
       # assemble its optimized routines on Windows; CMake and MSVC are
-      # already on the windows-latest image.
+      # already on the windows-latest image. Chocolatey rather than
+      # ilammy/setup-nasm, whose action still runs on the retired Node 20.
       - name: Install NASM (Windows)
         if: runner.os == 'Windows'
-        uses: ilammy/setup-nasm@v1
+        shell: pwsh
+        run: |
+          choco install nasm --no-progress -y
+          "C:\Program Files\NASM" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
       # cargo-auditable embeds the dependency list into the binary itself
       # (readable with `cargo audit bin` or syft); cargo-cyclonedx emits a

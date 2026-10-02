@@ -55,8 +55,9 @@ Releases are driven by the [`/release`](.claude/skills/release/SKILL.md) skill (
 
 - Building from source on Windows needs NASM and CMake on `PATH`: `aws-lc-rs` (the TLS crypto
   backend pulled in transitively via `ailloy`) compiles optimized assembly routines at build time.
-  macOS and Linux need nothing extra. The release workflow's Windows leg installs NASM via
-  `ilammy/setup-nasm@v1`; CMake and MSVC are already on the `windows-latest` image.
+  macOS and Linux need nothing extra. The release workflow's Windows leg installs NASM with Chocolatey; CMake and MSVC are
+  already on the `windows-latest` image. Its Linux leg builds on a pinned `ubuntu-24.04`
+  (not `ubuntu-latest`) so the binary's glibc requirement stays low.
 - **File size guideline:** When a source file exceeds ~500 lines, evaluate whether it would benefit from being split into smaller modules (`mod` in Rust). Look for natural boundaries: distinct type groups, self-contained algorithms, test helpers, or feature areas that could live in their own files. Propose a split plan before refactoring.
 
 ## Dependency Policy
