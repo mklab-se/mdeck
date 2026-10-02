@@ -41,8 +41,9 @@ an AI harness can convert a deck.
 - **Plain markdown presents cleanly.** Raw HTML keeps its text (`<img>` becomes an image,
   `<h1>`..`<h6>` a heading, `<br>` a line break), task lists show checkboxes, reference links and
   autolinks resolve, footnote text goes to the slide's notes, GitHub alerts (`> [!NOTE]`) render
-  as callouts, indented code is code, quotes keep their paragraphs and nesting, ordered lists keep
-  their start number, and tables keep their column alignment.
+  as callouts, indented code is code, quotes keep their paragraphs and structure (a nested quote is
+  an indented quote with its own bar, a list inside a quote is a list, in every design), ordered
+  lists keep their start number, and tables keep their column alignment.
 - **Themes v2.**
   - A theme's engine and its settings live in its `engine:` block
     (`engine: { name: thermal, palette: iron }`).
@@ -53,7 +54,8 @@ an AI harness can convert a deck.
     variants (`spring`, `summer`, `autumn`, `winter`).
   - `mdeck theme check` warns about engine settings the engine does not read, `fonts.lead` the
     design set never uses and paper engines without a `page:`; its contrast check covers every
-    text colour a theme draws, at the size it is drawn.
+    text colour a theme draws, at the size it is drawn, and prints the ratio it compared (two
+    decimals). It exits non-zero on an error or a contrast failure, so it can guard a theme in CI.
 - **A better `mdeck --check`.** It reports unknown settings and fence tags with a "did you mean",
   invalid values, deck settings written in a slide, v1 syntax with its v2 form, content that will
   not show as written, and problems inside visual fences, each on its line in the file (lines that
@@ -82,6 +84,9 @@ an AI harness can convert a deck.
   - `mdeck sdk new <engine|visual|design-set|transition> <name>` creates an extension crate that
     builds and tests as it is (`--dir` picks the folder; it never writes into a folder that is
     not empty).
+  - `mdeck sdk preview [--engine <name>] [--theme <name>] [-o <dir>]` exports a built-in preview
+    deck (every design, a chart, images, a picture slide) and the countdown and end moments as
+    PNGs, with an engine and theme chosen by name (an extension engine in a build with it).
   - `mdeck build --with <path|crate[@version]>...` builds an mdeck with extension crates in it:
     a generated cargo project registers the built-ins and each extension, compiles in release
     mode and copies the binary to `./target/release/mdeck` (`--out`, `--name`, `--mdeck-path`).
@@ -173,8 +178,10 @@ an AI harness can convert a deck.
   <name> --from <dir>` (was `mdeck theme new --from`), `mdeck ai deck` (was `mdeck ai create`) and
   `mdeck ai skill`. `mdeck ai talk.md` generates everything the deck is missing. The deck forms
   share `--slide N`, `--stale`, `--force` and `--dry-run`.
-- **`mdeck point-cloud`** replaces `mdeck illustration` (`import`, `list`, `show`, `contribute`;
-  the old name still works), and the `--check` category for `picture` names is `point-cloud`.
+- **`mdeck point-cloud`** replaces `mdeck illustration` (`import`, `list`, `show`, `contribute`),
+  and the `--check` category for `picture` names is `point-cloud`. Point clouds live in a
+  `point-clouds/` folder next to the deck and in the user folder (was `illustrations/`); `--check`
+  reports a deck that still has a v1 `illustrations/` folder of clouds.
 - `mdeck config set` help lists `defaults.reduced_motion`, `defaults.image_style` and
   `defaults.icon_style`; `-v` reads as a general verbosity flag on every command.
 - **One style system.** A named style is a prompt plus optional reference images

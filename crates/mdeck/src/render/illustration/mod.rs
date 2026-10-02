@@ -1,4 +1,4 @@
-//! Point cloud illustrations: named sets of importance-ordered points that
+//! Point clouds: named sets of importance-ordered points that
 //! the particle field draws as a shape.
 //!
 //! A cloud is what an AI-generated image was reduced to by [`convert`]: its
@@ -6,8 +6,8 @@
 //! the whole subject and the first few hundred fill it in. Consumers take the
 //! first *n*, so one file serves a small cast member and a full-frame
 //! illustration alike. Clouds live in `.mdpc` files (JSON) and resolve by
-//! name through three places, first match wins: the deck's `illustrations/`
-//! folder, the user library under the config directory, and the set built
+//! name, first match wins: the deck's `point-clouds/` folder, the user
+//! library under the config directory, installed packs, and the set built
 //! into the binary.
 
 pub mod convert;
@@ -23,6 +23,10 @@ pub const EXTENSION: &str = "mdpc";
 /// Most points a file may carry (about 25 KB).
 pub const MAX_POINTS: usize = 1500;
 pub const MAX_NAME_LEN: usize = 40;
+/// The deck and user folder of point clouds.
+pub const FOLDER: &str = "point-clouds";
+/// The v1 name of [`FOLDER`], which `--check` points at (CON-01).
+pub const V1_FOLDER: &str = "illustrations";
 
 /// Points in the unit square, importance first.
 pub type Points = Arc<Vec<[f32; 2]>>;
@@ -159,9 +163,9 @@ pub fn validate_name(name: &str) -> Result<()> {
 /// Where a resolved cloud came from.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Source {
-    /// `<deck dir>/illustrations/<name>.mdpc`.
+    /// `<deck dir>/point-clouds/<name>.mdpc`.
     Deck(PathBuf),
-    /// `illustrations/<name>.mdpc` in the user folder ([`user_dir`]).
+    /// `point-clouds/<name>.mdpc` in the user folder ([`user_dir`]).
     User(PathBuf),
     /// `<pack>/point-clouds/<name>.mdpc` of an installed pack (EXT-09).
     Pack(PathBuf),
@@ -182,15 +186,15 @@ impl Source {
 
 /// The deck-local library folder for a deck (or the working directory).
 pub fn deck_dir(base: &Path) -> PathBuf {
-    base.join("illustrations")
+    base.join(FOLDER)
 }
 
 /// The user library folder.
 pub fn user_dir() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join("mdeck").join("illustrations"))
+    dirs::config_dir().map(|d| d.join("mdeck").join(FOLDER))
 }
 
-include!(concat!(env!("OUT_DIR"), "/builtin_illustrations.rs"));
+include!(concat!(env!("OUT_DIR"), "/builtin_point_clouds.rs"));
 
 type ParsedBuiltins = Mutex<Vec<(String, Arc<Cloud>)>>;
 

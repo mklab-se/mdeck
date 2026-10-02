@@ -225,7 +225,7 @@ Funnel, word cloud and git graph only get the quiet frame today.
 
 ### 6.8 A shared illustration library (L)
 `mdeck point-cloud contribute` files a prefilled issue and the
-`/include-illustrations` skill folds accepted clouds into the built-in set at
+`/include-point-clouds` skill folds accepted clouds into the built-in set at
 the next release. If contributions pile up, a separate `mdeck-illustrations`
 repository that `mdeck point-cloud get <name>` fetches from would make a cloud
 usable the day it is merged.
@@ -245,7 +245,7 @@ themes). Left out of that round, each a decision or a follow-up:
 - **The reveal runs on the CPU** (a time map, one pass per frame into a
   texture, pictures capped at 900 px). A GPU shader would allow full
   resolution pictures; not needed at today's sizes.
-- **Line art on laser and LED.** Both could trace a slide's line art instead
+- **Line art on LED.** It could trace a slide's line art instead
   of its point cloud. Small once wanted.
 - **A hand-lettered heading face** for sketch and chalkboard, as a theme
   option. Needs a bundled face with a suitable licence.

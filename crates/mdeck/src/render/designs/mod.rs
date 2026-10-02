@@ -671,6 +671,10 @@ fn paint(
                     );
                 }
             }
+            Kind::Bar { rect, color } => {
+                let r = rect.translate(off);
+                painter.rect_filled(r, r.width() / 2.0, style::fade(*color, alpha));
+            }
             Kind::Block { block, rect } => {
                 let bcx = BlockCx {
                     opacity: alpha,

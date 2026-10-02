@@ -44,7 +44,7 @@ overrides arrangements.
 | Deck | What it shows |
 |---|---|
 | [ember.md](ember.md) and [`ember/`](ember) | The `ember` theme on the particles engine: plain text, images, visuals, point clouds |
-| [`engines/`](engines) | One deck per engine and its showcase theme: `led`, `splitflap`, `blocks`, `thermal`, `blueprint` and `chalkboard` (the line engine), `sketch`, `watercolour`, `darkroom` |
+| [`engines/`](engines) | One deck per engine and its showcase theme: `particles` (`ember`), `led`, `splitflap`, `blocks`, `thermal`, `blueprint` and `chalkboard` (the line engine), `sketch`, `watercolour`, `darkroom` |
 | [themes/seasons.md](themes/seasons.md) | The seasonal variants |
 | [themes/minimal-theme.md](themes/minimal-theme.md) | A custom theme in a few lines of YAML |
 | [themes/custom-theme.md](themes/custom-theme.md) | A theme converted from the design system in [`design-systems/`](design-systems) |

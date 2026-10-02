@@ -214,7 +214,7 @@ impl Artwork {
 /// ```
 #[derive(Clone, Debug)]
 pub enum PictureSource {
-    /// A point cloud illustration (`@illustration`).
+    /// A point cloud (`<!-- picture: name -->`).
     Cloud(Arc<Cloud>),
     /// A generated picture, prepared for the engine's medium.
     Artwork(Arc<Artwork>),

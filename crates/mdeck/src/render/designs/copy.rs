@@ -92,6 +92,8 @@ pub enum Kind<'s> {
     },
     /// A block the block renderer draws in `rect`.
     Block { block: &'s Block, rect: Rect },
+    /// The bar down the left of a quote with structure, spanning all of it.
+    Bar { rect: Rect, color: Color32 },
 }
 
 #[derive(Clone)]
@@ -130,7 +132,7 @@ impl Piece<'_> {
                     None => {}
                 }
             }
-            Kind::Block { rect, .. } => *rect = rect.translate(d),
+            Kind::Block { rect, .. } | Kind::Bar { rect, .. } => *rect = rect.translate(d),
         }
     }
 }
@@ -373,6 +375,9 @@ impl<'s> Stack<'s> {
             (role, Block::Heading { level, inlines }) => {
                 self.text(lay, role, *level, inlines, 0);
             }
+            (Role::Quote, _) if item.quote.is_some_and(Block::quote_is_structured) => {
+                self.structured_quote(lay, item.quote.unwrap_or_default());
+            }
             (Role::Quote, _) => {
                 let inlines = item.inlines.clone().unwrap_or_default();
                 let inlines = if lay.a.ornaments.quote_marks {
@@ -398,6 +403,105 @@ impl<'s> Stack<'s> {
             }
             (_, block) => self.block(lay, block),
         }
+    }
+
+    /// A quote that holds a list or a nested quote (MD-12): its runs of
+    /// paragraphs as quote text, its lists as lists, and each nested quote
+    /// indented with a bar of its own. Left-aligned, since a list or a
+    /// nested quote only reads as one from a common left edge.
+    fn structured_quote(&mut self, lay: &Lay, blocks: &'s [Block]) {
+        let align = self.align;
+        self.align = HAlign::Left;
+        // marks only where they pair up: the quote opens and closes in text
+        let text =
+            |b: Option<&Block>| matches!(b, Some(Block::Paragraph { .. } | Block::Heading { .. }));
+        let marks = lay.a.ornaments.quote_marks && text(blocks.first()) && text(blocks.last());
+        self.quote_level(lay, blocks, 0, marks);
+        self.align = align;
+        self.last_quote_right = None;
+        let style = &lay.a.roles.quote;
+        let size = lay.resolve(style, 0).size;
+        self.pending = self.pending.max(lay.gap(style, size));
+    }
+
+    fn quote_level(&mut self, lay: &Lay, blocks: &'s [Block], depth: usize, marks: bool) {
+        let s = lay.scale;
+        let o = &lay.a.ornaments;
+        let first = self.pieces.len();
+        let top = self.top();
+        let mut i = 0;
+        while i < blocks.len() {
+            let block = &blocks[i];
+            match block {
+                Block::Paragraph { .. } | Block::Heading { .. } => {
+                    // a run of paragraphs reads as one passage
+                    let mut run: Vec<Inline> = Vec::new();
+                    let from = i;
+                    while let Some(Block::Paragraph { inlines } | Block::Heading { inlines, .. }) =
+                        blocks.get(i)
+                    {
+                        if !run.is_empty() {
+                            run.push(Inline::Text("\n".into()));
+                        }
+                        run.extend(inlines.iter().cloned());
+                        i += 1;
+                    }
+                    let open = marks && depth == 0 && from == 0;
+                    let close = marks && depth == 0 && i == blocks.len();
+                    let run = quote_marks(&run, open, close);
+                    self.text(lay, Role::Quote, 0, &run, 0);
+                    if let Some(Piece {
+                        kind: Kind::Text { bar, .. },
+                        ..
+                    }) = self.pieces.last_mut()
+                    {
+                        *bar = None;
+                    }
+                    continue;
+                }
+                Block::List {
+                    ordered,
+                    start,
+                    items,
+                } => {
+                    self.list(lay, items, *ordered, *start, 0);
+                    self.pending = lay.gap(&lay.a.roles.list, lay.theme.body_size * s);
+                }
+                Block::BlockQuote { blocks: inner } => {
+                    let nest = QUOTE_NEST * s;
+                    self.x += nest;
+                    self.width -= nest;
+                    self.quote_level(lay, inner, depth + 1, marks);
+                    self.x -= nest;
+                    self.width += nest;
+                }
+                other => self.block(lay, other),
+            }
+            i += 1;
+        }
+        if depth == 0 && o.quote_bar != Bar::Left {
+            return;
+        }
+        let bottom = self.y;
+        if bottom <= top {
+            return;
+        }
+        let w = o.bar_width.max(1.5) * s;
+        let x = self.x - 24.0 * s;
+        let rect = Rect::from_min_max(
+            Pos2::new(x - w / 2.0, top + 4.0 * s),
+            Pos2::new(x + w / 2.0, bottom - 4.0 * s),
+        );
+        let nth = self.pieces.get(first).map_or(self.pieces.len(), |p| p.nth);
+        self.pieces.push(Piece {
+            kind: Kind::Bar {
+                rect,
+                color: style::ink(lay.theme, o.bar_color),
+            },
+            bounds: rect,
+            step: 0,
+            nth,
+        });
     }
 
     fn list(&mut self, lay: &Lay, items: &[ListItem], ordered: bool, start: u32, level: usize) {
@@ -549,16 +653,27 @@ pub fn deck_eyebrow(deck: &SlideContext) -> String {
     }
 }
 
+/// How far a nested quote's text sits in from its parent's, at 1920x1080.
+const QUOTE_NEST: f32 = 48.0;
+
 /// Curly quotation marks around `inlines`, unless they are there already.
 pub fn with_quotes(inlines: &[Inline]) -> Vec<Inline> {
-    let first = matches!(inlines.first(), Some(Inline::Text(s)) if {
-        let t = s.trim_start();
-        t.starts_with('\u{201C}') || t.starts_with('"')
-    });
-    let last = matches!(inlines.last(), Some(Inline::Text(s)) if {
-        let t = s.trim_end();
-        t.ends_with('\u{201D}') || t.ends_with('"')
-    });
+    quote_marks(inlines, true, true)
+}
+
+/// An opening mark before `inlines` (`open`) and a closing one after them
+/// (`close`), each unless it is there already.
+fn quote_marks(inlines: &[Inline], open: bool, close: bool) -> Vec<Inline> {
+    let first = !open
+        || matches!(inlines.first(), Some(Inline::Text(s)) if {
+            let t = s.trim_start();
+            t.starts_with('\u{201C}') || t.starts_with('"')
+        });
+    let last = !close
+        || matches!(inlines.last(), Some(Inline::Text(s)) if {
+            let t = s.trim_end();
+            t.ends_with('\u{201D}') || t.ends_with('"')
+        });
     if first && last {
         return inlines.to_vec();
     }

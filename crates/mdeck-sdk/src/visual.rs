@@ -1,4 +1,4 @@
-//! Visuals: the kinds of fenced block (```` ```@barchart ````) a deck can
+//! Visuals: the kinds of fenced block (```` ```@bar ````) a deck can
 //! hold. See [`Visual`].
 
 use crate::geometry::Hint;

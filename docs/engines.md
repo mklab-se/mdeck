@@ -66,7 +66,7 @@ Thirty-eight pictures are built in: people (`person`, `man`, `woman`, `hooded`,
 `blackhole`, ...). `mdeck point-cloud list` shows them all, and `mdeck point-cloud show <name>`
 previews one.
 
-**Your own pictures.** A name resolves in the deck's `illustrations/` folder first, then your
+**Your own pictures.** A name resolves in the deck's `point-clouds/` folder first, then your
 user folder, then installed packs, then the built-ins:
 
 ```bash

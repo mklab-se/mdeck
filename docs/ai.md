@@ -155,7 +155,7 @@ libraries can be generated:
 
 ```bash
 mdeck ai point-cloud talk.md                    # every name the deck uses that resolves nowhere
-mdeck ai point-cloud --name kettle --description "A kettle on a stove"   # into ./illustrations
+mdeck ai point-cloud --name kettle --description "A kettle on a stove"   # into ./point-clouds
 ```
 
 Generated clouds for a deck go in `talk.assets/point-clouds/`; the deck finds

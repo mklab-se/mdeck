@@ -234,9 +234,9 @@ Everything common in READMEs, notes and docs presents cleanly:
 - **Text:** bold, italic, strikethrough, inline code, links, backslash escapes. Links show but are
   not clickable while presenting.
 - **Lists:** nested, ordered lists keep their start number, task lists show their box.
-- **Quotes:** several paragraphs are kept, each on its own line; lists and nested quotes inside a
-  quote give their text as further lines (no quote within a quote). A short last paragraph is
-  the attribution. GitHub alerts (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`,
+- **Quotes:** several paragraphs are kept, each on its own line; a list inside a quote is drawn
+  as a list, and a nested quote as an indented quote with a bar of its own. A short last
+  paragraph is the attribution. GitHub alerts (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`,
   `[!CAUTION]`) are callouts.
 - **Code:** fenced blocks are syntax highlighted (```` ```rust {3,5-7} ```` highlights lines);
   indented code is code too.

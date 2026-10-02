@@ -73,10 +73,10 @@ default = [
     "darkroom",
     "thermal",
 ]
-# The particles engine: the particle field, editorial layouts, stories and the
-# built-in point cloud illustrations.
+# The particles engine: the particle field, the `ember` theme and the
+# built-in point clouds.
 particles = []
-# The LED engine: a wall of RGB LEDs that light up illustrations, and the
+# The LED engine: a wall of RGB LEDs that light up point clouds, and the
 # `marquee` theme.
 led = []
 # The split-flap engine: every slide on a departure board, and the

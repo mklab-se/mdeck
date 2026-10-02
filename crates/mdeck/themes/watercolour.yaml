@@ -1,8 +1,8 @@
 # Watercolour: a sheet of cold-press paper on a pale wooden table. Each
 # slide's generated watercolour blooms onto the paper, a pale first wash
 # and then the colour spreading from where the paint is heaviest
-# (watercolour engine). Make the paintings with `mdeck ai art`; without
-# them, `@illustration` point clouds are drawn in ink with a loose wash.
+# (watercolour engine). Make the paintings with `mdeck ai pictures`; without
+# them, `picture:` point clouds are drawn in ink with a loose wash.
 name: Watercolour
 extends: light
 engine: watercolour

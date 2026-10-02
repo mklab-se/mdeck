@@ -88,7 +88,7 @@ fn override_theme(presentation: &mut parser::Presentation, theme: Option<&str>) 
 }
 
 /// Every check, in report order.
-fn collect(
+pub(crate) fn collect(
     file: &Path,
     content: &str,
     presentation: &parser::Presentation,

@@ -14,7 +14,7 @@ use std::sync::Arc;
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct Cloud {
-    /// The name decks use (`@illustration: <name>`).
+    /// The name decks use (`<!-- picture: <name> -->`).
     pub name: String,
     /// Points in the unit square (x right, y down), most important first.
     pub points: Vec<[f32; 2]>,

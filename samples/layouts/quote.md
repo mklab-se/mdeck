@@ -42,3 +42,16 @@ Focused tests for the quote design
 > Premature optimization is the root of all evil.
 
 Both show: a slide with two quotes is a content slide, nothing is dropped.
+
+---
+
+## A quote with structure
+
+> The reviewer wrote:
+>
+> > Ship it when the tests pass.
+>
+> - a list inside a quote stays a list
+> - and a nested quote gets a bar of its own
+>
+> -- Code review
