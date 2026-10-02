@@ -72,13 +72,22 @@ pub fn measure_slide_content_height(
     if theme.engine.is_board() {
         return (0.0, rect.height());
     }
+    if let Some(set) = theme.code_design_set() {
+        return board::measure(set, ui, theme, slide, rect, scale, deck);
+    }
     designs::measure(ui, slide, theme, rect, scale, deck)
 }
 
 /// Render a single slide in its design, as the theme arranges it.
 pub fn render_slide(cx: &BlockCx, slide: &Slide, rect: egui::Rect, slide_cx: &SlideContext) {
     if let Some(board) = cx.theme.engine.board() {
-        board::render(board, cx, slide, rect, slide_cx);
+        board::render(board, cx, slide, rect, slide_cx, slide_cx.engine_drew);
+        return;
+    }
+    // a code design set the theme names draws the slide; the engine (if
+    // any) only decorates under it
+    if let Some(set) = cx.theme.code_design_set() {
+        board::render(set, cx, slide, rect, slide_cx, false);
         return;
     }
     designs::render(cx, slide, rect, slide_cx);

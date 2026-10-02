@@ -576,13 +576,19 @@ mod tests {
             "extends standard by default"
         );
         assert!(b.arrangements.get(crate::parser::Design::Quote).byline);
-        let err = l.load("c").unwrap_err().to_string();
-        assert!(err.contains("roomy") && err.contains("plain"), "{err}");
+        // an unknown set falls back to standard with a warning naming the
+        // sets there are (EXT-05; it used to fail the theme)
+        let c = l.load("c").unwrap();
+        assert!(!c.theme.arrangements.is_editorial());
+        let w = c.warnings.join("|");
+        assert!(w.contains("roomy") && w.contains("plain"), "{w}");
         assert!(
             super::super::arrangement::all_set_names(&l.designs).contains(&"roomy".to_string())
         );
-        // without the folders the sets are unknown
-        assert!(Lookup::default().load_found(&l.find_all("a")[0]).is_err());
+        // without the folders the sets are unknown: standard, with a warning
+        let a = Lookup::default().load_found(&l.find_all("a")[0]).unwrap();
+        assert!(!a.theme.arrangements.is_editorial());
+        assert!(a.warnings.join("|").contains("'roomy' is not a design set"));
     }
 
     #[test]
@@ -698,7 +704,9 @@ mod tests {
         let dark = l.load("dark").unwrap().theme;
         assert_eq!(dark.accent, eframe::egui::Color32::from_rgb(0, 0, 255));
         assert_eq!(dark.background, Theme::dark().background);
-        let names: Vec<String> = l.available().into_iter().map(|f| f.name).collect();
+        let mut names: Vec<String> = l.available().into_iter().map(|f| f.name).collect();
+        // (the unit tests' extension theme is not a built-in)
+        names.retain(|n| n != crate::registry::test_extensions::THEME);
         // the built-ins this build has, in order, then the user's own
         let variant = |n: &&str| builtin_file(n).unwrap().variant_of.is_some();
         let themes = BUILTIN.iter().map(|(n, _)| *n).filter(|n| !variant(n));

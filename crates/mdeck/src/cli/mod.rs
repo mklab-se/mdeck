@@ -146,8 +146,9 @@ pub enum Commands {
         at: Option<f32>,
 
         /// Export a moment instead of the slides: the opening countdown (or one
-        /// of its digits, or the burst) or the end, as one image (countdown.png,
-        /// end.png) on the --slide given, else the first or the last slide
+        /// of its digits, or the burst), the end, or the transition into a
+        /// slide, as one image (countdown.png, end.png, transition.png) on the
+        /// --slide given, else the first, the last or the second slide
         #[arg(long, value_enum)]
         moment: Option<crate::commands::export::Moment>,
 

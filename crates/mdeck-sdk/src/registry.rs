@@ -314,6 +314,15 @@ impl Registry {
         self.design_sets.get(name).map(|e| e.item.as_ref())
     }
 
+    /// Every design set, by name.
+    ///
+    /// ```
+    /// assert_eq!(mdeck_sdk::registry::Registry::new().design_sets().count(), 0);
+    /// ```
+    pub fn design_sets(&self) -> impl Iterator<Item = &dyn DesignSet> + '_ {
+        self.design_sets.values().map(|e| e.item.as_ref())
+    }
+
     /// The transition named `name`.
     ///
     /// ```

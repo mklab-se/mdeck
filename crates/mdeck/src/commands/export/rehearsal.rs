@@ -18,6 +18,9 @@ pub enum Moment {
     Burst,
     /// The end of the deck (the engine's end act)
     End,
+    /// The transition into the slide from the one before, halfway (or
+    /// `--at` seconds in)
+    Transition,
 }
 
 impl Moment {
@@ -30,17 +33,20 @@ impl Moment {
             Moment::One => "countdown-1.png",
             Moment::Burst => "countdown-burst.png",
             Moment::End => "end.png",
+            Moment::Transition => "transition.png",
         }
     }
 
     /// The one slide a moment is drawn on: `--slide` (or the first of
-    /// `--range`) when given, else the first slide for the countdown and
-    /// the last for the end. `selected` is what `--slide` / `--range`
+    /// `--range`) when given, else the first slide for the countdown, the
+    /// last for the end and the second for a transition (into it from the
+    /// first). `selected` is what `--slide` / `--range`
     /// chose, every slide when neither was given.
     pub fn target(self, selected: &[usize], chose: bool, count: usize) -> Vec<usize> {
         let slide = match (chose, self) {
             (true, _) => selected.first().copied().unwrap_or(0),
             (false, Moment::End) => count.saturating_sub(1),
+            (false, Moment::Transition) => 1.min(count.saturating_sub(1)),
             (false, _) => 0,
         };
         vec![slide]
@@ -61,6 +67,9 @@ pub(super) struct Rehearsal {
     pub(super) end: bool,
     /// The moment exported, which names the one file it writes.
     pub(super) moment: Option<Moment>,
+    /// `--moment transition`: the transition into the slide, set once the
+    /// slide is known.
+    pub(super) transition: Option<crate::render::transition::TransitionKind>,
 }
 
 impl Rehearsal {
@@ -71,7 +80,7 @@ impl Rehearsal {
             Some(Moment::Two) => Some((CountPhase::Digit(2), 0.5)),
             Some(Moment::One) => Some((CountPhase::Digit(1), 0.5)),
             Some(Moment::Burst) => Some((CountPhase::Burst, 0.0)),
-            Some(Moment::End) | None => None,
+            Some(Moment::End | Moment::Transition) | None => None,
         };
         // A settled burst has flown off the slide: without `--at`, show its
         // first frame.
@@ -84,6 +93,7 @@ impl Rehearsal {
             countdown,
             end: moment == Some(Moment::End),
             moment,
+            transition: None,
         }
     }
 
@@ -129,6 +139,12 @@ mod tests {
         assert_eq!(Moment::End.target(&[3], true, 8), vec![3]);
         assert_eq!(Moment::Burst.target(&[2, 3, 4], true, 8), vec![2]);
         assert_eq!(Moment::Countdown.file_name(), "countdown.png");
+        // a transition is the change into the second slide, or `--slide`
+        assert_eq!(Moment::Transition.target(&all, false, 8), vec![1]);
+        assert_eq!(Moment::Transition.target(&all, false, 1), vec![0]);
+        assert_eq!(Moment::Transition.target(&[5], true, 8), vec![5]);
+        assert_eq!(Moment::Transition.file_name(), "transition.png");
+        assert!(!Rehearsal::new(None, Some(Moment::Transition)).moment());
         assert_eq!(Moment::Two.file_name(), "countdown-2.png");
     }
 }

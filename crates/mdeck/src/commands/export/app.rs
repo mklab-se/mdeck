@@ -290,6 +290,12 @@ impl ExportApp {
             return;
         }
         let reveal = self.cursor.reveal(self.max_step());
+        if let Some(kind) = self.rehearsal.transition
+            && idx > 0
+        {
+            self.draw_transition(ui, kind, idx, rect, scale);
+            return;
+        }
         if self.presenter_view {
             let full = egui::Rect::from_min_size(
                 egui::pos2(-(origin.0 as f32), -(origin.1 as f32)),
@@ -358,6 +364,94 @@ impl ExportApp {
         self.deck.draw_slide(ui, &self.theme, idx, frame, &cx);
         self.deck.draw_logo(ui.painter(), rect, idx, scale);
         // the footer and counter, as the window draws them
+        self.deck
+            .draw_chrome(ui.painter(), &self.theme, rect, &cx, scale);
+    }
+
+    /// `--moment transition`: the change from the slide before `idx` into
+    /// it, going forward, as the window draws it: the engine under both,
+    /// the leaving slide at its last step, the arriving one at its first,
+    /// then what the transition paints over them.
+    fn draw_transition(
+        &mut self,
+        ui: &mut egui::Ui,
+        kind: render::transition::TransitionKind,
+        idx: usize,
+        rect: egui::Rect,
+        scale: f32,
+    ) {
+        use render::transition as tr;
+        let from = idx - 1;
+        let duration = kind.duration();
+        let raw = match self.rehearsal.at {
+            Some(at) if duration > 0.0 => (at / duration).clamp(0.0, 1.0),
+            Some(_) => 1.0,
+            None => 0.5,
+        };
+        let p = tr::ease_in_out(raw);
+        if self.theme.engine.paints() {
+            let frame = EngineFrame {
+                rect,
+                scale,
+                index: idx,
+                reveal: 0,
+                end: false,
+                countdown: None,
+                still: true,
+            };
+            self.deck.engine_layer(ui, &self.theme, frame, None);
+        }
+        let count = self.deck.slide_count();
+        let spatial = tr::ActiveTransition::new(from, idx, kind, tr::TransitionDirection::Forward)
+            .spatial_direction(tr::overview_columns(count));
+        let sides = tr::sides(kind, p, true, rect, spatial);
+        let leaving = sides.len() > 1;
+        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(ui.max_rect()));
+        child.shrink_clip_rect(rect);
+        let radius = self.theme.page.as_ref().map_or(0.0, |p| p.radius * scale);
+        for (i, side) in sides.into_iter().enumerate() {
+            let (index, reveal) = if leaving && i == 0 {
+                (from, self.deck.max_steps.get(from).copied().unwrap_or(0))
+            } else {
+                (idx, 0)
+            };
+            self.deck.draw_background(
+                &child.painter().with_clip_rect(rect),
+                side.rect,
+                index,
+                side.opacity,
+                radius,
+                false,
+            );
+            let cx = render::SlideContext {
+                index,
+                count,
+                deck_title: self.deck.presentation.meta.title.clone(),
+                author: self.deck.presentation.meta.author.clone(),
+                hold_copy: false,
+                animate: false,
+                engine_drew: true,
+            };
+            let frame = SlideFrame {
+                rect: side.rect,
+                opacity: side.opacity,
+                reveal,
+                reveal_timestamp: None,
+                scale: scale * side.zoom,
+            };
+            self.deck.draw_slide(&child, &self.theme, index, frame, &cx);
+        }
+        tr::paint_over(kind, ui, &self.theme, rect, p, true);
+        let cx = render::SlideContext {
+            index: idx,
+            count,
+            deck_title: self.deck.presentation.meta.title.clone(),
+            author: self.deck.presentation.meta.author.clone(),
+            hold_copy: false,
+            animate: false,
+            engine_drew: true,
+        };
+        self.deck.draw_logo(ui.painter(), rect, idx, scale);
         self.deck
             .draw_chrome(ui.painter(), &self.theme, rect, &cx, scale);
     }

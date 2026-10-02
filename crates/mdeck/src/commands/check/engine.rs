@@ -60,6 +60,34 @@ pub fn picture_stage_warnings(
         .collect()
 }
 
+/// What the code design set the theme names (EXT-05) does not show, one
+/// warning per slide and thing, as the set's `unsupported` reports it.
+pub fn design_set_warnings(
+    presentation: &parser::Presentation,
+    theme: &crate::theme::Theme,
+) -> Vec<CheckWarning> {
+    // a board engine draws every slide with its own set (see `engine_warnings`)
+    if theme.engine.is_board() {
+        return Vec::new();
+    }
+    let Some(set) = theme.code_design_set() else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for (i, slide) in presentation.slides.iter().enumerate() {
+        let content = crate::engines::host::convert::slide(slide);
+        for p in set.unsupported(&content) {
+            out.push(CheckWarning {
+                slide: i + 1,
+                line: p.line.unwrap_or(slide.line),
+                category: CheckCategory::Theme,
+                message: format!("design set {}: {}", set.name(), p.message),
+            });
+        }
+    }
+    out
+}
+
 /// Content the deck's engine will not show, one warning per slide and thing.
 pub fn engine_warnings(
     presentation: &parser::Presentation,
@@ -82,6 +110,25 @@ pub fn engine_warnings(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// EXT-05: what a code design set does not show is reported, on the
+    /// slide it is on, under the theme.
+    #[test]
+    fn a_code_design_set_reports_what_it_does_not_show() {
+        let p = parser::parse("# A\n\nx\n\n# B\n\n```rust\nfn x() {}\n```\n");
+        let themes = crate::theme::lookup::Lookup::for_deck(None);
+        let theme = themes
+            .load(crate::registry::test_extensions::THEME)
+            .unwrap()
+            .theme;
+        assert!(theme.code_design_set().is_some());
+        let w = design_set_warnings(&p, &theme);
+        assert_eq!(w.len(), 1, "{w:?}");
+        assert_eq!((w[0].slide, w[0].line), (2, p.slides[1].line));
+        assert_eq!(w[0].category, CheckCategory::Theme);
+        assert_eq!(w[0].message, "design set test-cards: code is not shown");
+        assert!(design_set_warnings(&p, &crate::theme::Theme::dark()).is_empty());
+    }
 
     #[test]
     fn a_message_about_a_directive_names_its_line() {

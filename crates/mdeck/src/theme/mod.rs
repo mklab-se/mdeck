@@ -127,8 +127,13 @@ pub struct Theme {
     /// [`engine_settings`].
     pub engine_block: Vec<(String, serde_norway::Value)>,
     /// How every design looks: the design set (`designs:`) with the theme's
-    /// `arrangements:` applied.
+    /// `arrangements:` applied. For a code design set, `standard`'s, which
+    /// still decide where pictures stand.
     pub arrangements: std::sync::Arc<arrangement::Arrangements>,
+    /// The code design set (`mdeck_sdk::design::DesignSet`) a theme's
+    /// `designs:` names, when no data design set has that name (EXT-05). It
+    /// draws every slide instead of the arrangements.
+    pub code_designs: Option<&'static str>,
     /// The spacing scale arrangements name.
     pub spacing: spacing::Spacing,
     /// Corner radius of cards, px at 1920x1080.
@@ -273,6 +278,12 @@ pub fn uses_editorial(theme: &Theme) -> bool {
 }
 
 impl Theme {
+    /// The code design set `designs:` names (EXT-05), looked up in the
+    /// registry; `None` for a data design set.
+    pub fn code_design_set(&self) -> Option<&'static dyn mdeck_sdk::design::DesignSet> {
+        crate::registry::get().design_set_for(self.code_designs?)
+    }
+
     /// The arrangement of `design` in this theme.
     pub fn arrangement(&self, design: crate::parser::Design) -> &arrangement::Arrangement {
         self.arrangements.get(design)
