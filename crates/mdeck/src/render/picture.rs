@@ -37,10 +37,7 @@ pub fn image_rect(
     rect: Rect,
     size: [usize; 2],
 ) -> Option<(Rect, bool)> {
-    slide
-        .illustration
-        .as_deref()
-        .filter(|n| is_image_path(n))?;
+    slide.illustration.as_deref().filter(|n| is_image_path(n))?;
     let stage = super::design_stage(slide, theme);
     if stage == Stage::None || size[0] == 0 || size[1] == 0 || rect.height() <= 0.0 {
         return None;
@@ -79,7 +76,8 @@ pub fn draw_image(cx: &BlockCx, slide: &Slide, rect: Rect) {
     let alpha = |a: f32| (a.clamp(0.0, 1.0) * 255.0).round() as u8;
     if backdrop {
         let tint = Color32::from_white_alpha(alpha(cx.opacity * BACKDROP_OPACITY));
-        painter.add(egui::epaint::RectShape::filled(r, radius, tint).with_texture(texture.id(), uv));
+        painter
+            .add(egui::epaint::RectShape::filled(r, radius, tint).with_texture(texture.id(), uv));
         return;
     }
     let shadow = egui::epaint::Shadow {

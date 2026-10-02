@@ -185,7 +185,8 @@ mod tests {
             assert!(unsupported(board, &pres.slides[0]).is_empty());
             let b = unsupported(board, &pres.slides[1]);
             assert!(
-                b.iter().any(|m| m.starts_with("transition: slide has no effect")),
+                b.iter()
+                    .any(|m| m.starts_with("transition: slide has no effect")),
                 "{b:?}"
             );
             let c = unsupported(board, &pres.slides[2]);

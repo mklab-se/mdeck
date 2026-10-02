@@ -390,11 +390,6 @@ impl ThemeFile {
         })
     }
 
-    /// The line engine's `surface` from the engine block.
-    pub fn surface(&self) -> Result<Option<String>, ThemeError> {
-        self.engine_block().str("surface")
-    }
-
     /// This file with every unset key taken from `parent`. `name` and
     /// `extends` are the child's own.
     pub fn over(&self, parent: &ThemeFile) -> ThemeFile {

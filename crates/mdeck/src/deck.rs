@@ -14,10 +14,10 @@ use crate::engines::{self, CountPhase, EngineId, Host};
 use crate::parser::{self, Presentation};
 use crate::render::art::gallery::DeckArt;
 use crate::render::background::{Backgrounds, FadeIn};
-use crate::render::point_cloud::Library;
 use crate::render::image_cache::ImageCache;
 use crate::render::image_cache::ImageState;
 use crate::render::logo::Logos;
+use crate::render::point_cloud::Library;
 use crate::render::{self, SlideContext};
 use crate::theme::{Theme, lookup};
 

@@ -22,9 +22,9 @@ use mdeck_sdk::host::{self as h, Backend};
 use mdeck_sdk::stage::{Frame, Moment, Picture, PictureSource, Stage};
 use mdeck_sdk::tokens::EngineSettings;
 
+use crate::render::picture::figure_box;
 pub use choice::{choose, unsupported, unsupported_summary, with_engine};
 use masks::{glyph_mask, text_mask, trim_flag};
-use crate::render::picture::figure_box;
 
 use super::EngineId;
 use crate::parser::Slide;
@@ -546,6 +546,28 @@ mod tests {
             ["engine plain: unknown setting `surface`"]
         );
         assert!(settings_problems(&Theme::dark()).is_empty());
+    }
+
+    /// A bad `surface` stopped the theme from building, so the unknown key
+    /// beside it was never reported (and the deck fell back to dark).
+    #[cfg(feature = "line")]
+    #[test]
+    fn a_bad_surface_does_not_hide_other_engine_problems() {
+        use crate::theme::file::ThemeFile;
+        let f = ThemeFile::parse("engine: { name: line, surface: paper, glitter: 3 }\n")
+            .unwrap()
+            .over(&crate::theme::lookup::builtin_file("blueprint").unwrap());
+        let theme = Theme::build("x", &f).expect("builds").theme;
+        let p = settings_problems(&theme);
+        assert!(
+            p.iter()
+                .any(|m| m.contains("`surface`") && m.contains("paper")),
+            "{p:?}"
+        );
+        assert!(
+            p.iter().any(|m| m.contains("unknown setting `glitter`")),
+            "{p:?}"
+        );
     }
 
     #[test]

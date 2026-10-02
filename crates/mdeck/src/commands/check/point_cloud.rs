@@ -68,11 +68,7 @@ pub fn point_cloud_warnings(
 }
 
 /// A picture on a slide whose design leaves no stage for one (ENG-14).
-fn stage_problem(
-    slide: &parser::Slide,
-    name: &str,
-    theme: &crate::theme::Theme,
-) -> Option<String> {
+fn stage_problem(slide: &parser::Slide, name: &str, theme: &crate::theme::Theme) -> Option<String> {
     (!render::design_has_stage(slide, theme)).then(|| {
         format!(
             "`{name}` is ignored: {} slides leave no stage for a picture in the {} design set",
@@ -212,12 +208,16 @@ mod tests {
         // an existing image is fine, even on plain, and never a bad cloud name
         assert!(on(2).is_empty(), "{warnings:?}");
         assert!(
-            on(3).iter().any(|m| m.contains("no image file `images/gone.png`")),
+            on(3)
+                .iter()
+                .any(|m| m.contains("no image file `images/gone.png`")),
             "{warnings:?}"
         );
         // an image shows on every engine, so a missing stage is reported
         assert!(
-            on(4).iter().any(|m| m.contains("code slides leave no stage")),
+            on(4)
+                .iter()
+                .any(|m| m.contains("code slides leave no stage")),
             "{warnings:?}"
         );
         assert_eq!(on(4).len(), 1, "{warnings:?}");
