@@ -62,7 +62,7 @@ const LINE_REVEAL: Reveal = Reveal {
 /// A point cloud without an artwork: its lines in pencil, the shape shaded
 /// with hatching and cross-hatched on its shadow side.
 const FILL: crate::engines::art::Fill =
-    crate::engines::art::Fill::Lines(Some(crate::engines::art::Shading {
+    crate::engines::art::Fill::Lines(Some(crate::engines::art::trace::Shading {
         spacing: 0.024,
         everywhere: true,
         cross: true,

@@ -61,7 +61,7 @@ const LINE_REVEAL: Reveal = Reveal {
 /// A point cloud without an artwork: its lines in ink and the shape laid in
 /// with washes, the brush following loose diagonal strokes.
 const FILL: crate::engines::art::Fill =
-    crate::engines::art::Fill::Lines(Some(crate::engines::art::Shading {
+    crate::engines::art::Fill::Lines(Some(crate::engines::art::trace::Shading {
         spacing: 0.05,
         everywhere: true,
         cross: false,

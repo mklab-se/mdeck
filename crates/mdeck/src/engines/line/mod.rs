@@ -99,7 +99,7 @@ fn pace(surface: Surface) -> Pace {
 /// A point cloud without an artwork: its lines traced clean, with section
 /// hatching on the shadow side, the way a drafter marks a cut surface.
 const FILL: crate::engines::art::Fill =
-    crate::engines::art::Fill::Lines(Some(crate::engines::art::Shading {
+    crate::engines::art::Fill::Lines(Some(crate::engines::art::trace::Shading {
         spacing: 0.045,
         everywhere: false,
         cross: false,

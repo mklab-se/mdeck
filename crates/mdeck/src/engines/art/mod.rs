@@ -24,7 +24,7 @@ use mdeck_sdk::stage::{Artwork, Frame, Look, Moment, PictureSource, Place, Stage
 
 pub use reveal::{Reveal, Reveals};
 use strokes::{Strokes, plan, plan_layers, to_screen, toured};
-pub use trace::{Fill, Shading};
+pub use trace::Fill;
 
 /// What an art engine can do: show the slide's picture (its generated
 /// artwork, else its point cloud as pen strokes).
