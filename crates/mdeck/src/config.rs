@@ -19,6 +19,11 @@ pub struct Config {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon_styles: Option<BTreeMap<String, NamedStyle>>,
+
+    /// External visual programs (EXT-18): fence tag (with or without `@`)
+    /// to the command that draws it. See `crate::extensions::external`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visuals: Option<BTreeMap<String, String>>,
 }
 
 /// A named style: a prompt, optionally with reference images. Written as a

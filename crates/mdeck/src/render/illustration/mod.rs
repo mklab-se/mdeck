@@ -163,6 +163,8 @@ pub enum Source {
     Deck(PathBuf),
     /// `~/.config/mdeck/illustrations/<name>.mdpc`.
     User(PathBuf),
+    /// `<pack>/point-clouds/<name>.mdpc` of an installed pack (EXT-09).
+    Pack(PathBuf),
     /// Built into the binary.
     Builtin,
 }
@@ -172,6 +174,7 @@ impl Source {
         match self {
             Source::Deck(_) => "deck",
             Source::User(_) => "user",
+            Source::Pack(_) => "pack",
             Source::Builtin => "built-in",
         }
     }
@@ -223,10 +226,22 @@ pub fn load_file(path: &Path) -> Result<Cloud> {
 /// Resolve `name` through explicit library folders (deck first, then user),
 /// then the built-in set. Errors from unreadable files are reported so the
 /// caller can warn; a missing file just falls through.
+#[cfg(test)]
 pub fn resolve_in(
     name: &str,
     deck: Option<&Path>,
     user: Option<&Path>,
+) -> Result<Option<(Source, Arc<Cloud>)>> {
+    resolve_with_packs(name, deck, user, &[])
+}
+
+/// [`resolve_in`] with the `point-clouds/` folders of installed packs,
+/// looked in after the user folder and before the built-ins (EXT-08).
+pub fn resolve_with_packs(
+    name: &str,
+    deck: Option<&Path>,
+    user: Option<&Path>,
+    packs: &[PathBuf],
 ) -> Result<Option<(Source, Arc<Cloud>)>> {
     validate_name(name)?;
     let file = format!("{name}.{EXTENSION}");
@@ -248,6 +263,15 @@ pub fn resolve_in(
             )));
         }
     }
+    for dir in packs {
+        let path = dir.join(&file);
+        if path.is_file() {
+            return Ok(Some((
+                Source::Pack(path.clone()),
+                Arc::new(load_file(&path)?),
+            )));
+        }
+    }
     Ok(builtin(name).map(|c| (Source::Builtin, c)))
 }
 
@@ -256,7 +280,8 @@ pub fn resolve_in(
 pub fn resolve(name: &str, deck_base: Option<&Path>) -> Result<Option<(Source, Arc<Cloud>)>> {
     let deck = deck_base.map(deck_dir);
     let user = user_dir();
-    resolve_in(name, deck.as_deref(), user.as_deref())
+    let packs = crate::extensions::packs::point_cloud_dirs(deck_base);
+    resolve_with_packs(name, deck.as_deref(), user.as_deref(), &packs)
 }
 
 /// Every name visible from a deck, with the source that wins and the sources
@@ -327,6 +352,8 @@ pub struct Library {
     assets: Option<PathBuf>,
     deck: Option<PathBuf>,
     user: Option<PathBuf>,
+    /// `point-clouds/` of installed packs, after `user`.
+    packs: Vec<PathBuf>,
     cache: std::collections::HashMap<String, Option<Arc<Cloud>>>,
     /// Problems met while resolving (unreadable files), once each.
     problems: Vec<String>,
@@ -340,6 +367,7 @@ impl Library {
             assets: None,
             deck: deck_base.map(deck_dir),
             user: user_dir(),
+            packs: crate::extensions::packs::point_cloud_dirs(deck_base),
             cache: Default::default(),
             problems: Vec::new(),
         }
@@ -358,6 +386,7 @@ impl Library {
             assets: None,
             deck,
             user,
+            packs: Vec::new(),
             cache: Default::default(),
             problems: Vec::new(),
         }
@@ -381,7 +410,12 @@ impl Library {
             .filter(|p| validate_name(name).is_ok() && p.is_file());
         let found = match generated {
             Some(path) => load_file(&path).map(|c| Some((Source::Deck(path), Arc::new(c)))),
-            None => resolve_in(name, self.deck.as_deref(), self.user.as_deref()),
+            None => resolve_with_packs(
+                name,
+                self.deck.as_deref(),
+                self.user.as_deref(),
+                &self.packs,
+            ),
         };
         let found = match found {
             Ok(found) => found.map(|(_, c)| c),
@@ -554,6 +588,33 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("server.mdpc"), "{err}");
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    #[test]
+    fn packs_come_after_user_and_before_builtins() {
+        let tmp = std::env::temp_dir().join(format!("mdpc-packs-{}", std::process::id()));
+        let user = tmp.join("user");
+        let pack = tmp.join("pack/point-clouds");
+        std::fs::create_dir_all(&user).unwrap();
+        std::fs::create_dir_all(&pack).unwrap();
+        let mut u = sample("kettle");
+        u.description = "user".into();
+        std::fs::write(user.join("kettle.mdpc"), u.to_json()).unwrap();
+        std::fs::write(pack.join("kettle.mdpc"), sample("kettle").to_json()).unwrap();
+        std::fs::write(pack.join("lamp.mdpc"), sample("lamp").to_json()).unwrap();
+        let packs = [pack.clone()];
+
+        let (src, c) = resolve_with_packs("kettle", None, Some(&user), &packs)
+            .unwrap()
+            .unwrap();
+        assert!(matches!(src, Source::User(_)));
+        assert_eq!(c.description, "user");
+        let (src, _) = resolve_with_packs("lamp", None, Some(&user), &packs)
+            .unwrap()
+            .unwrap();
+        assert_eq!(src, Source::Pack(pack.join("lamp.mdpc")));
+        assert_eq!(src.label(), "pack");
         std::fs::remove_dir_all(&tmp).ok();
     }
 }

@@ -33,6 +33,8 @@ pub enum CheckCategory {
     /// setting nor an item, unknown settings and attributes, values that do
     /// not parse.
     Visual,
+    /// Packs and extensions the deck `requires` that are not installed.
+    Extensions,
 }
 
 impl fmt::Display for CheckCategory {
@@ -44,6 +46,7 @@ impl fmt::Display for CheckCategory {
             CheckCategory::Math => write!(f, "math"),
             CheckCategory::Theme => write!(f, "theme"),
             CheckCategory::Settings => write!(f, "settings"),
+            CheckCategory::Extensions => write!(f, "extensions"),
             CheckCategory::Content => write!(f, "content"),
             CheckCategory::Engine => write!(f, "engine"),
             CheckCategory::Assets => write!(f, "assets"),

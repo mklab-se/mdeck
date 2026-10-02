@@ -230,6 +230,13 @@ pub const SETTINGS: &[SettingDef] = &[
         "The palette of `@thermal` images that name none",
     ),
     def(
+        "requires",
+        Scope::Deck,
+        Kind::Text,
+        "",
+        "Packs and extensions the deck expects, `[acme-brand, glow]`; `--check` names missing ones",
+    ),
+    def(
         "art-world",
         Scope::Deck,
         Kind::Text,
