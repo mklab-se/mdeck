@@ -1,11 +1,11 @@
 //! Painting: words in the theme's edge palette, rotated ones turned 90° CCW,
 //! revealed by step.
 
-use eframe::egui::{FontId, Pos2};
+use eframe::egui::{FontId, Pos2, Vec2};
 use eframe::epaint::TextShape;
 
 use super::cache::{LAYOUT_CACHE_CAP, cache_key, layout_cache};
-use super::layout::compute_layout;
+use super::layout::{WordLayout, compute_layout};
 use super::parse::parse_word_cloud;
 use crate::render::visualizations::{VizCtx, VizReveal, assign_steps};
 use crate::theme::Theme;
@@ -82,11 +82,7 @@ pub fn draw_word_cloud(
             let galley = painter.layout_no_wrap(entry.text.clone(), font_id, color);
 
             if wl.rotated {
-                // Rotate -90° (CCW). Pivot is at pos (top-left of unrotated text).
-                // For visual bbox at (vx, vy) with visual size (orig_h, orig_w):
-                //   anchor pos.x = vx + visual_width (= vx + orig_h)
-                //   anchor pos.y = vy
-                let anchor_pos = Pos2::new(pos.x + wl.x + wl.width, pos.y + wl.y);
+                let anchor_pos = pos + rotated_anchor(wl);
                 let text_shape = TextShape::new(anchor_pos, galley, color)
                     .with_angle(-std::f32::consts::FRAC_PI_2)
                     .with_opacity_factor(opacity);
@@ -99,4 +95,51 @@ pub fn draw_word_cloud(
     }
 
     height
+}
+
+/// Where a word turned 90° CCW is anchored, relative to the cloud's origin.
+/// The galley turns about its top-left corner: the text then runs upward
+/// from the anchor and its lines extend to the right, so the anchor is the
+/// bottom-left corner of the word's reserved box.
+fn rotated_anchor(wl: &WordLayout) -> Vec2 {
+    Vec2::new(wl.x, wl.y + wl.height)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use eframe::egui::{Rect, emath::Rot2};
+
+    #[test]
+    fn a_rotated_word_is_drawn_inside_its_box() {
+        // A word 120 wide and 30 tall, turned: a 30x120 box at (200, 100).
+        // The anchor used to be the box's top-right corner, which drew the
+        // word above and right of its box, over its neighbours.
+        let (text_w, text_h) = (120.0, 30.0);
+        let wl = WordLayout {
+            x: 200.0,
+            y: 100.0,
+            width: text_h,
+            height: text_w,
+            font_size: 24.0,
+            rotated: true,
+        };
+        let anchor = Pos2::ZERO + rotated_anchor(&wl);
+        // The galley's corners, turned about the anchor the way TextShape does.
+        let rot = Rot2::from_angle(-std::f32::consts::FRAC_PI_2);
+        let corners = [
+            Vec2::ZERO,
+            Vec2::new(text_w, 0.0),
+            Vec2::new(0.0, text_h),
+            Vec2::new(text_w, text_h),
+        ]
+        .map(|c| anchor + rot * c);
+        let drawn = Rect::from_points(&corners);
+        let reserved = Rect::from_min_size(Pos2::new(wl.x, wl.y), Vec2::new(wl.width, wl.height));
+        assert!(
+            (drawn.min - reserved.min).length() < 0.01
+                && (drawn.max - reserved.max).length() < 0.01,
+            "drawn {drawn:?}, reserved {reserved:?}"
+        );
+    }
 }
