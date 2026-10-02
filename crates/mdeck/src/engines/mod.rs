@@ -14,6 +14,8 @@
 //! guide is `crates/mdeck/doc/engines.md` and the SDK's `docs/sdk/`.
 
 pub mod host;
+#[cfg(feature = "particles")]
+pub mod particles;
 pub mod plain;
 pub mod rng;
 
@@ -26,6 +28,8 @@ use mdeck_sdk::registry::{Registry, RegistryError};
 /// Register the built-in engines (each one but plain is a cargo feature).
 pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
     r.engine(&plain::DEF)?;
+    #[cfg(feature = "particles")]
+    r.engine(&particles::DEF)?;
     Ok(())
 }
 

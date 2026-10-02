@@ -1,7 +1,7 @@
 //! Backdrops: what fills the dark on a slide without an illustration.
 
 use super::{bokeh, dust};
-use crate::render::particles::{Drift, Group, Home, Palette, Rng};
+use crate::engines::particles::{Drift, Group, Home, Palette, Rng};
 
 /// The field behind a slide's own scene. Slides walk this list by number, so
 /// neighbours never share one and a run of look-alike bullet slides still
