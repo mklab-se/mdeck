@@ -1,7 +1,7 @@
 ---
 title: Background images
 background: ../images/saloon-horizontal.png
-background-opacity: 30%
+background-opacity: 20%
 ---
 
 # Background images

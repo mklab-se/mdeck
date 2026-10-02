@@ -256,6 +256,8 @@ an AI harness can convert a deck.
 
 ### Fixed
 
+- A line chart written like a bar chart (`- Jan: 3`, `- Feb: 5`) draws one line over those labels
+  instead of a dot per item at the left edge.
 - Architecture diagram edge labels read on every edge colour: the pill is a tint of the edge colour
   with a hairline in it, and the text is the theme's foreground. Long node labels ("API Gateway")
   shrink to sit clear of the node's border instead of running edge to edge.

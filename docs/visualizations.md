@@ -15,7 +15,7 @@ Fenced code blocks with an `@` tag become charts:
 | Type | Tag | Example line |
 |------|-----|--------------|
 | Bar chart | `@bar` | `- Python: 48` |
-| Line chart | `@line` | `- Revenue: 100, 150, 200` |
+| Line chart | `@line` | `- Revenue: 100, 150, 200` (or `- Jan: 3` per item for one line) |
 | Pie chart | `@pie` | `- Frontend: 35%` |
 | Donut chart | `@donut` | `- Complete: 78` |
 | Stacked bar | `@stackedbar` | `- Product A: 40, 45, 50` |

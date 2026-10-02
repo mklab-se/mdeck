@@ -2126,6 +2126,9 @@ y-label: Temperature (°C)
 
 Each series is a separate line. All series share the X-axis categories. A legend is displayed at the top-right.
 
+Items of one value each and no `x-labels` (`- Jan: 3`, `- Feb: 5`, as a bar chart
+takes them) are one line over those labels, without a legend, unless an item is revealed with `+`.
+
 ### 14.4 Scatter Plot (`@scatter`)
 
 2D scatter plot with labeled data points and optional custom sizes.

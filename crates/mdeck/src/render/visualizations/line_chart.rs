@@ -27,7 +27,7 @@ const SETTINGS: &[&str] = &["x-labels", "x-label", "y-label"];
 
 fn read(src: &Source) -> LineChartData {
     src.check_settings(SETTINGS);
-    LineChartData {
+    one_series(LineChartData {
         x_labels: src.setting("x-labels").map(name_list).unwrap_or_default(),
         series: label_values_items(src, "- Revenue: 10, 20, 30")
             .into_iter()
@@ -39,7 +39,29 @@ fn read(src: &Source) -> LineChartData {
             .collect(),
         x_label: src.setting("x-label").map(str::to_string),
         y_label: src.setting("y-label").map(str::to_string),
+    })
+}
+
+/// Items of one value each (`- Jan: 3`, as a bar chart takes them) and no
+/// `x-labels` are one line over those labels, not a dot per series. Only
+/// when no item is revealed on its own, so the step count stays the same.
+fn one_series(mut data: LineChartData) -> LineChartData {
+    let single = data.series.len() > 1
+        && data.x_labels.is_empty()
+        && data
+            .series
+            .iter()
+            .all(|s| s.values.len() == 1 && s.reveal == VizReveal::Static);
+    if single {
+        data.x_labels = data.series.iter().map(|s| s.label.clone()).collect();
+        let values = data.series.iter().map(|s| s.values[0]).collect();
+        data.series = vec![LineSeries {
+            label: String::new(),
+            values,
+            reveal: VizReveal::Static,
+        }];
     }
+    data
 }
 
 fn parse_line_chart(content: &str) -> LineChartData {
@@ -71,11 +93,12 @@ fn line_layout(
     height: f32,
     scale: f32,
     titles: (bool, bool),
+    legend: bool,
 ) -> LineLayout {
     let (has_x_title, has_y_title) = titles;
     let padding = 60.0 * scale;
     let label_area = 50.0 * scale; // space for x-axis labels below
-    let legend_width = 200.0 * scale;
+    let legend_width = if legend { 200.0 * scale } else { 0.0 };
     let y_axis_label_width = 60.0 * scale;
     let y_label_space = if has_y_title { 25.0 * scale } else { 0.0 };
     let x_label_space = if has_x_title { 30.0 * scale } else { 0.0 };
@@ -178,7 +201,9 @@ pub fn draw_line_chart(
     }
 
     let titles = (data.x_label.is_some(), data.y_label.is_some());
-    let layout = line_layout(pos, max_width, height, scale, titles);
+    // one unnamed series needs no legend
+    let legend = series.iter().any(|s| !s.label.is_empty());
+    let layout = line_layout(pos, max_width, height, scale, titles, legend);
     let frame = layout.frame;
 
     // Grid lines with nice numbers, then the axes
@@ -220,7 +245,9 @@ pub fn draw_line_chart(
         },
     );
 
-    draw_legend(cx, series, &steps, &palette, layout.legend_left, frame.top);
+    if legend {
+        draw_legend(cx, series, &steps, &palette, layout.legend_left, frame.top);
+    }
 
     height
 }
@@ -366,6 +393,25 @@ mod tests {
         assert_eq!(data.series[1].reveal, VizReveal::NextStep);
     }
 
+    /// `- Jan: 3` items drew a dot per month at the left edge.
+    #[test]
+    fn single_values_are_one_line_over_their_labels() {
+        let data = parse_line_chart("- Jan: 3\n- Feb: 5\n- Mar: 4\n- Apr: 8");
+        assert_eq!(data.x_labels, vec!["Jan", "Feb", "Mar", "Apr"]);
+        assert_eq!(data.series.len(), 1);
+        assert_eq!(data.series[0].values, vec![3.0, 5.0, 4.0, 8.0]);
+        assert!(data.series[0].label.is_empty());
+        // revealed items, x-labels, or a lone item keep their series
+        assert_eq!(parse_line_chart("- Jan: 3\n+ Feb: 5").series.len(), 2);
+        assert_eq!(
+            parse_line_chart("x-labels: A\n- Jan: 3\n- Feb: 5")
+                .series
+                .len(),
+            2
+        );
+        assert_eq!(parse_line_chart("- Sales: 10").series.len(), 1);
+    }
+
     #[test]
     fn test_parse_line_chart_no_labels() {
         let content = "- Sales: 10, 20, 30";
@@ -410,12 +456,12 @@ mod tests {
     #[test]
     fn test_line_layout_reserves_title_space() {
         let pos = Pos2::new(0.0, 0.0);
-        let plain = line_layout(pos, 1600.0, 800.0, 1.0, (false, false));
+        let plain = line_layout(pos, 1600.0, 800.0, 1.0, (false, false), true);
         assert_eq!(plain.frame.left, 120.0);
         assert_eq!(plain.frame.width, 1600.0 - 120.0 - 60.0 - 200.0);
         assert_eq!(plain.frame.height, 800.0 - 120.0 - 50.0);
         assert_eq!(plain.legend_left, 1400.0);
-        let titled = line_layout(pos, 1600.0, 800.0, 1.0, (true, true));
+        let titled = line_layout(pos, 1600.0, 800.0, 1.0, (true, true), true);
         assert_eq!(titled.frame.left, plain.frame.left + 25.0);
         assert_eq!(titled.frame.height, plain.frame.height - 30.0);
     }
