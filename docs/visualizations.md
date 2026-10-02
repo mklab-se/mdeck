@@ -35,22 +35,39 @@ Fenced code blocks with an `@` tag become charts:
 
 Values may carry units and separators (`$4,200`, `12%`, `40 users`). Charts
 pick round axis limits, size their labels to fit, and share one colour palette
-per theme. Options such as `# x-label:`, `# orientation: horizontal`, or
-`# axes:` go on comment lines inside the block; the
-[format spec](../crates/mdeck/doc/mdeck-spec.md) lists them all.
+per theme.
+
+## One grammar inside every block
+
+Every visual reads its block the same way:
+
+- **Settings** are `key: value` lines before the first item, such as
+  `x-label: Year`, `orientation: horizontal` or `axes: Speed, Power`.
+- **Items** are list lines (`- ` shows at once, `+ ` on the next step) with
+  optional `(key: value, ...)` attributes at the end: `- AI (size: 50)`.
+  A visual's verbs are the first word of an item: `- petal Payments`,
+  `+ lens 76% 43% 16%`, `- commit main`.
+- **Relations** are items of the form `- A -> B: label`.
+- **`#` starts a comment**, on a line of its own or after a space at the end
+  of a line.
+
+`mdeck --check` reports every line a visual cannot read (category `visual`):
+stray lines, unknown settings and attributes, and values that do not parse.
+The [format spec](../crates/mdeck/doc/mdeck-spec.md) lists each visual's
+settings and items.
 
 ## Architecture diagrams
 
-```markdown
-​```@architecture
+````markdown
+```@architecture
 - Browser   (icon: browser,  pos: 1,1)
 - API       (icon: api,      pos: 2,1)
 - Database  (icon: database, pos: 2,2)
 
 - Browser -> API: requests
 - API -> Database: queries
-​```
 ```
+````
 
 Grid or automatic placement, 20+ built-in icons, five arrow types
 (`->`, `<-`, `<->`, `--`, `-->`), colour-coded labels, and A* routed edges
@@ -68,7 +85,7 @@ visible: cabinet-visible.jpg     # the same scene as a photo
 label: Cabinet 4, breaker row B
 + lens 76% 43% 16%               # a lens finds the problem in the photo
 + reveal                         # the thermal image fills the frame
-* spot Hotspot 76% 43%
++ spot Hotspot 76% 43%
 + above 85%                      # colour only the hottest part
 ```
 ````

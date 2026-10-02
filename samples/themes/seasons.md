@@ -30,7 +30,7 @@ Press **Shift+T** to walk from spring to winter
 ## The year in numbers
 
 ```@line
-# x-labels: Spring, Summer, Autumn, Winter
+x-labels: Spring, Summer, Autumn, Winter
 - Daylight: 13, 17, 11, 7
 - Warmth: 10, 22, 12, 2
 ```

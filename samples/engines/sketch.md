@@ -32,7 +32,7 @@ A sketchbook deck, drawn as it opens
 # The numbers stay typeset
 
 ```@bar
-title: Machines built
+y-label: Machines built
 - 2024: 12
 - 2025: 31
 - 2026: 57

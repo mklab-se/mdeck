@@ -5,7 +5,7 @@ use crate::theme::Theme;
 use super::{
     VIZ_FONT_PRIMARY_LABEL, VIZ_FONT_SECONDARY_LABEL, VIZ_OPACITY_AXIS, VIZ_OPACITY_LABEL,
     VIZ_STROKE_CONNECTOR, VIZ_STROKE_SEPARATOR, VIZ_TIMELINE_DOT, VizReveal, assign_steps,
-    parse_reveal_prefix,
+    grammar::{Problem, Source},
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -17,39 +17,34 @@ struct TimelineEntry {
     reveal: VizReveal,
 }
 
-fn parse_timeline(content: &str) -> Vec<TimelineEntry> {
-    let mut entries = Vec::new();
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
-        }
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-
-        // Parse "Date: Description"
-        if let Some(colon_pos) = text.find(": ") {
-            let date = text[..colon_pos].trim().to_string();
-            let description = text[colon_pos + 2..].trim().to_string();
-            entries.push(TimelineEntry {
-                date,
-                description,
-                reveal,
-            });
-        } else {
-            // No colon: treat whole line as description
-            entries.push(TimelineEntry {
-                date: String::new(),
-                description: text.to_string(),
-                reveal,
-            });
-        }
-    }
-    entries
+/// `- Date: Description`, or `- Description` without a date.
+fn read(src: &Source) -> Vec<TimelineEntry> {
+    src.check_settings(&[]);
+    src.items
+        .iter()
+        .filter(|item| !item.text.is_empty())
+        .map(|item| {
+            item.check_attrs(src, &[]);
+            let (date, description) = item.label_value().unwrap_or(("", item.text));
+            TimelineEntry {
+                date: date.to_string(),
+                description: description.to_string(),
+                reveal: item.reveal,
+            }
+        })
+        .collect()
 }
 
+fn parse_timeline(content: &str) -> Vec<TimelineEntry> {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@timeline` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
+}
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
 /// An event's date and description centred on `anchor.x`: stacked up

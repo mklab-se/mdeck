@@ -7,3 +7,4 @@ mod parse;
 
 pub use cache::clear_cache;
 pub use draw::draw_word_cloud;
+pub use parse::check;

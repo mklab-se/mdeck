@@ -4,8 +4,9 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_CORNER_NODE, VIZ_FONT_MIN, VIZ_FONT_SECONDARY_LABEL, VIZ_FONT_TITLE,
-    VIZ_LABEL_REVEAL_THRESHOLD, VizReveal, assign_steps, fit_text, format_value, label_fade,
-    parse_label_value, parse_reveal_prefix,
+    VIZ_LABEL_REVEAL_THRESHOLD, VizReveal, assign_steps, fit_text, format_value,
+    grammar::{Problem, Source, label_value_items},
+    label_fade,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -17,28 +18,27 @@ struct FunnelEntry {
     reveal: VizReveal,
 }
 
-fn parse_funnel_chart(content: &str) -> Vec<FunnelEntry> {
-    let mut entries = Vec::new();
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
-        }
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
+fn read(src: &Source) -> Vec<FunnelEntry> {
+    src.check_settings(&[]);
+    label_value_items(src, "- Label: 40")
+        .into_iter()
+        .map(|e| FunnelEntry {
+            label: e.label,
+            value: e.value.max(0.0),
+            reveal: e.reveal,
+        })
+        .collect()
+}
 
-        // Parse "Label: 10000"; a negative stage count is meaningless → 0
-        if let Some((label, value)) = parse_label_value(text) {
-            entries.push(FunnelEntry {
-                label,
-                value: value.max(0.0),
-                reveal,
-            });
-        }
-    }
-    entries
+fn parse_funnel_chart(content: &str) -> Vec<FunnelEntry> {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@funnel` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
 }
 
 // ─── Renderer ───────────────────────────────────────────────────────────────

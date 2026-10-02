@@ -19,8 +19,6 @@ pub enum CheckCategory {
     Settings,
     /// Markdown that will not show as written.
     Content,
-    /// mdeck fences: unknown or renamed visual tags.
-    Visual,
     /// Content the deck's engine does not show, and `engine` problems.
     Engine,
     /// Generated assets (artworks, images, icons, point clouds): missing,
@@ -31,6 +29,10 @@ pub enum CheckCategory {
     /// `@thermal` blocks: unreadable sources, colour input, unsupported
     /// settings, comparisons that cannot share a scale.
     Thermal,
+    /// Visual fences: unknown or renamed tags, lines that are neither a
+    /// setting nor an item, unknown settings and attributes, values that do
+    /// not parse.
+    Visual,
 }
 
 impl fmt::Display for CheckCategory {
@@ -43,11 +45,11 @@ impl fmt::Display for CheckCategory {
             CheckCategory::Theme => write!(f, "theme"),
             CheckCategory::Settings => write!(f, "settings"),
             CheckCategory::Content => write!(f, "content"),
-            CheckCategory::Visual => write!(f, "visual"),
             CheckCategory::Engine => write!(f, "engine"),
             CheckCategory::Assets => write!(f, "assets"),
             CheckCategory::Background => write!(f, "background"),
             CheckCategory::Thermal => write!(f, "thermal"),
+            CheckCategory::Visual => write!(f, "visual"),
         }
     }
 }

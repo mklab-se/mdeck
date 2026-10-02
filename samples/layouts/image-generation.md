@@ -59,8 +59,8 @@ generate("slides.md", style="cinematic")
 - App: Application (icon: generate:, prompt: "A running application gear icon", pos: 2, 3)
 - DB: Database (icon: database, pos: 3, 2)
 
-Gateway -> Auth: validate
-Gateway -> App: forward
-Auth -> App: token
-App -> DB: query
+- Gateway -> Auth: validate
+- Gateway -> App: forward
+- Auth -> App: token
+- App -> DB: query
 ```

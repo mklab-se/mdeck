@@ -106,8 +106,8 @@ fn main() {
 ## Bar Chart
 
 ```@bar
-# x-label: Language
-# y-label: Popularity
+x-label: Language
+y-label: Popularity
 - JavaScript: 65
 - Python: 48
 - TypeScript: 38
@@ -120,8 +120,8 @@ fn main() {
 ## Horizontal Bar Chart
 
 ```@bar
-# orientation: horizontal
-# x-label: Score
+orientation: horizontal
+x-label: Score
 - Ease of Use: 92
 - Visual Quality: 88
 - Speed: 95
@@ -134,8 +134,8 @@ fn main() {
 ## Line Chart
 
 ```@line
-# x-labels: Jan, Feb, Mar, Apr, May, Jun
-# y-label: Revenue ($K)
+x-labels: Jan, Feb, Mar, Apr, May, Jun
+y-label: Revenue ($K)
 - Product A: 120, 145, 162, 190, 215, 248
 - Product B: 80, 92, 105, 118, 130, 155
 - Product C: 40, 55, 62, 78, 95, 110
@@ -157,7 +157,7 @@ fn main() {
 ## Donut Chart
 
 ```@donut
-# center: 78%
+center: 78%
 - Complete: 78
 - In Progress: 15
 - Not Started: 7
@@ -168,8 +168,8 @@ fn main() {
 ## Stacked Bar Chart
 
 ```@stackedbar
-# categories: Q1, Q2, Q3, Q4
-# y-label: Revenue ($M)
+categories: Q1, Q2, Q3, Q4
+y-label: Revenue ($M)
 - Enterprise: 40, 45, 50, 55
 - SMB: 30, 35, 40, 45
 - Consumer: 20, 25, 30, 35
@@ -180,8 +180,8 @@ fn main() {
 ## Scatter Plot
 
 ```@scatter
-# x-label: Development Time (weeks)
-# y-label: User Satisfaction
+x-label: Development Time (weeks)
+y-label: User Satisfaction
 - Dashboard: 8, 92
 - Auth Flow: 3, 78
 - Search: 12, 95
@@ -195,7 +195,7 @@ fn main() {
 ## Radar Chart
 
 ```@radar
-# axes: Speed, Reliability, Scalability, Security, Usability
+axes: Speed, Reliability, Scalability, Security, Usability
 - Current System: 6, 8, 5, 7, 9
 - Target State: 9, 9, 9, 9, 8
 ```
@@ -308,7 +308,7 @@ fn main() {
 ## Gantt Chart
 
 ```@gantt
-# title: Product Launch
+title: Product Launch
 - Research: 2024-06-01, 10d
 - Design: 8d, after Research
 - Frontend: 15d, after Design
@@ -408,8 +408,8 @@ $$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
 ## Artifact Flow
 
 ```@artifactflow
-# producers: Producing Teams | Build and publish artifacts
-# consumers: Consuming Teams | Retrieve and use artifacts
+producers: Producing Teams | Build and publish artifacts
+consumers: Consuming Teams | Retrieve and use artifacts
 - producer Build Team: Produces binaries and container images
 - producer Platform Team: Produces libraries and platform packages
 - service Artifactory: Artifact repository / registry

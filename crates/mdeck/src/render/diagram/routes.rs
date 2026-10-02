@@ -410,7 +410,7 @@ mod tests {
 
     #[test]
     fn cache_key_follows_weights() {
-        let (nodes, edges, _) = parse_diagram("A (pos: 1,1)\nB (pos: 2,1)\nA -> B");
+        let (nodes, edges, _) = parse_diagram("- A (pos: 1,1)\n- B (pos: 2,1)\n- A -> B");
         let (layouts, grid) = layout_nodes(&nodes, 800.0, 400.0, 0.0, 0.0, 1.0);
         let rects = node_rects(&nodes, &layouts, Pos2::ZERO);
         let input = |weights| RoutingInput::new(&nodes, &edges, &grid, &rects, 20.0, weights);

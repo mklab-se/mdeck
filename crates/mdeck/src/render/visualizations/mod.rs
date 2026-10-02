@@ -15,6 +15,8 @@ mod reveal;
 mod ring;
 mod values;
 
+pub mod grammar;
+
 pub mod artifact_flow;
 pub mod bar_chart;
 pub mod donut_chart;
@@ -129,6 +131,54 @@ pub fn draw(
         // drawn by `render::thermal`, which needs the deck's images
         Chart::Thermal => 0.0,
     }
+}
+
+pub use grammar::Problem;
+
+/// The problems in a `kind` block's source, each on its 0-based line within
+/// the block (VIZ-04): lines that are neither a setting nor an item, unknown
+/// settings and attributes, values that do not parse.
+pub fn check(kind: Chart, content: &str) -> Vec<Problem> {
+    match kind {
+        Chart::WordCloud => word_cloud::check(content),
+        Chart::Timeline => timeline::check(content),
+        Chart::Pie => pie_chart::check(content),
+        Chart::Bar => bar_chart::check(content),
+        Chart::Line => line_chart::check(content),
+        Chart::Donut => donut_chart::check(content),
+        Chart::KpiCards => kpi_cards::check(content),
+        Chart::Funnel => funnel_chart::check(content),
+        Chart::Radar => radar_chart::check(content),
+        Chart::StackedBar => stacked_bar::check(content),
+        Chart::VennDiagram => venn_diagram::check(content),
+        Chart::ProgressBars => progress_bars::check(content),
+        Chart::ScatterPlot => scatter_plot::check(content),
+        Chart::Org => org_chart::check(content),
+        Chart::Gantt => gantt_chart::check(content),
+        Chart::GitGraph => git_graph::check(content),
+        Chart::Flower => flower::check(content),
+        Chart::ArtifactFlow => artifact_flow::check(content),
+        Chart::Thermal => crate::render::thermal::Spec::parse(content).problems,
+    }
+}
+
+/// What a visual fence's tag names: a [`Chart`], or the architecture
+/// diagram (`None` inside `Some`), by exact v2 tag ([`Chart::TAGS`]). `None`
+/// for a tag that is not a visual.
+pub fn kind_for_tag(tag: &str) -> Option<Option<Chart>> {
+    if tag == "@architecture" {
+        return Some(None);
+    }
+    Chart::from_info(tag).map(Some)
+}
+
+/// The problems in a block under fence `tag` (see [`kind_for_tag`]); `None`
+/// when the tag is not a visual.
+pub fn check_tag(tag: &str, content: &str) -> Option<Vec<Problem>> {
+    Some(match kind_for_tag(tag)? {
+        Some(kind) => check(kind, content),
+        None => crate::render::diagram::check(content),
+    })
 }
 
 // ─── Standardized visualization design tokens ──────────────────────────────
@@ -301,12 +351,86 @@ mod tests {
                 "- service Only a service\n  - item",
                 "- producer A\n- consumer B",
                 "- producer A\n- service S\n- consumer B\n+ A -> S: x (icon: package)\n* S -> B\n- B -> A: back\n- A -> A: self",
-                "# producers: none\n# consumers: none\n- producer A\n- consumer B\n- A -> B: a label long enough to wrap over several lines in the gap",
+                "producers: none\nconsumers: none\n- producer A\n- consumer B\n- A -> B: a label long enough to wrap over several lines in the gap",
                 &many,
             ],
         );
         assert_eq!(heights[..2], [0.0, 0.0], "an empty flow takes no room");
         assert!(heights[2..].iter().all(|&h| h > 0.0));
+    }
+
+    /// Every visual fence in `doc` (also those nested in a ````markdown
+    /// example): its tag, its 1-based line and its content.
+    fn visual_examples(doc: &str) -> Vec<(String, usize, String)> {
+        let mut out = Vec::new();
+        let mut open: Option<(String, usize, String)> = None;
+        for (i, line) in doc.lines().enumerate() {
+            let t = line.trim();
+            if let Some((_, _, content)) = open.as_mut() {
+                if t == "```" {
+                    out.extend(open.take());
+                } else {
+                    content.push_str(line);
+                    content.push('\n');
+                }
+            } else if let Some(info) = t.strip_prefix("```")
+                && !info.starts_with('`')
+            {
+                let tag = info.split_whitespace().next().unwrap_or("");
+                if kind_for_tag(tag).is_some() {
+                    open = Some((tag.to_string(), i + 1, String::new()));
+                }
+            }
+        }
+        out
+    }
+
+    /// VIZ-08: the format reference documents exactly what the code accepts.
+    #[test]
+    fn every_visual_example_in_the_docs_reads_without_problems() {
+        for (name, doc) in [
+            ("mdeck-spec.md", include_str!("../../../doc/mdeck-spec.md")),
+            (
+                "visualizations.md",
+                include_str!("../../../../../docs/visualizations.md"),
+            ),
+        ] {
+            let examples = visual_examples(doc);
+            assert!(examples.len() >= 2, "{name}: found {}", examples.len());
+            for (tag, line, content) in examples {
+                let problems = check_tag(&tag, &content).unwrap();
+                assert!(
+                    problems.is_empty(),
+                    "{name} line {line} ({tag}): {problems:?}"
+                );
+            }
+        }
+        // every kind has an example in the spec
+        let spec = visual_examples(include_str!("../../../doc/mdeck-spec.md"));
+        for tag in [
+            "@bar",
+            "@line",
+            "@pie",
+            "@donut",
+            "@scatter",
+            "@stackedbar",
+            "@funnel",
+            "@radar",
+            "@progress",
+            "@kpi",
+            "@wordcloud",
+            "@timeline",
+            "@gantt",
+            "@architecture",
+            "@orgchart",
+            "@gitgraph",
+            "@flower",
+            "@artifactflow",
+            "@venn",
+            "@thermal",
+        ] {
+            assert!(spec.iter().any(|(t, _, _)| t == tag), "no {tag} example");
+        }
     }
 
     #[test]

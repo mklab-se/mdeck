@@ -142,14 +142,6 @@ pub(super) enum Face {
     Top,
 }
 
-/// Parsed metadata from parenthetical notation like `(icon: database, pos: 1,2, prompt: "...")`.
-pub(super) struct NodeMetadata<'a> {
-    pub(super) before: &'a str,
-    pub(super) icon: String,
-    pub(super) grid_pos: Option<(u32, u32)>,
-    pub(super) prompt: Option<String>,
-}
-
 pub(super) struct NodeLayout {
     pub(super) center_x: f32,
     pub(super) center_y: f32,

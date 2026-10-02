@@ -122,8 +122,8 @@ MDeck renders charts directly from your markdown. Here's project status at a gla
 # Visualizations: Charts
 
 ```@bar
-# orientation: horizontal
-# x-label: Stars
+orientation: horizontal
+x-label: Stars
 - Ease of Use: 92
 - Visual Quality: 88
 - Speed: 95

@@ -14,7 +14,7 @@ What the platform team shipped, measured, and learned in twelve months.
 ## Where the time went
 
 ```@bar
-# y-label: Weeks
+y-label: Weeks
 - Platform: 18
 - Features: 14
 - Incidents: 6
@@ -27,7 +27,7 @@ What the platform team shipped, measured, and learned in twelve months.
 ## Deploys per week
 
 ```@line
-# x-label: Quarter
+x-label: Quarter
 - Deploys: 12, 19, 27, 41
 - Rollbacks: 3, 2, 2, 1
 ```
@@ -80,11 +80,11 @@ What the platform team shipped, measured, and learned in twelve months.
 ## Delivery plan
 
 ```@gantt
-- Discovery: 2026-10-01, 2 weeks
-- Design: 2026-10-15, 3 weeks, after Discovery
-- Build: 2026-11-05, 6 weeks, after Design
-- Pilot: 2026-12-17, 3 weeks, after Build
-- Rollout: 2027-01-07, 4 weeks, after Pilot
+- Discovery: 2026-10-01, 2w
+- Design: 2026-10-15, 3w, after Discovery
+- Build: 2026-11-05, 6w, after Design
+- Pilot: 2026-12-17, 3w, after Build
+- Rollout: 2027-01-07, 4w, after Pilot
 ```
 
 ---

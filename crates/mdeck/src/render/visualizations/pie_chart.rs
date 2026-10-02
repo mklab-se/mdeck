@@ -4,7 +4,8 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_OPACITY_BORDER_RING, VIZ_STROKE_BORDER, VizReveal, assign_steps, draw_side_legend,
-    parse_label_value, parse_reveal_prefix, ring_layout, share_legend_items,
+    grammar::{Problem, Source, label_value_items},
+    ring_layout, share_legend_items,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -16,28 +17,27 @@ struct PieEntry {
     reveal: VizReveal,
 }
 
-fn parse_pie_chart(content: &str) -> Vec<PieEntry> {
-    let mut entries = Vec::new();
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
-        }
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
+fn read(src: &Source) -> Vec<PieEntry> {
+    src.check_settings(&[]);
+    label_value_items(src, "- Label: 40")
+        .into_iter()
+        .map(|e| PieEntry {
+            label: e.label,
+            value: e.value.max(0.0),
+            reveal: e.reveal,
+        })
+        .collect()
+}
 
-        // Parse "Label: 40%" or "Label: 40"; a negative share is meaningless → 0
-        if let Some((label, value)) = parse_label_value(text) {
-            entries.push(PieEntry {
-                label,
-                value: value.max(0.0),
-                reveal,
-            });
-        }
-    }
-    entries
+fn parse_pie_chart(content: &str) -> Vec<PieEntry> {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@pie` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
 }
 
 // ─── Renderer ───────────────────────────────────────────────────────────────

@@ -14,8 +14,8 @@ All visualizations (charts, diagrams, etc.) must follow these principles:
 
 ## Code structure
 
-- **A new chart:** add a variant to `parser::Chart`, its fence tag to `Chart::TAGS` and to `language::FENCES`, an arm to `visualizations::draw`, and a module whose `draw_*` takes `(cx: &VizCtx, content, pos, max_width, max_height) -> f32`. Keep parsing and geometry pure (a `layout` step with unit tests) and paint separately.
-- **Shared pieces first:** `PlotFrame` (axes, grid, value labels), `header_directive` (`# key: value` lines), the legend helpers, `reveal_anim_progress` / `assign_steps`, and the `VIZ_FONT_*` tokens.
+- **A new chart:** add a variant to `parser::Chart`, its fence tag to `Chart::TAGS` and to `language::FENCES`, arms to `visualizations::draw` and `visualizations::check`, and a module whose `draw_*` takes `(cx: &VizCtx, content, pos, max_width, max_height) -> f32`. Keep parsing and geometry pure (a `layout` step with unit tests) and paint separately.
+- **Shared pieces first:** `grammar` (`Source::parse` for settings, items, attributes and relations; `label_value_items` and friends; report problems with `src.problem`, and give the module a `check`), `PlotFrame` (axes, grid, value labels), the legend helpers, `reveal_anim_progress` / `assign_steps`, and the `VIZ_FONT_*` tokens.
 - **No long argument lists:** pass `VizCtx`, `BlockCx` or `TextCx` plus small structs rather than adding `#[allow(clippy::too_many_arguments)]`.
 
 ## Keeping docs in sync

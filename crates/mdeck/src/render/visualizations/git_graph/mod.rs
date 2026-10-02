@@ -3,6 +3,7 @@
 
 mod layout;
 mod parse;
+pub use parse::check;
 
 use eframe::egui::{self, Color32, FontId, Pos2, Stroke};
 use eframe::epaint::CubicBezierShape;

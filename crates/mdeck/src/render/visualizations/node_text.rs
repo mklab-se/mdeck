@@ -1,6 +1,8 @@
 //! The text of a node in a node-and-link visualization (`@flower`,
 //! `@artifactflow`): `Name: what it does (icon: team)`.
 
+use super::grammar::Item;
+
 /// A node's name, its optional description, and its optional icon.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct NodeText {
@@ -11,9 +13,8 @@ pub struct NodeText {
 }
 
 impl NodeText {
-    /// Parse `Name: detail (icon: x)`; the detail and the icon are optional.
-    pub fn parse(text: &str) -> Self {
-        let (text, icon) = take_icon(text.trim());
+    /// `text` (`Name: detail`) with the `icon` attribute of `item`.
+    pub fn from_item(text: &str, item: &Item) -> Self {
         let (name, detail) = match text.split_once(':') {
             Some((n, d)) => (n.trim(), Some(d.trim()).filter(|d| !d.is_empty())),
             None => (text.trim(), None),
@@ -21,7 +22,10 @@ impl NodeText {
         NodeText {
             name: name.to_string(),
             detail: detail.map(str::to_string),
-            icon,
+            icon: item
+                .attr("icon")
+                .map(str::to_ascii_lowercase)
+                .filter(|i| !i.is_empty()),
         }
     }
 
@@ -35,43 +39,20 @@ impl NodeText {
     }
 }
 
-/// Split a trailing `(icon: name)` off `text`.
-pub fn take_icon(text: &str) -> (&str, Option<String>) {
-    let t = text.trim_end();
-    if let Some(open) = t.rfind("(icon:")
-        && t.ends_with(')')
-    {
-        let name = t[open + 6..t.len() - 1].trim().to_ascii_lowercase();
-        if !name.is_empty() {
-            return (t[..open].trim_end(), Some(name));
-        }
-    }
-    (t, None)
-}
-
-/// Split `A -> B: label` into its ends and optional label; `None` when the
-/// line is not a link.
-pub fn parse_link(text: &str) -> Option<(String, String, Option<String>)> {
-    let (from, rest) = text.split_once("->")?;
-    let (to, label) = match rest.split_once(':') {
-        Some((t, l)) => (t, Some(l.trim()).filter(|l| !l.is_empty())),
-        None => (rest, None),
-    };
-    let (from, to) = (from.trim(), to.trim());
-    if from.is_empty() || to.is_empty() {
-        return None;
-    }
-    Some((from.to_string(), to.to_string(), label.map(str::to_string)))
-}
-
 #[cfg(test)]
 mod tests {
+    use super::super::grammar::Source;
     use super::*;
+
+    fn node(line: &str) -> NodeText {
+        let src = Source::parse(line);
+        NodeText::from_item(src.items[0].text, &src.items[0])
+    }
 
     #[test]
     fn parses_name_detail_and_icon() {
         assert_eq!(
-            NodeText::parse("Team 1: Builds features (icon: Team)"),
+            node("- Team 1: Builds features (icon: Team)"),
             NodeText {
                 name: "Team 1".into(),
                 detail: Some("Builds features".into()),
@@ -79,31 +60,16 @@ mod tests {
             }
         );
         assert_eq!(
-            NodeText::parse("Platform"),
+            node("- Platform"),
             NodeText {
                 name: "Platform".into(),
                 ..Default::default()
             }
         );
-        let n = NodeText::parse("Data (icon: none)");
+        let n = node("- Data (icon: none)");
         assert_eq!(n.name, "Data");
         assert_eq!(n.icon_or(Some("team")), None);
-        assert_eq!(NodeText::parse("Ops:").detail, None);
-        assert_eq!(NodeText::parse("Ops").icon_or(Some("team")), Some("team"));
-    }
-
-    #[test]
-    fn links_split_on_the_arrow_and_the_first_colon() {
-        assert_eq!(
-            parse_link("Build Team -> Artifactory: Image: v1.2 (icon: package)"),
-            Some((
-                "Build Team".into(),
-                "Artifactory".into(),
-                Some("Image: v1.2 (icon: package)".into())
-            ))
-        );
-        assert_eq!(parse_link("A -> B"), Some(("A".into(), "B".into(), None)));
-        assert_eq!(parse_link("A -> "), None);
-        assert_eq!(parse_link("no link here"), None);
+        assert_eq!(node("- Ops:").detail, None);
+        assert_eq!(node("- Ops").icon_or(Some("team")), Some("team"));
     }
 }

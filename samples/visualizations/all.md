@@ -142,7 +142,7 @@ A showcase of every visualization type in MDeck
 ## Bar Chart (Horizontal)
 
 ```@bar
-# orientation: horizontal
+orientation: horizontal
 - Revenue: 420
 - Expenses: 310
 - Profit: 110
@@ -154,7 +154,7 @@ A showcase of every visualization type in MDeck
 ## Line Chart
 
 ```@line
-# x-labels: Q1, Q2, Q3, Q4
+x-labels: Q1, Q2, Q3, Q4
 - Revenue: 100, 150, 200, 280
 - Costs: 80, 90, 120, 150
 - Profit: 20, 60, 80, 130
@@ -165,7 +165,7 @@ A showcase of every visualization type in MDeck
 ## Donut Chart
 
 ```@donut
-# center: 78%
+center: 78%
 - Complete: 78
 - In Progress: 15
 - Not Started: 7
@@ -197,7 +197,7 @@ A showcase of every visualization type in MDeck
 ## Radar Chart
 
 ```@radar
-# axes: Speed, Power, Range, Armor, Stealth
+axes: Speed, Power, Range, Armor, Stealth
 - Fighter: 9, 7, 5, 3, 6
 - Bomber: 4, 9, 8, 7, 3
 ```
@@ -207,7 +207,7 @@ A showcase of every visualization type in MDeck
 ## Stacked Bar Chart
 
 ```@stackedbar
-# categories: Q1, Q2, Q3, Q4
+categories: Q1, Q2, Q3, Q4
 - Product A: 40, 45, 50, 55
 - Product B: 30, 35, 40, 45
 - Product C: 20, 25, 30, 35
@@ -242,8 +242,8 @@ A showcase of every visualization type in MDeck
 ## Scatter Plot
 
 ```@scatter
-# x-label: Hours Studied
-# y-label: Test Score
+x-label: Hours Studied
+y-label: Test Score
 - Alice: 80, 90
 - Bob: 65, 75
 - Carol: 90, 85

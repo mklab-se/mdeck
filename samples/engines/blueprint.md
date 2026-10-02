@@ -32,7 +32,7 @@ A blueprint deck, drawn as it opens
 # Numbers stay typeset
 
 ```@bar
-title: Rivets per span
+y-label: Rivets per span
 - North: 1200
 - Centre: 1850
 - South: 1340

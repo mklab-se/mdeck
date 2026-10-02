@@ -6,8 +6,8 @@ theme: light
 # Artifact flow: a shared registry
 
 ```@artifactflow
-# producers: Producing Teams | Build and publish artifacts
-# consumers: Consuming Teams | Retrieve and use artifacts
+producers: Producing Teams | Build and publish artifacts
+consumers: Consuming Teams | Retrieve and use artifacts
 - producer Build Team: Produces application binaries and container images
 - producer Platform Team: Produces reusable libraries and platform packages
 - service Artifactory: Artifact repository / registry
@@ -62,9 +62,9 @@ theme: light
 # Artifact flow: progressive reveal
 
 ```@artifactflow
-# producers: Builders
-# services: Shared Infrastructure | Stores and serves artifacts
-# consumers: Users
+producers: Builders
+services: Shared Infrastructure | Stores and serves artifacts
+consumers: Users
 - producer CI Pipeline: Builds every commit (icon: function)
 - service Artifact Store: Versioned and signed (icon: database)
 + CI Pipeline -> Artifact Store: build v2.0 (icon: package)

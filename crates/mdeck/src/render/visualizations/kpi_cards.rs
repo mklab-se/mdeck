@@ -4,7 +4,8 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_CORNER_CARD, VIZ_FONT_MIN, VIZ_FONT_PRIMARY_LABEL, VIZ_FONT_SECONDARY_LABEL,
-    VIZ_OPACITY_SUBTLE_BG, VizCtx, VizReveal, assign_steps, fit_text, parse_reveal_prefix,
+    VIZ_OPACITY_SUBTLE_BG, VizCtx, VizReveal, assign_steps, fit_text,
+    grammar::{Problem, Source},
 };
 
 /// Headline values shrink to fit the card, but never below this multiple of the
@@ -21,51 +22,42 @@ struct KpiEntry {
     reveal: VizReveal,
 }
 
-fn parse_kpi_cards(content: &str) -> Vec<KpiEntry> {
+/// `- Label: Value (trend: +12%)`; the trend is optional and its sign
+/// picks the arrow.
+fn read(src: &Source) -> Vec<KpiEntry> {
+    src.check_settings(&[]);
     let mut entries = Vec::new();
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
-        }
-
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-
-        // Parse "Label: Value (trend: +12%)" or "Label: Value"
-        if let Some(colon_pos) = text.find(": ") {
-            let label = text[..colon_pos].trim().to_string();
-            let rest = text[colon_pos + 2..].trim();
-
-            // Check for trend in parentheses
-            let (value, trend) = if let Some(paren_start) = rest.find("(trend:") {
-                let value = rest[..paren_start].trim().to_string();
-                let trend_part = &rest[paren_start..];
-                let trend_text = trend_part
-                    .trim_start_matches("(trend:")
-                    .trim_end_matches(')')
-                    .trim()
-                    .to_string();
-                (value, Some(trend_text))
-            } else {
-                (rest.to_string(), None)
-            };
-
-            entries.push(KpiEntry {
-                label,
-                value,
-                trend,
-                reveal,
-            });
+    for item in &src.items {
+        item.check_attrs(src, &["trend"]);
+        match item.label_value() {
+            Some((label, value)) => entries.push(KpiEntry {
+                label: label.to_string(),
+                value: value.to_string(),
+                trend: item.attr("trend").map(str::to_string),
+                reveal: item.reveal,
+            }),
+            None => src.problem(
+                item.offset,
+                format!(
+                    "'{}' is not a label and a value, e.g. '- Revenue: $4.2M (trend: +12%)'",
+                    item.text
+                ),
+            ),
         }
     }
-
     entries
 }
 
+fn parse_kpi_cards(content: &str) -> Vec<KpiEntry> {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@kpi` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
+}
 // ─── Layout ─────────────────────────────────────────────────────────────────
 
 /// A centred row of equal cards.

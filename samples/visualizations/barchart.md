@@ -17,8 +17,8 @@ theme: dark
 # Bar Chart — Vertical with Axis Labels
 
 ```@bar
-# x-label: Programming Language
-# y-label: Popularity Index
+x-label: Programming Language
+y-label: Popularity Index
 - JavaScript: 65
 - Python: 48
 - TypeScript: 38
@@ -31,7 +31,7 @@ theme: dark
 # Bar Chart — Horizontal
 
 ```@bar
-# orientation: horizontal
+orientation: horizontal
 - Revenue: 420
 - Expenses: 310
 - Profit: 110
@@ -42,9 +42,9 @@ theme: dark
 # Bar Chart — Horizontal with Axis Labels
 
 ```@bar
-# orientation: horizontal
-# x-label: Amount ($M)
-# y-label: Category
+orientation: horizontal
+x-label: Amount ($M)
+y-label: Category
 - Revenue: 420
 - Expenses: 310
 - Profit: 110
@@ -56,7 +56,7 @@ theme: dark
 # Bar Chart — Progressive Reveal
 
 ```@bar
-# y-label: Performance Score
+y-label: Performance Score
 - Rust: 95
 + C++: 90
 + Go: 72
@@ -68,8 +68,8 @@ theme: dark
 # Bar Chart — Many Items
 
 ```@bar
-# x-label: Country
-# y-label: GDP ($T)
+x-label: Country
+y-label: GDP ($T)
 - USA: 25.5
 - China: 18.3
 - Japan: 4.2
@@ -86,7 +86,7 @@ theme: dark
 # Bar Chart — Long Labels and Decorated Values
 
 ```@bar
-# y-label: Revenue
+y-label: Revenue
 - Enterprise Software Licensing: $1,250,000
 - Professional Services and Consulting: $840,500
 - Cloud Infrastructure Subscriptions: $2,100,000
@@ -101,7 +101,7 @@ theme: dark
 # Bar Chart — Horizontal with Long Labels
 
 ```@bar
-# orientation: horizontal
+orientation: horizontal
 - Customer Acquisition Cost per Enterprise Segment: 48 units
 - Net Revenue Retention: 112%
 - Gross Margin: 71%

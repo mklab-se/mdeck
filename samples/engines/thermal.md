@@ -59,7 +59,7 @@ Each click colours a wider band, from the hottest metal outward.
 # Where the heat goes
 
 ```@bar
-# y-label: Temperature rise (K)
+y-label: Temperature rise (K)
 - Breaker B3: 55
 - Breaker B2: 12
 - Breaker B1: 9

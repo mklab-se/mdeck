@@ -1,6 +1,7 @@
 //! The gantt source format and resolving it into dated tasks.
 
-use super::super::{VizReveal, header_directive, parse_reveal_prefix};
+use super::super::VizReveal;
+use super::super::grammar::{Problem, Source};
 use super::date::{Date, Duration, apply_duration, parse_duration};
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -29,85 +30,97 @@ pub(super) struct GanttData {
     pub(super) labels: LabelMode,
 }
 
-pub(super) fn parse_gantt(content: &str) -> GanttData {
+fn read(src: &Source) -> GanttData {
+    src.check_settings(&["title", "labels"]);
+    let labels = match src.choice("labels", &["side", "inside"]) {
+        Some("inside") => LabelMode::Inside,
+        _ => LabelMode::Side,
+    };
     let mut tasks = Vec::new();
-    let mut title = None;
-    let mut labels = LabelMode::Side;
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
+    for item in &src.items {
+        item.check_attrs(src, &[]);
+        // "Task Name: spec1, spec2, ..."
+        let Some((name, specs_str)) = item.label_value() else {
+            src.problem(
+                item.offset,
+                format!(
+                    "'{}' is not a task, e.g. '- Design: 5d, after Research'",
+                    item.text
+                ),
+            );
             continue;
-        }
+        };
+        let mut start = None;
+        let mut end = None;
+        let mut duration = None;
+        let mut dependencies = Vec::new();
 
-        // Parse directives
-        if trimmed.starts_with('#') {
-            match header_directive(trimmed) {
-                Some(("title", rest)) => title = Some(rest.to_string()),
-                Some(("labels", rest)) if rest.eq_ignore_ascii_case("inside") => {
-                    labels = LabelMode::Inside;
-                }
-                _ => {}
+        for spec in split_specs(specs_str) {
+            let spec = spec.trim();
+            if spec.is_empty() {
+                continue;
             }
-            continue;
-        }
-
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-
-        // Parse "Task Name: spec1, spec2, ..."
-        if let Some(colon_pos) = text.find(": ") {
-            let name = text[..colon_pos].trim().to_string();
-            let specs_str = &text[colon_pos + 2..];
-
-            let mut start = None;
-            let mut end = None;
-            let mut duration = None;
-            let mut dependencies = Vec::new();
-
-            for spec in split_specs(specs_str) {
-                let spec = spec.trim();
-                if spec.is_empty() {
-                    continue;
+            // "after TaskName" or "after TaskName + 3d"
+            if let Some(rest) = spec.strip_prefix("after ") {
+                let (dep_name, delay) = parse_dependency(rest);
+                dependencies.push((dep_name, delay));
+            } else if let Some(d) = Date::parse(spec) {
+                if start.is_none() {
+                    start = Some(d);
+                } else {
+                    end = Some(d);
                 }
-
-                // "after TaskName" or "after TaskName + 3d"
-                if let Some(rest) = spec.strip_prefix("after ") {
-                    let (dep_name, delay) = parse_dependency(rest);
-                    dependencies.push((dep_name, delay));
-                }
-                // Try as date
-                else if let Some(d) = Date::parse(spec) {
-                    if start.is_none() {
-                        start = Some(d);
-                    } else {
-                        end = Some(d);
-                    }
-                }
-                // Try as duration
-                else if let Some(d) = parse_duration(spec) {
-                    duration = Some(d);
-                }
+            } else if let Some(d) = parse_duration(spec) {
+                duration = Some(d);
+            } else {
+                src.problem(
+                    item.offset,
+                    format!(
+                        "'{spec}' is not a date (2024-01-15), a duration (5d, 3wd, 2w, 1m) or 'after Task'"
+                    ),
+                );
             }
+        }
 
-            tasks.push(GanttTask {
-                name,
-                start,
-                end,
-                duration,
-                dependencies,
-                reveal,
-            });
+        tasks.push(GanttTask {
+            name: name.to_string(),
+            start,
+            end,
+            duration,
+            dependencies,
+            reveal: item.reveal,
+        });
+    }
+    for (task, item) in tasks
+        .iter()
+        .zip(src.items.iter().filter(|i| i.label_value().is_some()))
+    {
+        for (dep, _) in &task.dependencies {
+            if !tasks.iter().any(|t| t.name == *dep) {
+                src.problem(
+                    item.offset,
+                    format!("'after {dep}': there is no task '{dep}'"),
+                );
+            }
         }
     }
 
     GanttData {
         tasks,
-        title,
+        title: src.setting("title").map(str::to_string),
         labels,
     }
+}
+
+pub(super) fn parse_gantt(content: &str) -> GanttData {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@gantt` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
 }
 
 /// Split specs by comma, but respect "after Task + 3d" as a single spec.

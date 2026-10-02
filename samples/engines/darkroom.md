@@ -32,7 +32,7 @@ A darkroom deck, developed as it opens
 # The catch, by weight
 
 ```@bar
-title: Tonnes landed
+y-label: Tonnes landed
 - Cod: 42
 - Herring: 67
 - Mackerel: 23

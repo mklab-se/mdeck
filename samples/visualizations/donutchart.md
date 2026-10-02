@@ -6,7 +6,7 @@ theme: dark
 # Donut Chart — With Center Text
 
 ```@donut
-# center: $4.2M Total
+center: $4.2M Total
 - Engineering: 1800
 - Sales: 1200
 - Marketing: 700
@@ -29,7 +29,7 @@ theme: dark
 # Donut Chart — Progressive Reveal
 
 ```@donut
-# center: Q4 Revenue
+center: Q4 Revenue
 - North America: 42
 + Europe: 28
 + Asia Pacific: 18
@@ -43,7 +43,7 @@ theme: dark
 # Donut Chart — Long Center Text
 
 ```@donut
-# center: $4,250,000 Annual Recurring Revenue
+center: $4,250,000 Annual Recurring Revenue
 - Enterprise: 2,400,000
 - Mid-market: 1,150,000
 - Self-serve: 700,000

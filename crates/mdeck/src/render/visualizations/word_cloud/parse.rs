@@ -1,6 +1,10 @@
-//! Parsing: one word per line, `Word (size: N)`, with reveal markers.
+//! Parsing: one word per item, `- Word (size: N)`, with reveal markers.
 
-use crate::render::visualizations::{VizReveal, parse_reveal_prefix};
+use crate::render::visualizations::grammar::{Problem, Source};
+use crate::render::visualizations::{VizReveal, parse_value};
+
+/// The size of a word without `(size: N)`.
+const DEFAULT_SIZE: f32 = 20.0;
 
 #[derive(Debug, Clone)]
 pub(super) struct WordEntry {
@@ -9,50 +13,43 @@ pub(super) struct WordEntry {
     pub(super) reveal: VizReveal,
 }
 
-pub(super) fn parse_word_cloud(content: &str) -> Vec<WordEntry> {
+fn read(src: &Source) -> Vec<WordEntry> {
+    src.check_settings(&[]);
     let mut entries = Vec::new();
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
+    for item in &src.items {
+        item.check_attrs(src, &["size"]);
+        if item.text.is_empty() {
+            src.problem(item.offset, "an empty word");
             continue;
         }
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-
-        // Parse "Word (size: N)" or "Word"
-        let (label, size) = if let Some(paren_start) = text.find('(') {
-            let before = text[..paren_start].trim();
-            let meta = &text[paren_start..];
-            let size = parse_size_meta(meta).unwrap_or(20.0);
-            (before.to_string(), size)
-        } else {
-            (text.to_string(), 20.0)
+        let size = match item.attr("size") {
+            None => DEFAULT_SIZE,
+            Some(s) => match parse_value(s).filter(|v| *v > 0.0) {
+                Some(v) => v,
+                None => {
+                    src.problem(item.offset, format!("size: '{s}' is not a positive number"));
+                    DEFAULT_SIZE
+                }
+            },
         };
-
-        if !label.is_empty() {
-            entries.push(WordEntry {
-                text: label,
-                size,
-                reveal,
-            });
-        }
+        entries.push(WordEntry {
+            text: item.text.to_string(),
+            size,
+            reveal: item.reveal,
+        });
     }
     entries
 }
 
-fn parse_size_meta(meta: &str) -> Option<f32> {
-    let inner = meta.trim_start_matches('(').trim_end_matches(')');
-    for part in inner.split(',') {
-        let part = part.trim();
-        if let Some(val) = part.strip_prefix("size:")
-            && let Ok(s) = val.trim().parse::<f32>()
-        {
-            return Some(s);
-        }
-    }
-    None
+pub(super) fn parse_word_cloud(content: &str) -> Vec<WordEntry> {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@wordcloud` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
 }
 
 #[cfg(test)]
@@ -97,9 +94,13 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_size_meta() {
-        assert_eq!(parse_size_meta("(size: 40)"), Some(40.0));
-        assert_eq!(parse_size_meta("(size: 12.5)"), Some(12.5));
-        assert_eq!(parse_size_meta("(invalid)"), None);
+    fn bad_sizes_and_attributes_are_reported() {
+        let content = "- A (size: big)\n- B (weight: 3)\n- C# (size: 12.5)";
+        let entries = parse_word_cloud(content);
+        assert_eq!(entries[0].size, DEFAULT_SIZE);
+        assert_eq!(entries[2].text, "C#");
+        assert_eq!(entries[2].size, 12.5);
+        let lines: Vec<usize> = check(content).iter().map(|p| p.offset).collect();
+        assert_eq!(lines, [0, 1]);
     }
 }

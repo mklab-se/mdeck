@@ -52,7 +52,7 @@ theme: dark
 # Gantt Chart — Long Timeline
 
 ```@gantt
-# title: Product Roadmap 2024
+title: Product Roadmap 2024
 - Discovery: 2024-01-01, 2024-02-15
 - MVP Development: 2024-02-01, 2024-05-31
 - Beta Testing: 2024-05-01, 2024-07-15
@@ -83,7 +83,7 @@ theme: dark
 # Gantt Chart — Labels Inside
 
 ```@gantt
-# labels: inside
+labels: inside
 - Planning: 2024-03-01, 5d
 - Design: 8d, after Planning
 - Frontend: 15d, after Design
@@ -97,7 +97,7 @@ theme: dark
 # Gantt Chart — Labels Inside (Many Tasks)
 
 ```@gantt
-# labels: inside
+labels: inside
 - Kickoff: 2024-04-01, 2d
 - Requirements: 3d, after Kickoff
 - UI Design: 5d, after Requirements

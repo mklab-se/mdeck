@@ -80,7 +80,7 @@ fn scene_for(slide: &Slide) -> Scene {
 ## Where the time goes
 
 ```@bar
-# y-label: Hours
+y-label: Hours
 - Writing: 12
 - Design: 3
 - Rehearsal: 6

@@ -2,9 +2,9 @@ use eframe::egui::{Color32, Pos2, Stroke};
 
 use super::{
     AxisTitles, PlotFrame, VIZ_DOT_RADIUS, VIZ_FONT_GRID_LABEL, VIZ_FONT_LEGEND,
-    VIZ_STROKE_DATA_LINE, VIZ_SWATCH_SIZE, ValueRange, VizReveal, assign_steps, grid_values,
-    header_directive, label_stride, nice_axis_max, nice_grid_step, parse_label_values,
-    parse_reveal_prefix,
+    VIZ_STROKE_DATA_LINE, VIZ_SWATCH_SIZE, ValueRange, VizReveal, assign_steps,
+    grammar::{Problem, Source, label_values_items, name_list},
+    grid_values, label_stride, nice_axis_max, nice_grid_step,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -23,54 +23,35 @@ struct LineChartData {
     y_label: Option<String>,
 }
 
-fn parse_line_chart(content: &str) -> LineChartData {
-    let mut x_labels = Vec::new();
-    let mut series = Vec::new();
-    let mut x_label = None;
-    let mut y_label = None;
+const SETTINGS: &[&str] = &["x-labels", "x-label", "y-label"];
 
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        // Parse directives
-        if trimmed.starts_with('#') {
-            match header_directive(trimmed) {
-                Some(("x-labels", rest)) => {
-                    x_labels = rest.split(',').map(|s| s.trim().to_string()).collect();
-                }
-                Some(("x-label", val)) => x_label = Some(val.to_string()),
-                Some(("y-label", val)) => y_label = Some(val.to_string()),
-                _ => {}
-            }
-            continue;
-        }
-
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-
-        // Parse "Label: 100, 150, 200, 280"
-        if let Some((label, values)) = parse_label_values(text) {
-            series.push(LineSeries {
-                label,
-                values,
-                reveal,
-            });
-        }
-    }
-
+fn read(src: &Source) -> LineChartData {
+    src.check_settings(SETTINGS);
     LineChartData {
-        x_labels,
-        series,
-        x_label,
-        y_label,
+        x_labels: src.setting("x-labels").map(name_list).unwrap_or_default(),
+        series: label_values_items(src, "- Revenue: 10, 20, 30")
+            .into_iter()
+            .map(|s| LineSeries {
+                label: s.label,
+                values: s.values,
+                reveal: s.reveal,
+            })
+            .collect(),
+        x_label: src.setting("x-label").map(str::to_string),
+        y_label: src.setting("y-label").map(str::to_string),
     }
 }
 
+fn parse_line_chart(content: &str) -> LineChartData {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@line` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
+}
 // ─── Layout ─────────────────────────────────────────────────────────────────
 
 /// Where the line chart's parts go.
@@ -365,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_parse_line_chart_basic() {
-        let content = "# x-labels: Q1, Q2, Q3, Q4\n- Revenue: 100, 150, 200, 280";
+        let content = "x-labels: Q1, Q2, Q3, Q4\n- Revenue: 100, 150, 200, 280";
         let data = parse_line_chart(content);
         assert_eq!(data.x_labels, vec!["Q1", "Q2", "Q3", "Q4"]);
         assert_eq!(data.series.len(), 1);
@@ -375,7 +356,7 @@ mod tests {
 
     #[test]
     fn test_parse_line_chart_multiple_series() {
-        let content = "# x-labels: A, B, C\n- Revenue: 100, 150, 200\n+ Costs: 80, 90, 120";
+        let content = "x-labels: A, B, C\n- Revenue: 100, 150, 200\n+ Costs: 80, 90, 120";
         let data = parse_line_chart(content);
         assert_eq!(data.x_labels.len(), 3);
         assert_eq!(data.series.len(), 2);
@@ -397,15 +378,14 @@ mod tests {
     #[test]
     fn test_parse_line_chart_skips_invalid() {
         let content =
-            "# x-labels: A, B\n- Valid: 10, 20\n- no_colon_values\n# comment\n- Also: 30, 40";
+            "x-labels: A, B\n- Valid: 10, 20\n- no_colon_values\n# comment\n- Also: 30, 40";
         let data = parse_line_chart(content);
         assert_eq!(data.series.len(), 2);
     }
 
     #[test]
     fn test_parse_line_chart_axis_labels() {
-        let content =
-            "# x-label: Quarter\n# y-label: Revenue ($M)\n# x-labels: Q1, Q2\n- Sales: 10, 20";
+        let content = "x-label: Quarter\ny-label: Revenue ($M)\nx-labels: Q1, Q2\n- Sales: 10, 20";
         let data = parse_line_chart(content);
         assert_eq!(data.x_label, Some("Quarter".to_string()));
         assert_eq!(data.y_label, Some("Revenue ($M)".to_string()));

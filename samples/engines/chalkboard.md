@@ -32,7 +32,7 @@ Today's lesson, drawn on the board
 # Light by the numbers
 
 ```@bar
-title: Range in kilometres
+y-label: Range in kilometres
 - Candle: 2
 - Oil lamp: 8
 - Fresnel lens: 40

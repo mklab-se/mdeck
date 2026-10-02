@@ -1,8 +1,9 @@
 //! `@artifactflow` source: producers, services and consumers, the artifacts
 //! that move between them, and optional column titles.
 
-use super::super::node_text::{NodeText, parse_link, take_icon};
-use super::super::{assign_steps, header_directive, parse_reveal_prefix};
+use super::super::assign_steps;
+use super::super::grammar::{Arrow, Problem, Source};
+use super::super::node_text::NodeText;
 
 /// The three columns, left to right.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,50 +80,73 @@ impl Flow {
 enum Line {
     Node(Role, NodeText),
     Item(String),
-    Link(String, String, Option<String>),
+    Link(usize, String, String, Option<String>, Option<String>),
 }
 
-/// Parse an `@artifactflow` block. Without any `->` line, every producer
-/// publishes to every service and every service feeds every consumer. A link
-/// to an unknown name is left out; a line without a role keyword that is
-/// not a link is ignored.
+/// Parse an `@artifactflow` block. Without any `->` item, every producer
+/// publishes to every service and every service feeds every consumer.
 pub fn parse(content: &str) -> Flow {
+    read(&Source::parse(content))
+}
+
+/// The problems in an `@artifactflow` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
+}
+
+fn read(src: &Source) -> Flow {
+    src.check_settings(&["producers", "services", "consumers"]);
     let mut headings: [Option<Heading>; 3] =
         [Some(heading("Producers")), None, Some(heading("Consumers"))];
+    for s in &src.settings {
+        if let Some(col) = column_key(s.key) {
+            headings[col] = match s.value {
+                "" | "none" => None,
+                v => Some(parse_heading(v)),
+            };
+        }
+    }
     let mut lines = Vec::new();
     let mut reveals = Vec::new();
-    for raw in content.lines() {
-        let trimmed = raw.trim();
-        if trimmed.is_empty() {
+    for item in &src.items {
+        if item.text.is_empty() {
+            src.problem(item.offset, "an empty item");
             continue;
         }
-        if trimmed.starts_with('#') {
-            if let Some((key, value)) = header_directive(trimmed)
-                && let Some(col) = column_key(key)
-            {
-                headings[col] = match value {
-                    "" | "none" => None,
-                    v => Some(parse_heading(v)),
-                };
-            }
-            continue;
-        }
-        let indented = raw.starts_with([' ', '\t']);
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-        let line = if indented {
-            Line::Item(text.to_string())
-        } else if let Some((role, rest)) = role_line(text) {
-            Line::Node(role, NodeText::parse(rest))
-        } else if let Some((from, to, label)) = parse_link(text) {
-            Line::Link(from, to, label)
+        let line = if item.indent > 0 {
+            item.check_attrs(src, &[]);
+            Line::Item(item.text.to_string())
+        } else if let Some((role, rest)) = item.keyword(&["producer", "service", "consumer"]) {
+            item.check_attrs(src, &["icon"]);
+            let role = match role {
+                "producer" => Role::Producer,
+                "service" => Role::Service,
+                _ => Role::Consumer,
+            };
+            Line::Node(role, NodeText::from_item(rest, item))
+        } else if let Some(rel) = item.relation(&Arrow::FORWARD) {
+            item.check_attrs(src, &["icon"]);
+            Line::Link(
+                item.offset,
+                rel.from.to_string(),
+                rel.to.to_string(),
+                rel.label.map(str::to_string),
+                item.attr("icon").map(str::to_ascii_lowercase),
+            )
         } else {
+            src.problem(
+                item.offset,
+                format!(
+                    "'{}' is not a producer, service, consumer or 'A -> B' artifact",
+                    item.text
+                ),
+            );
             continue;
         };
         lines.push(line);
-        reveals.push(reveal);
+        reveals.push(item.reveal);
     }
     let steps = assign_steps(&reveals);
 
@@ -141,7 +165,9 @@ pub fn parse(content: &str) -> Flow {
                     last.items.push(item);
                 }
             }
-            Line::Link(from, to, label) => links.push((from, to, label, step)),
+            Line::Link(offset, from, to, label, icon) => {
+                links.push((offset, from, to, label, icon, step));
+            }
         }
     }
 
@@ -152,12 +178,16 @@ pub fn parse(content: &str) -> Flow {
     };
     let mut edges: Vec<Edge> = links
         .into_iter()
-        .filter_map(|(from, to, label, step)| {
+        .filter_map(|(offset, from, to, label, icon, step)| {
+            for end in [&from, &to] {
+                if find(end).is_none() {
+                    src.problem(
+                        offset,
+                        format!("'{end}' is not a producer, service or consumer"),
+                    );
+                }
+            }
             let (from, to) = (find(&from)?, find(&to)?);
-            let (label, icon) = match label.as_deref().map(take_icon) {
-                Some((text, icon)) => (Some(text.to_string()).filter(|t| !t.is_empty()), icon),
-                None => (None, None),
-            };
             (from != to).then_some(Edge {
                 from,
                 to,
@@ -244,25 +274,13 @@ fn column_key(key: &str) -> Option<usize> {
     }
 }
 
-/// `producer Build Team: ...` → the role and the rest.
-fn role_line(text: &str) -> Option<(Role, &str)> {
-    let (head, rest) = text.split_once(char::is_whitespace)?;
-    let role = match head.to_ascii_lowercase().as_str() {
-        "producer" => Role::Producer,
-        "service" => Role::Service,
-        "consumer" => Role::Consumer,
-        _ => return None,
-    };
-    Some((role, rest.trim()))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const SAMPLE: &str = "\
-# producers: Producing Teams | Build and publish artifacts
-# services: none
+producers: Producing Teams | Build and publish artifacts
+services: none
 - producer Build Team: Produces binaries and images
 - producer Platform Team (icon: server)
 - service Artifactory: Artifact repository
@@ -317,6 +335,15 @@ mod tests {
         assert_eq!(f.edges[1].step, 0, "`*` is static, like `-`");
         assert_eq!(f.edges[1].label, None);
         assert_eq!(f.edges[2].step, 1, "waits for Product Team");
+    }
+
+    #[test]
+    fn unknown_ends_settings_and_stray_lines_are_reported() {
+        let lines: Vec<usize> = check(SAMPLE).iter().map(|p| p.offset).collect();
+        assert_eq!(lines, [12]);
+        let p = check("producer: A\n- producer B (shade: 1)\n- B to C\n");
+        let lines: Vec<usize> = p.iter().map(|p| p.offset).collect();
+        assert_eq!(lines, [0, 1, 2], "{p:?}");
     }
 
     #[test]

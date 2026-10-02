@@ -16,6 +16,7 @@ mod settings;
 mod theme;
 mod thermal;
 pub use assets::asset_warnings;
+mod visuals;
 pub use background::background_warnings;
 pub use content::{cjk_font_warning, content_warnings, math_warnings, warn_missing_cjk_font};
 pub use engine::{deck_theme, engine_warnings};
@@ -107,6 +108,7 @@ fn collect(
     ));
     add(background_warnings(presentation, base_path, content));
     add(thermal_warnings(presentation, base_path));
+    add(visuals::visual_warnings(presentation));
     let (theme, problems) = deck_theme(presentation, defaults.theme.as_deref(), base_path, engine)?;
     add(problems
         .into_iter()

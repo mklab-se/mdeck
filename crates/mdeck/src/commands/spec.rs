@@ -107,11 +107,11 @@ GANTT CHART DURATION FORMATS
   Nw             Weeks (e.g. 2w)
   Nm             Months (e.g. 3m)
   after Task     Start when Task ends
-  after Task+Nd  Start N days after Task ends
+  after Task + Nd  Start N days after Task ends
 
 CHART AXIS LABELS
-  # x-label: text    Horizontal axis label (centered below)
-  # y-label: text    Vertical axis label (rotated 90° CCW)
+  x-label: text      Horizontal axis label (centered below)
+  y-label: text      Vertical axis label (rotated 90° CCW)
   Supported by: @bar, @line, @scatter, @stackedbar
 
 THEMES (custom themes are YAML files; mdeck spec, section 9.4)
@@ -139,7 +139,9 @@ pub fn short_reference() -> String {
 /// The mdeck fences, from the language table.
 fn fences_card() -> String {
     use crate::language::{FENCES, FenceKind};
-    let mut out = String::from("\nFENCES (```@tag; tags match exactly, one name per kind)\n");
+    let mut out = String::from(
+        "\nFENCES (```@tag; tags match exactly, one name per kind)\n  Inside a visual: key: value settings before the first - or + item, items\n  end in (key: value) attributes, relations are A -> B: label, # comments\n",
+    );
     for kind in [FenceKind::Visual, FenceKind::Notes] {
         for f in FENCES.iter().filter(|f| f.kind == kind) {
             out.push_str(&format!("  {:<15}{}\n", f.tag, f.summary));

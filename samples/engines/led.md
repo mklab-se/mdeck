@@ -36,12 +36,12 @@ Slides without an illustration get a slow aurora on the right, far from the copy
 # Numbers
 
 ```@bar
-title: Visitors per night
-Mon: 120
-Tue: 180
-Wed: 260
-Thu: 310
-Fri: 520
+y-label: Visitors per night
+- Mon: 120
+- Tue: 180
+- Wed: 260
+- Thu: 310
+- Fri: 520
 ```
 
 # Thank you

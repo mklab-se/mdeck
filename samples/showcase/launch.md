@@ -45,7 +45,7 @@ The Northwind launch, written in plain markdown
 # Growth by quarter
 
 ```@stackedbar
-# categories: Q1, Q2, Q3, Q4
+categories: Q1, Q2, Q3, Q4
 - Teams: 12, 28, 46, 71
 - Seats: 30, 55, 88, 120
 - Integrations: 8, 19, 31, 52

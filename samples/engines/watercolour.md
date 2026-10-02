@@ -32,7 +32,7 @@ A watercolour deck, painted as it opens
 # The harvest
 
 ```@bar
-title: Baskets picked
+y-label: Baskets picked
 - June: 4
 - July: 11
 - August: 17

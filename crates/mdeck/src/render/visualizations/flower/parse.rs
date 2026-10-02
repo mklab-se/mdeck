@@ -1,8 +1,9 @@
 //! `@flower` source: a `center`, `petal`s around it, and `A -> B` links
 //! between petals.
 
-use super::super::node_text::{NodeText, parse_link};
-use super::super::{assign_steps, parse_reveal_prefix};
+use super::super::assign_steps;
+use super::super::grammar::{Arrow, Problem, Source};
+use super::super::node_text::NodeText;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Flower {
@@ -30,35 +31,58 @@ pub struct Link {
 enum Line {
     Center(NodeText),
     Petal(NodeText),
-    Link(String, String, Option<String>),
+    Link(usize, String, String, Option<String>),
 }
 
-/// Parse a `@flower` block. A line without a keyword is a petal; a link
-/// to a name that is not a petal is left out; with two `center` lines the
-/// last wins. Every line's `+` / `*` marker counts toward the steps.
+/// Parse a `@flower` block. An item without a keyword is a petal; with two
+/// `center` items the last wins. Every item's `+` / `*` marker counts toward
+/// the steps.
 pub fn parse(content: &str) -> Flower {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@flower` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
+}
+
+fn read(src: &Source) -> Flower {
+    src.check_settings(&[]);
     let mut lines = Vec::new();
     let mut reveals = Vec::new();
-    for raw in content.lines() {
-        let trimmed = raw.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
+    for item in &src.items {
+        if item.text.is_empty() {
+            src.problem(item.offset, "an empty item");
             continue;
         }
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-        let line = if let Some(rest) = keyword(text, &["center", "centre"]) {
-            Line::Center(NodeText::parse(rest))
-        } else if let Some(rest) = keyword(text, &["petal"]) {
-            Line::Petal(NodeText::parse(rest))
-        } else if let Some((from, to, label)) = parse_link(text) {
-            Line::Link(from, to, label)
+        let keyword = item.keyword(&["center", "petal"]);
+        let link = keyword
+            .is_none()
+            .then(|| item.relation(&Arrow::FORWARD))
+            .flatten();
+        let line = if let Some(rel) = link {
+            item.check_attrs(src, &[]);
+            Line::Link(
+                item.offset,
+                rel.from.to_string(),
+                rel.to.to_string(),
+                rel.label.map(str::to_string),
+            )
         } else {
-            Line::Petal(NodeText::parse(text))
+            item.check_attrs(src, &["icon"]);
+            if item.keyword(&["centre"]).is_some() {
+                src.problem(item.offset, "write 'center', not 'centre'");
+            }
+            let text = NodeText::from_item(keyword.map_or(item.text, |(_, rest)| rest), item);
+            match keyword {
+                Some(("center", _)) => Line::Center(text),
+                _ => Line::Petal(text),
+            }
         };
         lines.push(line);
-        reveals.push(reveal);
+        reveals.push(item.reveal);
     }
     let steps = assign_steps(&reveals);
 
@@ -76,7 +100,7 @@ pub fn parse(content: &str) -> Flower {
                 flower.center_step = step;
             }
             Line::Petal(text) => flower.petals.push(Petal { text, step }),
-            Line::Link(from, to, label) => pending.push((from, to, label, step)),
+            Line::Link(offset, from, to, label) => pending.push((offset, from, to, label, step)),
         }
     }
     let find = |name: &str| {
@@ -87,7 +111,12 @@ pub fn parse(content: &str) -> Flower {
     };
     let links: Vec<Link> = pending
         .into_iter()
-        .filter_map(|(from, to, label, step)| {
+        .filter_map(|(offset, from, to, label, step)| {
+            for end in [&from, &to] {
+                if find(end).is_none() {
+                    src.problem(offset, format!("'{end}' is not a petal"));
+                }
+            }
             let (from, to) = (find(&from)?, find(&to)?);
             (from != to).then_some(Link {
                 from,
@@ -109,15 +138,6 @@ pub fn parse(content: &str) -> Flower {
         })
         .collect();
     flower
-}
-
-/// `text` without a leading `word ` (any of `words`, any case).
-fn keyword<'a>(text: &'a str, words: &[&str]) -> Option<&'a str> {
-    let (head, rest) = text.split_once(char::is_whitespace)?;
-    words
-        .iter()
-        .any(|w| head.eq_ignore_ascii_case(w))
-        .then_some(rest.trim())
 }
 
 #[cfg(test)]
@@ -152,9 +172,17 @@ mod tests {
     }
 
     #[test]
-    fn the_centre_spelling_and_a_flower_without_a_centre() {
+    fn unknown_link_ends_and_attributes_are_reported() {
+        let p = check("- A (colour: red)\n- B\n- A -> Nobody\n");
+        let lines: Vec<usize> = p.iter().map(|p| p.offset).collect();
+        assert_eq!(lines, [0, 2], "{p:?}");
+    }
+
+    #[test]
+    fn the_centre_spelling_is_reported_and_a_flower_without_a_centre() {
         let f = parse("- centre Hub\n- A\n- B");
-        assert_eq!(f.center.unwrap().name, "Hub");
+        assert!(f.center.is_none());
+        assert_eq!(check("- centre Hub\n- A\n- B")[0].offset, 0);
         let f = parse("- A\n- B");
         assert!(f.center.is_none());
         assert_eq!(f.petals.len(), 2);
