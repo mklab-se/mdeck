@@ -6,7 +6,8 @@ colors:
   background: "#fbfaf7"
   text: "#2b2d42"
   heading: "#14213d"
-  accent: "#e85d04"
-  series: ["#e85d04", "#14213d", "#2a9d8f", "#e9c46a"]
+  accent: "#c2410c"
+  muted: "#5c5f6e"
+  series: ["#c2410c", "#14213d", "#2a9d8f", "#e9c46a"]
 fonts:
   display: spectral-light
