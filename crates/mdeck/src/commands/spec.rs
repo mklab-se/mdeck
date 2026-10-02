@@ -72,12 +72,17 @@ MATH (LaTeX, KaTeX syntax)
   $$\frac{a}{b}$$       Display: own line, centred
   \$5                   Literal dollar sign ($5 and $10 stay text anyway)
 
-IMAGE OPTIONS (in alt text)
-  @fill  @width:80%
+IMAGE OPTIONS (in alt text: ![Team @width: 60%](team.jpg))
+  @width: 60%           Width: % of the image's space, or px (400, 400px)
+  @height: 400px        Height; with both, the image fits both
+  @fill                 Cover the space, cropping (a media slide: the whole slide)
 
-POINT CLOUDS (pictures for the particles engine and others)
-  <!-- picture: name -->  Point cloud beside the copy (title: behind it)
-                        deck illustrations/ > ~/.config/mdeck/illustrations > built-in
+PICTURES (on the design's stage; every engine but plain and splitflap)
+  <!-- picture: name -->  The slide's artwork on an art engine, else the point
+                        cloud of that name, else an image file of that path
+                        clouds: deck.assets/point-clouds > deck illustrations/ >
+                        user folder illustrations/ > packs > built-in
+  <!-- picture: none -->  Keep the stage empty
   mdeck ai point-cloud deck.md   Generate the deck's missing names (deck.assets/)
   mdeck ai point-cloud --name NAME --description "..."   A library cloud via AI
   mdeck illustration import IMAGE --name NAME | list | show NAME | contribute NAME
@@ -111,7 +116,8 @@ COLUMN SEPARATOR
 SPEAKER NOTES
   ```@notes      A fenced block of markdown notes, anywhere in the slide;
   ...            several are joined in order. Nothing in them splits the
-  ```            slide. Shown in PDF export with --notes
+  ```            slide. Shown in the presenter view (V) and in PDF export
+                 with --notes
 
 GANTT CHART DURATION FORMATS
   Nd             Calendar days (e.g. 10d)
@@ -128,7 +134,8 @@ CHART AXIS LABELS
 
 THEMES (custom themes are YAML files; mdeck spec, section 9.4)
   themes/<name>.yaml     Next to the deck (or <name>/theme.yaml with fonts)
-  user folder            ~/.config/mdeck/themes (macOS: ~/Library/Application Support)
+  user folder            ~/.config/mdeck/themes (macOS: ~/Library/Application
+                         Support/mdeck/themes, Windows: %APPDATA%\mdeck\themes)
   extends: dark          Unset keys come from another theme (dark is the default)
   variant-of: ember      A recolouring: listed after the themes
   engine: { name: thermal, palette: iron }   The engine and its settings (9.6)
@@ -138,6 +145,19 @@ THEMES (custom themes are YAML files; mdeck spec, section 9.4)
   mdeck theme list | check <n> | preview <n> -o <dir>
   mdeck theme new <n>    A commented starter
   mdeck ai theme <n> --from <design system folder>
+
+PRESENT, EXPORT, CHECK
+  mdeck deck.md          Fullscreen (--windowed, --slide N, --overview,
+                         --presenter, --theme T, --engine E, --reduced-motion)
+  mdeck export deck.md   PNGs in export/ (--format pdf, --notes, --width,
+                         --height, --slide N, --range A-B, --at S, --moment M)
+  mdeck --check deck.md  Report what will not show as written (-v: designs)
+
+EXTENDING (spec section 18)
+  mdeck pack install <folder|zip|git-url>   Themes, designs, point clouds, fonts
+  mdeck sdk new engine|visual|design-set|transition <name>   A Rust crate
+  mdeck build --with <path|crate>   An mdeck with the extension inside
+  requires: [pack, extension]       In the frontmatter; --check names missing ones
 "#;
 
 /// Build the quick reference card. The settings and fences are generated
