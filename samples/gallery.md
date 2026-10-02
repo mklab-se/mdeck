@@ -389,3 +389,36 @@ $$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
 
 - Euler: $e^{i\pi} + 1 = 0$
 - Gaussian integral: $\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}$
+
+---
+
+## Flower
+
+```@flower
+- center Development Platform: Shared capabilities and services (icon: database)
+- petal Checkout: Builds payments and contributes back
+- petal Search: Builds indexing and contributes back
+- petal Mobile: Builds the apps and contributes back
+- petal Data: Builds pipelines and contributes back
+- petal Identity: Builds sign-in and contributes back
+```
+
+---
+
+## Artifact Flow
+
+```@artifactflow
+# producers: Producing Teams | Build and publish artifacts
+# consumers: Consuming Teams | Retrieve and use artifacts
+- producer Build Team: Produces binaries and container images
+- producer Platform Team: Produces libraries and platform packages
+- service Artifactory: Artifact repository / registry
+  - Container images
+  - Libraries
+- consumer Integration Team: Pulls artifacts for test environments
+- consumer Product Team: Pulls approved artifacts for production
+- Build Team -> Artifactory: Container image v1.2.3 (icon: package)
+- Platform Team -> Artifactory: Library v4.5.0 (icon: code)
+- Artifactory -> Integration Team: Pull image (icon: package)
+- Artifactory -> Product Team: Pull package (icon: code)
+```

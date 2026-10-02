@@ -2,7 +2,7 @@
 
 # Visualizations
 
-Seventeen charts and diagrams from plain text. Every one animates in and supports
+Nineteen charts and diagrams from plain text. Every one animates in and supports
 step-by-step reveal with the same `+` markers as lists. See all of them in the
 [Gallery](../GALLERY.md).
 
@@ -28,6 +28,8 @@ Fenced code blocks with an `@` tag become charts:
 | Org chart | `@orgchart` | `- CEO -> CTO` |
 | Gantt chart | `@gantt` | `- Design: 8d, after Research` |
 | Git graph | `@gitgraph` | `- branch main -> develop` |
+| Flower | `@flower` | `- petal Payments: Takes the money` |
+| Artifact flow | `@artifactflow` | `- Build Team -> Registry: image v1.2` |
 | Architecture | `@architecture` | `- Client -> Server: requests` |
 
 Values may carry units and separators (`$4,200`, `12%`, `40 users`). Charts

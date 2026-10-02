@@ -199,6 +199,8 @@ In architecture diagrams, use `icon: generate-image` with a `prompt` to mark a n
 - Use the `---` separator or 3+ blank lines between slides
 - Architecture diagrams with `+`/`*` markers create animated build-up sequences
 - Use `@gitgraph` for git branching diagrams — declare lanes, add commits, fork with `branch source -> target`, merge with `merge source -> target`, and tag with `tag branch: "label"`; supports progressive reveal
+- Use `@flower` when one platform or shared capability serves several peer teams that also contribute back: `- center Platform: ...`, then one `- petal Team: ...` per team (keep descriptions to a short sentence; 3-8 petals read best)
+- Use `@artifactflow` for supply chains of builds, packages or images: `producer`, `service` and `consumer` lines, then `A -> B: artifact (icon: package)` edges; indented `- item` lines list what a service holds
 - Use `@layout: two-column` with `+++` separator for side-by-side comparisons
 - Write formulas in LaTeX (KaTeX syntax): `$E = mc^2$` inline, `$$\frac{-b \pm \sqrt{b^2-4ac}}{2a}$$` on a line of its own; run `mdeck <file> --check` to catch formulas that do not parse
 - Add speaker notes after `???` on every slide — explain the slide's intent and delivery guidance

@@ -417,6 +417,18 @@ Branches as lanes, commits as dots, forks and merges as S-curves, with tags and 
 
 <img src="media/gallery/slide-26.png" width="720">
 
+### Flower
+
+A platform in the middle and the teams around it, each petal flowing in and back out.
+
+<img src="media/gallery/slide-31.png" width="720">
+
+### Artifact Flow
+
+Artifacts from the teams that produce them, through shared infrastructure, to the teams that consume them.
+
+<img src="media/gallery/slide-32.png" width="720">
+
 ---
 
 ## AI-Generated Images

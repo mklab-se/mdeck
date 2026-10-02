@@ -52,7 +52,7 @@ heading and three bullets a bullet slide. Then pick a theme and an engine.</em><
   </tr>
   <tr>
     <td><img src="media/showcase/winter-kpi.jpg" alt="KPI cards on the Winter theme"><br><sub><b>KPI cards</b> on the Winter theme</sub></td>
-    <td><img src="media/showcase/spring-chart.jpg" alt="A stacked bar chart on the Spring theme"><br><sub><b>Seventeen charts</b>, here on the Spring theme</sub></td>
+    <td><img src="media/showcase/spring-chart.jpg" alt="A stacked bar chart on the Spring theme"><br><sub><b>Nineteen charts</b>, here on the Spring theme</sub></td>
   </tr>
   <tr>
     <td><img src="media/showcase/etch-gear.jpg" alt="A laser etching a gear"><br><sub><b>Laser</b>: a beam etches each illustration</sub></td>
@@ -160,7 +160,7 @@ updates every time you save.
 - **Any markdown file is a deck.** Headings split slides and every slide picks
   its layout from its content. Nothing to learn but a few conventions.
   [Writing slides](docs/writing-slides.md)
-- **Charts and diagrams from text.** Seventeen visualizations, from bar charts
+- **Charts and diagrams from text.** Nineteen visualizations, from bar charts
   to Gantt charts and routed architecture diagrams, all animated.
   [Visualizations](docs/visualizations.md)
 - **Seventeen themes, and yours.** Your brand in a few lines of YAML, or converted

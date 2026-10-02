@@ -62,6 +62,9 @@ const ICONS: &[(&str, IconFn)] = &[
     ("network", network),
     ("key", key),
     ("logs", logs),
+    ("team", team),
+    ("package", package),
+    ("code", code),
 ];
 
 fn icon_drawer(name: &str) -> Option<IconFn> {
@@ -69,7 +72,7 @@ fn icon_drawer(name: &str) -> Option<IconFn> {
 }
 
 /// Draw the line-art icon `icon` centred on `center` within `size`.
-pub(super) fn draw_icon_fallback(
+pub fn draw_icon_fallback(
     painter: &egui::Painter,
     icon: &str,
     center: Pos2,
@@ -339,6 +342,76 @@ fn logs(p: &Pen) {
     }
 }
 
+fn team(p: &Pen) {
+    // Three people: one in front, two half behind
+    let s = p.s;
+    let person = |dx: f32, dy: f32, k: f32| {
+        let head = p.at(dx, dy - 0.3 * k);
+        p.painter.circle_stroke(head, s * 0.2 * k, p.stroke);
+        let top = p.at(dx, dy).y + s * 0.05 * k;
+        let w = s * 0.38 * k;
+        let pts: Vec<Pos2> = (0..=10)
+            .map(|i| {
+                let t = PI * i as f32 / 10.0;
+                Pos2::new(head.x - w * t.cos(), top + w * 0.75 * (1.0 - t.sin()))
+            })
+            .collect();
+        p.line(pts);
+    };
+    person(-0.5, 0.0, 0.8);
+    person(0.5, 0.0, 0.8);
+    person(0.0, 0.12, 1.0);
+}
+
+fn package(p: &Pen) {
+    // An isometric cube: hexagon outline, three edges meeting in the middle
+    let r = p.s * 0.6;
+    let corner = |k: usize| {
+        let a = -PI / 2.0 + PI / 3.0 * k as f32;
+        Pos2::new(p.center.x + r * a.cos(), p.center.y + r * a.sin())
+    };
+    let pts: Vec<Pos2> = (0..6).map(corner).collect();
+    p.painter.add(egui::Shape::closed_line(pts, p.stroke));
+    let mid = p.center;
+    for k in [1, 3, 5] {
+        p.segment(mid, corner(k));
+    }
+}
+
+fn code(p: &Pen) {
+    // A page with a folded corner and </> on it
+    let (c, s) = (p.center, p.s);
+    let (w, h) = (s * 0.5, s * 0.65);
+    let fold = s * 0.25;
+    let (l, r, t, b) = (c.x - w, c.x + w, c.y - h, c.y + h);
+    p.line(vec![
+        Pos2::new(r - fold, t),
+        Pos2::new(l, t),
+        Pos2::new(l, b),
+        Pos2::new(r, b),
+        Pos2::new(r, t + fold),
+        Pos2::new(r - fold, t),
+        Pos2::new(r - fold, t + fold),
+        Pos2::new(r, t + fold),
+    ]);
+    let y = c.y + s * 0.1;
+    let k = s * 0.17;
+    p.line(vec![
+        Pos2::new(c.x - k * 0.9, y - k),
+        Pos2::new(c.x - k * 2.0, y),
+        Pos2::new(c.x - k * 0.9, y + k),
+    ]);
+    p.line(vec![
+        Pos2::new(c.x + k * 0.9, y - k),
+        Pos2::new(c.x + k * 2.0, y),
+        Pos2::new(c.x + k * 0.9, y + k),
+    ]);
+    p.segment(
+        Pos2::new(c.x + k * 0.35, y - k * 1.2),
+        Pos2::new(c.x - k * 0.35, y + k * 1.2),
+    );
+}
+
 fn generic_box(p: &Pen) {
     // Default: simple rounded rectangle
     let rect = egui::Rect::from_center_size(p.center, egui::vec2(p.s * 1.0, p.s * 0.8));
@@ -371,6 +444,9 @@ mod tests {
             "mail",
             "logs",
             "monitor",
+            "team",
+            "package",
+            "code",
         ];
         for name in spec {
             assert!(icon_drawer(name).is_some(), "no drawing for {name}");

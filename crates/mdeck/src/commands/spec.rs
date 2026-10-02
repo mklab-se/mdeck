@@ -115,6 +115,8 @@ VISUALIZATIONS (fenced code blocks with @ language tag)
   @orgchart      Org chart (- Name (parent: Parent))
   @gantt         Gantt chart (- Task: date, duration, after Dep; # labels: inside)
   @gitgraph      Git branch graph (lane, commit, branch/merge with ->, tag)
+  @flower        Platform and teams (- center Name, - petal Name: what, A -> B)
+  @artifactflow  Artifact supply chain (producer/service/consumer, A -> B: artifact)
 
 GANTT CHART DURATION FORMATS
   Nd             Calendar days (e.g. 10d)

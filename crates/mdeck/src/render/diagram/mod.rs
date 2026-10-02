@@ -23,6 +23,7 @@ mod types;
 mod tests;
 
 pub use debug::diagram_debug_info;
+pub use icons::draw_icon_fallback as draw_icon;
 pub use reveal::count_diagram_steps;
 pub use routes::{
     check_diagram_routes, clear_route_cache, precache_all_diagrams_with_report, set_routing_weights,

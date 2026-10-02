@@ -146,8 +146,8 @@ A fenced block tagged `@barchart` becomes a chart. Each line is a bar:
   <img src="../media/tutorial/05-chart.jpg" width="80%" alt="A bar chart">
 </p>
 
-There are seventeen kinds, from line and pie charts to timelines and Gantt
-charts: see [Visualizations](visualizations.md).
+There are nineteen kinds, from line and pie charts to timelines, Gantt
+charts and artifact flows: see [Visualizations](visualizations.md).
 
 ## 7. Add a diagram
 

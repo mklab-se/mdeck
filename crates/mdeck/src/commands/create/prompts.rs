@@ -138,6 +138,13 @@ Supported mdeck visualizations (use these when appropriate — set visualization
 - barchart, linechart, piechart, donut, stackedbar, scatter (data charts)
 - timeline, gantt (temporal)
 - orgchart, architecture (structural)
+- flower (a platform or shared capability in the centre with the teams that use \
+  it and contribute back around it. Syntax: `- center Platform: what it offers`, \
+  `- petal Team: what it does`, optional `- Team A -> Team B: uses`)
+- artifactflow (artifacts moving from producing teams through shared \
+  infrastructure to consuming teams. Syntax: `- producer Build Team: ...`, \
+  `- service Registry: ...`, `- consumer Product Team: ...`, \
+  `- Build Team -> Registry: image v1.2 (icon: package)`)
 - gitgraph (git branch diagrams — USE THIS for any branching strategy, Git Flow, \
   merge workflows, etc. Syntax: `- lane main`, `- commit main`, \
   `- branch main -> develop`, `- merge feature -> develop: \"label\"`, \

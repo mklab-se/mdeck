@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- `@flower` visualization ([#3](https://github.com/mklab-se/mdeck/issues/3)): a platform in the
+  centre and the teams around it. Each `petal` is a bulb in its own colour whose outline runs out
+  of the `center`, around the bulb and back in with an arrow; `A -> B` lines link petals with
+  curves that keep clear of the centre. Petals are spaced evenly for any count, the flower sizes
+  itself for its text, and `+` makes a petal grow out of the centre. Sample:
+  `samples/visualizations/flower.md`; spec section 14.18.
+- `@artifactflow` visualization ([#4](https://github.com/mklab-se/mdeck/issues/4)): artifacts
+  moving from `producer`s through `service`s to `consumer`s. Producers and consumers sit in
+  titled panels (`# producers: Title | subtitle`), services are larger cards in the middle with
+  optional indented bullet items, and every `A -> B: artifact (icon: package)` edge is a smooth
+  arrow with its label at its quieter end. Without edges, everything flows through the services.
+  Sample: `samples/visualizations/artifactflow.md`; spec section 14.19.
+- Three more built-in icons: `team`, `package` and `code`, for architecture diagrams too.
+
 ## [1.18.0] - 2026-10-02
 
 ### Added

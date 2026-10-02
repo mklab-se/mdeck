@@ -6,15 +6,19 @@ use crate::parser::Chart;
 use crate::theme::Theme;
 
 mod axis;
+mod curve;
 mod fit;
 mod frame;
 mod legend;
+mod node_text;
 mod reveal;
 mod ring;
 mod values;
 
+pub mod artifact_flow;
 pub mod bar_chart;
 pub mod donut_chart;
+pub mod flower;
 pub mod funnel_chart;
 pub mod gantt_chart;
 pub mod git_graph;
@@ -118,6 +122,10 @@ pub fn draw(
         Chart::Org => org_chart::draw_org_chart(cx, content, pos, max_width, max_height),
         Chart::Gantt => gantt_chart::draw_gantt_chart(cx, content, pos, max_width, max_height),
         Chart::GitGraph => git_graph::draw_gitgraph(cx, content, pos, max_width, max_height),
+        Chart::Flower => flower::draw_flower(cx, content, pos, max_width, max_height),
+        Chart::ArtifactFlow => {
+            artifact_flow::draw_artifact_flow(cx, content, pos, max_width, max_height)
+        }
     }
 }
 
@@ -232,6 +240,71 @@ mod tests {
         });
         // Headless: nobody uploads the font atlas, so discard the deltas explicitly.
         output.textures_delta.clear();
+    }
+
+    /// Draw `kind` with each of `contents` in a headless frame at 1920x1080
+    /// and at a small size; returns the heights used.
+    fn draw_headless(kind: Chart, contents: &[&str]) -> Vec<f32> {
+        let ctx = egui::Context::default();
+        let mut heights = Vec::new();
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let theme = Theme::light();
+            for content in contents {
+                for (w, h, scale) in [(1700.0, 800.0, 1.0), (400.0, 220.0, 0.25)] {
+                    let cx = VizCtx {
+                        ui,
+                        theme: &theme,
+                        opacity: 1.0,
+                        scale,
+                        reveal_step: 1,
+                        reveal_timestamp: None,
+                    };
+                    heights.push(draw(kind, content, &cx, Pos2::ZERO, w, h));
+                }
+            }
+        });
+        output.textures_delta.clear();
+        heights
+    }
+
+    #[test]
+    fn flowers_of_every_shape_draw() {
+        let many: String = (0..16)
+            .map(|i| format!("- Team {i}: does things\n"))
+            .collect();
+        let heights = draw_headless(
+            Chart::Flower,
+            &[
+                "",
+                "- center Only the centre",
+                "- One petal",
+                "- A\n- B\n- A -> B: x\n- A -> Nobody",
+                "- center C\n+ petal P: a very long description that goes on and on and on and on",
+                &many,
+            ],
+        );
+        assert_eq!(heights[..2], [0.0, 0.0], "an empty flower takes no room");
+        assert!(heights[2..].iter().all(|&h| h > 0.0));
+    }
+
+    #[test]
+    fn artifact_flows_of_every_shape_draw() {
+        let many: String = (0..12)
+            .map(|i| format!("- producer P{i}\n- consumer C{i}\n"))
+            .collect();
+        let heights = draw_headless(
+            Chart::ArtifactFlow,
+            &[
+                "",
+                "- service Only a service\n  - item",
+                "- producer A\n- consumer B",
+                "- producer A\n- service S\n- consumer B\n+ A -> S: x (icon: package)\n* S -> B\n- B -> A: back\n- A -> A: self",
+                "# producers: none\n# consumers: none\n- producer A\n- consumer B\n- A -> B: a label long enough to wrap over several lines in the gap",
+                &many,
+            ],
+        );
+        assert_eq!(heights[..2], [0.0, 0.0], "an empty flow takes no room");
+        assert!(heights[2..].iter().all(|&h| h > 0.0));
     }
 
     #[test]

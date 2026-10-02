@@ -293,3 +293,31 @@ A showcase of every visualization type in MDeck
 - merge develop -> main: "v1.0"
 - tag main: "v1.0"
 ```
+
+---
+
+## Flower
+
+```@flower
+- center Development Platform: Shared capabilities and services (icon: database)
+- petal Payments: Builds checkout and contributes back
+- petal Identity: Builds sign-in and contributes back
+- petal Data: Builds pipelines and contributes back
+- petal Mobile: Builds the apps and contributes back
+```
+
+---
+
+## Artifact Flow
+
+```@artifactflow
+- producer Build Team: Produces container images
+- producer Platform Team: Produces libraries
+- service Artifactory: Artifact repository
+- consumer Integration Team: Tests every build
+- consumer Product Team: Ships to production
+- Build Team -> Artifactory: image v1.2.3 (icon: package)
+- Platform Team -> Artifactory: library v4.5.0 (icon: code)
+- Artifactory -> Integration Team: pull image
+- Artifactory -> Product Team: pull package
+```

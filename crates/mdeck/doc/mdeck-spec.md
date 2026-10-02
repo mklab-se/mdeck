@@ -770,7 +770,7 @@ Additional types (`flowchart`, `timeline`, etc.) are reserved for future version
 
 The built-in themes provide these icon names:
 
-`user`, `server`, `database`, `cloud`, `browser`, `mobile`, `api`, `queue`, `cache`, `storage`, `function`, `container`, `network`, `lock`, `key`, `mail`, `logs`, `monitor`, `box`
+`user`, `server`, `database`, `cloud`, `browser`, `mobile`, `api`, `queue`, `cache`, `storage`, `function`, `container`, `network`, `lock`, `key`, `mail`, `logs`, `monitor`, `team`, `package`, `code`, `box`
 
 An unrecognized icon name falls back to `box`. Icons are simple and clear line drawings, designed to be recognizable at presentation scale.
 
@@ -2301,6 +2301,89 @@ Visualizes git branching, committing, and merging as a horizontal lane diagram. 
 **Rendering:** Lanes are stacked vertically as parallel horizontal tracks with dotted background lines. Commits appear as dots on the lane. Forks and merges are shown as S-curve connections with arrows between lanes. Each lane gets a distinct color from the theme palette.
 
 **Progressive reveal:** Use `+` and `*` markers to build the graph step by step — ideal for walking through a branching strategy one operation at a time.
+
+### 14.18 Flower (`@flower`)
+
+A platform in the middle and the teams around it: platform engineering, an
+internal developer platform, any shared capability with peers that both use
+it and contribute to it. Each petal is a bulb in its own colour whose outline
+runs out of the centre, around the bulb and back into the centre with an
+arrow.
+
+````markdown
+```@flower
+- center Development Platform: Shared capabilities and services (icon: database)
+- petal Team 1: Builds product features and contributes back
++ petal Team 2: Builds services and contributes back
++ petal Team 3: Builds tools and contributes back
+- Team 1 -> Team 3: uses
+```
+````
+
+**Line types:**
+- `center Name: description (icon: name)`: the platform, a circle in the theme's accent colour. One per flower (with two, the last wins); `centre` also works.
+- `petal Name: description (icon: name)`: a team or domain. A line with no keyword is a petal too, so `- Payments` is enough.
+- `A -> B: label`: a link from one petal to another, drawn as a curve that keeps clear of the centre. Links to names that are not petals are left out.
+
+The description and the icon are optional. Petals show the `team` icon unless
+they name another (section 8.8) or `(icon: none)`; the centre shows an icon
+only when it names one.
+
+**Rendering:** The first petal is on top and the rest follow clockwise, evenly
+spaced, each in the next colour of the theme's palette. Every petal is the same
+size; the flower sizes its petals and centre for the text, then scales as a
+whole to fit the slide, so long descriptions or many petals make it smaller.
+Keep descriptions to a short sentence.
+
+**Progressive reveal:** `+` and `*` on a petal make it grow out of the centre
+on its step; a link appears once both its petals have.
+
+### 14.19 Artifact Flow (`@artifactflow`)
+
+How artifacts (binaries, packages, container images, APIs) move from the teams
+that produce them, through shared infrastructure, to the teams that consume
+them. Producers sit on the left and consumers on the right, each in a titled
+panel; services are larger cards in the middle. Every artifact is an arrow
+with its name on it.
+
+````markdown
+```@artifactflow
+# producers: Producing Teams | Build and publish artifacts
+# consumers: Consuming Teams | Retrieve and use artifacts
+- producer Build Team: Produces binaries and container images
+- producer Platform Team: Produces reusable libraries
+- service Artifactory: Artifact repository / registry
+  - Container images
+  - Libraries
+- consumer Integration Team: Pulls artifacts for test environments
+- consumer Product Team: Pulls approved artifacts for production
++ Build Team -> Artifactory: Container image v1.2.3 (icon: package)
++ Platform Team -> Artifactory: Library v4.5.0 (icon: code)
++ Artifactory -> Integration Team: Pull image (icon: package)
+* Artifactory -> Product Team: Pull package (icon: code)
+```
+````
+
+**Line types:**
+- `producer Name: description (icon: name)`, `service ...`, `consumer ...`: a card in that column. Producers and consumers show the `team` icon and services the `database` icon unless they name another (section 8.8) or `(icon: none)`.
+- An indented `- item` under a node adds a bullet to its card.
+- `A -> B: label (icon: name)`: an artifact moving from A to B. The label and its icon are optional.
+
+Without any `->` line, every producer publishes to every service and every
+service feeds every consumer (or producers feed consumers directly when there
+is no service).
+
+**Directives:**
+- `# producers: Title | subtitle`, `# services: ...`, `# consumers: ...`: a column's heading. Producers and consumers are titled "Producers" and "Consumers" by default and services have none; `none` removes a heading.
+
+**Rendering:** Edges are smooth curves that leave a card's right side and
+reach the next card's left side; edges sharing a side are spread along it in
+the order of their other ends, so they never cross there. Labels sit above
+their arrow at its quieter end. Text shrinks together when a column is too
+tall for the slide.
+
+**Progressive reveal:** `+` and `*` work on nodes and on edges; an edge
+appears (drawing itself toward its arrowhead) once both of its ends have.
 
 ---
 

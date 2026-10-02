@@ -225,6 +225,10 @@ pub enum Chart {
     Org,
     Gantt,
     GitGraph,
+    /// A platform in the middle and the teams around it (`@flower`).
+    Flower,
+    /// Artifacts from producers through services to consumers (`@artifactflow`).
+    ArtifactFlow,
 }
 
 impl Chart {
@@ -247,6 +251,8 @@ impl Chart {
         ("@orgchart", Chart::Org),
         ("@gantt", Chart::Gantt),
         ("@gitgraph", Chart::GitGraph),
+        ("@flower", Chart::Flower),
+        ("@artifactflow", Chart::ArtifactFlow),
     ];
 
     /// The chart a fence info string (```` ```@barchart ````) names.

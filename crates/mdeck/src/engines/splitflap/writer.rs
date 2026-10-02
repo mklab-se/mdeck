@@ -462,6 +462,8 @@ fn viz_name(block: &Block) -> &'static str {
         Chart::Org => "org charts",
         Chart::Gantt => "Gantt charts",
         Chart::GitGraph => "git graphs",
+        Chart::Flower => "flowers",
+        Chart::ArtifactFlow => "artifact flows",
         _ => "visualizations",
     }
 }
