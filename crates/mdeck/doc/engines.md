@@ -1,247 +1,91 @@
-# Writing an engine
+# Writing a built-in engine
 
-An **engine** is what a theme does beyond colours and type: the layer it
-paints under the slides, and what it plays for the countdown and the end.
-MDeck ships `plain`, `particles` (the Ember theme), `led` (Marquee),
-`splitflap` (Departures), `blocks` (Stack) and the art
-engines `line` (Blueprint and Chalkboard), `sketch` (Sketchbook), `watercolour` and
-`darkroom`, and `thermal` (the Thermal theme). This guide is for adding one. Read spec sections 9.6
-and 9.7 first for what users see.
+An **engine** brings a slide to life around its content: the living layer
+under the slide, the slide's picture in the engine's medium, the countdown
+and the end act, reactions to what the slide shows, and (for a board) its own
+transitions (ENG-01). MDeck ships `plain`, `particles` (Ember), `led`
+(Marquee), `splitflap` (Departures), `blocks` (Stack), `thermal` (Thermal),
+and the art engines `line` (Blueprint, Chalkboard), `sketch` (Sketchbook),
+`watercolour` and `darkroom`.
 
-The rule that makes engines safe to add: **the core decides what a slide
-wants to show; an engine decides how it looks.** An engine never parses
-markdown, resolves an illustration or reads the deck file. It gets a `Stage`
-and paints it.
+**Built-in engines are written exactly like an extension's** (EXT-06,
+ENG-13): against the public SDK, `crates/mdeck-sdk`, and nothing else of
+mdeck. So the guide for writing one is the SDK documentation:
 
-## The pieces
+- [`docs/sdk/getting-started.md`](../../../docs/sdk/getting-started.md): from
+  nothing to an engine running in a custom mdeck;
+- [`docs/sdk/concepts.md`](../../../docs/sdk/concepts.md): the model, the frame
+  lifecycle, the stage and the contract every engine keeps;
+- the three tutorials (`docs/sdk/tutorial-1-ambience.md` and on), each a
+  tested engine under `examples/`;
+- the API reference: `cargo doc -p mdeck-sdk --open`.
 
-All of it lives in `crates/mdeck/src/engines/`.
+This page covers only what is different about an engine that ships inside
+mdeck.
 
-| Piece | File | What it is |
+## Where it lives
+
+All of it lives in `crates/mdeck/src/engines/`:
+
+| Piece | Where | What it is |
 |---|---|---|
-| `EngineKind` | `mod.rs` | The value a theme carries (`engine: led`): its name, and through `def()` its entry, or `None` when the build leaves the engine out. |
-| `EngineDef` | your module's `DEF` | An engine's entry: capabilities, constructor, end caption delay, and the optional hooks (an art engine's medium, a board's slide renderer, what it cannot show). |
-| `Capabilities` | `mod.rs` | What the engine can show. The core uses it for fallbacks and `--check` for warnings. |
-| `Engine` | `mod.rs` | The trait your runtime implements: `update`, then `paint`. |
-| `mix`, `premul`, `additive`, `smoothstep`, `Sprites` | `paint.rs` | Colour and blending helpers, and a lens, core and glow sprite sheet to draw light with. |
-| `Stage`, `Moment`, `Figure`, `Art`, `Place` | `stage.rs` | What the slide wants to show this frame. |
-| `Canvas`, `Hand`, `Drawing`, `Reveal`, `fallback_strokes` | `art.rs` | What art engines share: a generated picture drawn in, pen strokes when there is none, and the order it is all painted in. |
-| `FrameCx` | `stage.rs` | The frame: rect, scale, opacity, `dt`, `still`, theme. |
-| `Host` | `host.rs` | The engine-neutral half, owned by the app and the export. You get it for free. |
+| your engine | `engines/<name>.rs` or `engines/<name>/` | A type implementing `mdeck_sdk::engine::Engine` and its `pub static DEF: EngineDef`. |
+| registration | `engines::register` in `engines/mod.rs` | `r.engine(&<name>::DEF)?`, behind the engine's cargo feature, like an extension's `register`. |
+| shared helpers | `engines/art/` (art engines), `engines/rng.rs`, `engines::hash01`, `engines/heat_palette.rs` | Engine-only code several engines (or the core) use. |
+| the host | `engines/host/` | The core's half, not an engine: it converts mdeck's slide, theme and published geometry to the SDK's types, resolves the picture, builds the `Stage`, `Frame` and `Painter` each frame and calls your engine. `EngineId` (in `mod.rs`) is the handle a theme carries. |
 
-### What the host gives you
+**The boundary.** Every file under `engines/` except `engines/host/` may use
+only `mdeck_sdk`, std and other engine helpers under `crate::engines::`; no
+egui, no `crate::render`, `crate::theme` or `crate::parser`. A test
+(`engines::tests::engines_stay_inside_their_boundary`) enforces it. If your
+engine needs something the SDK does not offer, add it to the SDK (a small,
+documented, additive method with a doctest) rather than reaching into mdeck.
 
-Every frame the host builds a `Stage`:
+## What the host does for you
 
-- `moment`: `Slide`, `Countdown { digit, mask, progress }`, `Burst { progress }`
-  (the countdown's exit) or `End { elapsed, words }`. `mask` and `words` are
-  point masks of the glyphs in the theme's display face (points in the unit
-  square, plus the shape's width over height).
-- `figure`: the slide's `picture`, resolved through the deck, user and
-  built-in libraries, with `place` (a box in slide fractions) already chosen:
-  on the right beside the copy, or large and centred behind a title
-  (`backdrop`). The cloud's points are in importance order: the first sixty
-  already sketch the subject.
-- `art`: on an art engine, the slide's generated picture (`mdeck ai pictures`),
-  loaded and prepared (trimmed, paper keyed out, with a time map), with
-  `place` chosen like a figure's. `None` until it has loaded, or when the
-  slide has none: then draw the `figure` in your medium instead.
-- `hints` and `hints_key`: the geometry the slide's renderers drew last frame
-  (`Bar`, `Path`, `Circle`, `Point`, and `Frame` for boxes to keep out of),
-  so an engine can serve a chart instead of decorating around it.
-- `index`, `reveal`, `title`, and the `slide` itself for engines that lay out
-  text.
-
-The host also keeps the clock, times the end slide, swaps the runtime when
-the theme's engine changes, and decides when the caption appears on the end
-slide (`EngineKind::end_caption_delay`).
-
-## The frame
-
-```text
-host.frame(shot) ─┬─ build Stage (moment, figure + place, hints)
-                  ├─ engine.prepare(&Ui, &FrameCx, &Stage)          what needs the UI (optional)
-                  ├─ engine.update(&FrameCx, &Stage, &mut Library)   advance by cx.dt
-                  └─ engine.paint(&Ui, &FrameCx, &Stage)             under the slide
-```
-
-`update` moves your state toward what the stage asks for; `paint` draws it.
-Keep them separate: a rehearsal (below) runs `update` many times and `paint`
-once. `prepare` (a no-op by default) runs before every `update`, rehearsals
-included, for what needs the UI: the thermal engine samples the heading's
-glyphs out of the font atlas there.
-
-## The rules
-
-1. **Stills are finished.** When `cx.still` is set (PNG and PDF export),
-   settle at once and paint the final look: no half-lit LEDs, no beam, no
-   smoke that depends on when the capture happened. Two exports of the same
-   deck must be byte-identical.
-2. **No wall-clock randomness.** Seed everything from the slide index and
-   per-element hashes (see `engines::hash01`), never from time.
-3. **Scale everything.** Multiply every size in pixels by `cx.scale`
-   (`min(w/1920, h/1080)`), and paint only inside `cx.rect`: the rect moves
-   during transitions and is a tile of a bigger canvas in export.
-4. **Colours come from the theme.** Use `accent`, `accent-soft`, `secondary`,
-   `particles.light` and `particles.cool`, and check `theme.is_light()`: light
-   that adds up on black vanishes on a light page. Never branch on a theme's
-   or an engine's name.
-5. **Keep out of the copy.** On editorial slides the copy sits in the left
-   column and the figure's `place` is on the right; keep the left calm. Stay
-   dark inside `Hint::Frame` boxes: that is where the chart or diagram is.
-6. **Repaint only while moving.** Call `ui.ctx().request_repaint()` while an
-   animation runs, not forever (the particles engine is the exception: its
-   field never stops).
-7. **Draw with egui meshes.** One `egui::Mesh` with a small sprite texture
-   (`paint::Sprites`) draws tens of thousands of quads per frame. Premultiplied colours with
-   zero alpha add light (glow). Use a GL paint callback only for blending
-   egui cannot do, and test it in export, which runs on the glow renderer.
-
-## Capabilities and fallbacks
-
-| Flag | Meaning when true |
-|---|---|
-| `paints` | The engine paints a layer (plain does not). |
-| `editorial` | Copy slides use the editorial layouts: a copy column on the left, a stage on the right, display headings and the counter chrome. |
-| `board` | The engine draws every slide itself, text included, and owns the transitions between slides (split-flap). `render_slide` then hands the slide to the engine's `EngineDef::render_slide` (its static renderer, for thumbnails) (`SlideContext::engine_drew` says whether the live engine drew it already), the app skips its transitions and scrolling, and the engine prints its own labels. |
-| `illustrations` | Shows point cloud pictures (`picture`). |
-| `countdown` | Draws the opening countdown itself (`countdown: burst`). |
-| `end_act` | Plays an act of its own on the end slide. |
-| `art` | Draws generated art: the host fills `Stage::art`, and `EngineKind::medium` says which kind of picture to generate and how to draw it in. |
-| `numbers_slides` | Prints the slide number itself, so the editorial counter is left out (the line engine's sheet, in its title block; see `Theme::numbers_slides`). |
-| `cold_open` | Forms title and section headings itself: the editorial copy waits `render::ember::COLD_OPEN_HOLD` seconds and publishes the heading as `Hint::Text` (with its slide) for the engine to draw (thermal). |
-| `heat_trace` | Pen strokes are drawn as a heat trace in the theme's `heat.palette`: white-hot, cooling, gone after a few seconds (thermal). |
-
-What an engine cannot show is reported, never silently dropped:
-`engines::unsupported` names it per slide, `mdeck --check` lists it under the
-`engine` category, and presenting and exporting print one summary line. If
-your engine cannot show a kind of content, add its message there.
-
-## Art engines
-
-An art engine draws a picture generated for each slide. The pipeline is
-shared (`render::art`); the engine only decides the medium:
-
-- **The medium.** A `render::art::Medium` in the engine's module (`MEDIUM`),
-  returned by `EngineKind::medium`: its name, the kind of picture it asks for
-  by default (`ArtKind::Line`, black ink lines the engine draws in its own
-  colours, shared by every line medium; or `ArtKind::Tonal`, a finished
-  picture in the medium), its own style card for tonal pictures
-  (`render::art::style`), and how tonal pictures are drawn in
-  (`prepare::Strategy`: `Draw` along the ink, `Hatch` outlines then tone,
-  `Bloom` washes spreading, `Develop` shadows first). Line art is always
-  drawn with `Draw`.
-- **Generation and caching** are the core's: `mdeck ai pictures` and the `S` key
-  generate in the medium's style, the deck's asset manifest
-  (`assets::manifest`, read by `render::art::resolve`) records pictures by
-  slide hash and style id, and `render::art::gallery::DeckArt` loads and
-  prepares them (on worker threads in the window, before drawing in export).
-- **Drawing in.** `engines::art::Drawing` wraps a prepared picture:
-  `paint(ui, rect, now, tint, reveal)` reveals it through its time map into
-  a texture (a CPU pass per frame while it runs, then no more uploads) and
-  `tip(now, rect)` is where the drawing hand is. `Reveal` sets how soft the
-  arrival is and an optional faint pass that runs ahead (construction lines,
-  an underdrawing). Line art is white with the ink as alpha, so the tint is
-  your ink colour.
-- **The rest is shared too.** `engines::art::Canvas` follows the stage (a
-  new slide starts its picture or its pen strokes, the old one fades, the
-  countdown and the end act get pen strokes, `still` settles everything,
-  and `tip` is where the hand is); an art engine's `update` calls
-  `Canvas::update`. Its `paint` draws its own ground (the sheet, the
-  slate) and calls `Canvas::paint` with a `Hand`: how the medium draws a
-  picture and pen strokes, how dim a picture behind a title is, and the
-  tool at the tip. The canvas paints them in order, the old picture fading
-  under the new one, and asks for frames while anything moves. Each of the
-  five art engines is under 300 lines of engine plus its drawing helpers. `Reveal::grain` breaks a medium up on
-  its surface (chalk on slate).
-- **Without art**, draw the slide's point cloud (`picture`) in your medium:
-  `engines::art::fallback_strokes` turns the figure, the countdown digit or
-  the end words into timed pen strokes (`render::strokes::Picture`).
+- **The stage.** The slide as the SDK content model (`stage.slide`, its
+  `design` is the slide's design name), the picture (`stage.picture`: on an art
+  engine the slide's generated artwork, else the point cloud it names, else
+  the image file it names, placed by the design), the moment (slide,
+  countdown digit with its glyph mask, burst, end with the end words), and
+  the geometry the slide's visuals drew last frame (`stage.geometry`; a
+  heading is `Hint::Text`, one per glyph where the layout put it).
+- **The frame.** Rect, scale, opacity, `dt`, `still` (export), reduced motion,
+  the theme's colour tokens, and your engine settings.
+- **Settings.** Declare `SettingSpec`s in `DEF.settings` and read them in
+  `create`. The host builds them from the theme with
+  `theme::engine_settings`; `--check` and `mdeck theme check` report values
+  of the wrong type and keys your engine never reads.
+- **Hooks.** `annotate` draws the presenter's pen strokes your way (the
+  thermal heat trace), `copy_hold` holds title and section copy back while
+  the engine forms the heading (the thermal cold opening), `numbers_slides`
+  tells the core to leave out its counter (the line engine's sheet), and
+  `animating` tells the host when to stop repainting.
+- **A board** (`Capabilities.board`) gives `DEF.board` a `DesignSet` that draws
+  every slide (`render::board` calls it, lending deck images and visuals
+  through `DesignCx::image` and `DesignCx::visual`); its `unsupported` feeds
+  `--check`. With `Capabilities.transition` the core does no slide motion.
+- **An art engine** sets `Capabilities.medium`; the core generates and
+  prepares pictures in that medium (`render::art`, `mdeck ai pictures`) and
+  hands them over as `PictureSource::Artwork`. `engines/art/` holds what the
+  art engines share: the `Canvas` that follows the stage, `Drawing` (the CPU
+  reveal into a texture), and `fallback_strokes` for a point cloud.
 
 ## Adding one: the checklist
 
-1. `engines/<name>.rs`: a type implementing `Engine`, with unit tests for
-   its geometry and its still, and its entry `pub static DEF: EngineDef`
-   (its `Capabilities`, `create`, `end_caption_delay` if it plays an end
-   act, and the hooks it needs).
-2. `engines/mod.rs`: the module behind `#[cfg(feature = "<name>")]`, a
-   variant in `EngineKind`, its name in `name()` and `ALL`, and its arm in
-   `def()` behind the same `cfg`.
+1. `engines/<name>.rs`: the engine and its `DEF`, with unit tests for its
+   geometry and its still (`mdeck_sdk::testing::Headless` renders frames
+   headlessly).
+2. `engines::register`: the module and the registration behind
+   `#[cfg(feature = "<name>")]`.
 3. `crates/mdeck/Cargo.toml`: a feature, on by default (an art engine's
-   feature turns on `art` too). CI checks a build with it alone. Shared
-   code that only your engine uses goes behind your feature too; shared API
-   that engines read in part carries
-   `cfg_attr(not(all_engines), allow(dead_code, reason = "..."))`
-   (`build.rs` sets `all_engines` in a build with every engine).
-4. A showcase theme: `crates/mdeck/themes/<theme>.yaml` with `engine: <name>`,
+   feature turns on `art` too). CI builds with it alone and with no engines.
+4. A showcase theme: `crates/mdeck/themes/<theme>.yaml` naming the engine,
    listed in `theme::lookup::BUILTIN` behind the same feature.
 5. `samples/engines/<name>.md`, a deck that shows what the engine is good at.
-6. Docs: spec sections 9.1 (the theme) and 9.6 (the engine; 9.7 for an art
-   engine), the `engine`
-   and `theme` lists in the spec and `spec --short`, README, GALLERY
-   (stills as JPEG), CHANGELOG.
+6. Docs: the spec's theme and engine sections, the lists in the spec and
+   `spec --short`, README, GALLERY, CHANGELOG.
 7. Look at it (below), then run the golden check so no other engine moved.
-
-## A minimal engine
-
-This engine draws the slide's illustration as dots that fade in. It is
-compiled and tested as `engines/example.rs`, so it is always current:
-
-```rust
-/// Dots: the slide's illustration as accent-coloured dots that fade in.
-pub struct Dots {
-    /// The slide the fade belongs to, and how far it has come (0..1).
-    slide: Option<usize>,
-    shown: f32,
-}
-
-impl Dots {
-    pub fn new() -> Self {
-        Self {
-            slide: None,
-            shown: 0.0,
-        }
-    }
-}
-
-impl Engine for Dots {
-    fn update(&mut self, cx: &FrameCx, stage: &Stage, _lib: &mut Library) {
-        // A new slide starts the fade over; export (`still`) shows it done.
-        if self.slide != Some(stage.index) {
-            self.slide = Some(stage.index);
-            self.shown = 0.0;
-        }
-        self.shown = if cx.still {
-            1.0
-        } else {
-            (self.shown + cx.dt / 0.6).min(1.0)
-        };
-    }
-
-    fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, stage: &Stage) {
-        let Some(figure) = &stage.figure else {
-            return;
-        };
-        let rect = cx.rect;
-        let place = figure.place;
-        let alpha = self.shown * cx.opacity * if figure.backdrop { 0.35 } else { 1.0 };
-        let color = cx.theme.accent.gamma_multiply(alpha);
-        for p in figure.cloud.points.iter() {
-            let pos = egui::pos2(
-                rect.left() + (place.u + p[0] * place.w) * rect.width(),
-                rect.top() + (place.v + p[1] * place.h) * rect.height(),
-            );
-            ui.painter().circle_filled(pos, 2.5 * cx.scale, color);
-        }
-        if self.shown < 1.0 {
-            ui.ctx().request_repaint();
-        }
-    }
-}
-```
-
-Registered as described above, `engine: dots` would show every
-illustration as a constellation of accent dots.
 
 ## Looking at motion
 
@@ -255,9 +99,6 @@ mdeck export deck.md --slide 3 --at 0.3 --output-dir /tmp/frames
 mdeck export deck.md --slide 1 --moment countdown --at 0.6 --output-dir /tmp/cd
 mdeck export deck.md --slide 1 --moment end --at 2.0 --output-dir /tmp/end
 ```
-
-(`--at` and `--moment` replace the `MDECK_EXPORT_AT` and
-`MDECK_EXPORT_MOMENT` environment variables of earlier versions.)
 
 Export a few moments of an animation and look at them side by side before
 calling it done. Then present the deck and step through it: timing is felt,
@@ -276,28 +117,11 @@ It exports the sample decks with both binaries and names every image that
 differs. (`samples/ember/with-images.md` can differ from run to run with
 image loading; everything else must be identical.)
 
-## Why engines are modules, not crates
+## Modules, not crates
 
-The plan in [#16](https://github.com/mklab-se/mdeck/issues/16) left open
-whether each engine should become its own crate once the interface had
-settled. After four new engines on it (LED, split-flap, laser, blocks; laser has since been removed), the
-answer is no, for now:
-
-- **The interface held.** Adding the four engines changed the core twice:
-  the `board` capability (for an engine that draws the whole slide) and the
-  deck title and count on the `Stage`. Everything else was new files.
-- **A crate would not isolate much.** An engine uses the `Stage`, the
-  `Theme`, the parsed `Slide`, point clouds, hints and a few render helpers.
-  A shared `mdeck-core` crate would have to hold nearly all of MDeck, and
-  every engine crate would depend on it; the boundary would be the same one
-  the module already has.
-- **It would cost every release.** Each crate is published to crates.io in
-  dependency order, and the release workflow, the Homebrew formula and
-  `cargo install mdeck` all get more moving parts.
-
-The boundary is enforced instead: a test
-(`engines::tests::engines_stay_inside_their_boundary`) reads every file under
-`src/engines/` and fails if one reaches into the app, the commands, the
-config or the CLI. Each engine is also a cargo feature, so a build can leave
-any of them out (CI builds with none and with each one alone). Revisit crates if engines ever come from outside this
-repository.
+The built-in engines stay modules of the `mdeck` crate, behind cargo
+features, rather than crates of their own (decided in #16): they would gain
+nothing a module boundary does not already give, and every release would
+publish more crates. Since v2 the boundary they keep is the public SDK
+itself, so moving an engine out into its own crate, or writing a new one
+outside this repository, is the same code with a different `register` call.

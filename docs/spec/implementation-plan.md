@@ -233,6 +233,18 @@ What later phases build on:
 - **External visual programs** are wired: `extensions::external::configure` (from `run`) makes
   their tags fence tags, `Deck::open` runs the missing ones and records the images in the image
   cache, the block renderer draws them (or the source when there is none).
+- **Exports after the port** (every `samples/engines`, `samples/ember`, `samples/themes` deck,
+  the launch showcase, `layouts/bullet`, `visualizations/all`, plus `--at`, countdown and end
+  stills; 340 images against the 1.19 binary): 275 identical, 65 differ, all invisibly. Art
+  engines: at most one colour level on a few edge pixels of textured quads (the SDK mesh splits a
+  rect along the other diagonal). LED countdown: two pixels by one level. Thermal (3 slides,
+  under 0.06%): contour band edges move about a pixel, because a heading now reaches the engine
+  as one `Hint::Text` per glyph instead of a galley. Split-flap (9 images, 0.02%): the labels
+  under the board, drawn per character without letter spacing (the SDK text API has none).
+- **SDK additions from the ports:** `Painter::glyph_ink` (ink pixels of a text at their layout
+  positions, for the thermal cold opening), `Painter::glyph_mesh` (glyph quads on the font atlas,
+  for the split flaps; `Texture` can refer to the atlas). Note: the SDK's `Vec2::rot90` turns the
+  other way from egui's (`engines::art::across` compensates).
 - **Image options** use the settings grammar (`@width: 60%`, `@height`, `@fill`); `@fit`, `@left`,
   `@right`, `@center` and unknown options are `content` problems in `--check`.
 
@@ -259,6 +271,13 @@ Any requirement deferred to 2.x is listed here and in the release notes.
     crate: publishing the SDK (phase 6) needs them renamed (for example `Cargo.toml.tmpl`).
   - The workspace's `mdeck-sdk` dependency pins `=1.19.0`; the release skill must bump it with
     the workspace version.
+  - Split-flap: the SDK content model has no list `start`, so numbered lists on the board count
+    from 1; a panel image that is still loading shows the empty panel colour; the board drawn
+    without a live engine (grid thumbnails, overview) has no golden test yet
+    (`mdeck_sdk::testing::Headless::render_design` is documented but not implemented).
+  - `Hint::Text` carries no letter spacing or wrapping, so the host publishes a heading one glyph
+    at a time; the glyph's own font section is not reachable through egui, the first section's
+    font is used.
 - **Phase 3:** designs and themes v2 (D8, D9) as planned; `design:` still maps onto the v1
   `Layout` enum.
 - **Phase 6:** `docs/*.md`, the README and the AI supplement were converted mechanically to the
