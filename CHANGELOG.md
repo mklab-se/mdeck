@@ -226,6 +226,14 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
 - `countdown: on` turns a countdown on, also on a theme without one (`--engine particles` on
   the default theme), instead of being ignored (D17).
 - A blank `transition` no longer skips the config default (D19).
+- Headings on `media`, `gallery` and `visual` slides keep the same side margin as the other
+  designs in the `standard` design set instead of sitting close to the slide's left edge.
+- Turned word cloud words are drawn in the space the layout kept for them; they used to land
+  one box up and to the right, on top of their neighbours.
+- A diagram edge's label clears the node the edge leaves instead of covering its border on short
+  edges.
+- The published `mdeck-sdk` crate keeps the template manifests `mdeck sdk new` writes
+  (`cargo package` dropped any `Cargo.toml` below the crate root).
 
 ## [1.19.0] - 2026-10-02
 
