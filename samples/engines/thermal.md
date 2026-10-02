@@ -32,7 +32,10 @@ slide zooms into the hotspot.
 ```
 
 # The hotspot, up close
-<!-- zoom-to: Hotspot -->
+<!--
+transition: zoom
+zoom-to: Hotspot
+-->
 
 ```@thermal
 image: ../images/thermal/cabinet-closeup.jpg
