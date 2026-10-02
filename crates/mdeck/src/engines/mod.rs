@@ -15,6 +15,7 @@
 
 #[cfg(feature = "blocks")]
 pub mod blocks;
+pub mod heat_palette;
 pub mod host;
 #[cfg(feature = "led")]
 pub mod led;
@@ -22,6 +23,8 @@ pub mod led;
 pub mod particles;
 pub mod plain;
 pub mod rng;
+#[cfg(feature = "thermal")]
+pub mod thermal;
 
 pub use host::{
     CountPhase, Host, Shot, choose, settings_problems, unsupported, unsupported_summary,
@@ -41,6 +44,8 @@ pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
     r.engine(&blocks::DEF)?;
     #[cfg(feature = "particles")]
     r.engine(&particles::DEF)?;
+    #[cfg(feature = "thermal")]
+    r.engine(&thermal::DEF)?;
     Ok(())
 }
 

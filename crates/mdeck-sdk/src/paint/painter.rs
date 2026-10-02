@@ -424,6 +424,57 @@ impl Painter {
         glyph_mask(&glyphs, &image, n)
     }
 
+    /// Every pixel of ink in `text` set in `font` on one line whose coverage
+    /// is at least `min_alpha`, as the pixel's top-left corner in points
+    /// relative to the text's top-left (where [`Painter::text`] with
+    /// [`Align2::LEFT_TOP`] puts it). Unlike [`Painter::glyph_points`] the
+    /// points keep their place, so an engine can rasterise a heading
+    /// published as [`crate::geometry::Hint::Text`] into a grid of its own
+    /// (the thermal engine's cold opening).
+    ///
+    /// ```no_run
+    /// # fn demo(p: &mdeck_sdk::paint::Painter) {
+    /// use mdeck_sdk::paint::Font;
+    /// let ink = p.glyph_ink("I", Font::display(100.0), 100);
+    /// assert!(!ink.is_empty());
+    /// assert!(p.glyph_ink(" ", Font::display(100.0), 100).is_empty());
+    /// # }
+    /// ```
+    pub fn glyph_ink(&self, text: &str, font: Font, min_alpha: u8) -> Vec<Pos2> {
+        let id = self.font_id(font);
+        self.inner.ctx().fonts_mut(|f| {
+            let galley = f.layout_no_wrap(text.to_string(), id, egui::Color32::WHITE);
+            let atlas = f.image();
+            let mut out = Vec::new();
+            for row in &galley.rows {
+                for g in &row.glyphs {
+                    let (min, max) = (g.uv_rect.min, g.uv_rect.max);
+                    if max[0] <= min[0] || max[1] <= min[1] {
+                        continue;
+                    }
+                    let origin = row.pos + g.pos.to_vec2() + g.uv_rect.offset;
+                    let size = g.uv_rect.size;
+                    for ay in min[1]..max[1] {
+                        for ax in min[0]..max[0] {
+                            let (x, y) = (ax as usize, ay as usize);
+                            if x >= atlas.size[0]
+                                || y >= atlas.size[1]
+                                || atlas[(x, y)].a() < min_alpha
+                            {
+                                continue;
+                            }
+                            out.push(Pos2::new(
+                                origin.x + (ax - min[0]) as f32 / (max[0] - min[0]) as f32 * size.x,
+                                origin.y + (ay - min[1]) as f32 / (max[1] - min[1]) as f32 * size.y,
+                            ));
+                        }
+                    }
+                }
+            }
+            out
+        })
+    }
+
     /// The egui painter behind this one.
     ///
     /// **Unstable:** outside the compatibility promise (EXT-26); any egui
@@ -534,6 +585,23 @@ mod tests {
                     .points
                     .is_empty()
             );
+        });
+    }
+
+    #[test]
+    fn glyph_ink_keeps_its_place_inside_the_text() {
+        with_painter(|p| {
+            let font = Font::display(100.0);
+            let ink = p.glyph_ink("Hi", font, 100);
+            assert!(ink.len() > 500, "{}", ink.len());
+            let size = p.text_size("Hi", font);
+            assert!(
+                ink.iter()
+                    .all(|q| q.x >= 0.0 && q.y >= 0.0 && q.x <= size.x && q.y <= size.y)
+            );
+            // a space has no ink, and a stricter threshold keeps less
+            assert!(p.glyph_ink(" ", font, 100).is_empty());
+            assert!(p.glyph_ink("Hi", font, 250).len() < ink.len());
         });
     }
 
