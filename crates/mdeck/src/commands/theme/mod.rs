@@ -109,19 +109,21 @@ fn report(name: &str, l: &Lookup) -> bool {
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| "built-in".into());
             println!(
-                "{} ({from}): {} engine, countdown {}",
+                "{} ({from}): {} engine, {} designs, countdown {}",
                 t.name.bold(),
                 t.engine.name(),
+                t.arrangements.set,
                 if t.countdown { "on" } else { "off" }
             );
             let advice = validate::review(t);
-            for w in &built.warnings {
+            let inert = validate::inert(t);
+            for w in built.warnings.iter().chain(&inert) {
                 println!("  {} {w}", "warning:".yellow().bold());
             }
             for a in &advice {
                 println!("  {} {a}", "contrast:".yellow().bold());
             }
-            if built.warnings.is_empty() && advice.is_empty() {
+            if built.warnings.is_empty() && advice.is_empty() && inert.is_empty() {
                 println!("  {}", "No issues found.".green());
             }
             true

@@ -110,7 +110,7 @@ impl Palette {
         let code_foreground = required("code-text", &c.code_text)?;
         let positive = required("positive", &c.positive)?;
         let negative = required("negative", &c.negative)?;
-        let muted = optional("muted", &c.muted)?.unwrap_or(mix(background, foreground, 0.6));
+        let muted = optional("muted", &c.muted)?.unwrap_or(mix(background, foreground, 0.65));
         let rule = optional("rule", &c.rule)?.unwrap_or(mix(background, foreground, 0.18));
         let strong =
             optional("strong", &c.strong)?.unwrap_or(default_strong(heading, foreground, accent));

@@ -15,10 +15,10 @@ colors:
   background: "#f5f0e6"      # the paper
   text: "#45423c"
   heading: "#1f1d1a"         # graphite
-  muted: "#8c867a"
+  muted: "#706b62"
   rule: "#d9d1c1"
   accent: "#a8472a"          # a red pencil
-  accent-soft: "#c98a5e"
+  accent-soft: "#8f6243"
   secondary: "#35657f"       # a blue pencil
   code-background: "#ece5d6"
   code-text: "#2c2a26"

@@ -32,7 +32,6 @@ annotations:
 fonts:
   display: hanken-medium
   body: hanken-regular
-  lead: hanken-light
   strong: hanken-medium
   mono: jetbrains-mono
 sizes: { h1: 100, h2: 72, h3: 52, body: 42, code: 30 }

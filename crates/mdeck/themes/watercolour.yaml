@@ -12,10 +12,10 @@ colors:
   background: "#fbf8f1"      # cold-press paper
   text: "#4a4640"
   heading: "#2b2a33"         # sepia-grey ink
-  muted: "#8f8a80"
+  muted: "#747068"
   rule: "#e3dccd"
-  accent: "#c8553d"          # cadmium red
-  accent-soft: "#e7a25b"     # yellow ochre
+  accent: "#ba4f39"          # cadmium red
+  accent-soft: "#94683a"     # yellow ochre
   secondary: "#4d7ea8"       # cerulean
   code-background: "#f1ece1"
   code-text: "#2b2a33"
