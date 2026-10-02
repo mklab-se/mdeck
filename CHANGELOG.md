@@ -232,6 +232,8 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   one box up and to the right, on top of their neighbours.
 - A diagram edge's label clears the node the edge leaves instead of covering its border on short
   edges.
+- `mdeck export --moment burst` shows the burst instead of an empty slide: a rehearsed burst
+  first forms the countdown's 1, and without `--at` the still is the burst's first frame.
 - The published `mdeck-sdk` crate keeps the template manifests `mdeck sdk new` writes
   (`cargo package` dropped any `Cargo.toml` below the crate root).
 
