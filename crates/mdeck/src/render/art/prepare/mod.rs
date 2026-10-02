@@ -1,7 +1,8 @@
 //! Getting a picture ready to be drawn in: trimmed to its subject, made
 //! transparent where it is bare paper, and given a time map, the moment
 //! (0..1 of the reveal) each pixel appears. An engine reveals the picture by
-//! showing the pixels whose moment has come ([`Prepared::reveal`]), so the
+//! showing the pixels whose moment has come ([`Prepared::coverage`]; the
+//! art engines reveal in their own medium in `engines::art::reveal`), so the
 //! finished frame is exactly the generated image.
 //!
 //! How the moments are laid out is the medium's [`Strategy`]:
@@ -22,11 +23,9 @@
     )
 )]
 
-use eframe::egui;
 use image::{GenericImageView, RgbaImage, imageops};
 
 use super::ArtKind;
-use mdeck_sdk::paint::smoothstep;
 use order::{bloom_order, develop_order, draw_order, hatch_order};
 
 mod order;
@@ -40,121 +39,9 @@ pub(super) const STEPS: f32 = 65535.0;
 
 pub use mdeck_sdk::stage::Strategy;
 
-/// How a medium reveals its pictures.
-#[allow(
-    dead_code,
-    reason = "interim: the art engines are being ported (phase 2b)"
-)]
-#[derive(Clone, Copy, Debug)]
-pub struct Reveal {
-    /// How long a pixel takes to arrive, as a share of the reveal.
-    pub soft: f32,
-    /// A faint first pass (construction lines, an underdrawing): its
-    /// opacity, and how much faster than the ink it runs.
-    pub ghost: f32,
-    pub ghost_speed: f32,
-    /// How much the medium breaks up on its surface (chalk on slate), 0..1.
-    pub grain: f32,
-}
-
 /// A picture ready to be drawn in: the SDK's [`mdeck_sdk::stage::Artwork`],
 /// which the host hands to art engines as the slide's picture.
 pub use mdeck_sdk::stage::Artwork as Prepared;
-
-/// Revealing a prepared picture on the CPU.
-#[allow(
-    dead_code,
-    reason = "interim: the art engines are being ported (phase 2b)"
-)]
-pub trait Reveals {
-    /// The picture at `t` as premultiplied pixels (see [`Reveal`]).
-    fn reveal(&self, t: f32, r: &Reveal) -> Vec<egui::Color32>;
-    /// The finished picture, premultiplied.
-    #[cfg(test)]
-    fn finished(&self) -> Vec<egui::Color32>;
-    /// Where the hand is at `t`, in 0..1 of the picture, while it draws.
-    fn tip(&self, t: f32) -> Option<(f32, f32)>;
-}
-
-impl Reveals for Prepared {
-    /// The picture at `t` (0: nothing yet, 1: finished) as premultiplied
-    /// pixels. `soft` is how long a pixel takes to arrive (0..1 of the
-    /// reveal), `ghost` the opacity of a faint first pass that runs ahead
-    /// at `ghost_speed` (a draftsman's construction lines; 0 for none).
-    fn reveal(&self, t: f32, r: &Reveal) -> Vec<egui::Color32> {
-        let soft = r.soft.max(1e-3);
-        let t_now = t * STEPS;
-        let span = soft * STEPS;
-        let g_now = t * r.ghost_speed * STEPS;
-        let develop = self.strategy == Strategy::Develop;
-        let w_px = self.width.max(1);
-        self.rgba
-            .iter()
-            .zip(&self.when)
-            .enumerate()
-            .map(|(i, (px, &w))| {
-                let w = w as f32;
-                let mut k = ((t_now - w) / span).clamp(0.0, 1.0);
-                if r.ghost > 0.0 {
-                    k = k.max(r.ghost * ((g_now - w) / span).clamp(0.0, 1.0));
-                }
-                if develop {
-                    // the print darkens into place instead of fading in
-                    k = smoothstep(0.0, 1.0, k);
-                }
-                if r.grain > 0.0 {
-                    // the medium skips on a rough surface, in clumps of a
-                    // couple of pixels
-                    let (x, y) = ((i % w_px) as u32, (i / w_px) as u32);
-                    let clump = crate::engines::hash01(
-                        (x / 2).wrapping_mul(7919) ^ (y / 2).wrapping_mul(104_729),
-                    );
-                    let fine = crate::engines::hash01(i as u32);
-                    k *= 1.0 - r.grain * (0.65 * clump + 0.35 * fine);
-                }
-                let a = px[3] as f32 / 255.0 * k;
-                egui::Color32::from_rgba_premultiplied(
-                    (px[0] as f32 * a) as u8,
-                    (px[1] as f32 * a) as u8,
-                    (px[2] as f32 * a) as u8,
-                    (a * 255.0) as u8,
-                )
-            })
-            .collect()
-    }
-
-    /// The finished picture, premultiplied.
-    #[cfg(test)]
-    fn finished(&self) -> Vec<egui::Color32> {
-        self.reveal(
-            1.0 + 1e-3,
-            &Reveal {
-                soft: 1e-3,
-                ghost: 0.0,
-                ghost_speed: 1.0,
-                grain: 0.0,
-            },
-        )
-    }
-
-    /// Where the hand is at `t`, in 0..1 of the picture, while it draws.
-    fn tip(&self, t: f32) -> Option<(f32, f32)> {
-        if self.path.is_empty() || t <= 0.0 || t >= 1.0 {
-            return None;
-        }
-        let i = self.path.partition_point(|p| p.0 <= t);
-        if i == 0 {
-            return Some((self.path[0].1, self.path[0].2));
-        }
-        if i >= self.path.len() {
-            let p = self.path[self.path.len() - 1];
-            return Some((p.1, p.2));
-        }
-        let (a, b) = (self.path[i - 1], self.path[i]);
-        let f = ((t - a.0) / (b.0 - a.0).max(1e-6)).clamp(0.0, 1.0);
-        Some((a.1 + (b.1 - a.1) * f, a.2 + (b.2 - a.2) * f))
-    }
-}
 
 /// Decode, trim, key out the paper and lay out the time map.
 pub fn prepare(bytes: &[u8], kind: ArtKind, strategy: Strategy) -> anyhow::Result<Prepared> {
@@ -345,34 +232,24 @@ mod tests {
         assert!(p.when[dot] > a.min(b));
     }
 
+    /// How much ink has arrived at `t` (the alpha the reveal shows).
+    fn ink(p: &Prepared, t: f32) -> f32 {
+        p.rgba
+            .iter()
+            .zip(p.coverage(t, 0.02))
+            .map(|(px, k)| px[3] as f32 * k)
+            .sum()
+    }
+
     #[test]
     fn reveal_runs_from_nothing_to_the_picture() {
         let p = prepare_image(drawing(), ArtKind::Line, Strategy::Draw);
-        let ink = |px: &[egui::Color32]| px.iter().map(|c| c.a() as u64).sum::<u64>();
-        let none = ink(&p.reveal(
-            0.0,
-            &Reveal {
-                soft: 0.02,
-                ghost: 0.0,
-                ghost_speed: 1.0,
-                grain: 0.0,
-            },
-        ));
-        let half = ink(&p.reveal(
-            0.5,
-            &Reveal {
-                soft: 0.02,
-                ghost: 0.0,
-                ghost_speed: 1.0,
-                grain: 0.0,
-            },
-        ));
-        let full = ink(&p.finished());
-        assert_eq!(none, 0);
-        assert!(half > 0 && half < full, "{half} {full}");
-        // the hand is on the paper while it draws, and gone after
-        assert!(p.tip(0.5).is_some());
-        assert!(p.tip(1.0).is_none());
+        let (none, half, full) = (ink(&p, 0.0), ink(&p, 0.5), ink(&p, 1.1));
+        assert_eq!(none, 0.0);
+        assert!(half > 0.0 && half < full, "{half} {full}");
+        // the hand has a path to follow while it draws
+        assert!(p.path.len() > 2);
+        assert!(p.path.windows(2).all(|w| w[0].0 <= w[1].0));
     }
 
     #[test]
@@ -395,10 +272,8 @@ mod tests {
                 ArtKind::Tonal
             };
             let p = prepare_image(img.clone(), kind, s);
-            let done = p.finished();
-            for (px, out) in p.rgba.iter().zip(&done) {
-                assert!(px[3].abs_diff(out.a()) <= 1, "{s:?}");
-            }
+            let done = p.coverage(1.0 + 1e-3, 1e-3);
+            assert!(done.iter().all(|k| *k == 1.0), "{s:?}");
         }
     }
 
