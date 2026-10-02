@@ -80,7 +80,9 @@ impl Style {
     }
 }
 
-/// Feed reference images into a style hash (bundled ones by name and size).
+/// Feed reference images into a style hash: bundled ones by name and size,
+/// files by path and contents (D20), so a swatch edited in place makes what
+/// was made with it stale.
 pub fn hash_references(references: &[Reference], h: &mut DefaultHasher) {
     for r in references {
         match r {
@@ -88,9 +90,37 @@ pub fn hash_references(references: &[Reference], h: &mut DefaultHasher) {
                 name.hash(h);
                 bytes.len().hash(h);
             }
-            Reference::File(p) => p.hash(h),
+            Reference::File(p) => {
+                p.hash(h);
+                file_digest(p).hash(h);
+            }
         }
     }
+}
+
+/// A hash of a file's contents, `None` when it cannot be read. Style ids
+/// are asked for every frame, so the digest is kept per path and the file
+/// is read again only when its size or modification time changes.
+fn file_digest(path: &std::path::Path) -> Option<u64> {
+    use std::collections::HashMap;
+    use std::sync::{LazyLock, Mutex};
+    type Stamp = (u64, Option<std::time::SystemTime>);
+    static DIGESTS: LazyLock<Mutex<HashMap<PathBuf, (Stamp, u64)>>> =
+        LazyLock::new(Default::default);
+    let meta = std::fs::metadata(path).ok()?;
+    let stamp: Stamp = (meta.len(), meta.modified().ok());
+    let mut digests = DIGESTS.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((s, d)) = digests.get(path)
+        && *s == stamp
+    {
+        return Some(*d);
+    }
+    let bytes = std::fs::read(path).ok()?;
+    let mut h = DefaultHasher::new();
+    bytes.hash(&mut h);
+    let digest = h.finish();
+    digests.insert(path.to_path_buf(), (stamp, digest));
+    Some(digest)
 }
 
 fn slug(name: &str) -> String {
@@ -252,6 +282,22 @@ mod tests {
                 .id()
                 .starts_with("my-style-")
         );
+    }
+
+    /// D20: a reference image edited in place changes the id, so what was
+    /// made with the old picture goes stale.
+    #[test]
+    fn ids_follow_a_reference_files_contents_not_only_its_path() {
+        let dir = std::env::temp_dir().join(format!("mdeck-style-ref-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("swatch.png");
+        std::fs::write(&file, b"first swatch").unwrap();
+        let style = Style::new("look", "a look", vec![file.clone()]);
+        let before = style.id();
+        assert_eq!(before, style.id(), "stable while the file is unchanged");
+        std::fs::write(&file, b"the swatch, repainted").unwrap();
+        assert_ne!(before, style.id(), "an edited swatch is another style");
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

@@ -13,7 +13,7 @@ base:
   entry: { kind: stagger, step-ms: 120, duration-ms: 650, rise: 14, reveal: rise, reveal-ms: 550 }
   roles:
     eyebrow:     { font: mono, size: 17, color: muted, case: upper, tracking: 0.22, gap: 22 }
-    title:       { font: display, size: h2, scale: 1.05, color: heading, tracking: -0.018, line-height: 1.06, gap: 28 }
+    title:       { font: display, size: h2, scale: 1.05, color: heading, tracking: -0.018, line-height: 1.06, gap: 0.6em }
     heading:     { font: display, size: h2, scale: 0.7, color: heading, tracking: -0.018, line-height: 1.06, gap: 24 }
     subtitle:    { font: lead, size: body, scale: 0.94, color: text, line-height: 1.5, gap: 0 }
     kicker:      { font: lead, size: body, scale: 0.9, color: muted, line-height: 1.5, gap: 0 }
@@ -85,11 +85,11 @@ designs:
       eyebrow: { gap: 26 }
       title: { scale: 0.8, gap: 26 }
   code:
-    copy: { region: [0.07, 0.10, 0.29, 0.80], align: left, valign: middle }
-    plate: { region: [0.40, 0.10, 0.53, 0.80], place: beside, valign: middle }
+    copy: { region: [0.07, 0.08, 0.86, 0.84], align: left, valign: middle }
+    plate: { region: [0.07, 0.08, 0.86, 0.84], place: below, gap: md }
     stage: none
     roles:
-      title: { scale: 0.8 }
+      title: { scale: 0.8, gap: 24 }
   visual:
     copy: { region: [0.07, 0.08, 0.86, 0.84], align: left, valign: top }
     plate: { region: [0.07, 0.08, 0.86, 0.84], place: below, gap: md }

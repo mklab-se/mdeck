@@ -1,4 +1,4 @@
-//! `mdeck illustration contribute`: offer an illustration as a built-in
+//! `mdeck point-cloud contribute`: offer a point cloud as a built-in
 //! through a prefilled GitHub issue.
 
 use std::path::Path;
@@ -13,24 +13,24 @@ const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
 /// Longest issue link a browser and GitHub reliably accept.
 const MAX_URL_LEN: usize = 8000;
 
-/// Offer a deck or user illustration as a built-in: write a `.json` copy
+/// Offer a deck, user or pack point cloud as a built-in: write a `.json` copy
 /// GitHub will accept as an attachment, and open a new-issue page with the
 /// title and body filled in. The person drags the file onto the issue and
 /// submits; nothing needs to be installed.
 pub(super) fn contribute(name: &str, no_open: bool, quiet: bool) -> Result<()> {
     let Some((src, cloud)) = illustration::resolve(name, Some(Path::new(".")))? else {
-        bail!("no illustration named `{name}` (run `mdeck illustration list`)");
+        bail!("no point cloud named `{name}` (run `mdeck point-cloud list`)");
     };
     let path = match &src {
         Source::Deck(p) | Source::User(p) | Source::Pack(p) => p.clone(),
-        Source::Builtin => bail!("`{name}` is already a built-in illustration"),
+        Source::Builtin => bail!("`{name}` is already a built-in point cloud"),
     };
     // GitHub attaches .json, not .mdpc
     let attachment = path.with_extension("mdpc.json");
     std::fs::copy(&path, &attachment)
         .with_context(|| format!("writing {}", attachment.display()))?;
 
-    let title = format!("Illustration: {name}");
+    let title = format!("Point cloud: {name}");
     let body = issue_body(
         &cloud,
         attachment
@@ -82,7 +82,7 @@ pub fn issue_body(cloud: &Cloud, attachment: &str) -> String {
         "**Attach `{attachment}`** by dragging it onto this text box, then submit.\n\n"
     ));
     b.push_str(
-        "I made this illustration and contribute it under the project's license, for \
+        "I made this point cloud and contribute it under the project's license, for \
          inclusion in MDeck's built-in set.\n",
     );
     b
@@ -251,10 +251,10 @@ mod tests {
         assert!(body.contains("license"));
         let url = issue_url(
             "https://github.com/mklab-se/mdeck",
-            "Illustration: ring",
+            "Point cloud: ring",
             &body,
         );
-        assert!(url.starts_with("https://github.com/mklab-se/mdeck/issues/new?labels=illustration&title=Illustration%3A%20ring&body="));
+        assert!(url.starts_with("https://github.com/mklab-se/mdeck/issues/new?labels=illustration&title=Point%20cloud%3A%20ring&body="));
         assert!(url.len() <= MAX_URL_LEN);
         // a huge prompt is trimmed rather than producing an unusable link
         let mut big = cloud.clone();

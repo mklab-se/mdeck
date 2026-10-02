@@ -87,8 +87,13 @@ an AI harness can convert a deck.
     mode and copies the binary to `./target/release/mdeck` (`--out`, `--name`, `--mdeck-path`).
   - **Packs** are folders of data with an `mdeck-pack.yaml` manifest: `mdeck pack install <folder|zip|git-url>` (for the user, or `--deck` for the deck's
     `packs/`), `mdeck pack list` and `mdeck pack remove`. Pack themes and point clouds are found
-    after the deck's and the user's and before the built-ins; a pack's `designs/`, `styles/` and
-    `fonts/` folders are installed but not read yet.
+    after the deck's and the user's and before the built-ins. A pack's `designs/` holds design
+    sets a theme names with `designs:`, its `styles/` named AI styles (`<name>.yaml`: prompt,
+    kind, reference images) that `--style`, `image-style`, `icon-style` and
+    `mdeck ai style list` see, and its `fonts/` font files its own themes name.
+  - **Your own design sets.** `designs:` can name a set file in the deck's `designs/`, the user
+    `designs/` folder or a pack's: `base` and `designs` keys merged over the set it `extends`
+    (default `standard`).
   - `requires:` in the frontmatter names the packs and extensions a deck expects; `--check` warns
     about each one that is not installed. Frontmatter lists (`[a, b]`) read as `a, b`.
   - `mdeck extensions list` shows installed packs, the engines, visuals, transitions and themes
@@ -168,6 +173,10 @@ an AI harness can convert a deck.
   <name> --from <dir>` (was `mdeck theme new --from`), `mdeck ai deck` (was `mdeck ai create`) and
   `mdeck ai skill`. `mdeck ai talk.md` generates everything the deck is missing. The deck forms
   share `--slide N`, `--stale`, `--force` and `--dry-run`.
+- **`mdeck point-cloud`** replaces `mdeck illustration` (`import`, `list`, `show`, `contribute`;
+  the old name still works), and the `--check` category for `picture` names is `point-cloud`.
+- `mdeck config set` help lists `defaults.reduced_motion`, `defaults.image_style` and
+  `defaults.icon_style`; `-v` reads as a general verbosity flag on every command.
 - **One style system.** A named style is a prompt plus optional reference images
   (`mdeck ai style add <name> "..." --reference look.png`); each kind has a default style, the
   deck's `image-style` / `icon-style` override it, and artworks use their medium's style card
@@ -187,6 +196,7 @@ an AI harness can convert a deck.
 - v1 syntax: `@key:` frontmatter keys, `@key: value` slide lines, `???` notes, three-blank-line
   breaks and the old visual tag names (`--check` names the v2 form of each).
 - The `date`, `@aspect` and `@code-theme` frontmatter keys, which did nothing.
+- The `defaults.aspect` config key, which nothing read.
 - Stories: the ```` ```@story ```` and ```` ```@scene ```` fences, the `@story` deck key, the
   `<deck>.scenes.yaml` sidecar, `mdeck ai story`, story beats as reveal steps, the beat ticks and
   spoken line in the HUD, and the `story` check category. `S` while presenting now only draws
@@ -200,6 +210,17 @@ an AI harness can convert a deck.
 
 ### Fixed
 
+- **Code reads as written.** Monospace ligatures no longer turn `---` into a line or `<!--`
+  into dash glyphs, in inline code and in code blocks.
+- **Inline code sits on the baseline.** Code chips in editorial lists no longer drop below the
+  text around them.
+- **Code is a comfortable size.** Short code grows toward the body size instead of sitting
+  small, and its box hugs its lines; the editorial `code` slide puts the code under the heading
+  across the wide region instead of a narrow plate beside it.
+- **Charts hold their slide.** KPI cards grow their type with the room they have, and progress
+  bars are thicker.
+- **Editorial headings breathe.** The heading of an editorial slide sits further from the list
+  under it.
 - Slides no longer drop content: a paragraph before an image, every quote and heading on a quote
   slide, and everything besides a diagram or a first chart are shown.
 - A gallery that fits no longer scrolls, and the reveal auto-scroll finds the item where the
@@ -232,6 +253,10 @@ an AI harness can convert a deck.
 - The published `mdeck-sdk` crate keeps the template manifests `mdeck sdk new` writes
   (`cargo package` dropped any `Cargo.toml` below the crate root).
 - Theme errors no longer name non-colour keys `colors.<key>`.
+- Editing a style's reference image in place (a theme's engine `references`, a named style's
+  references) now makes what was generated with it stale; only a changed path used to.
+- Chart and diagram geometry is no longer collected for engines after switching to the `plain`
+  engine or into the overview, where nothing used it and it piled up.
 - A slide that names a `picture:` shows its stored artwork on the art engines again: the artwork
   comes first and the point cloud is the fallback, as documented.
 - `mdeck --check --theme <name>` checks the deck in that theme, so `--theme departures` reports

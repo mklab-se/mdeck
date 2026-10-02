@@ -46,10 +46,10 @@ mdeck theme new <name>             # a starter theme in ./themes, every key comm
 mdeck theme check <name|file>      # errors, fallbacks, contrast, keys that do nothing
 mdeck theme preview <name|file> -o <dir>   # one slide per design, as PNGs (--width, --height)
 
-mdeck illustration list            # every point cloud visible from here
-mdeck illustration show <name>     # a preview image
-mdeck illustration import <image> --name <name>   # from an image of light strokes on dark (--user, --force)
-mdeck illustration contribute <name>   # offer one to the built-in set: a prefilled GitHub issue (--no-open)
+mdeck point-cloud list            # every point cloud visible from here
+mdeck point-cloud show <name>     # a preview image
+mdeck point-cloud import <image> --name <name>   # from an image of light strokes on dark (--user, --force)
+mdeck point-cloud contribute <name>   # offer one to the built-in set: a prefilled GitHub issue (--no-open)
 ```
 
 See [Themes](themes.md) and [Engines](engines.md#pictures).
@@ -98,7 +98,8 @@ itself comes from the checkout the running mdeck was built from (or `--mdeck-pat
 `MDECK_SOURCE` environment variable), else from crates.io at the running version. Building needs
 a Rust toolchain ([rustup.rs](https://rustup.rs)); the people you give the binary to do not.
 
-**Packs** are data extensions: themes and point clouds as plain files ([Themes](themes.md#packs)).
+**Packs** are data extensions: themes, design sets, point clouds, AI styles and fonts as plain
+files ([Themes](themes.md#packs)).
 
 **Visuals in any language.** `visuals:` in the config maps a fence tag to a program that reads the
 block, the theme's colours and the size as JSON on stdin and writes a PNG; its output is cached in

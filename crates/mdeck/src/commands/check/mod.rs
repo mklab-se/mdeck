@@ -11,7 +11,7 @@ mod assets;
 mod background;
 mod content;
 mod engine;
-mod illustration;
+mod point_cloud;
 mod requires;
 mod settings;
 mod theme;
@@ -21,7 +21,7 @@ mod visuals;
 pub use background::background_warnings;
 pub use content::{cjk_font_warning, content_warnings, math_warnings, warn_missing_cjk_font};
 pub use engine::{deck_theme, engine_warnings};
-pub use illustration::illustration_warnings;
+pub use point_cloud::point_cloud_warnings;
 pub use settings::{fence_warnings, settings_warnings};
 pub use theme::theme_warnings;
 pub use thermal::thermal_warnings;
@@ -144,7 +144,7 @@ fn collect(
             message: format!("theme {}: {message}", theme.name),
         })
         .collect());
-    add(illustration_warnings(presentation, file, &theme));
+    add(point_cloud_warnings(presentation, file, &theme));
     add(design_warnings(presentation));
     add(engine_warnings(presentation, theme.engine));
     add(engine::picture_stage_warnings(presentation, &theme));

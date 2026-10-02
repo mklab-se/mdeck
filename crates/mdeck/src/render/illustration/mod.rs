@@ -161,7 +161,7 @@ pub fn validate_name(name: &str) -> Result<()> {
 pub enum Source {
     /// `<deck dir>/illustrations/<name>.mdpc`.
     Deck(PathBuf),
-    /// `~/.config/mdeck/illustrations/<name>.mdpc`.
+    /// `illustrations/<name>.mdpc` in the user folder ([`user_dir`]).
     User(PathBuf),
     /// `<pack>/point-clouds/<name>.mdpc` of an installed pack (EXT-09).
     Pack(PathBuf),
@@ -207,7 +207,7 @@ fn builtin(name: &str) -> Option<Arc<Cloud>> {
     let text = String::from_utf8_lossy(bytes);
     let cloud = Arc::new(
         Cloud::parse(&text)
-            .unwrap_or_else(|e| panic!("built-in illustration `{name}` is invalid: {e}")),
+            .unwrap_or_else(|e| panic!("built-in point cloud `{name}` is invalid: {e}")),
     );
     guard.push((name.to_string(), Arc::clone(&cloud)));
     Some(cloud)

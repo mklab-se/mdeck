@@ -23,7 +23,7 @@ Subtitle text goes here
 
 ## Bullet Layout - Long
 
-- Incomplete information — you never see all the cards
+- Incomplete information: you never see all the cards
 - Deception is a core mechanic, not a bug
 - Optimal play requires modeling your opponent
 - Machines had to learn to *lie* before they could win
@@ -109,6 +109,6 @@ Additional paragraph with **bold** and *italic* text.
 
 Content above the rule.
 
----
+***
 
 Content below the rule with more detail.

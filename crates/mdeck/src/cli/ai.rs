@@ -40,13 +40,13 @@ pub enum AiCommands {
     Images(ImagesArgs),
     /// Diagram icons for `(icon: generate:, prompt: "...")` (or one icon from --prompt)
     Icons(ImagesArgs),
-    /// A picture for every slide on an art engine, like blueprint or watercolour
+    /// A picture for every slide on an art engine, like line or watercolour
     Pictures {
         /// The deck
         file: PathBuf,
         #[command(flatten)]
         select: Select,
-        /// Draw for this engine instead of the deck's (e.g. blueprint)
+        /// Draw for this engine instead of the deck's (e.g. line)
         #[arg(long)]
         engine: Option<String>,
         /// Use this image node instead of the default (see `ailloy ai config list-nodes`)
@@ -133,7 +133,8 @@ pub struct PointCloudArgs {
     /// description for every missing name; the name itself otherwise)
     #[arg(long)]
     pub description: Option<String>,
-    /// One-off: save to the user library (~/.config/mdeck/illustrations) instead of ./illustrations
+    /// One-off: save to the user library (in the user config folder, see `mdeck config show`)
+    /// instead of ./illustrations
     #[arg(long, requires = "name")]
     pub user: bool,
 }

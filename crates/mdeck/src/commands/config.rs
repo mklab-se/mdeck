@@ -43,7 +43,6 @@ fn show_defaults(config: &Config) {
     println!("{}", "defaults:".bold());
     field("theme:", or_unset(&defaults.theme));
     field("transition:", or_unset(&defaults.transition));
-    field("aspect:", or_unset(&defaults.aspect));
     field("start_mode:", or_unset(&defaults.start_mode));
     field(
         "reduced_motion:",
@@ -116,7 +115,7 @@ fn format_monitor_position(pos: Option<[f32; 2]>) -> String {
 }
 
 fn set(key: &str, value: &str) -> Result<()> {
-    let mut config = Config::load_or_default();
+    let mut config = Config::load_or_default().with_packs(Some(std::path::Path::new(".")));
     config.set(key, value)?;
     let path = config.save()?;
 

@@ -61,9 +61,9 @@ impl RowLayout {
         let label_width = 200.0 * scale;
         let pct_width = 90.0 * scale;
         let available_height = height - padding * 2.0;
-        let max_bar_height = 44.0 * scale;
+        let max_bar_height = 60.0 * scale;
         let min_bar_height = 28.0 * scale;
-        let row_spacing = 20.0 * scale;
+        let row_spacing = 26.0 * scale;
         let bar_height = ((available_height - (n as f32 - 1.0) * row_spacing) / n as f32)
             .clamp(min_bar_height, max_bar_height);
         let total_rows_height = n as f32 * (bar_height + row_spacing) - row_spacing;
@@ -326,9 +326,9 @@ mod tests {
     #[test]
     fn test_row_layout_clamps_and_centres() {
         let few = RowLayout::new(Pos2::new(0.0, 0.0), 1000.0, 500.0, 1.0, 2);
-        assert_eq!(few.bar_height, 44.0);
-        assert_eq!(few.start_y, (500.0 - 108.0) / 2.0);
-        assert_eq!(few.row_y(1), few.start_y + 64.0);
+        assert_eq!(few.bar_height, 60.0);
+        assert_eq!(few.start_y, (500.0 - 146.0) / 2.0);
+        assert_eq!(few.row_y(1), few.start_y + 86.0);
         assert_eq!(few.bar_left, 242.0);
         assert_eq!(few.bar_width, 1000.0 - 60.0 - 200.0 - 12.0 - 90.0);
         let many = RowLayout::new(Pos2::new(0.0, 0.0), 1000.0, 500.0, 1.0, 30);

@@ -1,0 +1,47 @@
+name: Bug report
+description: Something renders wrong, crashes, or does not do what the docs say
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. The fastest bugs to fix come with the smallest deck that shows them.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: deck
+    attributes:
+      label: The deck
+      description: The smallest markdown that shows the problem (paste it, or attach the file).
+      render: markdown
+  - type: textarea
+    id: pictures
+    attributes:
+      label: Screenshots or exports
+      description: |
+        For anything visual: a screenshot, or `mdeck export deck.md --slide N --output-dir out`.
+  - type: input
+    id: version
+    attributes:
+      label: mdeck version
+      description: The output of `mdeck --version`.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Operating system and display (for example macOS 15, 4K external monitor).
+  - type: textarea
+    id: check
+    attributes:
+      label: What `mdeck deck.md --check` says
+      description: |
+        And, after a crash or a reported incident, the log from
+        `~/Library/Application Support/mdeck/logs/` (macOS) or `~/.config/mdeck/logs/` (Linux).
+      render: text

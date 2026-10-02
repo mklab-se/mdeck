@@ -11,7 +11,7 @@ Everything else in this skill is review and bookkeeping.
 
 ## Step 1: Find the candidates
 
-- Default source: `illustrations/*.mdpc` in the repo root (where `mdeck illustration
+- Default source: `illustrations/*.mdpc` in the repo root (where `mdeck point-cloud
   generate` writes when run from the root). Also accept paths, names, or a deck's
   `illustrations/` folder if Kristofer names one.
 - List each candidate with its name, description, point count and aspect (`head -8` of
@@ -31,7 +31,7 @@ cargo run -q -p mdeck -- illustration list | grep built-in
 ## Step 3: Look at every candidate
 
 ```bash
-mdeck illustration show <name> --output /tmp/<name>.png --quiet   # from the repo root
+mdeck point-cloud show <name> --output /tmp/<name>.png --quiet   # from the repo root
 ```
 
 Read each preview PNG. Accept a cloud that reads as its subject at a glance and is not
@@ -51,7 +51,7 @@ has them; an imported one has `prompt: null`, which is fine).
 ## Step 5: Build, verify, and update the docs
 
 ```bash
-cargo build -p mdeck && cargo test -p mdeck illustration
+cargo build -p mdeck && cargo test -p mdeck point-cloud
 cargo run -q -p mdeck -- illustration list | grep -c built-in
 ```
 
@@ -78,7 +78,7 @@ trailers. Do not release; Kristofer decides that separately.
 ## Contributed clouds
 
 Contributions arrive as GitHub issues labelled `illustration`, filed by
-`mdeck illustration contribute` with a `<name>.mdpc.json` attachment. To include one:
+`mdeck point-cloud contribute` with a `<name>.mdpc.json` attachment. To include one:
 
 ```bash
 gh issue list --label illustration
@@ -90,7 +90,7 @@ download it, and rename it:
 
 ```bash
 curl -sL -o illustrations/<name>.mdpc "<attachment url>"
-mdeck illustration show <name> --output /tmp/<name>.png --quiet
+mdeck point-cloud show <name> --output /tmp/<name>.png --quiet
 ```
 
 Then continue from Step 2. Close the issue with a short note either way (`gh issue

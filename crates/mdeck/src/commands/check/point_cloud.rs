@@ -5,10 +5,10 @@ use crate::check::{CheckCategory, CheckWarning};
 use crate::parser;
 use crate::render;
 
-/// Illustration warnings: names that do not resolve, layouts that never show
+/// Point cloud warnings: names that do not resolve, layouts that never show
 /// one, and unreadable cloud files (reported once, on slide 0). `deck` is
 /// the deck file: its folder and its generated point clouds are searched.
-pub fn illustration_warnings(
+pub fn point_cloud_warnings(
     presentation: &parser::Presentation,
     deck: &std::path::Path,
     theme: &crate::theme::Theme,
@@ -25,7 +25,7 @@ pub fn illustration_warnings(
             format!("picture: {e}")
         } else if !lib.has(name) {
             format!(
-                "no illustration named `{name}` (run `mdeck illustration list`, or \
+                "no point cloud named `{name}` (run `mdeck point-cloud list`, or \
                  `mdeck ai point-cloud <deck>` to generate it)"
             )
         } else if !render::design_has_stage(slide, theme) {
@@ -40,7 +40,7 @@ pub fn illustration_warnings(
         out.push(CheckWarning {
             slide: i + 1,
             line: slide.setting_line("picture"),
-            category: CheckCategory::Illustration,
+            category: CheckCategory::PointCloud,
             message,
         });
     }
@@ -48,7 +48,7 @@ pub fn illustration_warnings(
         out.push(CheckWarning {
             slide: 0,
             line: 0,
-            category: CheckCategory::Illustration,
+            category: CheckCategory::PointCloud,
             message: p,
         });
     }
@@ -60,7 +60,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn illustration_warnings_cover_missing_names_and_layouts() {
+    fn point_cloud_warnings_cover_missing_names_and_layouts() {
         let tmp = std::env::temp_dir().join(format!("mdeck-illu-check-{}", std::process::id()));
         std::fs::create_dir_all(tmp.join("illustrations")).unwrap();
         let cloud = render::illustration::Cloud {
@@ -79,7 +79,7 @@ mod tests {
         let mut theme = crate::theme::Theme::dark();
         theme.arrangements =
             crate::theme::arrangement::Arrangements::resolve("editorial", None).unwrap();
-        let warnings = illustration_warnings(&pres, &tmp.join("talk.md"), &theme);
+        let warnings = point_cloud_warnings(&pres, &tmp.join("talk.md"), &theme);
         let by_slide: Vec<(usize, String)> = warnings
             .iter()
             .map(|w| (w.slide, w.message.clone()))
@@ -88,7 +88,7 @@ mod tests {
         assert!(
             by_slide
                 .iter()
-                .any(|(s, m)| *s == 2 && m.contains("no illustration named `nothing`")),
+                .any(|(s, m)| *s == 2 && m.contains("no point cloud named `nothing`")),
             "{by_slide:?}"
         );
         assert!(

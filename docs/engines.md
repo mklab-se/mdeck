@@ -63,7 +63,7 @@ which the engine draws in its own way.
 Thirty-eight pictures are built in: people (`person`, `man`, `woman`, `hooded`,
 `thermographer`, `presenter-up`, `presenter-down`), things (`laptop`, `server`, `phone`, `globe`,
 `rocket`, `gear`, `camera`, `lightbulb`, `lock`, `robot`, ...) and ideas (`ai`, `question`,
-`blackhole`, ...). `mdeck illustration list` shows them all, and `mdeck illustration show <name>`
+`blackhole`, ...). `mdeck point-cloud list` shows them all, and `mdeck point-cloud show <name>`
 previews one.
 
 **Your own pictures.** A name resolves in the deck's `illustrations/` folder first, then your
@@ -72,8 +72,8 @@ user folder, then installed packs, then the built-ins:
 ```bash
 mdeck ai point-cloud talk.md                    # every name the deck uses that exists nowhere (AI)
 mdeck ai point-cloud --name kettle --description "A kettle on a stove"   # one for your library
-mdeck illustration import sketch.png --name sketch   # from an image of light strokes on dark
-mdeck illustration contribute kettle            # offer it to the built-in set (a GitHub issue)
+mdeck point-cloud import sketch.png --name sketch   # from an image of light strokes on dark
+mdeck point-cloud contribute kettle            # offer it to the built-in set (a GitHub issue)
 ```
 
 On the art engines (`line`, `sketch`, `watercolour`, `darkroom`) a slide can also have an

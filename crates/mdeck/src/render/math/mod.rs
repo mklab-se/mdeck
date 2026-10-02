@@ -100,6 +100,11 @@ fn digit_value(c: char) -> Option<usize> {
     DIGITS.iter().position(|&d| d == c)
 }
 
+/// Whether `c` is one of the invisible characters of a formula placeholder.
+pub fn is_placeholder_char(c: char) -> bool {
+    c == MARK || c == END || digit_value(c).is_some()
+}
+
 /// Append a formula to `job` in `format`'s size and colour. A formula that
 /// does not parse is shown as its source.
 ///
@@ -237,7 +242,7 @@ pub fn paint_galley(painter: &egui::Painter, pos: Pos2, galley: &egui::Galley, o
 fn text_baseline(row: &egui::epaint::text::Row) -> Option<f32> {
     row.glyphs
         .iter()
-        .find(|g| g.chr != MARK && g.chr != END && digit_value(g.chr).is_none())
+        .find(|g| !is_placeholder_char(g.chr))
         .map(|g| g.pos.y)
 }
 
@@ -251,6 +256,7 @@ pub fn first_baseline(galley: &egui::Galley) -> Option<f32> {
 
 /// `painter.galley` plus the formulas inside it.
 pub fn galley(painter: &egui::Painter, pos: Pos2, galley: Arc<egui::Galley>, fallback: Color32) {
+    let galley = crate::render::text::settle_code(galley);
     painter.galley(pos, galley.clone(), fallback);
     paint_galley(painter, pos, &galley, 1.0);
 }
@@ -258,6 +264,7 @@ pub fn galley(painter: &egui::Painter, pos: Pos2, galley: Arc<egui::Galley>, fal
 /// [`galley`] at `opacity` (0..1): every run keeps its own colour and fades
 /// with the rest (for entry animations).
 pub fn galley_faded(painter: &egui::Painter, pos: Pos2, galley: Arc<egui::Galley>, opacity: f32) {
+    let galley = crate::render::text::settle_code(galley);
     let fallback = galley
         .job
         .sections

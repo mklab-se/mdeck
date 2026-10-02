@@ -6,8 +6,14 @@
 //! `arrangements: { <design>: { ... } }`; `extends` merges those overrides
 //! key by key. Everything here is data: the renderer in
 //! `render::designs` draws whatever the arrangement says.
+//!
+//! Design sets can also come from folders (a deck's `designs/`, the user's
+//! and every installed pack's): `<set>.yaml` with the same `base` and
+//! `designs` keys, merged over the set it `extends` (default `standard`),
+//! so a file only says what differs.
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde::Deserialize;
@@ -28,6 +34,113 @@ pub const DEFAULT_SET: &str = "standard";
 /// The names of the built-in sets, for messages.
 pub fn set_names() -> Vec<&'static str> {
     SETS.iter().map(|(n, _)| *n).collect()
+}
+
+/// Longest `extends` chain of design sets followed (catches cycles).
+const MAX_SET_DEPTH: usize = 8;
+
+/// The file defining the design set `name` in `dirs`, first folder first.
+pub fn find_set_file(name: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
+    if !crate::theme::lookup::valid_name(name) {
+        return None;
+    }
+    dirs.iter()
+        .flat_map(|d| {
+            [
+                d.join(format!("{name}.yaml")),
+                d.join(format!("{name}.yml")),
+            ]
+        })
+        .find(|p| p.is_file())
+}
+
+/// Every design set visible: the built-ins, then those in `dirs` by name.
+pub fn all_set_names(dirs: &[PathBuf]) -> Vec<String> {
+    let mut names: Vec<String> = set_names().into_iter().map(String::from).collect();
+    let mut extra = std::collections::BTreeSet::new();
+    for d in dirs {
+        let Ok(entries) = std::fs::read_dir(d) else {
+            continue;
+        };
+        for e in entries.flatten() {
+            let p = e.path();
+            if matches!(p.extension().and_then(|x| x.to_str()), Some("yaml" | "yml"))
+                && let Some(stem) = p.file_stem().and_then(|s| s.to_str())
+                && crate::theme::lookup::valid_name(stem)
+            {
+                extra.insert(stem.to_string());
+            }
+        }
+    }
+    for n in extra {
+        if !names.contains(&n) {
+            names.push(n);
+        }
+    }
+    names
+}
+
+/// The set `name` as one `{ base, designs }` value with its `extends` chain
+/// merged, and whether the editorial set is in that chain. Folders come
+/// before the built-ins, as they do for themes.
+fn set_value(name: &str, dirs: &[PathBuf], depth: usize) -> Result<(Value, bool), ThemeError> {
+    if depth > MAX_SET_DEPTH {
+        return Err(ThemeError::invalid(
+            "designs",
+            format!("design set '{name}' extends itself"),
+        ));
+    }
+    let Some(path) = find_set_file(name, dirs) else {
+        return builtin_set_value(name, dirs);
+    };
+    let bad = |what: String| ThemeError::invalid("designs", format!("{}: {what}", path.display()));
+    let text = std::fs::read_to_string(&path).map_err(|e| bad(e.to_string()))?;
+    let mut file: Value = serde_norway::from_str(&text).map_err(|e| bad(e.to_string()))?;
+    let Value::Mapping(map) = &mut file else {
+        return Err(bad("a design set is a mapping with base and designs".into()));
+    };
+    let parent = match map.remove("extends") {
+        Some(Value::String(p)) => p.trim().to_string(),
+        None | Some(Value::Null) => DEFAULT_SET.to_string(),
+        Some(_) => return Err(bad("extends must name a design set".into())),
+    };
+    if let Some(k) = map
+        .keys()
+        .map(|k| k.as_str().unwrap_or_default())
+        .find(|k| *k != "base" && *k != "designs")
+    {
+        return Err(bad(format!(
+            "unknown key '{k}' (a design set has extends, base and designs)"
+        )));
+    }
+    // A file may shadow the built-in it extends (`standard.yaml` extending
+    // `standard`): its parent is then the built-in.
+    let (mut v, editorial) = if parent == name {
+        builtin_set_value(&parent, dirs)?
+    } else {
+        set_value(&parent, dirs, depth + 1)?
+    };
+    merge(&mut v, &file);
+    Ok((v, editorial))
+}
+
+fn builtin_set_value(name: &str, dirs: &[PathBuf]) -> Result<(Value, bool), ThemeError> {
+    let source = SETS
+        .iter()
+        .find(|(n, _)| *n == name)
+        .map(|(_, s)| *s)
+        .ok_or_else(|| {
+            ThemeError::invalid(
+                "designs",
+                format!(
+                    "'{name}' is not a design set ({})",
+                    all_set_names(dirs).join(", ")
+                ),
+            )
+        })?;
+    let file: Value = serde_norway::from_str(source)
+        .map_err(|e| ThemeError::invalid("designs", format!("built-in set {name}: {e}")))?;
+    Ok((file, name == "editorial"))
 }
 
 /// A rectangle in fractions of the slide: `[x, y, width, height]`.
@@ -410,6 +523,8 @@ pub struct Arrangement {
 pub struct Arrangements {
     /// The design set the theme names.
     pub set: String,
+    /// Whether the set is, or extends, the editorial one.
+    editorial: bool,
     by_design: HashMap<Design, Arrangement>,
 }
 
@@ -418,26 +533,25 @@ impl Arrangements {
         &self.by_design[&design]
     }
 
-    /// Whether the set is the editorial one.
+    /// Whether the set is, or extends, the editorial one.
     pub fn is_editorial(&self) -> bool {
-        self.set == "editorial"
+        self.editorial
     }
 
-    /// `set`'s arrangements with `overrides` (the theme's merged
-    /// `arrangements:` mapping) applied key by key.
+    /// The built-in `set`'s arrangements with `overrides` (the theme's
+    /// merged `arrangements:` mapping) applied key by key.
     pub fn resolve(set: &str, overrides: Option<&Value>) -> Result<Arc<Self>, ThemeError> {
-        let source = SETS
-            .iter()
-            .find(|(n, _)| *n == set)
-            .map(|(_, s)| *s)
-            .ok_or_else(|| {
-                ThemeError::invalid(
-                    "designs",
-                    format!("'{set}' is not a design set ({})", set_names().join(", ")),
-                )
-            })?;
-        let file: Value = serde_norway::from_str(source)
-            .map_err(|e| ThemeError::invalid("designs", format!("built-in set {set}: {e}")))?;
+        Self::resolve_in(set, &[], overrides)
+    }
+
+    /// [`Self::resolve`], looking `set` up in `dirs` (design set folders,
+    /// highest priority first) before the built-ins.
+    pub fn resolve_in(
+        set: &str,
+        dirs: &[PathBuf],
+        overrides: Option<&Value>,
+    ) -> Result<Arc<Self>, ThemeError> {
+        let (file, editorial) = set_value(set, dirs, 0)?;
         let base = file.get("base").cloned().unwrap_or(Value::Null);
         let designs = file.get("designs").cloned().unwrap_or(Value::Null);
         if let Some(Value::Mapping(map)) = overrides {
@@ -477,6 +591,7 @@ impl Arrangements {
         }
         Ok(Arc::new(Arrangements {
             set: set.to_string(),
+            editorial,
             by_design,
         }))
     }

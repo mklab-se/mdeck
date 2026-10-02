@@ -183,6 +183,8 @@ through the manifest. Run `mdeck ai talk.md` once to regenerate what is missing 
 | `mdeck ai generate-image` | `mdeck ai images --prompt "..." --output file.png` |
 | `mdeck ai story` | removed |
 | `mdeck illustration generate` | `mdeck ai point-cloud` |
+| `mdeck illustration import`, `list`, `show`, `contribute` | `mdeck point-cloud import`, `list`, `show`, `contribute` |
+| `--check` category `illustration` | `point-cloud` |
 | `mdeck theme new --from <dir>` | `mdeck ai theme <name> --from <dir>` |
 | `MDECK_EXPORT_AT`, `MDECK_EXPORT_MOMENT` | `mdeck export --at <seconds>`, `--moment <moment>` |
 | cargo features `blueprint`, `chalkboard` | `line` |

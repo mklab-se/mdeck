@@ -24,7 +24,8 @@ pub struct ThemeFile {
     pub countdown: Option<String>,
     /// `slide`, `fade`, `spatial` or `none`.
     pub transition: Option<String>,
-    /// The design set: `standard` or `editorial`.
+    /// The design set: `standard`, `editorial`, or a set in a `designs/`
+    /// folder (the deck's, the user's or a pack's).
     pub designs: Option<String>,
     /// Arrangement overrides per design (`all` for every design), merged
     /// key by key over the design set and through `extends`.

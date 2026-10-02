@@ -182,6 +182,8 @@ impl Host {
     pub fn frame(&mut self, ui: &egui::Ui, shot: Shot, lib: &mut Library) {
         self.follow(shot.theme);
         if !self.id.paints() {
+            // Nothing consumes geometry: drop what an earlier engine left.
+            hints::clear(ui.ctx());
             return;
         }
         let now = Instant::now();
@@ -218,6 +220,8 @@ impl Host {
         self.backend = backend;
         self.follow(shot.theme);
         if !self.id.paints() {
+            // Nothing consumes geometry: drop what an earlier engine left.
+            hints::clear(ui.ctx());
             return;
         }
         let dt = 1.0 / 60.0;

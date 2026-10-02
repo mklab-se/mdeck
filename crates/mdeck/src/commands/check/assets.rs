@@ -3,7 +3,7 @@
 //! style (stale), and a manifest that cannot be read. Covers artworks on an
 //! art engine, `generate:` images and icons, and the manifest's point
 //! clouds (a `picture` name that resolves nowhere is the
-//! `illustration` category's).
+//! `point-cloud` category's).
 
 use std::path::Path;
 
@@ -48,7 +48,13 @@ pub fn asset_warnings(
         }
     };
     out.extend(artwork_warnings(deck, presentation, theme));
-    let config = crate::config::Config::load_or_default();
+    let (_, problems) = crate::extensions::packs::styles(deck.parent());
+    out.extend(
+        problems
+            .into_iter()
+            .map(|p| warn(0, 0, format!("a pack style cannot be used: {p}"))),
+    );
+    let config = crate::config::Config::load_or_default().with_packs(deck.parent());
     let styles = style::resolve(&config, &presentation.meta, None);
     out.extend(placeholder_warnings(
         deck,

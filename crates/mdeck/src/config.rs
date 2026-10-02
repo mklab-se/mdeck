@@ -24,6 +24,12 @@ pub struct Config {
     /// to the command that draws it. See `crate::extensions::external`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub visuals: Option<BTreeMap<String, String>>,
+
+    /// Named styles from installed packs' `styles/` folders (EXT-09), added
+    /// by [`Config::with_packs`]. Never saved; the user's own styles of the
+    /// same name win.
+    #[serde(skip)]
+    pub pack_styles: Vec<crate::extensions::packs::PackStyle>,
 }
 
 /// A named style: a prompt, optionally with reference images. Written as a
@@ -114,9 +120,6 @@ pub struct DefaultsConfig {
     pub transition: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub aspect: Option<String>,
-
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start_mode: Option<String>,
 
     /// Present with reduced motion by default (`--reduced-motion`).
@@ -162,6 +165,50 @@ impl Config {
         Self::load().unwrap_or_default()
     }
 
+    /// This config with the named styles of the packs installed for a deck
+    /// in `deck_dir` (and for the user). Unreadable style files are left out.
+    pub fn with_packs(mut self, deck_dir: Option<&Path>) -> Self {
+        self.pack_styles = crate::extensions::packs::styles(deck_dir).0;
+        self
+    }
+
+    /// A pack's style `name`, unless the user has one of that name.
+    fn pack_style(&self, name: &str, icon: bool) -> Option<&crate::extensions::packs::PackStyle> {
+        let own = if icon {
+            &self.icon_styles
+        } else {
+            &self.styles
+        };
+        if own.as_ref().is_some_and(|m| m.contains_key(name)) {
+            return None;
+        }
+        let kind = if icon {
+            crate::extensions::packs::StyleKind::Icon
+        } else {
+            crate::extensions::packs::StyleKind::Image
+        };
+        self.pack_styles
+            .iter()
+            .find(|s| s.name == name && s.kind == kind)
+    }
+
+    /// Whether `name` is a style from a pack (not the user's own).
+    pub fn is_pack_style(&self, name: &str, icon: bool) -> bool {
+        self.pack_style(name, icon).is_some()
+    }
+
+    /// The pack styles of one kind the user has not shadowed.
+    fn pack_style_list(&self, icon: bool) -> Vec<(&str, &str)> {
+        self.pack_styles
+            .iter()
+            .filter(|s| {
+                self.pack_style(&s.name, icon)
+                    .is_some_and(|f| std::ptr::eq(f, *s))
+            })
+            .map(|s| (s.name.as_str(), s.prompt.as_str()))
+            .collect()
+    }
+
     pub fn save(&self) -> Result<PathBuf> {
         let path = Self::path()?;
         self.save_to(&path)?;
@@ -199,6 +246,7 @@ impl Config {
         map.as_ref()
             .and_then(|m| m.get(name))
             .map(NamedStyle::references)
+            .or_else(|| self.pack_style(name, icon).map(|s| s.references.as_slice()))
             .unwrap_or(&[])
     }
 
@@ -253,14 +301,22 @@ impl Config {
     }
 
     pub fn get_style(&self, name: &str) -> Option<&str> {
-        self.styles.as_ref()?.get(name).map(NamedStyle::prompt)
-    }
-
-    pub fn list_styles(&self) -> Vec<(&str, &str)> {
         self.styles
             .as_ref()
+            .and_then(|m| m.get(name))
+            .map(NamedStyle::prompt)
+            .or_else(|| self.pack_style(name, false).map(|s| s.prompt.as_str()))
+    }
+
+    /// The image styles: the user's own, then those from packs.
+    pub fn list_styles(&self) -> Vec<(&str, &str)> {
+        let mut v: Vec<(&str, &str)> = self
+            .styles
+            .as_ref()
             .map(|m| m.iter().map(|(k, v)| (k.as_str(), v.prompt())).collect())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        v.extend(self.pack_style_list(false));
+        v
     }
 
     pub fn add_icon_style(&mut self, name: &str, description: &str) {
@@ -291,15 +347,23 @@ impl Config {
         removed
     }
 
+    /// The icon styles: the user's own, then those from packs.
     pub fn list_icon_styles(&self) -> Vec<(&str, &str)> {
-        self.icon_styles
+        let mut v: Vec<(&str, &str)> = self
+            .icon_styles
             .as_ref()
             .map(|m| m.iter().map(|(k, v)| (k.as_str(), v.prompt())).collect())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        v.extend(self.pack_style_list(true));
+        v
     }
 
     pub fn get_icon_style(&self, name: &str) -> Option<&str> {
-        self.icon_styles.as_ref()?.get(name).map(NamedStyle::prompt)
+        self.icon_styles
+            .as_ref()
+            .and_then(|m| m.get(name))
+            .map(NamedStyle::prompt)
+            .or_else(|| self.pack_style(name, true).map(|s| s.prompt.as_str()))
     }
 
     /// Resolve the effective image style description.
@@ -350,17 +414,6 @@ impl Config {
                     .get_or_insert_with(DefaultsConfig::default)
                     .transition = Some(value.to_string());
             }
-            "defaults.aspect" => {
-                match value {
-                    "16:9" | "4:3" | "16:10" => {}
-                    _ => anyhow::bail!(
-                        "Invalid aspect ratio: {value}. Must be '16:9', '4:3', or '16:10'."
-                    ),
-                }
-                self.defaults
-                    .get_or_insert_with(DefaultsConfig::default)
-                    .aspect = Some(value.to_string());
-            }
             "defaults.start_mode" => {
                 if value != "first" && value != "overview" && value.parse::<usize>().is_err() {
                     anyhow::bail!(
@@ -406,7 +459,7 @@ impl Config {
                     .icon_style = Some(value.to_string());
             }
             _ => anyhow::bail!(
-                "Unknown config key: {key}. Valid keys: defaults.theme, defaults.transition, defaults.aspect, defaults.start_mode, defaults.reduced_motion, defaults.image_style, defaults.icon_style"
+                "Unknown config key: {key}. Valid keys: defaults.theme, defaults.transition, defaults.start_mode, defaults.reduced_motion, defaults.image_style, defaults.icon_style"
             ),
         }
         Ok(())
@@ -440,13 +493,11 @@ mod tests {
         let mut cfg = Config::default();
         cfg.set("defaults.theme", "nord").unwrap();
         cfg.set("defaults.transition", "spatial").unwrap();
-        cfg.set("defaults.aspect", "4:3").unwrap();
         cfg.set("defaults.start_mode", "overview").unwrap();
         cfg.set("defaults.start_mode", "7").unwrap();
         let d = cfg.defaults.as_ref().unwrap();
         assert_eq!(d.theme.as_deref(), Some("nord"));
         assert_eq!(d.transition.as_deref(), Some("spatial"));
-        assert_eq!(d.aspect.as_deref(), Some("4:3"));
         assert_eq!(d.start_mode.as_deref(), Some("7"));
         cfg.set("defaults.reduced_motion", "true").unwrap();
         assert_eq!(cfg.defaults.as_ref().unwrap().reduced_motion, Some(true));
@@ -457,7 +508,8 @@ mod tests {
         let mut cfg = Config::default();
         assert!(cfg.set("defaults.theme", "solarized").is_err());
         assert!(cfg.set("defaults.transition", "zoom").is_err());
-        assert!(cfg.set("defaults.aspect", "1:1").is_err());
+        // nothing reads an aspect ratio, so there is no key for one
+        assert!(cfg.set("defaults.aspect", "4:3").is_err());
         assert!(cfg.set("defaults.start_mode", "last").is_err());
         assert!(cfg.set("defaults.reduced_motion", "sometimes").is_err());
         let err = cfg.set("defaults.nope", "x").unwrap_err().to_string();
@@ -506,6 +558,52 @@ mod tests {
     }
 
     #[test]
+    fn pack_styles_join_the_named_styles_and_the_users_own_win() {
+        use crate::extensions::packs::{PackStyle, StyleKind};
+        let style = |name: &str, kind, prompt: &str| PackStyle {
+            name: name.into(),
+            kind,
+            prompt: prompt.into(),
+            references: vec![PathBuf::from("/pack/styles/ref.png")],
+        };
+        let mut cfg = Config {
+            pack_styles: vec![
+                style("brand", StyleKind::Image, "pack brand"),
+                style("mine", StyleKind::Image, "pack mine"),
+                style("glyph", StyleKind::Icon, "pack glyph"),
+            ],
+            ..Default::default()
+        };
+        cfg.add_style("mine", "my own");
+        assert_eq!(cfg.get_style("brand"), Some("pack brand"));
+        assert_eq!(cfg.get_style("mine"), Some("my own"));
+        assert_eq!(cfg.get_style("glyph"), None, "icon styles stay icons");
+        assert_eq!(cfg.get_icon_style("glyph"), Some("pack glyph"));
+        assert_eq!(
+            cfg.style_references("brand", false),
+            [PathBuf::from("/pack/styles/ref.png")]
+        );
+        assert!(cfg.style_references("mine", false).is_empty());
+        assert_eq!(
+            cfg.list_styles(),
+            [("mine", "my own"), ("brand", "pack brand")]
+        );
+        assert!(cfg.is_pack_style("brand", false) && !cfg.is_pack_style("mine", false));
+        // a pack style can be the default, and is never saved
+        cfg.set("defaults.image_style", "brand").unwrap();
+        let yaml = serde_norway::to_string(&cfg).unwrap();
+        assert!(!yaml.contains("pack brand"), "{yaml}");
+        // and the AI style resolution sees it
+        let meta = crate::parser::PresentationMeta {
+            image_style: Some("brand".into()),
+            ..Default::default()
+        };
+        let s = crate::assets::style::resolve(&cfg, &meta, None);
+        assert_eq!(s.image.prompt, "pack brand");
+        assert_eq!(s.image.references.len(), 1);
+    }
+
+    #[test]
     fn load_missing_file_is_not_found_error() {
         let dir = temp_dir("missing");
         let err = Config::load_from(&dir.join("config.yaml")).unwrap_err();
@@ -534,7 +632,6 @@ mod tests {
 
         let mut cfg = Config::default();
         cfg.set("defaults.theme", "dark").unwrap();
-        cfg.set("defaults.aspect", "16:10").unwrap();
         cfg.add_style("pixar", "3D animated look");
         cfg.add_icon_style("flat", "flat icons");
         cfg.set("defaults.image_style", "pixar").unwrap();
@@ -551,7 +648,6 @@ mod tests {
         let loaded = Config::load_from(&path).unwrap();
         let d = loaded.defaults.as_ref().unwrap();
         assert_eq!(d.theme.as_deref(), Some("dark"));
-        assert_eq!(d.aspect.as_deref(), Some("16:10"));
         assert_eq!(d.image_style.as_deref(), Some("pixar"));
         assert_eq!(d.monitor_position, Some([100.0, 200.0]));
         assert!(d.transition.is_none());

@@ -85,7 +85,7 @@ PICTURES (on the design's stage; every engine but plain and splitflap)
   <!-- picture: none -->  Keep the stage empty
   mdeck ai point-cloud deck.md   Generate the deck's missing names (deck.assets/)
   mdeck ai point-cloud --name NAME --description "..."   A library cloud via AI
-  mdeck illustration import IMAGE --name NAME | list | show NAME | contribute NAME
+  mdeck point-cloud import IMAGE --name NAME | list | show NAME | contribute NAME
 
 ART ENGINES (line, sketch, watercolour, darkroom; spec 9.7)
   mdeck ai pictures deck.md  Draw a picture per slide (--slide N, --stale, --force,

@@ -21,7 +21,9 @@ mdeck. So the guide for writing one is the SDK documentation:
 - the API reference: `cargo doc -p mdeck-sdk --open`.
 
 This page covers only what is different about an engine that ships inside
-mdeck.
+mdeck. How an engine gets there (build it as an extension, propose it with
+exports, then promote it) and what the pull request must contain are in
+[Contributing an engine](../../../CONTRIBUTING.md#contributing-an-engine).
 
 ## Where it lives
 
@@ -79,7 +81,9 @@ documented, additive method with a doctest) rather than reaching into mdeck.
 2. `engines::register`: the module and the registration behind
    `#[cfg(feature = "<name>")]`.
 3. `crates/mdeck/Cargo.toml`: a feature, on by default (an art engine's
-   feature turns on `art` too). CI builds with it alone and with no engines.
+   feature turns on `art` too); its name in `ENGINES` in `crates/mdeck/build.rs`
+   (for the `all_engines` dead-code check) and in the `features` matrix of
+   `.github/workflows/ci.yml`, which builds with it alone and with no engines.
 4. A showcase theme: `crates/mdeck/themes/<theme>.yaml` naming the engine,
    listed in `theme::lookup::BUILTIN` behind the same feature.
 5. `samples/engines/<name>.md`, a deck that shows what the engine is good at.
