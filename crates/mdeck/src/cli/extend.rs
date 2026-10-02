@@ -79,6 +79,31 @@ pub enum SdkCommands {
         #[arg(long)]
         dir: Option<PathBuf>,
     },
+
+    /// Export a built-in preview deck (every design, a chart, images, a
+    /// picture) and the countdown and end moments with an engine and theme
+    Preview {
+        /// The engine to preview, by name (an extension's engine in a build
+        /// with it) [default: the theme's]
+        #[arg(long)]
+        engine: Option<String>,
+
+        /// The theme to preview with [default: the configured default]
+        #[arg(long)]
+        theme: Option<String>,
+
+        /// Where the PNGs go
+        #[arg(short, long, default_value = "sdk-preview")]
+        output_dir: PathBuf,
+
+        /// Export width in pixels
+        #[arg(long, default_value_t = 1920)]
+        width: u32,
+
+        /// Export height in pixels
+        #[arg(long, default_value_t = 1080)]
+        height: u32,
+    },
 }
 
 #[derive(Subcommand)]
@@ -124,6 +149,23 @@ impl ExtendCommands {
             ExtendCommands::Sdk {
                 command: SdkCommands::New { kind, name, dir },
             } => crate::commands::sdk::run_new(kind, &name, dir, quiet),
+            ExtendCommands::Sdk {
+                command:
+                    SdkCommands::Preview {
+                        engine,
+                        theme,
+                        output_dir,
+                        width,
+                        height,
+                    },
+            } => crate::commands::sdk::preview::run(crate::commands::sdk::preview::PreviewArgs {
+                engine,
+                theme,
+                output_dir,
+                width,
+                height,
+                quiet,
+            }),
             ExtendCommands::Build {
                 with,
                 out,

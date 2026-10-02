@@ -2,6 +2,8 @@
 //! scaffold templates in `crates/mdeck-sdk/templates/`, embedded in the SDK
 //! so the command works from any installed mdeck.
 
+pub mod preview;
+
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};

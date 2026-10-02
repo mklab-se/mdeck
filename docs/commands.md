@@ -80,6 +80,7 @@ The deck forms (bare, `images`, `icons`, `pictures`, `point-cloud`) share `--sli
 
 ```bash
 mdeck sdk new <kind> <name>        # an extension crate: engine, visual, design-set or transition (--dir)
+mdeck sdk preview [--engine <name>] [--theme <name>] [-o <dir>]   # the preview deck and both moments as PNGs
 mdeck build --with <path|crate[@version]>   # an mdeck with extensions built in (repeat --with; --out, --name, --mdeck-path)
 mdeck pack install <folder|zip|git-url>     # install a pack for you (--deck: into ./packs)
 mdeck pack list                    # packs installed for you and in ./packs
@@ -97,6 +98,13 @@ and prints its path. Extensions are crate folders or crates.io names (`acme-engi
 itself comes from the checkout the running mdeck was built from (or `--mdeck-path`, or the
 `MDECK_SOURCE` environment variable), else from crates.io at the running version. Building needs
 a Rust toolchain ([rustup.rs](https://rustup.rs)); the people you give the binary to do not.
+
+`mdeck sdk preview` shows an extension at a glance: it exports a built-in preview deck (a slide
+for every design, a chart, images and a picture slide) and the countdown and end moments to PNGs
+in `-o <dir>` (default `./sdk-preview`): `slide-01.png` to `slide-14.png`, `countdown.png` and
+`end.png`. `--engine` and `--theme` pick what to preview by name, so an extension engine works in
+an mdeck built with it (`./target/release/mdeck sdk preview --engine glow`); `--width` and
+`--height` set the size (1920x1080).
 
 **Packs** are data extensions: themes, design sets, point clouds, AI styles and fonts as plain
 files ([Themes](themes.md#packs)).

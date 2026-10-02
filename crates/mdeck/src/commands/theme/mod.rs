@@ -2,7 +2,7 @@
 //! with AI) and preview custom themes.
 
 mod from;
-mod preview;
+pub(crate) mod preview;
 
 use std::path::{Path, PathBuf};
 

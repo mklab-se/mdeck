@@ -2804,6 +2804,7 @@ crates built on the `mdeck-sdk` crate:
 
 ```bash
 mdeck sdk new engine glow                # a crate that builds and tests as it is
+mdeck sdk preview --engine glow -o shots # every design, a chart, images, a picture, both moments
 mdeck build --with ./glow                # an mdeck with it inside: ./target/release/mdeck
 mdeck build --with ./glow --with acme-visuals@1.2 --out ~/bin
 ```

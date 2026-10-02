@@ -84,6 +84,9 @@ an AI harness can convert a deck.
   - `mdeck sdk new <engine|visual|design-set|transition> <name>` creates an extension crate that
     builds and tests as it is (`--dir` picks the folder; it never writes into a folder that is
     not empty).
+  - `mdeck sdk preview [--engine <name>] [--theme <name>] [-o <dir>]` exports a built-in preview
+    deck (every design, a chart, images, a picture slide) and the countdown and end moments as
+    PNGs, with an engine and theme chosen by name (an extension engine in a build with it).
   - `mdeck build --with <path|crate[@version]>...` builds an mdeck with extension crates in it:
     a generated cargo project registers the built-ins and each extension, compiles in release
     mode and copies the binary to `./target/release/mdeck` (`--out`, `--name`, `--mdeck-path`).

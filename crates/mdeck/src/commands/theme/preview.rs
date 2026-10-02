@@ -156,7 +156,7 @@ fn write_pictures(dir: &Path, theme: &Theme) -> Result<()> {
 }
 
 /// A diagonal gradient from `a` to `b` with a soft disc, `w` by `h` px.
-fn picture(a: Color32, b: Color32, w: u32, h: u32) -> image::RgbImage {
+pub(crate) fn picture(a: Color32, b: Color32, w: u32, h: u32) -> image::RgbImage {
     image::RgbImage::from_fn(w, h, |x, y| {
         let t = (x as f32 / w as f32 * 0.6 + y as f32 / h as f32 * 0.4).clamp(0.0, 1.0);
         let (dx, dy) = (x as f32 - w as f32 * 0.66, y as f32 - h as f32 * 0.4);
