@@ -144,7 +144,7 @@ impl Lookup {
                 }
             }
         }
-        if BUILTIN.iter().any(|(n, _)| *n == name) {
+        if embedded(name).is_some() {
             out.push(Found {
                 name: name.to_string(),
                 origin: Origin::Builtin,
@@ -156,7 +156,7 @@ impl Lookup {
     /// Every theme visible here, one per name: built-ins first (in their
     /// `Shift+T` order, possibly shadowed), then user and deck themes by name.
     pub fn available(&self) -> Vec<Found> {
-        let mut names: Vec<String> = BUILTIN.iter().map(|(n, _)| n.to_string()).collect();
+        let mut names: Vec<String> = embedded_names();
         let mut extra = std::collections::BTreeSet::new();
         for (dir, _) in self.dirs() {
             let Ok(entries) = std::fs::read_dir(&dir) else {
@@ -340,12 +340,27 @@ fn absolutize(file: &mut ThemeFile, base: &Path, warnings: &mut Vec<String>) {
     }
 }
 
-/// A built-in theme file, unmerged.
+/// The text of the embedded theme `name`: mdeck's own and every
+/// extension's, through the registry.
+fn embedded(name: &str) -> Option<&'static str> {
+    crate::registry::get().theme_source(name)
+}
+
+/// The embedded themes' names: mdeck's in their `Shift+T` order, then the
+/// extensions' by name.
+fn embedded_names() -> Vec<String> {
+    let mut names: Vec<String> = BUILTIN.iter().map(|(n, _)| n.to_string()).collect();
+    for n in crate::registry::get().theme_names() {
+        if !names.iter().any(|m| m == n) {
+            names.push(n.to_string());
+        }
+    }
+    names
+}
+
+/// A built-in (embedded) theme file, unmerged.
 pub fn builtin_file(name: &str) -> Result<ThemeFile, ThemeError> {
-    let (_, text) = BUILTIN
-        .iter()
-        .find(|(n, _)| *n == name)
-        .ok_or_else(|| ThemeError::NoBuiltin(name.to_string()))?;
+    let text = embedded(name).ok_or_else(|| ThemeError::NoBuiltin(name.to_string()))?;
     ThemeFile::parse(text)
 }
 
