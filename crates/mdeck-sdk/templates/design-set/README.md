@@ -1,0 +1,34 @@
+# {{name}}
+
+A design set for [mdeck](https://github.com/mklab-se/mdeck), made with
+`mdeck sdk new design-set {{name}}`. A theme selects it with
+`designs: {{name}}`.
+
+## Files
+
+| File | What it is |
+|---|---|
+| `src/lib.rs` | The design set: `render`, `unsupported` and `register()` |
+| `theme.yaml` | A theme that uses it, registered as `{{name}}` |
+| `deck.md` | A sample deck |
+| `tests/golden.rs` | A golden-image test |
+
+## Build, present, export, check
+
+```bash
+mdeck build --with .                                   # writes ./target/release/mdeck
+./target/release/mdeck deck.md                         # present the sample deck
+./target/release/mdeck export deck.md --output-dir out # stills of every slide
+./target/release/mdeck deck.md --check                 # what the design set cannot show
+```
+
+## Test
+
+```bash
+cargo test                          # unit tests and the golden image
+MDECK_UPDATE_GOLDEN=1 cargo test    # accept a deliberate change of look
+```
+
+The first test run records `tests/golden/{{name}}.png`. Commit it.
+
+See the [design sets guide](https://github.com/mklab-se/mdeck/tree/main/docs/sdk/design-sets.md).

@@ -1,0 +1,16 @@
+# Dusk: a deep blue night with soft lights drifting under every slide.
+# The showcase theme of the `ambience` engine (SDK tutorial step 1).
+name: Dusk
+extends: dark
+engine: ambience
+colors:
+  background: "#0b1020"
+  text: "#c9d1e6"
+  heading: "#f2f4fa"
+  muted: "#8a93ad"
+  rule: "#232a40"
+  accent: "#ff7a45"
+  secondary: "#f5c26b"
+particles:
+  light: "#ffd2a8"
+  cool: "#8fb2ff"

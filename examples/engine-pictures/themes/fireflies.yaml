@@ -1,0 +1,18 @@
+# Fireflies: warm motes on a forest night that gather into each slide's
+# picture, the countdown and the end. The showcase theme of the `pictures`
+# engine (SDK tutorial step 2).
+name: Fireflies
+extends: dark
+engine: pictures
+countdown: burst
+colors:
+  background: "#070b08"
+  text: "#c8d2c4"
+  heading: "#f1f5ec"
+  muted: "#87937f"
+  rule: "#1f2a20"
+  accent: "#e8b84a"
+  secondary: "#9ccf6a"
+particles:
+  light: "#fff1b8"
+  cool: "#b8e0a0"

@@ -1,0 +1,21 @@
+# Signal: a control-room dark where embers rise from bars and runners trace
+# line series. The showcase theme of the `reactive` engine (SDK tutorial
+# step 3), with every engine setting it reads.
+name: Signal
+extends: dark
+engine:
+  name: reactive
+  glow: 1.2
+  runners: true
+  palette: accent
+colors:
+  background: "#08090c"
+  text: "#c3c7d1"
+  heading: "#f0f2f6"
+  muted: "#858b99"
+  rule: "#22252d"
+  accent: "#3ad1ff"
+  secondary: "#ffb347"
+particles:
+  light: "#d8f4ff"
+  cool: "#9fc8ff"

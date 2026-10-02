@@ -1,0 +1,13 @@
+[package]
+name = "engine-ambience"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "SDK tutorial step 1: a calm animated ground"
+publish = false
+
+[dependencies]
+mdeck-sdk = { path = "../../crates/mdeck-sdk" }

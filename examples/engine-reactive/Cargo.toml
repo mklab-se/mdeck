@@ -1,0 +1,13 @@
+[package]
+name = "engine-reactive"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "SDK tutorial step 3: reacting to content, with typed settings"
+publish = false
+
+[dependencies]
+mdeck-sdk = { path = "../../crates/mdeck-sdk" }

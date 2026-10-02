@@ -3,6 +3,11 @@ resolver = "2"
 members = [
     "crates/mdeck",
     "crates/mdeck-sdk",
+    # SDK tutorial engines and the instantiated engine template (EXT-15, EXT-30)
+    "examples/engine-ambience",
+    "examples/engine-pictures",
+    "examples/engine-reactive",
+    "examples/template-engine",
 ]
 
 [workspace.package]
@@ -20,6 +25,8 @@ eframe = { version = "0.36", default-features = false, features = ["glow", "defa
 egui = { version = "0.36", default-features = false, features = ["default_fonts"] }
 egui_glow = { version = "0.36", default-features = false }
 glow = "0.17"
+# Golden images in mdeck_sdk::testing. Tracks the png version `image` uses.
+png = "0.18"
 
 # CLI
 clap = { version = "4.6", features = ["derive", "wrap_help"] }

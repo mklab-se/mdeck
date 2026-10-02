@@ -13,6 +13,7 @@ categories = ["graphics", "rendering"]
 [dependencies]
 egui.workspace = true
 egui_glow.workspace = true
+png.workspace = true
 glow.workspace = true
 
 [features]

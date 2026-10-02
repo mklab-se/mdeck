@@ -20,3 +20,6 @@ coverage/
 
 # Agent worktrees
 .claude/worktrees/
+
+# Rendered frames a failing golden-image test leaves next to the golden one
+*.actual.png
