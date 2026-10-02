@@ -1,11 +1,12 @@
 # Blueprint: a draftsman's sheet. Prussian blue with a fine grid, a ruled
 # border and a title block; each slide's generated line art is inked in
-# pale blue-white, construction lines first (blueprint engine). Make the
+# pale blue-white, construction lines first (line engine, sheet surface). Make the
 # art with `mdeck ai art`; without it, `@illustration` point clouds are
 # drawn as technical pen lines.
 name: Blueprint
 extends: dark
-engine: blueprint
+engine: line
+surface: sheet               # interim: moves into an engine block in v2
 countdown: burst
 colors:
   background: "#123a6e"      # Prussian blue

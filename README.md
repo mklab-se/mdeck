@@ -35,7 +35,7 @@ heading and three bullets a bullet slide. Then pick a theme and an engine.</em><
 
 <p align="center">
   <img src="media/showcase/dep.gif" width="49%" alt="A departure board turning to the next slide">
-  <img src="media/showcase/etch.gif" width="49%" alt="A laser etching an illustration onto a slide">
+  <img src="media/gallery/thermal-title.jpg" width="49%" alt="A title formed in heat by the thermal engine">
 </p>
 
 <p align="center"><em>Every slide on this page comes from one markdown file,
@@ -55,7 +55,7 @@ heading and three bullets a bullet slide. Then pick a theme and an engine.</em><
     <td><img src="media/showcase/spring-chart.jpg" alt="A stacked bar chart on the Spring theme"><br><sub><b>Twenty charts</b>, here on the Spring theme</sub></td>
   </tr>
   <tr>
-    <td><img src="media/showcase/etch-gear.jpg" alt="A laser etching a gear"><br><sub><b>Laser</b>: a beam etches each illustration</sub></td>
+    <td><img src="media/gallery/chalkboard-drawing.jpg" alt="Generated line art drawn in chalk on a slate"><br><sub><b>Chalkboard</b>: line art drawn in chalk on a slate</sub></td>
     <td><img src="media/showcase/stack-gear.jpg" alt="A gear built from falling blocks"><br><sub><b>Falling blocks</b>: pictures built block by block</sub></td>
   </tr>
   <tr>
@@ -163,11 +163,11 @@ updates every time you save.
 - **Charts and diagrams from text.** Twenty visualizations, from bar charts
   to Gantt charts and routed architecture diagrams, all animated.
   [Visualizations](docs/visualizations.md)
-- **Eighteen themes, and yours.** Your brand in a few lines of YAML, or converted
+- **Seventeen themes, and yours.** Your brand in a few lines of YAML, or converted
   from your design system. [Themes](docs/themes.md)
-- **Twelve engines.** A particle field, an LED wall, a departure board, a
-  laser, falling blocks, a thermal camera, five art media (blueprint,
-  sketchbook, chalkboard, watercolour, darkroom) that draw a picture made for
+- **Ten engines.** A particle field, an LED wall, a departure board, falling
+  blocks, a thermal camera, four art media (line art on a blueprint or a
+  chalkboard, sketchbook, watercolour, darkroom) that draw a picture made for
   every slide, or a clean flat page: one line switches. [Engines](docs/engines.md)
 - **A real presenter tool.** Transitions, grid overview, pen and arrows,
   speaker notes, multiple monitors, clickers. [Presenting](docs/presenting.md)

@@ -18,6 +18,9 @@ pub struct ThemeFile {
     pub engine: Option<String>,
     /// `none`, `plain` or `burst`.
     pub countdown: Option<String>,
+    /// The line engine's surface: `sheet` or `slate` (interim, see
+    /// [`super::Surface`]).
+    pub surface: Option<String>,
     #[serde(default)]
     pub colors: Colors,
     #[serde(default)]
@@ -195,6 +198,7 @@ impl ThemeFile {
             extends: self.extends.clone(),
             engine: pick(&self.engine, &parent.engine),
             countdown: pick(&self.countdown, &parent.countdown),
+            surface: pick(&self.surface, &parent.surface),
             colors: Colors {
                 background: pick(&c.background, &p.background),
                 text: pick(&c.text, &p.text),

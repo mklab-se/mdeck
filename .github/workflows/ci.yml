@@ -35,13 +35,12 @@ jobs:
           - particles
           - led
           - splitflap
-          - laser
           - blocks
-          - blueprint
+          - line
           - sketch
-          - chalkboard
           - watercolour
           - darkroom
+          - thermal
     env:
       RUSTFLAGS: -D warnings
     steps:

@@ -9,10 +9,10 @@ use super::{Built, Theme, ThemeError};
 
 /// The built-in themes, in `Shift+T` order. A theme that runs on an engine
 /// behind a cargo feature (`ember`, `autumn` and `winter` on particles,
-/// `marquee` on led, `departures` on splitflap, `etch` on laser, `stack` on
-/// blocks, `blueprint` on blueprint, `sketchbook` on sketch,
-/// `chalkboard` on chalkboard, `watercolour` on watercolour, `darkroom` on
-/// darkroom, `thermal` on thermal) is left out of a build without that
+/// `marquee` on led, `departures` on splitflap, `stack` on blocks,
+/// `blueprint` and `chalkboard` on line, `sketchbook` on sketch,
+/// `watercolour` on watercolour, `darkroom` on darkroom, `thermal` on
+/// thermal) is left out of a build without that
 /// feature.
 pub const BUILTIN: &[(&str, &str)] = &[
     ("dark", include_str!("../../themes/dark.yaml")),
@@ -30,15 +30,13 @@ pub const BUILTIN: &[(&str, &str)] = &[
     ("marquee", include_str!("../../themes/marquee.yaml")),
     #[cfg(feature = "splitflap")]
     ("departures", include_str!("../../themes/departures.yaml")),
-    #[cfg(feature = "laser")]
-    ("etch", include_str!("../../themes/etch.yaml")),
     #[cfg(feature = "blocks")]
     ("stack", include_str!("../../themes/stack.yaml")),
-    #[cfg(feature = "blueprint")]
+    #[cfg(feature = "line")]
     ("blueprint", include_str!("../../themes/blueprint.yaml")),
     #[cfg(feature = "sketch")]
     ("sketchbook", include_str!("../../themes/sketchbook.yaml")),
-    #[cfg(feature = "chalkboard")]
+    #[cfg(feature = "line")]
     ("chalkboard", include_str!("../../themes/chalkboard.yaml")),
     #[cfg(feature = "watercolour")]
     ("watercolour", include_str!("../../themes/watercolour.yaml")),

@@ -3,7 +3,7 @@
 //! The core decides *what* a slide wants to show (its illustration and where
 //! it goes, the countdown digit, the end words, the geometry the renderers
 //! drew) and hands that over as a [`Stage`]. An engine decides *how* it looks:
-//! a particle field, an LED wall, a laser, falling blocks. Engines never parse
+//! a particle field, an LED wall, a departure board, falling blocks. Engines never parse
 //! markdown or resolve illustrations themselves.
 //!
 //! Adding one: a module here behind a cargo feature, with a type implementing
@@ -15,20 +15,16 @@
 pub mod art;
 #[cfg(feature = "blocks")]
 pub mod blocks;
-#[cfg(feature = "blueprint")]
-pub mod blueprint;
-#[cfg(feature = "chalkboard")]
-pub mod chalkboard;
 mod choice;
 #[cfg(feature = "darkroom")]
 pub mod darkroom;
 #[cfg(test)]
 mod example;
 mod host;
-#[cfg(feature = "laser")]
-pub mod laser;
 #[cfg(feature = "led")]
 pub mod led;
+#[cfg(feature = "line")]
+pub mod line;
 mod masks;
 pub mod paint;
 #[cfg(feature = "particles")]
@@ -66,16 +62,13 @@ pub enum EngineKind {
     Led,
     /// A departure board: every slide's text on a grid of split flaps.
     SplitFlap,
-    /// A laser etches illustrations, digits and words onto the slide.
-    Laser,
     /// Illustrations, digits and words built from falling blocks.
     Blocks,
-    /// A draftsman's blueprint: generated line art inked onto a blue sheet.
-    Blueprint,
+    /// Generated line art on a surface: inked onto a draughtsman's blue
+    /// sheet, or drawn in chalk on a slate (the theme's `surface:`).
+    Line,
     /// A sketchbook: generated graphite drawings drawn in with a pencil.
     Sketch,
-    /// A chalkboard: generated line art drawn in chalk on a slate.
-    Chalkboard,
     /// Watercolour: generated paintings that bloom onto cold-press paper.
     Watercolour,
     /// A darkroom: generated photographs that develop under a safelight.
@@ -108,7 +101,9 @@ pub struct Capabilities {
     pub end_act: bool,
     /// Draws generated art (`@art`, `mdeck ai art`) in its medium.
     pub art: bool,
-    /// Prints the slide number itself, so the editorial counter is left out.
+    /// Prints the slide number itself on a numbered surface (the line
+    /// engine's sheet, see [`crate::theme::Theme::numbers_slides`]), so the
+    /// editorial counter is left out.
     pub numbers_slides: bool,
     /// Forms title and section headings itself (the thermal cold opening):
     /// the editorial copy holds back for [`crate::render::ember::COLD_OPEN_HOLD`]
@@ -180,11 +175,9 @@ impl EngineKind {
         EngineKind::Particles,
         EngineKind::Led,
         EngineKind::SplitFlap,
-        EngineKind::Laser,
         EngineKind::Blocks,
-        EngineKind::Blueprint,
+        EngineKind::Line,
         EngineKind::Sketch,
-        EngineKind::Chalkboard,
         EngineKind::Watercolour,
         EngineKind::Darkroom,
         EngineKind::Thermal,
@@ -201,11 +194,9 @@ impl EngineKind {
             EngineKind::Particles => "particles",
             EngineKind::Led => "led",
             EngineKind::SplitFlap => "splitflap",
-            EngineKind::Laser => "laser",
             EngineKind::Blocks => "blocks",
-            EngineKind::Blueprint => "blueprint",
+            EngineKind::Line => "line",
             EngineKind::Sketch => "sketch",
-            EngineKind::Chalkboard => "chalkboard",
             EngineKind::Watercolour => "watercolour",
             EngineKind::Darkroom => "darkroom",
             EngineKind::Thermal => "thermal",
@@ -223,16 +214,12 @@ impl EngineKind {
             EngineKind::Led => Some(&led::DEF),
             #[cfg(feature = "splitflap")]
             EngineKind::SplitFlap => Some(&splitflap::DEF),
-            #[cfg(feature = "laser")]
-            EngineKind::Laser => Some(&laser::DEF),
             #[cfg(feature = "blocks")]
             EngineKind::Blocks => Some(&blocks::DEF),
-            #[cfg(feature = "blueprint")]
-            EngineKind::Blueprint => Some(&blueprint::DEF),
+            #[cfg(feature = "line")]
+            EngineKind::Line => Some(&line::DEF),
             #[cfg(feature = "sketch")]
             EngineKind::Sketch => Some(&sketch::DEF),
-            #[cfg(feature = "chalkboard")]
-            EngineKind::Chalkboard => Some(&chalkboard::DEF),
             #[cfg(feature = "watercolour")]
             EngineKind::Watercolour => Some(&watercolour::DEF),
             #[cfg(feature = "darkroom")]
@@ -276,11 +263,6 @@ impl EngineKind {
     /// A board engine's renderer for whole slides (`None`: not a board).
     pub fn board(self) -> Option<RenderSlide> {
         self.def().and_then(|d| d.render_slide)
-    }
-
-    /// Prints the slide number itself, so the editorial counter is left out.
-    pub fn numbers_slides(self) -> bool {
-        self.capabilities().numbers_slides
     }
 
     /// Paints a layer of its own under the slide.
@@ -420,7 +402,7 @@ mod tests {
         assert_eq!(EngineKind::from_name("fireworks"), None);
         assert_eq!(
             EngineKind::names(),
-            "plain, particles, led, splitflap, laser, blocks, blueprint, sketch, chalkboard, watercolour, darkroom, thermal"
+            "plain, particles, led, splitflap, blocks, line, sketch, watercolour, darkroom, thermal"
         );
     }
 
@@ -441,11 +423,17 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "blueprint")]
+    #[cfg(feature = "line")]
     #[test]
-    fn blueprint_numbers_its_own_slides() {
-        assert!(EngineKind::Blueprint.numbers_slides());
-        assert!(!EngineKind::Plain.numbers_slides());
+    fn the_line_sheet_numbers_its_own_slides_and_the_slate_does_not() {
+        let mut theme = crate::theme::lookup::load_builtin("blueprint").expect("blueprint");
+        assert_eq!(theme.engine, EngineKind::Line);
+        assert!(theme.numbers_slides());
+        theme.surface = crate::theme::Surface::Slate;
+        assert!(!theme.numbers_slides());
+        theme.engine = EngineKind::Plain;
+        theme.surface = crate::theme::Surface::Sheet;
+        assert!(!theme.numbers_slides());
     }
 
     #[cfg(feature = "particles")]

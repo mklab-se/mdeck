@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use super::super::file::{Sizes, ThemeFile};
-use super::super::{Countdown, EngineKind, ThemeError};
+use super::super::{Countdown, EngineKind, Surface, ThemeError};
 use super::range;
 use crate::render::syntax;
 
@@ -45,6 +45,15 @@ pub(super) fn engine_and_countdown(
         countdown = Countdown::Plain;
     }
     Ok((engine, countdown))
+}
+
+/// `surface:` (the line engine's ground), `sheet` when unset.
+pub(super) fn surface(f: &ThemeFile) -> Result<Surface, ThemeError> {
+    match &f.surface {
+        None => Ok(Surface::default()),
+        Some(s) => Surface::from_name(s.trim())
+            .ok_or_else(|| ThemeError::invalid("surface", format!("'{s}' is not sheet or slate"))),
+    }
 }
 
 /// Heading, body and code sizes in px, in the order `h1, h2, h3, body,
@@ -159,6 +168,16 @@ mod tests {
         assert_eq!(
             fill_opacity(&file("charts: { fill-opacity: 0.3 }")).unwrap(),
             0.3
+        );
+    }
+
+    #[test]
+    fn surfaces_are_sheet_by_default_and_checked() {
+        assert_eq!(surface(&file("{}")).unwrap(), Surface::Sheet);
+        assert_eq!(surface(&file("surface: slate")).unwrap(), Surface::Slate);
+        assert_eq!(
+            surface(&file("surface: glass")).unwrap_err().to_string(),
+            "surface: 'glass' is not sheet or slate"
         );
     }
 

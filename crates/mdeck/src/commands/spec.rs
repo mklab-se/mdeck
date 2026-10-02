@@ -24,12 +24,12 @@ SLIDE SEPARATION
 FRONTMATTER (YAML at top of file)
   title, author, date     Standard metadata
   @theme: name            Theme: dark, light, nord, ember, spring, summer,
-                          autumn, winter, marquee, departures, etch, stack,
+                          autumn, winter, marquee, departures, stack,
                           blueprint, sketchbook, chalkboard, watercolour,
                           darkroom, thermal, or a custom one (see THEMES)
   @engine: name           Run on this engine instead of the theme's: plain,
-                          particles, led, splitflap, laser, blocks, blueprint,
-                          sketch, chalkboard, watercolour, darkroom, thermal
+                          particles, led, splitflap, blocks, line, sketch,
+                          watercolour, darkroom, thermal
                           (try one with --engine name)
   @art: "..."             The deck's world for generated art (art engines)
   @transition: slide|fade|spatial|none
@@ -82,7 +82,7 @@ PARTICLES ENGINE (ember, autumn, winter, and custom themes on it)
   mdeck illustration generate --name NAME --description "..."   New cloud via AI
   mdeck illustration import IMAGE --name NAME | list | show NAME | contribute NAME
 
-ART ENGINES (blueprint, sketch, chalkboard, watercolour, darkroom; spec 9.7)
+ART ENGINES (line, sketch, watercolour, darkroom; spec 9.7)
   mdeck ai art deck.md  Draw a picture per slide (--slide N, --stale, --force,
                         --dry-run, --engine, --node); kept in art/ and deck.art.yaml
   S                     While presenting: draw this slide's picture

@@ -53,6 +53,31 @@ impl Countdown {
     }
 }
 
+/// What the line engine draws on (`surface:`): a draughtsman's `sheet` or a
+/// chalk `slate`.
+///
+/// Interim: a top-level theme key until the v2 theme schema gives engines an
+/// `engine:` settings block (THM-11); then it moves there.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Surface {
+    /// A Prussian-blue drawing sheet: grid, construction lines, crosshair,
+    /// dimension lines and a title block that numbers its sheets.
+    #[default]
+    Sheet,
+    /// A slate: chalk grain and falling dust.
+    Slate,
+}
+
+impl Surface {
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "sheet" => Some(Surface::Sheet),
+            "slate" => Some(Surface::Slate),
+            _ => None,
+        }
+    }
+}
+
 /// The slide as a sheet on a surface: paper on a desk, a board on a wall.
 /// The sheet is the theme's background; sizes are px on a 1920x1080 slide.
 /// The thermal engine's heat field: the palette it glows in and whether
@@ -112,6 +137,8 @@ pub struct Theme {
     pub name: String,
     pub engine: EngineKind,
     pub countdown: Countdown,
+    /// The line engine's surface (`surface:`).
+    pub surface: Surface,
     pub background: Color32,
     pub foreground: Color32,
     pub heading_color: Color32,
@@ -203,6 +230,13 @@ pub struct Built {
 }
 
 impl Theme {
+    /// The engine prints the slide number itself (the line engine's sheet,
+    /// in its title block), so the editorial counter is left out. A slate
+    /// is a board, not a numbered sheet.
+    pub fn numbers_slides(&self) -> bool {
+        self.engine.capabilities().numbers_slides && self.surface == Surface::Sheet
+    }
+
     /// A built-in theme by name. Panics only if an embedded file is broken,
     /// which the tests rule out.
     fn builtin(name: &str) -> Self {

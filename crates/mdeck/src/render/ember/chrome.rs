@@ -8,7 +8,7 @@ use crate::render::SlideContext;
 use crate::theme::Theme;
 
 /// Counter and progress hairline, as on the site's talk decks. Engines
-/// that number their slides themselves (the blueprint's title block) leave
+/// that number their slides themselves (the line engine's title block) leave
 /// the counter out.
 pub fn draw_chrome(
     painter: &egui::Painter,
@@ -17,7 +17,7 @@ pub fn draw_chrome(
     cx: &SlideContext,
     scale: f32,
 ) {
-    let counter = !theme.engine.numbers_slides();
+    let counter = !theme.numbers_slides();
     let (index, count) = (cx.index, cx.count);
     let size = 15.0 * scale;
     let font = egui::FontId::new(size, theme.mono_family());

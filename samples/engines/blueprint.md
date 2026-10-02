@@ -48,4 +48,4 @@ title: Rivets per span
 # Thank you
 @art: A lighthouse keeper waving from the gallery of a lighthouse at dusk, a small robot beside them holding a lantern.
 
-- The engine is `blueprint`, the theme is `blueprint`
+- The engine is `line` on a `sheet`, the theme is `blueprint`

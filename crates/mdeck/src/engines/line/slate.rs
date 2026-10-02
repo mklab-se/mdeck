@@ -1,12 +1,69 @@
-//! Drawing the chalkboard: the slate with the ghosts of drawings wiped off
-//! it, chalk lines, the stick of chalk and the dust it sheds.
+//! The `slate` surface: a chalkboard. The slate with the ghosts of drawings
+//! wiped off it, chalk lines, the stick of chalk and the dust it sheds.
 
 use eframe::egui::{self, Color32, Pos2, Rect, Stroke, vec2};
 
+use super::super::art::{Drawing, Hand, Reveal, Tip};
 use super::super::hash01;
 use super::super::paint::{SPRITE_GLOW, mix, premul};
-use crate::render::strokes::{Picture, to_screen};
+use super::super::stage::FrameCx;
+use super::{Pace, drawn_segment};
+use crate::render::strokes::Picture;
 use crate::theme::Theme;
+
+/// Draw a picture in 3.6 s; nothing is ruled after it.
+pub(super) const PACE: Pace = Pace {
+    draw: 3.6,
+    after: 0.0,
+    fade: 0.7,
+};
+
+const REVEAL: Reveal = Reveal {
+    soft: 0.02,
+    ghost: 0.0,
+    ghost_speed: 1.0,
+    grain: 0.72,
+};
+
+/// Chalk: pictures and strokes in chalk white, the dust it sheds, and the
+/// stick at the tip.
+pub(super) struct Stick<'a> {
+    pub(super) chalk: Chalk,
+    pub(super) motes: &'a [Mote],
+}
+
+impl Hand for Stick<'_> {
+    fn backdrop(&self) -> f32 {
+        0.42
+    }
+
+    fn picture(&self, ui: &egui::Ui, cx: &FrameCx, d: &mut Drawing, now: f32, k: f32, _: bool) {
+        d.paint(ui, cx.rect, now, premul(self.chalk.white, k), REVEAL);
+    }
+
+    fn strokes(
+        &self,
+        painter: &egui::Painter,
+        cx: &FrameCx,
+        p: &Picture,
+        now: f32,
+        k: f32,
+        _: bool,
+    ) {
+        chalk_lines(painter, p, now, cx.rect, cx.scale, &self.chalk, k);
+    }
+
+    fn finish(&self, painter: &egui::Painter, cx: &FrameCx, tip: Option<Tip>) {
+        dust(painter, self.motes, &self.chalk, cx.opacity);
+        if let Some(at) = tip.and_then(Tip::in_front) {
+            stick(painter, at, cx.scale, &self.chalk, cx.opacity);
+        }
+    }
+
+    fn busy(&self) -> bool {
+        !self.motes.is_empty()
+    }
+}
 
 /// The board's colours.
 pub(super) struct Chalk {
@@ -120,15 +177,9 @@ pub(super) fn chalk_lines(
     let w = 3.4 * scale * pic.weight.max(0.6);
     let mut shapes = Vec::new();
     for i in 1..pic.points.len() {
-        if !pic.pen[i] || pic.at[i - 1] > t {
+        let Some((a, b)) = drawn_segment(pic, i, t, rect) else {
             continue;
-        }
-        let a = to_screen(pic.points[i - 1], rect);
-        let mut b = to_screen(pic.points[i], rect);
-        if pic.at[i] > t {
-            let f = (t - pic.at[i - 1]) / (pic.at[i] - pic.at[i - 1]).max(1e-4);
-            b = a + (b - a) * f.clamp(0.0, 1.0);
-        }
+        };
         // chalk skips: some segments are faint, and a dusty halo sits around all
         let skip = if hash01(i as u32 * 13 + 7) < 0.18 {
             0.45

@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- The blueprint and chalkboard engines are one engine, `line`, that draws line art on a surface
+  the theme picks with the new `surface:` key: `sheet` (the Prussian-blue drafting sheet) or
+  `slate` (chalk on a slate). The `blueprint` and `chalkboard` themes look exactly as before; a
+  theme or deck that said `engine: blueprint` now says `engine: line` (and `surface: slate` for
+  the chalkboard). The cargo features `blueprint` and `chalkboard` are now `line`.
+
+### Removed
+
+- The laser engine and its `etch` theme. Their settled stills were a faint outline, and the line,
+  sketch and particle engines cover drawn pictures.
+
 ### Fixed
 
 - Chart reactions no longer leak onto the next slide: LED peak markers and other engine reactions

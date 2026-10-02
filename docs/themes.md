@@ -8,10 +8,10 @@ line of frontmatter, or write your own in a few lines of YAML.
 
 ## Built-in themes and transitions
 
-Eighteen built-in themes: **light**, **dark**, **nord**, **ember**, four
+Seventeen built-in themes: **light**, **dark**, **nord**, **ember**, four
 seasons, **spring**, **summer**, **autumn** and **winter**, and a showcase
 theme for each engine, **marquee** (LED), **departures** (split-flap),
-**etch** (laser), **stack** (blocks), **blueprint** (generated line art on a
+**stack** (blocks), **blueprint** (generated line art on a
 drafting sheet), **sketchbook** (generated drawings, pencilled in),
 **chalkboard** (generated line art in chalk), **watercolour** (generated
 paintings that bloom), **darkroom** (generated photographs that develop) and
@@ -64,8 +64,8 @@ run code. Custom themes work everywhere a built-in one does: presenting,
 `Shift+T`, PNG and PDF export, and `--check`.
 
 **Engines.** The engine is what a theme does beyond colours and type: the
-particle field, the LED wall, the departure board, the laser, the falling
-blocks, or the generated pictures of a blueprint, a sketchbook, a chalkboard, a watercolour or a darkroom. See [Engines](engines.md).
+particle field, the LED wall, the departure board, the falling
+blocks, or the generated pictures of a blueprint or a chalkboard (both the line engine), a sketchbook, a watercolour or a darkroom. See [Engines](engines.md).
 
 ## Pages and art
 

@@ -1,11 +1,12 @@
 # Chalkboard: a green slate in a wooden frame, with the ghosts of earlier
 # drawings wiped off it. Each slide's generated line art is drawn in chalk,
-# breaking up on the slate and shedding dust (chalkboard engine). Make the
+# breaking up on the slate and shedding dust (line engine, slate surface). Make the
 # art with `mdeck ai art`; without it, `@illustration` point clouds are
 # drawn in chalk.
 name: Chalkboard
 extends: dark
-engine: chalkboard
+engine: line
+surface: slate               # interim: moves into an engine block in v2
 countdown: burst
 colors:
   background: "#26352f"      # green slate

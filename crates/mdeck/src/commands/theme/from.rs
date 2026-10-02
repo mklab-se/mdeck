@@ -243,8 +243,7 @@ fn user_prompt(req: &Request) -> String {
          - Keep the built-in slide sizes unless the design system is itself about slides.\n\
          - Choose `extends:` from dark or light by the design system's background.\n\
          - Choose an engine with `countdown: burst` only when the brand already has that \
-           character: `particles` (glow), `led` (neon, signage), `laser` (engineering, \
-           precision), `blocks` (games, playful), `splitflap` (travel, schedules; text only). \
+           character: `particles` (glow), `led` (neon, signage), `blocks` (games, playful), `splitflap` (travel, schedules; text only). \
            Otherwise leave the engine out.\n"
     ));
     if fonts.is_empty() {

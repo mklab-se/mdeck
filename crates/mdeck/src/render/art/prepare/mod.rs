@@ -6,7 +6,7 @@
 //!
 //! How the moments are laid out is the medium's [`Strategy`]:
 //! - [`Strategy::Draw`]: along the ink, stroke by stroke, the way a pen would
-//!   trace it (line art: blueprint, chalkboard, pencil).
+//!   trace it (line art: sheet, slate, pencil).
 //! - [`Strategy::Hatch`]: the outlines first, along the ink, then the tone
 //!   from light to dark (a graphite sketch).
 //! - [`Strategy::Bloom`]: washes spread outward from where the paint is
