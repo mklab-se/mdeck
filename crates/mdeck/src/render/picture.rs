@@ -3,14 +3,17 @@
 //!
 //! A picture that names an image file (PIC-02, step 3) is content: mdeck
 //! draws it here, on the design's stage, whatever the engine. Engines see
-//! it as a `Frame` hint, so a picture engine can react to it.
+//! it as a `Frame` hint, so a picture engine can react to it. A point cloud
+//! is the engine's to draw; on an engine without pictures mdeck stipples
+//! it here instead.
 
 use eframe::egui::{self, Color32, Pos2, Rect};
 use mdeck_sdk::stage::Place;
 
 use crate::parser::{Design, Slide};
-use crate::render::BlockCx;
+use crate::render::designs::motion;
 use crate::render::image_cache::ImageState;
+use crate::render::{BlockCx, SlideContext};
 use crate::theme::arrangement::Stage;
 
 /// File extensions that make a `picture:` value an image file rather than
@@ -19,6 +22,13 @@ const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "webp", "svg"];
 
 /// How strongly an image shows behind a title's copy.
 const BACKDROP_OPACITY: f32 = 0.24;
+
+/// How strongly a stippled point cloud shows behind a title's copy.
+const CLOUD_BACKDROP_OPACITY: f32 = 0.3;
+
+/// Seconds a stippled point cloud takes to come in when its slide is
+/// entered, the most important points first.
+const CLOUD_ENTRY_S: f32 = 1.1;
 
 /// Whether a `picture:` value names an image file (`images/team.jpg`).
 pub fn is_image_path(name: &str) -> bool {
@@ -38,12 +48,26 @@ pub fn image_rect(
     size: [usize; 2],
 ) -> Option<(Rect, bool)> {
     slide.illustration.as_deref().filter(|n| is_image_path(n))?;
+    if size[0] == 0 || size[1] == 0 {
+        return None;
+    }
+    stage_rect(slide, theme, rect, size[1] as f32 / size[0] as f32)
+}
+
+/// Where a picture of `aspect` (height over width) stands on `slide` in
+/// `rect`, and whether it is a title's backdrop; `None` when the design
+/// has no stage.
+fn stage_rect(
+    slide: &Slide,
+    theme: &crate::theme::Theme,
+    rect: Rect,
+    aspect: f32,
+) -> Option<(Rect, bool)> {
     let stage = super::design_stage(slide, theme);
-    if stage == Stage::None || size[0] == 0 || size[1] == 0 || rect.height() <= 0.0 {
+    if stage == Stage::None || aspect <= 0.0 || rect.height() <= 0.0 {
         return None;
     }
     let backdrop = stage == Stage::Backdrop;
-    let aspect = size[1] as f32 / size[0] as f32;
     let p = figure_box(aspect, slide.design, rect.width() / rect.height(), backdrop);
     let r = Rect::from_min_size(
         Pos2::new(
@@ -53,6 +77,65 @@ pub fn image_rect(
         egui::vec2(p.w * rect.width(), p.h * rect.height()),
     );
     Some((r, backdrop))
+}
+
+/// Draw `slide`'s point cloud picture as a stipple of accent dots on the
+/// stage, on an engine that does not draw pictures itself (plain), so a
+/// `picture: rocket` shows on every theme. The most important points (the
+/// outline) are strongest and come in first when the slide is entered;
+/// behind a title the stipple is a dim backdrop.
+pub fn draw_cloud(cx: &BlockCx, slide: &Slide, rect: Rect, deck: &SlideContext) {
+    if cx.theme.engine.capabilities().picture {
+        return;
+    }
+    let Some(name) = slide.illustration.as_deref().filter(|n| !is_image_path(n)) else {
+        return;
+    };
+    let Some(cloud) = cx.image_cache.cloud(name) else {
+        return;
+    };
+    let n = cloud.points.len();
+    let Some((r, backdrop)) = stage_rect(slide, cx.theme, rect, cloud.aspect).filter(|_| n > 0)
+    else {
+        return;
+    };
+    let age = if deck.hold_copy {
+        -1.0
+    } else {
+        motion::entry_age(cx.ui, deck.index, deck.animate, false)
+    };
+    if age < 0.0 {
+        return;
+    }
+    // dots sized to the spacing of the points, within a readable range
+    let spacing = (r.width() * r.height() / n as f32).sqrt();
+    let radius = (spacing * 0.2).clamp(1.2 * cx.scale, 3.6 * cx.scale);
+    let strength = cx.opacity
+        * if backdrop {
+            CLOUD_BACKDROP_OPACITY
+        } else {
+            1.0
+        };
+    let painter = cx.ui.painter();
+    for (i, [x, y]) in cloud.points.iter().enumerate() {
+        let k = i as f32 / n as f32;
+        let appear = motion::ease_out((age - k * CLOUD_ENTRY_S * 0.6) / (CLOUD_ENTRY_S * 0.4));
+        let a = strength * (1.0 - 0.45 * k) * appear;
+        if a <= 0.004 {
+            continue;
+        }
+        let p = Pos2::new(r.left() + x * r.width(), r.top() + y * r.height());
+        painter.circle_filled(
+            p,
+            radius * 2.6,
+            crate::theme::Theme::with_opacity(cx.theme.accent, a * 0.10),
+        );
+        painter.circle_filled(
+            p,
+            radius,
+            crate::theme::Theme::with_opacity(cx.theme.accent, a),
+        );
+    }
 }
 
 /// Draw `slide`'s picture when it names an image file and the design has a
@@ -201,7 +284,22 @@ mod tests {
         let t = crate::parser::parse("# Deck\n<!-- picture: hero.png -->\n");
         let (_, backdrop) = image_rect(&t.slides[0], &editorial, rect, [1200, 800]).unwrap();
         assert!(backdrop);
-        // the standard set has no stage
-        assert!(image_rect(slide, &crate::theme::Theme::dark(), rect, [1200, 800]).is_none());
+        // the standard set opens a stage for a slide that sets a picture,
+        // and moves the copy into the left column
+        let dark = crate::theme::Theme::dark();
+        let (r, backdrop) = image_rect(slide, &dark, rect, [1200, 800]).expect("on the stage");
+        assert!(!backdrop && r.left() > 0.5 * 1920.0, "{r:?}");
+        let copy = dark.slide_arrangement(slide).copy.region;
+        assert!(copy[0] + copy[2] <= 0.52, "{copy:?}");
+        assert_eq!(
+            dark.arrangement(slide.design).stage,
+            crate::theme::arrangement::Stage::None
+        );
+        let (_, backdrop) = image_rect(&t.slides[0], &dark, rect, [1200, 800]).unwrap();
+        assert!(backdrop);
+        // a slide with code keeps its copy wide, and no stage
+        let c =
+            crate::parser::parse("## Code\n<!-- picture: a.png -->\n\n```rust\nfn x() {}\n```\n");
+        assert!(image_rect(&c.slides[0], &dark, rect, [1200, 800]).is_none());
     }
 }

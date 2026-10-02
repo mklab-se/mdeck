@@ -174,7 +174,8 @@ arrangements:
 
 An arrangement sets where the copy goes (`copy`, in fractions of the slide, with `align` and
 `valign`), where the plate goes (the image, code, table, chart or columns: `plate`), where the
-engine may draw a picture (`stage`), the eyebrow, the entry motion (`entry`), every role's type
+engine may draw a picture (`stage`, and `with-picture` for the stage and copy of a slide that
+sets a picture), the eyebrow, the entry motion (`entry`), every role's type
 (`roles.title`, `roles.list`, `roles.quote`, ... with font, size, colour, opacity, case,
 tracking, line height and gap) and the ornaments (bullet glyph and colour, numbering, quote marks
 and bar, title rule, emphasis, pillow). The full key list is in the format specification section

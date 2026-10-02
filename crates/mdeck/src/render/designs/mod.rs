@@ -348,7 +348,7 @@ pub fn layout<'s>(
         let lay = Lay {
             ui,
             theme: t,
-            a: t.arrangement(slide.design),
+            a: t.slide_arrangement(slide),
             scale,
             deck,
             rect,
@@ -496,7 +496,7 @@ fn visual_base(block: &Block) -> Option<usize> {
 /// Draw `slide` in `rect`.
 pub fn render(cx: &BlockCx, slide: &Slide, rect: Rect, deck: &SlideContext) {
     let (fitted, plan) = layout(cx.ui, slide, cx.theme, rect, cx.scale, deck);
-    let a = fitted.arrangement(slide.design);
+    let a = fitted.slide_arrangement(slide);
     // an engine that forms headings itself (the thermal cold opening) gets
     // the title and section copy late, and the heading's layout as a hint
     let cold_open =

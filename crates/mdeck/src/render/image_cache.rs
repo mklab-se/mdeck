@@ -59,6 +59,9 @@ pub struct ImageCache {
     base_path: PathBuf,
     /// The deck's `@thermal` sources, read when the deck opens.
     thermal: super::thermal::Library,
+    /// The point clouds the deck's pictures name: engines draw them, and
+    /// mdeck stipples them on an engine without pictures.
+    clouds: RefCell<super::point_cloud::Library>,
     textures: RefCell<HashMap<String, Option<egui::TextureHandle>>>,
     pending: RefCell<HashMap<String, Receiver<Option<DecodedImage>>>>,
     /// The images external visual programs made for the deck's fences, by
@@ -70,6 +73,7 @@ impl ImageCache {
     pub fn new(base_path: PathBuf) -> Self {
         Self {
             thermal: super::thermal::Library::new(base_path.clone()),
+            clouds: RefCell::default(),
             base_path,
             textures: RefCell::new(HashMap::new()),
             pending: RefCell::new(HashMap::new()),
@@ -100,9 +104,25 @@ impl ImageCache {
         &mut self.thermal
     }
 
+    /// Resolve point clouds with `library` (the deck's folders).
+    pub fn set_clouds(&mut self, library: super::point_cloud::Library) {
+        self.clouds = RefCell::new(library);
+    }
+
+    /// The deck's point cloud library, for the engine host.
+    pub fn clouds_mut(&mut self) -> &mut super::point_cloud::Library {
+        self.clouds.get_mut()
+    }
+
+    /// The point cloud named `name`, if it resolves.
+    pub fn cloud(&self, name: &str) -> Option<std::sync::Arc<super::point_cloud::Cloud>> {
+        self.clouds.borrow_mut().get(name)
+    }
+
     /// Clear all cached textures so images reload on next access.
     pub fn clear(&mut self) {
         self.thermal.clear();
+        self.clouds.get_mut().reset();
         self.textures.get_mut().clear();
         self.pending.get_mut().clear();
     }

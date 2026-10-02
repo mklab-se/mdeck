@@ -82,7 +82,8 @@ react to content and keep clear of it.
 
 - **ENG-14** MUST `deferred to 2.x`: Which slides can show a picture is decided by the design (the
   arrangement has a stage), not by the engine. Any design whose arrangement has a stage shows the
-  picture on any picture-capable engine; the `standard` design set has no stage. `--check`
+  picture on any engine but a board; the `standard` design set opens a stage only on a copy
+  slide that sets a picture (its `with-picture` arrangement). `--check`
   reports a picture set on a slide whose design has no stage. One exception remains in 2.0: a
   generated artwork shows on any slide the art pipeline resolves one for, not only where the
   design has a stage; deferred to 2.x.

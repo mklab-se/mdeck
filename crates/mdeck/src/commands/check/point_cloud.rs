@@ -20,10 +20,9 @@ pub fn point_cloud_warnings(
     let base = deck.parent().unwrap_or(std::path::Path::new("."));
     let mut lib = render::point_cloud::Library::for_deck(Some(base))
         .with_assets(crate::assets::point_cloud_dir(deck));
-    // images are drawn by mdeck on any engine but a board; clouds by
-    // engines that show pictures
-    let shows_images = !theme.engine.is_board();
-    let shows_clouds = theme.engine.capabilities().picture;
+    // images are drawn by mdeck on any engine but a board, and clouds by the
+    // engine or, on one without pictures, by mdeck as a stipple
+    let shows = !theme.engine.is_board();
     for (i, slide) in presentation.slides.iter().enumerate() {
         let Some(name) = &slide.illustration else {
             continue;
@@ -32,7 +31,7 @@ pub fn point_cloud_warnings(
         let message = if image && !base.join(name).is_file() {
             format!("picture: no image file `{name}` (image paths are relative to the deck)")
         } else if image {
-            match stage_problem(slide, name, theme).filter(|_| shows_images) {
+            match stage_problem(slide, name, theme).filter(|_| shows) {
                 Some(m) => m,
                 None => continue,
             }
@@ -44,7 +43,7 @@ pub fn point_cloud_warnings(
                  `mdeck ai point-cloud <deck>` to generate it)"
             )
         } else {
-            match stage_problem(slide, name, theme).filter(|_| shows_clouds) {
+            match stage_problem(slide, name, theme).filter(|_| shows) {
                 Some(m) => m,
                 None => continue,
             }
@@ -146,15 +145,7 @@ mod tests {
         let mut theme = crate::theme::Theme::dark();
         theme.arrangements =
             crate::theme::arrangement::Arrangements::resolve("editorial", None).unwrap();
-        // on plain, which shows no clouds, the engine category says so and
-        // this one stays quiet about stages
-        let plain = point_cloud_warnings(&pres, &tmp.join("talk.md"), &theme);
-        assert!(
-            !plain.iter().any(|w| w.message.contains("no stage")),
-            "{plain:?}"
-        );
-        #[cfg(feature = "particles")]
-        let theme = crate::theme::Theme::ember();
+        // plain stipples clouds itself, so stages matter on it too
         let warnings = point_cloud_warnings(&pres, &tmp.join("talk.md"), &theme);
         let by_slide: Vec<(usize, String)> = warnings
             .iter()
@@ -167,7 +158,6 @@ mod tests {
                 .any(|(s, m)| *s == 2 && m.contains("no point cloud named `nothing`")),
             "{by_slide:?}"
         );
-        #[cfg(feature = "particles")]
         assert!(
             by_slide
                 .iter()
@@ -187,6 +177,22 @@ mod tests {
             "{by_slide:?}"
         );
         std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    /// PIC-04: the standard set opens a stage for a picture on copy
+    /// designs, so only designs without one are reported there.
+    #[test]
+    fn the_standard_set_stages_a_picture_on_copy_slides() {
+        let md = "# Deck\n<!-- picture: rocket -->\n\n---\n\n## Points\n<!-- picture: rocket -->\n\n- a\n\n---\n\n> Said.\n<!-- picture: rocket -->\n\n---\n\n## Code\n<!-- picture: rocket -->\n\n```rust\nfn main() {}\n```\n";
+        let pres = parser::parse(md);
+        let w = point_cloud_warnings(
+            &pres,
+            std::path::Path::new("/nonexistent/talk.md"),
+            &crate::theme::Theme::dark(),
+        );
+        let slides: Vec<usize> = w.iter().map(|w| w.slide).collect();
+        assert_eq!(slides, vec![4], "{w:?}");
+        assert!(w[0].message.contains("code slides leave no stage"), "{w:?}");
     }
 
     #[test]

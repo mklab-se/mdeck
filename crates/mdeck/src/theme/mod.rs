@@ -264,6 +264,14 @@ impl Theme {
         self.arrangements.get(design)
     }
 
+    /// How `slide` is arranged: its design's arrangement, or, when it sets
+    /// a picture and holds no wide block, the design's `with-picture` one.
+    pub fn slide_arrangement(&self, slide: &crate::parser::Slide) -> &arrangement::Arrangement {
+        let pictured =
+            slide.illustration.is_some() && !slide.blocks.iter().any(crate::render::is_wide_block);
+        self.arrangements.get_for(slide.design, pictured)
+    }
+
     /// The engine prints the slide number itself (the line engine's sheet,
     /// in its title block), so the editorial counter is left out. A slate
     /// is a board, not a numbered sheet.

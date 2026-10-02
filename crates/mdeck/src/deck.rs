@@ -1,6 +1,6 @@
 //! A deck as the presenting window and export both hold it: the parsed
 //! presentation and everything resolved for it (reveal steps,
-//! illustrations, generated art, logos, background images, images), and the
+//! point clouds, generated art, logos, background images, images), and the
 //! engine that draws under its slides. Both draw through
 //! [`Deck::draw_background`], [`Deck::engine_layer`], [`Deck::draw_slide`]
 //! and [`Deck::draw_logo`], so an export shows what the window shows.
@@ -28,8 +28,6 @@ pub struct Deck {
     pub image_cache: ImageCache,
     /// Reveal steps per slide.
     pub max_steps: Vec<usize>,
-    /// Point cloud illustrations resolved for this deck.
-    pub illustrations: Library,
     /// Generated art for the art engines.
     pub art: DeckArt,
     /// The logo on each slide (theme `logo:`, the deck's `logo`, the slide's `logo`).
@@ -80,6 +78,9 @@ impl Deck {
         resolve_assets(&mut presentation, &file, quiet);
         let dir = deck_dir(&file).to_path_buf();
         let mut image_cache = ImageCache::new(dir);
+        image_cache.set_clouds(
+            Library::for_deck(file.parent()).with_assets(crate::assets::point_cloud_dir(&file)),
+        );
         load_thermal(&mut image_cache, &presentation, quiet);
         let max_steps = slide_max_steps(&mut presentation, image_cache.thermal());
         prepare_external(&mut image_cache, &file, &presentation, theme, quiet);
@@ -87,8 +88,6 @@ impl Deck {
         art.sync(&presentation, theme);
         let mut deck = Self {
             image_cache,
-            illustrations: Library::for_deck(file.parent())
-                .with_assets(crate::assets::point_cloud_dir(&file)),
             presentation,
             file,
             max_steps,
@@ -126,7 +125,6 @@ impl Deck {
             theme,
             false,
         );
-        self.illustrations.reset();
         self.art.invalidate();
         self.max_steps = slide_max_steps(&mut self.presentation, self.image_cache.thermal());
         self.refresh_logos(theme);
@@ -254,8 +252,8 @@ impl Deck {
             None => &mut self.engine,
         };
         match rehearse_at {
-            Some(t) => host.rehearse(ui, shot, &mut self.illustrations, t),
-            None => host.frame(ui, shot, &mut self.illustrations),
+            Some(t) => host.rehearse(ui, shot, self.image_cache.clouds_mut(), t),
+            None => host.frame(ui, shot, self.image_cache.clouds_mut()),
         }
     }
 

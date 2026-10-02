@@ -179,6 +179,19 @@ pub enum Stage {
     Backdrop,
 }
 
+/// How a design changes on a slide that sets a picture (`with-picture:`):
+/// a set whose copy fills the slide (the standard one) opens a stage for
+/// the picture there and moves the copy aside. Only slides with a
+/// `picture:` use it, and a slide holding a wide block keeps its copy wide.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct WithPicture {
+    pub stage: Stage,
+    /// Where the copy goes instead; the design's own when unset.
+    #[serde(default)]
+    pub copy: Option<Region>,
+}
+
 /// The line over the copy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
@@ -510,6 +523,8 @@ pub struct Arrangement {
     /// Where the plate goes, for designs that have one.
     pub plate: Option<Plate>,
     pub stage: Stage,
+    /// The stage and copy of a slide that sets a picture.
+    pub with_picture: Option<WithPicture>,
     pub eyebrow: Eyebrow,
     /// A title page shows the deck's author under the subtitle.
     pub byline: bool,
@@ -526,11 +541,24 @@ pub struct Arrangements {
     /// Whether the set is, or extends, the editorial one.
     editorial: bool,
     by_design: HashMap<Design, Arrangement>,
+    /// Each design's arrangement on a slide that sets a picture (its
+    /// `with-picture` applied).
+    pictured: HashMap<Design, Arrangement>,
 }
 
 impl Arrangements {
     pub fn get(&self, design: Design) -> &Arrangement {
         &self.by_design[&design]
+    }
+
+    /// The arrangement of `design` on a slide that sets a picture (`true`)
+    /// or does not.
+    pub fn get_for(&self, design: Design, pictured: bool) -> &Arrangement {
+        if pictured {
+            &self.pictured[&design]
+        } else {
+            self.get(design)
+        }
     }
 
     /// Whether the set is, or extends, the editorial one.
@@ -574,6 +602,7 @@ impl Arrangements {
             ));
         }
         let mut by_design = HashMap::new();
+        let mut pictured = HashMap::new();
         for design in Design::ALL {
             let mut v = base.clone();
             merge(&mut v, designs.get(design.name()).unwrap_or(&Value::Null));
@@ -587,12 +616,19 @@ impl Arrangements {
             check(&a).map_err(|reason| {
                 ThemeError::invalid(format!("arrangements.{}", design.name()), reason)
             })?;
+            let mut p = a.clone();
+            if let Some(w) = a.with_picture {
+                p.stage = w.stage;
+                p.copy = w.copy.unwrap_or(a.copy);
+            }
+            pictured.insert(design, p);
             by_design.insert(design, a);
         }
         Ok(Arc::new(Arrangements {
             set: set.to_string(),
             editorial,
             by_design,
+            pictured,
         }))
     }
 }
@@ -614,6 +650,9 @@ fn check(a: &Arrangement) -> Result<(), String> {
         }
     };
     frac("copy", &a.copy.region)?;
+    if let Some(c) = a.with_picture.and_then(|w| w.copy) {
+        frac("with-picture.copy", &c.region)?;
+    }
     if let Some(w) = &a.wide {
         frac("wide", &w.region)?;
     }

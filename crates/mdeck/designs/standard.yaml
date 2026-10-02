@@ -5,6 +5,10 @@
 # slide; sizes are theme size tokens (h1, h2, h3, body, code, level) or px
 # at 1920x1080; gaps are spacing tokens (xs, sm, md, lg, xl), px, or a
 # multiple of the role's own size (`0.5em`).
+#
+# The standard set has no stage, except on a slide that sets a picture:
+# `with-picture` then opens one (beside the copy, or behind a title) and
+# moves the copy into the left column, as on a split slide.
 
 base:
   copy: { region: [0.15, 0.074, 0.70, 0.852], align: left, valign: middle }
@@ -48,18 +52,28 @@ designs:
   title:
     copy: { region: [0.042, 0.074, 0.916, 0.852], align: center, valign: middle }
     byline: true
+    with-picture: { stage: backdrop }
     roles:
       title: { size: h1, scale: 1.1, gap: 20 }
       subtitle: { gap: 24 }
   section:
     copy: { region: [0.042, 0.074, 0.916, 0.852], align: center, valign: middle }
+    with-picture:
+      stage: right
+      copy: { region: [0.07, 0.074, 0.44, 0.852], align: left, valign: middle }
     roles:
       title: { scale: 1.15, gap: 24 }
   statement:
     copy: { region: [0.15, 0.074, 0.70, 0.852], align: center, valign: middle }
+    with-picture:
+      stage: right
+      copy: { region: [0.07, 0.074, 0.44, 0.852], align: left, valign: middle }
     roles:
       title: { font: body, size: body, scale: 0.7, color: accent, case: upper, tracking: 0.12, gap: 28 }
-  points: {}
+  points:
+    with-picture:
+      stage: right
+      copy: { region: [0.07, 0.074, 0.44, 0.852], align: left, valign: middle }
   split:
     copy: { region: [0.042, 0.074, 0.504, 0.852], align: left, valign: middle }
     plate: { region: [0.592, 0.074, 0.366, 0.852], place: beside, valign: middle }
@@ -76,6 +90,9 @@ designs:
       caption: { scale: 0.6 }
   quote:
     copy: { region: [0.125, 0.074, 0.75, 0.852], align: center, valign: middle }
+    with-picture:
+      stage: right
+      copy: { region: [0.07, 0.074, 0.54, 0.852], align: left, valign: middle }
   code:
     copy: { region: [0.125, 0.074, 0.75, 0.852], align: left, valign: middle }
     plate: { region: [0.125, 0.074, 0.75, 0.852], place: below, gap: 20 }
@@ -88,4 +105,7 @@ designs:
   table:
     copy: { region: [0.15, 0.074, 0.70, 0.852], align: left, valign: middle }
     plate: { region: [0.15, 0.074, 0.70, 0.852], place: below, gap: 20 }
-  content: {}
+  content:
+    with-picture:
+      stage: right
+      copy: { region: [0.07, 0.074, 0.44, 0.852], align: left, valign: middle }

@@ -108,8 +108,9 @@ Every kind is a `Visual` registered under its tag in the same registry extension
      extensions;
   3. an image file path, relative to the deck.
 
-  The engine draws an artwork or a point cloud in its medium. An engine that cannot draw
-  pictures ignores it, and `--check` (category `engine`) reports that. An image file is content:
+  The engine draws an artwork or a point cloud in its medium. On an engine that cannot draw
+  pictures (`plain`), mdeck draws a point cloud itself, as a stipple of dots in the theme's
+  accent; a board draws neither, and `--check` (category `engine`) reports that. An image file is content:
   mdeck draws it on the design's stage itself, on every engine but a board (which draws the whole
   slide, and `--check` says so), and engines see it as a `Frame` hint. `--check` reports an image
   path that names no file.
@@ -118,7 +119,9 @@ Every kind is a `Visual` registered under its tag in the same registry extension
 - **PIC-04** MUST `implemented`: The picture appears on the slide's stage: beside the copy, or
   behind the title as a large, dim backdrop on title slides. Which designs have a stage is
   decided by the arrangement (ENG-14); in the `editorial` set statement, points, quote, section,
-  title and text-only content slides have one, and the `standard` set has none.
+  title and text-only content slides have one. The `standard` set has none, except on a slide
+  that sets a picture: its `with-picture` arrangement then opens one on those same designs and
+  moves the copy into the left column.
 - **PIC-05** MUST `implemented`: The prompt for a generated artwork is a separate, optional
   setting (`picture-prompt` on a slide, `art-world` in the deck settings), used only by
   `mdeck ai pictures`. It is never needed to present.

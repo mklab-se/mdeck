@@ -942,10 +942,14 @@ statement, points, quote, section and text-only content slides show it on
 the right, beside the copy, warm and lit from the first step. Title slides
 put it behind the centred copy, large, dim and slow: a backdrop rather than
 a picture. Split, media, gallery, code, visual, columns and table slides
-never show one, and the standard set leaves no stage at all. Every engine
-except `plain` and `splitflap` draws point clouds and artworks, each in its
-own medium (section 9.6); an image file shows on every engine but
-`splitflap`. `mdeck --check` warns when a slide asks for a picture its
+never show one. The standard set has no stage until a slide sets a
+picture: then statement, points, quote, section and text-only content
+slides open one on the right and move their copy into the left column, and
+a title puts it behind the copy (the arrangement's `with-picture`). Every
+engine except `plain` and `splitflap` draws point clouds and artworks, each
+in its own medium (section 9.6); on `plain`, mdeck draws a point cloud
+itself as a stipple of dots in the theme's accent. An image file shows on
+every engine but `splitflap`. `mdeck --check` warns when a slide asks for a picture its
 design or engine cannot show, or one that does not exist. `picture: none`
 keeps a slide's stage empty.
 
@@ -1511,10 +1515,10 @@ deck's `countdown`, then the theme's; an engine without a countdown of its
 own shows plain numerals.
 
 **Content an engine does not show.** Engines differ in what they can show:
-the plain engine draws no pictures, and the
-split-flap board shows text only. `mdeck --check`
+the plain engine draws no artwork (mdeck stipples point clouds for it), and
+the split-flap board shows text only. `mdeck --check`
 lists every such slide under the `engine` category (for example
-`slide 4 (line 31): [engine] picture: server is not shown by the plain engine`),
+`slide 4 (line 31): [engine] picture: server is not shown by the splitflap engine`),
 and presenting or exporting prints one summary line when a deck has any.
 
 Engines are part of MDeck and each one is a cargo feature, on by default.
@@ -1756,6 +1760,7 @@ An arrangement's keys:
 | `wide` | like `copy`: where a `content` slide's copy goes when it holds an image, code, a table or a visual (its stage is given up) |
 | `plate` | `{ region, place: below\|beside, align, valign, gap, rule }`: where the image, gallery, code, table, visual or columns go; `below` puts it under the copy, `beside` in its own region; `rule` draws a hairline over each column |
 | `stage` | `none`, `right`, `left` or `backdrop`: where the engine may draw the slide's picture |
+| `with-picture` | `{ stage, copy }`: the stage, and where the copy goes instead (like `copy`), on a slide that sets a picture and holds no image, code, table or visual; the standard set uses it to open a stage only when a slide asks for a picture |
 | `eyebrow` | `none`, `numeral` (Roman numeral and deck title) or `deck` (author and deck title) |
 | `byline` | `true`: a title page shows the deck's author |
 | `entry` | `{ kind: none\|fade\|rise\|stagger, step-ms, duration-ms, rise, reveal: slide\|rise\|fade, reveal-ms }`: how copy comes in, and how a `+` item revealed with Next comes in |

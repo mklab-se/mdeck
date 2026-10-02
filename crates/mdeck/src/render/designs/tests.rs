@@ -238,6 +238,26 @@ fn stage_follows_the_arrangement() {
     assert!(!crate::render::design_has_stage(&pres.slides[0], &s));
     // a content slide with code gives its stage up
     assert!(!crate::render::design_has_stage(&pres.slides[1], &e));
+    // the standard set opens one for a slide that sets a picture (PIC-04),
+    // and lays its copy out in the left column
+    let pic = parse(
+        "## P\n<!-- picture: rocket -->\n\n- a\n\n---\n\n## C\n<!-- picture: rocket -->\n\n- a\n\n```rust\nx\n```\n",
+    );
+    assert!(crate::render::design_has_stage(&pic.slides[0], &s));
+    assert!(!crate::render::design_has_stage(&pic.slides[1], &s));
+    with_ui(|ui| {
+        let (_, plan) = layout(
+            ui,
+            &pic.slides[0],
+            &s,
+            rect(),
+            1.0,
+            &SlideContext::default(),
+        );
+        for (text, pos, _) in texts(&plan) {
+            assert!(pos.x < 0.52 * 1920.0, "{text} at {pos:?}");
+        }
+    });
 }
 
 /// The text of every text piece, where it is painted, and whether it has a

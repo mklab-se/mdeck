@@ -49,18 +49,21 @@ under the slide's heading:
 - 100 cores
 ```
 
-The picture goes on the design's **stage**. In the editorial design set (Ember and the other
-engine themes) statement, points, quote, section and text-only content slides show it on the
-right, beside the copy; a title slide puts it behind the copy, large and dim. Slides that show an
-image, code, a chart, a table or columns have no stage, and neither does the standard set (`dark`,
-`light`, `nord`). `<!-- picture: none -->` keeps a slide empty. `--check` warns when a slide asks
-for a picture it cannot show, or one that does not exist.
+The picture goes on the design's **stage**. Statement, points, quote, section and text-only
+content slides show it on the right, beside the copy; a title slide puts it behind the copy, large
+and dim. In the editorial design set (Ember and the other engine themes) those slides always keep
+the stage; in the standard set (`dark`, `light`, `nord`) a slide opens one only when it sets a
+picture, and its copy moves into the left column. Slides that show an image, code, a chart, a
+table or columns have no stage. `<!-- picture: none -->` keeps a slide empty. `--check` warns when
+a slide asks for a picture it cannot show, or one that does not exist.
 
 `picture` resolves in this order: the slide's generated artwork on an art engine (below), then a
 point cloud of that name, then an image file at that path, relative to the deck
 (`<!-- picture: art/bridge.png -->`). mdeck draws an image itself, framed on the stage (or dim
 behind a title), so it shows on every engine, `plain` included; only the split-flap board, which
-draws the whole slide, leaves it out.
+draws the whole slide, leaves it out. A point cloud is drawn by the engine in its medium; on
+`plain`, which draws no pictures, mdeck stipples it on the stage in the theme's accent, so
+`picture: rocket` shows on the default theme too.
 
 Thirty-eight pictures are built in: people (`person`, `man`, `woman`, `hooded`,
 `thermographer`, `presenter-up`, `presenter-down`), things (`laptop`, `server`, `phone`, `globe`,

@@ -27,10 +27,11 @@ use crate::theme::Theme;
 pub use context::{BlockCx, SlideContext, TextCx};
 
 /// Whether the slide's design leaves room for the engine's picture of the
-/// slide in `theme` (the arrangement's `stage`). A `content` slide that
-/// holds a wide block (an image, code, a table or a visual) gives its stage
-/// up to the copy. Seam for the engines: where pictures go is the design's
-/// business, never the engine's.
+/// slide in `theme` (the arrangement's `stage`, or its `with-picture` one
+/// when the slide sets a picture). A `content` slide that holds a wide
+/// block (an image, code, a table or a visual) gives its stage up to the
+/// copy. Seam for the engines: where pictures go is the design's business,
+/// never the engine's.
 pub fn design_has_stage(slide: &Slide, theme: &Theme) -> bool {
     design_stage(slide, theme) != crate::theme::arrangement::Stage::None
 }
@@ -38,7 +39,7 @@ pub fn design_has_stage(slide: &Slide, theme: &Theme) -> bool {
 /// Where the slide's design leaves room for the picture (see
 /// [`design_has_stage`]).
 pub fn design_stage(slide: &Slide, theme: &Theme) -> crate::theme::arrangement::Stage {
-    let a = theme.arrangement(slide.design);
+    let a = theme.slide_arrangement(slide);
     if a.wide.is_some() && slide.blocks.iter().any(is_wide_block) {
         return crate::theme::arrangement::Stage::None;
     }
@@ -92,6 +93,7 @@ pub fn render_slide(cx: &BlockCx, slide: &Slide, rect: egui::Rect, slide_cx: &Sl
         return;
     }
     picture::draw_image(cx, slide, rect);
+    picture::draw_cloud(cx, slide, rect, slide_cx);
     designs::render(cx, slide, rect, slide_cx);
 }
 

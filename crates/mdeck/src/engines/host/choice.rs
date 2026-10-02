@@ -54,14 +54,11 @@ pub fn with_engine(mut theme: crate::theme::Theme, kind: Option<EngineId>) -> cr
 pub fn unsupported(kind: EngineId, slide: &Slide) -> Vec<String> {
     let caps = kind.capabilities();
     let mut out = Vec::new();
-    // an image file is drawn by mdeck itself, except on a board, which
-    // draws the whole slide; a point cloud needs an engine with pictures
+    // an image file is drawn by mdeck itself, and so is a point cloud on an
+    // engine without pictures (a stipple), except on a board, which draws
+    // the whole slide
     if let Some(name) = &slide.illustration
-        && if crate::render::picture::is_image_path(name) {
-            kind.board().is_some()
-        } else {
-            !caps.picture
-        }
+        && kind.board().is_some()
     {
         out.push(format!(
             "picture: {name} is not shown by the {} engine",
@@ -166,13 +163,16 @@ mod tests {
         let pres = crate::parser::parse("# A\n<!-- picture: server -->\n\n- one\n\n# B\n\n- two\n");
         let a = &pres.slides[0];
         assert!(unsupported(particles(), a).is_empty());
-        let plain = unsupported(EngineId::plain(), a);
-        assert_eq!(plain.len(), 1, "{plain:?}");
-        assert!(plain[0].contains("server"));
-        assert!(unsupported(EngineId::plain(), &pres.slides[1]).is_empty());
-        let line = unsupported_summary(EngineId::plain(), &pres).unwrap();
-        assert!(line.contains("1 slide;"), "{line}");
-        assert!(unsupported_summary(particles(), &pres).is_none());
+        // plain has no pictures, but mdeck stipples the cloud itself
+        assert!(unsupported(EngineId::plain(), a).is_empty());
+        assert!(unsupported_summary(EngineId::plain(), &pres).is_none());
+        if let Some(board) = EngineId::find("splitflap") {
+            let b = unsupported(board, a);
+            assert_eq!(b.len(), 1, "{b:?}");
+            assert!(b[0].contains("server"));
+            let line = unsupported_summary(board, &pres).unwrap();
+            assert!(line.contains("1 slide;"), "{line}");
+        }
     }
 
     #[test]

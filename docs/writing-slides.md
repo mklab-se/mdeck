@@ -92,7 +92,7 @@ The market moved, and we are the only ones ready.
 
 ## Our platform
 <!--
-design: split
+design: points
 picture: rocket
 -->
 
@@ -120,7 +120,7 @@ comment is an ordinary comment. A key set on a slide overrides the deck's value 
 | `logo` | deck and slide | an image file, or `none` |
 | `background`, `background-opacity` | deck and slide | an image behind the slide ([Themes](themes.md#background-images)) |
 | `design` | slide | a design name, instead of the recognised one |
-| `picture` | slide | a point cloud name or an image path for the slide's stage, or `none` ([Engines](engines.md#pictures)) |
+| `picture` | slide | a point cloud name or an image path for the slide's stage, or `none`; on every theme, the copy moves left to make room ([Engines](engines.md#pictures)) |
 | `picture-prompt` | slide | what `mdeck ai pictures` draws for this slide |
 | `zoom-to` | slide | enter this slide by zooming into a named thermal spot on the slide before |
 | `thermal-window` | slide | one temperature scale for the slide's `@thermal` images |

@@ -72,6 +72,11 @@ an AI harness can convert a deck.
   stills of an engine's motion.
 - **Pictures from one setting.** A slide's `picture:` names what the engine shows on its stage:
   a generated artwork for the slide first, then a point cloud of that name, then an image file.
+  It shows on the default theme too: in the standard set a statement, points, quote, section or
+  text-only content slide that sets a picture opens a stage on the right and moves its copy into
+  the left column (a title puts it behind the copy, dim), through the new `with-picture`
+  arrangement key. On the `plain` engine mdeck draws a point cloud itself, as a stipple of dots in
+  the theme's accent that comes in outline first.
 - **Image options in the settings grammar**: `@width: 60%`, `@height: 400px` (the space after the
   colon is optional) and `@fill`. `@height` now sizes the image; with `@width`, the image fits
   both.

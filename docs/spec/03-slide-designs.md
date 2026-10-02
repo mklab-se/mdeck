@@ -98,7 +98,8 @@ design set, and declares what it cannot show.
 - **DES-09** MUST `implemented`: How a design looks is decided by an **arrangement**. Every theme
   has one for every design, through its design set and its own overrides.
 - **DES-10** MUST `implemented`: mdeck ships two design sets, both defined as data:
-  - `standard`: the classic slide. Content centred, heading on top, no ornament, no entry motion.
+  - `standard`: the classic slide. Content centred, heading on top, no ornament, no entry motion,
+    and a stage only on a slide that sets a picture.
   - `editorial`: the magazine spread. A left copy column, an eyebrow, display typography, a
     staggered entry and a stage on the right for the picture.
 
@@ -124,7 +125,8 @@ design set, and declares what it cannot show.
     a title rule, emphasis style, the pillow, the attribution dash, the eyebrow, the byline;
   - the entry motion (`none`, `fade`, `rise` or `stagger`, with timing) and how revealed items
     come in;
-  - the stage: `none`, `right`, `left` or `backdrop`.
+  - the stage: `none`, `right`, `left` or `backdrop`, and `with-picture`: the stage and copy
+    region of a slide that sets a picture (how the `standard` set shows one, PIC-04).
 - **DES-12** MUST `implemented`: An arrangement override is partial. A theme states only what
   differs from its design set, and `extends` merges arrangements key by key, as it does with
   colours. Unknown keys and out-of-range values are theme errors.
