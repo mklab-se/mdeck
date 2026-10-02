@@ -84,6 +84,26 @@ impl Design {
         }
     }
 
+    /// Whether the design has a role for every kind of block on the slide
+    /// (headings and paragraphs always have one).
+    fn holds(self, s: &Shape) -> bool {
+        let (lists, images, code, quotes, visuals, tables) =
+            (s.lists, s.images, s.code, s.quotes, s.visuals, s.tables);
+        let others = s.callouts;
+        let only = |allowed: usize| others == 0 && s.others() == allowed;
+        match self {
+            Design::Content | Design::Columns => true,
+            Design::Title | Design::Section | Design::Statement => only(0),
+            Design::Points => only(lists),
+            Design::Split => images <= 1 && only(images + lists),
+            Design::Media | Design::Gallery => only(images),
+            Design::Quote => only(quotes),
+            Design::Code => only(code),
+            Design::Visual => only(visuals),
+            Design::Table => only(tables),
+        }
+    }
+
     /// The block the design is built around: without one the design cannot
     /// hold the slide and an explicit `design:` falls back to `content`.
     fn has_core(self, s: &Shape) -> bool {
@@ -425,14 +445,7 @@ pub fn recognise(design: Option<&str>, blocks: &[Block], first: bool) -> Recogni
         };
     }
     // the content fits the chosen design when one of its rules takes it
-    let fits = wanted == Design::Content
-        || RULES.iter().any(|r| {
-            r.design == wanted
-                && (r.test)(&Shape {
-                    first: true,
-                    ..shape.clone()
-                })
-        });
+    let fits = wanted.holds(&shape);
     Recognition {
         design: wanted,
         reason: if fits {
@@ -578,6 +591,25 @@ mod tests {
         }
         let names: Vec<&str> = Design::ALL.iter().map(|d| d.name()).collect();
         assert_eq!(names, crate::language::DESIGNS);
+    }
+
+    #[test]
+    fn the_user_docs_list_every_rule() {
+        let docs = include_str!("../../../../docs/writing-slides.md");
+        for (i, rule) in RULES.iter().enumerate() {
+            let row = format!("| {} | `{}` | ", i + 1, rule.design.name());
+            assert!(docs.contains(&row), "docs/writing-slides.md lacks {row}");
+            let when = rule
+                .when
+                .replace("+++", "`+++`")
+                .replace("separator, `+++`", "separator, `+++`");
+            assert!(
+                docs.contains(&when) || docs.contains(rule.when),
+                "docs/writing-slides.md lacks `{}`",
+                rule.when
+            );
+        }
+        assert!(docs.contains(&format!("at most {SHORT_LINE_CHARS} characters")));
     }
 
     #[test]

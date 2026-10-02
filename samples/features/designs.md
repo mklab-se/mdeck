@@ -1,6 +1,10 @@
 ---
 title: Designs
 author: Ada Lovelace
+# A deck-local theme (themes/magazine.yaml): the editorial design set with
+# a few arrangements overridden. Export with --theme dark or --theme ember
+# to see the same slides in other design sets.
+theme: magazine
 ---
 
 # Every slide has a design
@@ -135,3 +139,11 @@ let x = 1;
 ```
 
 > And a quote at the end.
+
+---
+
+## Chosen, not recognised
+<!-- design: section -->
+
+A heading and a sentence is a statement; this slide chose `section`.
+

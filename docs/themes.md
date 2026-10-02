@@ -159,3 +159,58 @@ mdeck export talk.md --theme acme          # any deck in any theme
 Section 9.4 of the spec (`mdeck spec`) documents every key and the mapping
 from design-system roles to slide roles, so an AI agent can do the conversion
 too. `samples/themes/` has a converted design system and a hand-written theme.
+
+## Designs and arrangements
+
+A theme decides how each of the thirteen [designs](writing-slides.md#slides-and-designs)
+looks, with data only.
+
+**Design sets.** `designs: standard` (the default) is the classic slide:
+content centred, the heading on top, no ornament, no entry motion.
+`designs: editorial` is the magazine spread of Ember: a copy column on the
+left, an eyebrow with the slide's numeral and the deck title, display type,
+a soft pillow behind the copy, a staggered entry and a stage on the right
+where the engine draws the slide's picture. Both sets arrange every design,
+image, code, table and chart slides included, and a slide is the same design
+in both. The set does not depend on the engine: `designs: editorial` with
+`engine: plain` is Ember on a still screen.
+
+**Arrangements.** Override anything about a design under `arrangements:`,
+naming only what differs; `all:` applies to every design. Overrides merge
+key by key through `extends`, like colours.
+
+```yaml
+designs: editorial
+arrangements:
+  all:
+    ornaments: { bullet: "◆" }
+  quote:
+    copy: { region: [0.12, 0.25, 0.76, 0.5], align: center }
+    roles:
+      attribution: { color: accent }
+    ornaments: { quote-bar: none, quote-marks: true }
+  title:
+    entry: { kind: fade, duration-ms: 900 }
+```
+
+What an arrangement sets: where the copy goes (`copy.region`, in fractions
+of the slide, with `align` and `valign`), where the plate goes (the image,
+code, table, chart or columns: `plate`), where the engine may draw a picture
+(`stage`), the eyebrow, the entry motion (`entry`), every role's type
+(`roles.title`, `roles.list`, `roles.quote`, ... with font, size, colour,
+opacity, case, tracking, line height and gap) and the ornaments (bullet
+glyph and colour, numbering, quote marks and bar, title rule, emphasis,
+pillow). The full key list is in the
+[format specification](../crates/mdeck/doc/mdeck-spec.md) section 9.9, and
+every value of the two built-in sets is in
+[`standard.yaml`](../crates/mdeck/designs/standard.yaml) and
+[`editorial.yaml`](../crates/mdeck/designs/editorial.yaml).
+
+**Spacing and radius.** `spacing: { xs, sm, md, lg, xl }` (px at
+1920x1080; defaults 8, 16, 24, 40, 64) are the gaps arrangements name, and
+`radius` (default 8) rounds code blocks, tables and callouts: change them to
+make a whole theme airier or tighter in one place.
+
+`samples/features/designs.md` shows every design; its `themes/` folder holds
+a deck-local theme that overrides a few arrangements.
+

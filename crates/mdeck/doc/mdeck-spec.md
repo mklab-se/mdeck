@@ -3,7 +3,7 @@
 **Version:** 2.0 (in progress)
 **Status:** Draft
 
-MDeck is a markdown-based presentation tool. Authors write standard markdown; MDeck infers slide layout from content structure and renders it as a presentation.
+MDeck is a markdown-based presentation tool. Authors write standard markdown; MDeck recognises each slide's design from its content and renders it as a presentation.
 
 ---
 
@@ -11,7 +11,7 @@ MDeck is a markdown-based presentation tool. Authors write standard markdown; MD
 
 1. **Readability over expressiveness.** A MDeck document should read as a natural markdown document. Someone reading the raw source should understand the content without knowing MDeck exists.
 
-2. **Inference over configuration.** MDeck determines slide layout from content structure. Authors should almost never need to specify a layout explicitly.
+2. **Inference over configuration.** MDeck recognises each slide's design from its content. Authors should almost never need to choose one explicitly.
 
 3. **Standard markdown first.** Every feature uses standard CommonMark markdown when possible. What mdeck adds is either invisible on other renderers (frontmatter, HTML comments, alt text) or reads as meaningful markdown there (a fenced block of chart data, a `+` bullet, a notes block).
 
@@ -147,124 +147,48 @@ Footnotes (`text[^1]` with `[^1]: the note` anywhere in the deck) are notes too:
 
 ---
 
-## 4. Slide Layout Inference
+## 4. Slide Designs
 
-After parsing a slide's content into block elements, MDeck classifies them and matches against layout patterns. The first match wins, checked in the order below.
+Every slide has a **design**: what kind of slide it is (a title, a list, a quote, a chart).
+MDeck recognises the design from the slide's content, the same way in every theme; the theme
+decides how each design looks (section 9.9). No design ever drops content: whatever a design has
+no place for shows in its body, in reading order.
 
-### Element types
+### 4.1 The designs
 
-| Symbol    | Meaning                              |
-|-----------|--------------------------------------|
-| `H1`      | Level-1 heading                      |
-| `H2`      | Level-2 heading                      |
-| `H3`      | Level-3 heading                      |
-| `P`       | Paragraph                            |
-| `UL`/`OL` | Unordered/ordered list               |
-| `IMG`     | Image                                |
-| `CODE`    | Fenced code block                    |
-| `QUOTE`   | Blockquote                           |
-| `DIAGRAM` | Architecture diagram block (`@architecture`) |
+<!-- generated: designs -->
 
-### Layout patterns
+`mdeck --check -v` prints each slide's design and the rule that matched, for example
+`slide 4: statement (at most a heading + 1 or 2 short paragraphs)`.
 
-#### 1. Diagram Slide
+What each design shows:
 
-**Match:** Contains a `DIAGRAM` element.
-**Rendering:** Diagram is the primary content. Optional heading above becomes the slide title.
+- **title**: the H1 large, the H2 or paragraph as its subtitle. On the first slide the deck's
+  `author` is the byline (standard) or part of the eyebrow (editorial).
+- **section**: the heading as a divider, a deeper heading or short line as its kicker.
+- **statement**: one idea in large type, its heading small above it. The common
+  `## Heading` + a sentence slide.
+- **points**: the heading, an optional lead paragraph and the list. Every nesting level is
+  drawn, ordered lists show their numbers.
+- **split**: the text in one column, the image in the other.
+- **media**: the image large, a paragraph before it as its lead, one after it as its caption.
+  `![alt @fill](path)` covers the whole slide, with the heading in a band at the bottom.
+- **gallery**: the images in a grid (two side by side, three as two over one, four as 2x2, more
+  in rows of three), each with its alt text as a caption.
+- **quote**: the quotation large; the paragraph after it, or the quote's own short last
+  paragraph, is the attribution (a leading `--` or `---` is dropped).
+- **code**: the code block with its heading and short lead. Code shrinks to fit (down to 40% of
+  its size) before the slide scrolls; long lines shrink instead of wrapping.
+- **visual**: the chart or diagram fills the space under its heading and lead; text written
+  after it stays after it.
+- **columns**: a leading H1 or H2 spans the columns; every `+++` starts the next column.
+- **table**: the table with its heading and lead.
+- **content**: everything in reading order. Two charts, a diagram with bullets, code with an
+  image: all shown.
 
-#### 2. Title Slide
+### 4.2 Choosing a design
 
-**Match:** Only an `H1`, and optionally one of: a single `H2`, or a single short `P` (under 120 characters). No other elements.
-**Rendering:** `H1` is rendered large and centered. `H2` or `P` is rendered below as subtitle.
-
-```markdown
-# Building Resilient Systems
-
-A practical guide to fault tolerance
-```
-
-#### 3. Section Divider
-
-**Match:** A single heading (`H1` or `H2`) with no other content.
-**Rendering:** Heading rendered large and centered as a visual section break.
-
-```markdown
-# Part Two
-```
-
-#### 4. Image Slide
-
-**Match:** A single `IMG`, optionally preceded by a heading, optionally followed by a short `P` (caption).
-**Rendering:** Image fills the slide. Heading at top, caption at bottom.
-
-```markdown
-# System Architecture
-
-![Architecture overview](arch.png)
-
-The complete system at a glance.
-```
-
-#### 5. Gallery Slide
-
-**Match:** Two or more `IMG` elements, with no other content or only a heading.
-**Rendering:** Images in a grid. 2 images: side by side. 3: top 2, bottom 1 centered. 4: 2x2.
-
-```markdown
-# Comparison
-
-![Before](before.png)
-![After](after.png)
-```
-
-#### 6. Quote Slide
-
-**Match:** A `QUOTE`, optionally followed by a `P` (attribution), optionally preceded by a heading. May include one image.
-**Rendering:** Blockquote large and centered. Attribution below in smaller italic text, right-aligned. Leading `--` or `---` in the attribution is stripped. If an image is present, the quote renders in the left 55% and the image in the right 40% as a side panel.
-
-```markdown
-> The best way to predict the future is to invent it.
-
--- Alan Kay
-```
-
-#### 7. Code Slide
-
-**Match:** A `CODE` block, optionally preceded by a heading and/or a short `P`. May include one image.
-**Rendering:** Code block with syntax highlighting as primary element. Heading at top. If an image is present, the code renders in the left 55% and the image in the right 40% as a side panel.
-
-```markdown
-# Connection Pool
-
-```rust
-pub struct Pool {
-    connections: Vec<Connection>,
-    max_size: usize,
-}
-```
-```
-
-#### 8. Bullet Slide
-
-**Match:** A heading followed by a `UL` or `OL`. May include one image.
-**Rendering:** Heading at top, list below with generous spacing. Nesting supported up to 3 levels. If an image is present, the content renders in the left 55% and the image in the right 40% as a side panel.
-
-```markdown
-# Key Takeaways
-
-- Resilience is a system property
-- Failure is inevitable; recovery is a design choice
-- Test your assumptions under stress
-```
-
-#### 9. Content Slide (Fallback)
-
-**Match:** Anything not matching the above.
-**Rendering:** Elements top-to-bottom in source order with reasonable spacing. Optional heading at top.
-
-### 4.1 Choosing a design
-
-When inference produces the wrong result, choose the slide's design with the `design` setting:
+When recognition gives the wrong design, choose one with the `design` setting:
 
 ```markdown
 # Comparison
@@ -277,7 +201,16 @@ Left column content...
 Right column content...
 ```
 
-Design names: `title`, `section`, `statement`, `points`, `split`, `media`, `gallery`, `quote`, `code`, `visual`, `columns`, `table`, `content`. Until the v2 designs land, `statement` and `table` draw as content, `points` as a bullet slide, `split` as a bullet slide (or content without a list), `media` as an image slide, `visual` as a chart or diagram slide and `columns` as two columns. An unknown name keeps the inferred layout and is reported by `mdeck --check`.
+A chosen design that has no place for some of the slide's content shows the rest in its body, in
+reading order; a chosen design that lacks its core block (`design: quote` on a slide without a
+quote) draws the slide as `content`. `mdeck --check` reports both. An unknown name keeps the
+recognised design and is reported too.
+
+### 4.3 Overflow
+
+Content that does not fit first shrinks: code down to 40% of its size, then prose and lists down
+to 80%. Past that the slide scrolls smoothly (Up and Down), with fade cues at the edges. The
+height that decides scrolling is measured with the same layout that draws the slide.
 
 ---
 
@@ -285,7 +218,7 @@ Design names: `title`, `section`, `statement`, `points`, `split`, `media`, `gall
 
 ### 5.1 Headings
 
-Standard ATX headings. Levels 1-3 are meaningful for layout; levels 4-6 are rendered as body-weight text.
+Standard ATX headings. Levels 1-3 are meaningful for design recognition; levels 4-6 are rendered as body-weight text.
 
 ```markdown
 # Level 1 — Slide title / section
@@ -478,7 +411,7 @@ Standard pipe-delimited tables:
 | Rendering | WIP     |
 ```
 
-Tables are rendered with theme-appropriate styling. They do not trigger a special layout; they are block elements within whatever layout the slide otherwise matches. The second line must be a separator row (`|---|`); its colons set each column's alignment (`|:--|` left, `|:-:|` centre, `|--:|` right). Escape a pipe inside a cell as `\|`; pipes inside inline code are kept as text. A lone `| text |` line without a separator row is a paragraph.
+Tables are rendered with theme-appropriate styling. A heading with one table (and at most a short paragraph) is a `table` slide; anywhere else a table is a block in the slide's design. The second line must be a separator row (`|---|`); its colons set each column's alignment (`|:--|` left, `|:-:|` centre, `|--:|` right). Escape a pipe inside a cell as `\|`; pipes inside inline code are kept as text. A lone `| text |` line without a separator row is a paragraph.
 
 ### 5.8 Horizontal rules within slides
 
@@ -829,8 +762,9 @@ living field of glowing particles behind every slide. The field morphs from
 slide to slide and follows the content: a title slide opens on a constellation
 (after the particles assemble into the logo), a bullet slide lights one
 cluster per item as the items reveal, a quote slide burns like a candle, a
-code slide rains. Slides whose content fills the frame (code, tables, charts,
-diagrams, images) keep their regular layouts with the Ember palette.
+code slide rains. Ember uses the editorial design set (section 9.9), which
+arranges every design, code, tables, charts and images included, with an
+eyebrow, display type and a staggered entry.
 
 **`marquee`**
 
@@ -972,11 +906,12 @@ setting:
 - 100 cores
 ```
 
-Where it goes depends on the layout. Bullet, content, quote and section
-slides show it on the right, beside the copy, warm and lit from the first
-step. Title slides put it behind the centred copy, large, dim and slow: a
-backdrop rather than a picture. Code, chart, diagram, table, image and
-two-column slides never show one, and `mdeck --check` warns when a slide asks
+Where it goes is the design's stage (section 9.9). In the editorial set,
+statement, points, quote, section and text-only content slides show it on
+the right, beside the copy, warm and lit from the first step. Title slides
+put it behind the centred copy, large, dim and slow: a backdrop rather than
+a picture. Split, media, gallery, code, visual, columns and table slides
+never show one, and the standard set leaves no stage at all, and `mdeck --check` warns when a slide asks
 for an illustration it cannot show, or one that does not exist.
 Engines that cannot draw a picture ignore the setting, and `--check` says so.
 
@@ -1517,9 +1452,9 @@ cost, and it works offline.
 | `watercolour` | loose watercolours on white paper (tonal) | a pale wash, then the colour blooming from where the paint is heaviest |
 | `darkroom` | black-and-white documentary photographs (tonal) | developing as a print, shadows first, under a red safelight |
 
-**Which slides get a picture.** The slides with room for one: title,
-section, quote, bullet and copy slides (the editorial layouts; not slides
-with code, tables, charts, diagrams or images). `picture: none` on a slide
+**Which slides get a picture.** The slides whose design has a stage in
+the theme's design set (section 9.9): in the editorial set title, section,
+statement, points, quote and text-only content slides. `picture: none` on a slide
 leaves it without.
 
 **Scenes.** `picture-prompt:` in a slide's settings says what its picture
@@ -1670,7 +1605,72 @@ background, and `The quiet one` shows the deck's image, fainter.
 An image with `@fill` (section 3) is different: it is content and takes the
 slide over. A background stays behind the heading and the text.
 
-## 10. Two-Column Layout
+### 9.9 Designs and arrangements
+
+A theme decides how every design (section 4) looks, with data only.
+
+**Design sets.** `designs: standard` (the default) is the classic slide:
+content centred, the heading on top, no ornament and no entry motion.
+`designs: editorial` is the magazine spread: a copy column on the left, an
+eyebrow (the slide's Roman numeral and the deck title), display type, a
+soft pillow behind the copy, a staggered entry and a stage on the right
+where the engine draws the slide's picture. Both sets arrange every design
+and recognise slides the same way. The set is independent of the engine:
+`designs: editorial` with `engine: plain` is Ember's look on a still
+screen; `designs: standard` with `engine: particles` puts centred slides
+over the particle field.
+
+**Arrangements.** `arrangements:` overrides any key of any design's
+arrangement; `all:` applies to every design. Overrides are partial and
+merge key by key through `extends`.
+
+```yaml
+designs: editorial
+arrangements:
+  all:
+    ornaments: { bullet: "◆" }
+  quote:
+    copy: { region: [0.12, 0.25, 0.76, 0.5], align: center }
+    roles:
+      quote: { size: h2, scale: 0.9, font: display }
+      attribution: { color: accent }
+    ornaments: { quote-bar: none, quote-marks: true }
+  title:
+    roles:
+      title: { case: upper, tracking: 0.04 }
+    entry: { kind: fade, duration-ms: 900 }
+```
+
+An arrangement's keys:
+
+| Key | Values |
+|---|---|
+| `copy` | `{ region: [x, y, width, height], align: left\|center\|right, valign: top\|middle\|bottom }`: where the text goes, in fractions of the slide |
+| `wide` | like `copy`: where a `content` slide's copy goes when it holds an image, code, a table or a visual (its stage is given up) |
+| `plate` | `{ region, place: below\|beside, align, valign, gap, rule }`: where the image, gallery, code, table, visual or columns go; `below` puts it under the copy, `beside` in its own region; `rule` draws a hairline over each column |
+| `stage` | `none`, `right`, `left` or `backdrop`: where the engine may draw the slide's picture |
+| `eyebrow` | `none`, `numeral` (Roman numeral and deck title) or `deck` (author and deck title) |
+| `byline` | `true`: a title page shows the deck's author |
+| `entry` | `{ kind: none\|fade\|rise\|stagger, step-ms, duration-ms, rise, reveal: slide\|rise\|fade, reveal-ms }`: how copy comes in, and how a `+` item revealed with Next comes in |
+| `roles.<role>` | `{ font: display\|body\|lead\|strong\|mono, size, scale, color, opacity, case: none\|upper\|lower, tracking, line-height, gap, align, italic }` for each role: `eyebrow`, `title`, `subtitle`, `kicker`, `byline`, `heading`, `statement`, `lead`, `body`, `list`, `nested`, `quote`, `attribution`, `caption` |
+| `ornaments` | `bullet` (a glyph or `dot`), `bullet-color`, `indent`, `nested-indent`, `item-gap`, `numbering`, `quote-marks`, `quote-bar: none\|left`, `bar-color`, `bar-width`, `attribution-dash`, `title-rule`, `emphasis: italic\|accent`, `pillow`, `begin-hint` |
+
+Sizes are theme size tokens (`h1`, `h2`, `h3`, `body`, `code`, or `level`
+for a heading's own level) or px at 1920x1080. Colours are theme colour
+roles (`text`, `heading`, `muted`, `strong`, `accent`, `accent-soft`,
+`secondary`, `bright`, `rule`). Gaps are spacing tokens (`xs`, `sm`, `md`,
+`lg`, `xl`, from the theme's `spacing:`), px, or a multiple of the
+element's own size (`0.5em`). The built-in sets are
+`crates/mdeck/designs/standard.yaml` and `editorial.yaml`; every key is
+listed there.
+
+**Invariants** (not themeable): a `@fill` media image covers the whole
+slide with its copy in a band at the bottom; gallery grids (two side by
+side, three as two over one, four as 2x2, rows of three after); several
+visuals on one plate sit side by side when the plate is wide, else
+stacked; the fit floors (code 40%, prose 80%).
+
+## 10. Columns
 
 A `+++` line splits a slide into two columns (the `columns` design); it is recognised without a setting:
 
@@ -1688,7 +1688,7 @@ Old approach with manual config.
 New approach with auto-discovery.
 ```
 
-Content before `+++` is the left column; content after is the right column. If no `+++` is found, all content goes in the left column.
+Content before `+++` is the left column; content after is the right column. More `+++` lines give more columns. A leading H1 or H2 spans the columns.
 
 The `+++` separator was chosen because it is visually distinct from `---` (slide break) and is not a standard markdown construct.
 
@@ -1927,20 +1927,12 @@ TEXT. Any other line is a problem that `--check` reports (category
 `visual`); it is never drawn.
 ```
 
-### 13.4 Phase 4: Classify layout
+### 13.4 Phase 4: Recognise the design
 
 ```
-classify(elements) -> Layout:
-    if has(DIAGRAM):           Diagram
-    if has(VISUALIZATION):     Visualization
-    if is_title_pattern():     Title
-    if is_section_divider():   Section
-    if single_image():         Image
-    if multi_image():          Gallery
-    if has(QUOTE):             Quote
-    if has(CODE):              Code
-    if heading_and_list():     Bullets
-    else:                      Content
+design(slide) -> Design:
+    if slide sets design: and has the design's core block:  that design
+    else: the first rule of the recognition table (section 4.1) that matches
 ```
 
 ---

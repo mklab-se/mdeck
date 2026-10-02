@@ -46,16 +46,20 @@ SLIDES
 
 /// The quick reference card between its settings and its keyboard section.
 const CARD_MIDDLE: &str = r#"DESIGNS (recognised from the content, or chosen with <!-- design: name -->)
-  title        H1 + optional subtitle
-  section      Lone heading, centered
-  points       Heading + list
-  quote        Blockquote + optional attribution
-  code         Code block + optional heading
-  media        Single image + optional heading/caption
+  title        H1 + one short line (the first slide's lone H1 too)
+  section      A lone heading, or a heading + a deeper one
+  statement    A heading + 1 or 2 short paragraphs
+  points       A heading + one list
+  split        One image + text
+  media        One image (lead and caption allowed)
   gallery      2+ images
-  visual       A chart or diagram
-  columns      Two columns split by +++
-  statement, split, table, content   (drawn as content until phase 3)
+  quote        One quote + attribution
+  code         One code block + heading/short paragraph
+  visual       One chart or diagram + heading/short paragraph
+  columns      Columns split by +++
+  table        One table + heading/short paragraph
+  content      Anything else, in reading order (nothing is ever dropped)
+  mdeck --check -v prints each slide's design and the rule that matched
 
 STEPS (list markers)
   -  *  Static (always visible)

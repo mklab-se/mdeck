@@ -444,7 +444,9 @@ impl<'s> Stack<'s> {
                 let dy = crate::render::math::first_baseline(&galley)
                     .zip(crate::render::math::first_baseline(&marker))
                     .map_or(0.0, |(t, m)| (t - m).max(0.0));
-                Some(Mark::Glyph(marker, Pos2::new(text_x - indent, y + dy)))
+                // right-aligned in the gutter, a little apart from the text
+                let x = text_x - 0.4 * r.size - marker.rect.width();
+                Some(Mark::Glyph(marker, Pos2::new(x, y + dy)))
             } else {
                 Some(Mark::Dot {
                     center: Pos2::new(text_x - indent * 0.53, y + first_row * 0.55),
