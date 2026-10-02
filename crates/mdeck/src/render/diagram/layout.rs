@@ -308,7 +308,7 @@ mod tests {
 
     #[test]
     fn grid_cells_fill_free_cells_in_row_order() {
-        let (nodes, _, _) = parse_diagram("A (pos: 1,1)\nB\nC (pos: 2,1)\nD");
+        let (nodes, _, _) = parse_diagram("- A (pos: 1,1)\n- B\n- C (pos: 2,1)\n- D");
         let (max_col, max_row) = grid_extent(&nodes);
         assert_eq!((max_col, max_row), (2, 1));
         // B and D skip the cells A and C claim
@@ -372,7 +372,7 @@ mod tests {
 
     #[test]
     fn apply_fit_scales_about_the_area_centre() {
-        let (nodes, _, _) = parse_diagram("A\nB");
+        let (nodes, _, _) = parse_diagram("- A\n- B");
         let (_, mut grid) = layout_nodes(&nodes, 400.0, 200.0, 0.0, 0.0, 1.0);
         let mut layouts = vec![layout(0.0, 100.0)];
         apply_fit(&mut layouts, &mut grid, 0.5, 400.0, 200.0);

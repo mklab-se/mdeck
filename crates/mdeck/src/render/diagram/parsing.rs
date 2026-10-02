@@ -1,69 +1,109 @@
 use std::collections::HashMap;
 
-use super::metadata::parse_node_metadata;
 use super::types::*;
+use crate::render::visualizations::VizReveal;
+use crate::render::visualizations::grammar::{Arrow, Item, Problem, Source};
 
 // ─── Diagram parser ──────────────────────────────────────────────────────────
 
-/// Detect arrow type and position in a line. Returns (arrow_pos, arrow_len, ArrowKind).
-pub(super) fn detect_arrow(s: &str) -> Option<(usize, usize, ArrowKind)> {
-    // Order matters: check longer patterns first to avoid partial matches
-    if let Some(p) = s.find(" <-> ") {
-        return Some((p, 5, ArrowKind::Bidirectional));
-    }
-    if let Some(p) = s.find(" --> ") {
-        return Some((p, 5, ArrowKind::DashedArrow));
-    }
-    if let Some(p) = s.find(" -> ") {
-        return Some((p, 4, ArrowKind::Forward));
-    }
-    if let Some(p) = s.find(" <- ") {
-        return Some((p, 4, ArrowKind::Reverse));
-    }
-    if let Some(p) = s.find(" -- ") {
-        return Some((p, 4, ArrowKind::DashedLine));
-    }
-    None
-}
+/// The attributes a component takes.
+const NODE_ATTRS: &[&str] = &["icon", "pos", "prompt"];
 
 pub(super) fn parse_diagram(content: &str) -> (Vec<DiagramNode>, Vec<DiagramEdge>, DiagramScale) {
-    let mut parser = Parser::default();
-    for line in content.lines() {
-        parser.line(line.trim());
-    }
+    let src = Source::parse(content);
+    let parser = read(&src);
     (parser.nodes, parser.edges, parser.scale)
 }
 
-/// Parse a `# scale: fit | scroll | <factor>` directive line.
-fn scale_directive(line: &str) -> Option<DiagramScale> {
-    let val = line
-        .strip_prefix("# scale:")
-        .or_else(|| line.strip_prefix("#scale:"))?
-        .trim();
+/// The problems in an `@architecture` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
+}
+
+fn read(src: &Source) -> Parser {
+    src.check_settings(&["scale"]);
+    let mut parser = Parser::default();
+    if let Some(s) = src.setting_line("scale") {
+        match scale_setting(s.value) {
+            Some(scale) => parser.scale = scale,
+            None => src.problem(
+                s.offset,
+                format!(
+                    "scale: '{}' is not fit, scroll or a factor like 0.7",
+                    s.value
+                ),
+            ),
+        }
+    }
+    for item in &src.items {
+        parser.item(src, item);
+    }
+    parser
+}
+
+/// `fit`, `scroll` or a factor (clamped to 0.1 to 2).
+fn scale_setting(val: &str) -> Option<DiagramScale> {
     if val.eq_ignore_ascii_case("fit") {
         Some(DiagramScale::Fit)
     } else if val.eq_ignore_ascii_case("scroll") {
         Some(DiagramScale::Scroll)
     } else {
-        let f = val.parse::<f32>().ok()?;
+        let f = val.parse::<f32>().ok().filter(|f| f.is_finite())?;
         Some(DiagramScale::Factor(f.clamp(0.1, 2.0)))
     }
 }
 
-/// Strip a list-style prefix and return the reveal marker it stands for.
-fn split_reveal(line: &str) -> (&str, DiagramReveal) {
-    if let Some(rest) = line.strip_prefix("+ ") {
-        (rest, DiagramReveal::NextStep)
-    } else if let Some(rest) = line.strip_prefix("* ") {
-        (rest, DiagramReveal::WithPrev)
-    } else if let Some(rest) = line.strip_prefix("- ") {
-        (rest, DiagramReveal::Static)
-    } else {
-        (line, DiagramReveal::Static)
+fn reveal_of(reveal: VizReveal) -> DiagramReveal {
+    match reveal {
+        VizReveal::Static => DiagramReveal::Static,
+        VizReveal::NextStep => DiagramReveal::NextStep,
+        VizReveal::WithPrev => DiagramReveal::WithPrev,
     }
 }
 
-/// Diagram state built up line by line.
+fn arrow_kind(arrow: Arrow) -> ArrowKind {
+    match arrow {
+        Arrow::Forward => ArrowKind::Forward,
+        Arrow::Reverse => ArrowKind::Reverse,
+        Arrow::Both => ArrowKind::Bidirectional,
+        Arrow::Line => ArrowKind::DashedLine,
+        Arrow::Dashed => ArrowKind::DashedArrow,
+    }
+}
+
+/// A component's attributes as read.
+struct NodeMetadata {
+    icon: String,
+    grid_pos: Option<(u32, u32)>,
+    prompt: Option<String>,
+}
+
+impl NodeMetadata {
+    fn read(src: &Source, item: &Item) -> Self {
+        item.check_attrs(src, NODE_ATTRS);
+        let grid_pos = item.attr("pos").and_then(|p| {
+            let pos = p
+                .split_once(',')
+                .and_then(|(x, y)| Some((x.trim().parse().ok()?, y.trim().parse().ok()?)));
+            if pos.is_none() {
+                src.problem(
+                    item.offset,
+                    format!("pos: '{p}' is not a grid position like 2,1"),
+                );
+            }
+            pos
+        });
+        NodeMetadata {
+            icon: item.attr("icon").unwrap_or_default().to_string(),
+            grid_pos,
+            prompt: item.attr("prompt").map(str::to_string),
+        }
+    }
+}
+
+/// Diagram state built up item by item.
 struct Parser {
     nodes: Vec<DiagramNode>,
     edges: Vec<DiagramEdge>,
@@ -85,40 +125,30 @@ impl Default for Parser {
 }
 
 impl Parser {
-    fn line(&mut self, trimmed: &str) {
-        // Parse directives from comment lines (e.g. `# scale: fit`)
-        if trimmed.starts_with('#') {
-            if let Some(scale) = scale_directive(trimmed) {
-                self.scale = scale;
-            }
+    fn item(&mut self, src: &Source, item: &Item) {
+        let reveal = reveal_of(item.reveal);
+        if item.text.is_empty() {
+            src.problem(item.offset, "an empty item");
             return;
         }
-
-        let (trimmed, reveal) = split_reveal(trimmed);
-        if trimmed.is_empty() {
+        if let Some(rel) = item.relation(&Arrow::ALL) {
+            item.check_attrs(src, &[]);
+            self.edge(
+                rel.from.to_string(),
+                rel.to.to_string(),
+                rel.label.unwrap_or_default().to_string(),
+                arrow_kind(rel.arrow),
+                reveal,
+            );
             return;
         }
-
-        // Parse and strip trailing metadata (icon, pos, prompt)
-        let meta = parse_node_metadata(trimmed);
-        let body = meta.before;
-
-        if let Some((arrow_pos, arrow_len, arrow_kind)) = detect_arrow(body) {
-            let from = body[..arrow_pos].trim().to_string();
-            let (to, label) = split_label(&body[arrow_pos + arrow_len..]);
-            self.edge(from, to, label, arrow_kind, reveal);
-        } else if let Some(colon_pos) = body.find(": ") {
-            // Node declaration with label: "Name: Label"
-            let name = body[..colon_pos].trim().to_string();
-            let label = body[colon_pos + 2..].trim().to_string();
-            self.node(name, Some(label), &meta, reveal);
-        } else {
-            // Plain node name (e.g. "Server" or "Server (icon: server, pos: 1,1)")
-            let name = body.trim().to_string();
-            if !name.is_empty() {
-                self.node(name, None, &meta, reveal);
-            }
-        }
+        let meta = NodeMetadata::read(src, item);
+        // "Name: Label" or "Name"
+        let (name, label) = match item.text.split_once(':') {
+            Some((n, l)) => (n.trim(), Some(l.trim()).filter(|l| !l.is_empty())),
+            None => (item.text, None),
+        };
+        self.node(name.to_string(), label.map(str::to_string), &meta, reveal);
     }
 
     fn edge(
@@ -197,18 +227,6 @@ impl Parser {
     }
 }
 
-/// Split `To: label` after an arrow into the target and its (maybe empty) label.
-fn split_label(rest: &str) -> (String, String) {
-    if let Some(colon_pos) = rest.find(": ") {
-        (
-            rest[..colon_pos].trim().to_string(),
-            rest[colon_pos + 2..].trim().to_string(),
-        )
-    } else {
-        (rest.trim().to_string(), String::new())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -234,11 +252,12 @@ mod tests {
         assert_eq!(nodes.len(), 3);
         assert_eq!(edges.len(), 2);
         assert!(!nodes.iter().any(|n| n.name.starts_with('#')));
+        assert!(check(content).is_empty());
     }
 
     #[test]
     fn test_arrow_types() {
-        let content = "A -> B\nC <- D\nE <-> F\nG -- H\nI --> J";
+        let content = "- A -> B\n- C <- D\n- E <-> F\n- G -- H\n- I --> J";
         let (_, edges, _) = parse_diagram(content);
         assert!(matches!(edges[0].arrow, ArrowKind::Forward));
         assert!(matches!(edges[1].arrow, ArrowKind::Reverse));
@@ -259,29 +278,12 @@ mod tests {
     }
 
     #[test]
-    fn test_detect_arrow_ordering() {
-        // <-> must be detected before -> and <-
-        assert!(matches!(
-            detect_arrow("A <-> B"),
-            Some((_, _, ArrowKind::Bidirectional))
-        ));
-        assert!(matches!(
-            detect_arrow("A --> B"),
-            Some((_, _, ArrowKind::DashedArrow))
-        ));
-        assert!(matches!(
-            detect_arrow("A -> B"),
-            Some((_, _, ArrowKind::Forward))
-        ));
-        assert!(matches!(
-            detect_arrow("A <- B"),
-            Some((_, _, ArrowKind::Reverse))
-        ));
-        assert!(matches!(
-            detect_arrow("A -- B"),
-            Some((_, _, ArrowKind::DashedLine))
-        ));
-        assert!(detect_arrow("A B").is_none());
+    fn test_node_with_quoted_prompt() {
+        let content =
+            "- Gateway (icon: generate-image, prompt: \"A router, with (parens)\", pos: 1,2)";
+        let (nodes, _, _) = parse_diagram(content);
+        assert_eq!(nodes[0].prompt.as_deref(), Some("A router, with (parens)"));
+        assert_eq!(nodes[0].grid_pos, Some((1, 2)));
     }
 
     #[test]
@@ -317,14 +319,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_diagram_whitespace() {
-        let content = "  A -> B  ";
-        let (nodes, edges, _) = parse_diagram(content);
-        assert_eq!(nodes.len(), 2);
-        assert_eq!(edges.len(), 1);
-    }
-
-    #[test]
     fn test_parse_diagram_mixed_definitions() {
         let content = "- Server: Web Server\n- Server -> DB: queries\n- DB: Database";
         let (nodes, edges, _) = parse_diagram(content);
@@ -336,64 +330,51 @@ mod tests {
 
     #[test]
     fn test_parse_diagram_reverse_arrow() {
-        let content = "A <- B";
-        let (_, edges, _) = parse_diagram(content);
+        let (_, edges, _) = parse_diagram("- A <- B");
         assert!(matches!(edges[0].arrow, ArrowKind::Reverse));
         assert_eq!(edges[0].from, "A");
         assert_eq!(edges[0].to, "B");
     }
 
     #[test]
-    fn test_parse_diagram_bidirectional() {
-        let content = "A <-> B";
-        let (_, edges, _) = parse_diagram(content);
-        assert!(matches!(edges[0].arrow, ArrowKind::Bidirectional));
+    fn lines_that_are_not_items_are_reported_not_drawn() {
+        let content = "A -> B\n- C (colour: red, pos: x)\n- D";
+        let (nodes, edges, _) = parse_diagram(content);
+        assert!(edges.is_empty(), "a bare line is not an item");
+        assert_eq!(nodes.len(), 2);
+        let lines: Vec<usize> = check(content).iter().map(|p| p.offset).collect();
+        assert_eq!(lines, [0, 1, 1]);
     }
 
-    #[test]
-    fn test_detect_arrow_none() {
-        assert!(detect_arrow("no arrow here").is_none());
-        assert!(detect_arrow("A B C").is_none());
-    }
+    // ── Scale setting tests ──────────────────────────────────────────────────
 
     #[test]
-    fn test_detect_arrow_with_labels() {
-        let result = detect_arrow("Client -> Server: HTTP");
-        assert!(result.is_some());
-        let (pos, len, kind) = result.unwrap();
-        assert!(matches!(kind, ArrowKind::Forward));
-        assert_eq!(&"Client -> Server: HTTP"[pos + 1..pos + len - 1], "->");
-    }
-
-    // ── Scale directive tests ─────────────────────────────────────────────────
-
-    #[test]
-    fn test_scale_directive_default() {
-        let (_, _, scale) = parse_diagram("A -> B");
+    fn test_scale_setting_default() {
+        let (_, _, scale) = parse_diagram("- A -> B");
         assert_eq!(scale, DiagramScale::Fit);
     }
 
     #[test]
-    fn test_scale_directive_fit() {
-        let (_, _, scale) = parse_diagram("# scale: fit\nA -> B");
+    fn test_scale_settings() {
+        let (_, _, scale) = parse_diagram("scale: fit\n- A -> B");
         assert_eq!(scale, DiagramScale::Fit);
-    }
-
-    #[test]
-    fn test_scale_directive_scroll() {
-        let (_, _, scale) = parse_diagram("# scale: scroll\nA -> B");
+        let (_, _, scale) = parse_diagram("scale: scroll\n- A -> B");
         assert_eq!(scale, DiagramScale::Scroll);
-    }
-
-    #[test]
-    fn test_scale_directive_factor() {
-        let (_, _, scale) = parse_diagram("# scale: 0.7\nA -> B");
+        let (_, _, scale) = parse_diagram("scale: 0.7\n- A -> B");
         assert!(matches!(scale, DiagramScale::Factor(f) if (f - 0.7).abs() < 0.001));
+        let (_, _, scale) = parse_diagram("scale: 5.0\n- A -> B");
+        assert!(matches!(scale, DiagramScale::Factor(f) if (f - 2.0).abs() < 0.001));
+        assert_eq!(check("scale: huge\n- A")[0].offset, 0);
     }
 
     #[test]
-    fn test_scale_directive_factor_clamped() {
-        let (_, _, scale) = parse_diagram("# scale: 5.0\nA -> B");
-        assert!(matches!(scale, DiagramScale::Factor(f) if (f - 2.0).abs() < 0.001));
+    fn test_v1_commented_scale_is_a_comment_and_reported() {
+        let (_, _, scale) = parse_diagram("# scale: scroll\n- A -> B");
+        assert_eq!(scale, DiagramScale::Fit);
+        assert!(
+            check("# scale: scroll\n- A -> B")[0]
+                .message
+                .contains("scale: scroll")
+        );
     }
 }

@@ -1,6 +1,7 @@
 //! The gitgraph source format: lanes, commits, branches, merges and tags.
 
-use super::super::{VizReveal, parse_reveal_prefix};
+use super::super::VizReveal;
+use super::super::grammar::{Arrow, Problem, Source, relation, unquote};
 
 // ─── Data model ─────────────────────────────────────────────────────────────
 
@@ -37,86 +38,111 @@ pub(super) enum GitGraphItem {
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
 
-pub(super) fn parse_gitgraph(content: &str) -> Vec<GitGraphItem> {
+const VERBS: &[&str] = &["lane", "commit", "branch", "merge", "tag"];
+
+fn read(src: &Source) -> Vec<GitGraphItem> {
+    src.check_settings(&[]);
     let mut items = Vec::new();
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
+    for item in &src.items {
+        item.check_attrs(src, &[]);
+        let reveal = item.reveal;
+        let Some((verb, rest)) = item.keyword(VERBS) else {
+            src.problem(
+                item.offset,
+                format!(
+                    "'{}' does not start with lane, commit, branch, merge or tag",
+                    item.text
+                ),
+            );
             continue;
-        }
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-
-        let lower = text.to_lowercase();
-
-        if lower.starts_with("lane ") {
-            let name = text["lane ".len()..].trim().to_string();
-            items.push(GitGraphItem::Lane { name });
-        } else if lower.starts_with("branch ") {
-            let rest = &text["branch ".len()..];
-            if let Some(arrow) = rest.find(" -> ") {
-                let source = rest[..arrow].trim().to_string();
-                let target = rest[arrow + " -> ".len()..].trim().to_string();
-                items.push(GitGraphItem::Branch {
-                    source,
-                    target,
-                    reveal,
-                });
+        };
+        let link = || {
+            let rel = relation(rest, &Arrow::FORWARD);
+            if rel.is_none() {
+                src.problem(
+                    item.offset,
+                    format!("{verb} needs 'source -> target', e.g. '{verb} main -> develop'"),
+                );
             }
-        } else if lower.starts_with("commit ") {
-            let rest = &text["commit ".len()..];
-            let (branch, message) = if let Some(colon) = rest.find(": ") {
-                (
-                    rest[..colon].trim().to_string(),
-                    rest[colon + 2..].trim().trim_matches('"').to_string(),
-                )
-            } else {
-                (rest.trim().to_string(), String::new())
-            };
-            items.push(GitGraphItem::Commit {
-                branch,
-                message,
-                reveal,
-            });
-        } else if lower.starts_with("merge ") {
-            let rest = &text["merge ".len()..];
-            if let Some(arrow) = rest.find(" -> ") {
-                let source = rest[..arrow].trim().to_string();
-                let after_arrow = &rest[arrow + " -> ".len()..];
-                let (target, label) = if let Some(colon) = after_arrow.find(": ") {
-                    (
-                        after_arrow[..colon].trim().to_string(),
-                        after_arrow[colon + 2..]
-                            .trim()
-                            .trim_matches('"')
-                            .to_string(),
-                    )
-                } else {
-                    (after_arrow.trim().to_string(), String::new())
+            rel
+        };
+        let named = |s: &str| {
+            if s.is_empty() {
+                src.problem(item.offset, format!("{verb} needs a branch name"));
+            }
+            !s.is_empty()
+        };
+        match verb {
+            "lane" => {
+                if named(rest) {
+                    items.push(GitGraphItem::Lane {
+                        name: rest.to_string(),
+                    });
+                }
+            }
+            "commit" => {
+                let (branch, message) = match rest.split_once(": ") {
+                    Some((b, m)) => (b.trim(), unquote(m)),
+                    None => (rest, ""),
                 };
-                items.push(GitGraphItem::Merge {
-                    source,
-                    target,
-                    label,
-                    reveal,
-                });
+                if named(branch) {
+                    items.push(GitGraphItem::Commit {
+                        branch: branch.to_string(),
+                        message: message.to_string(),
+                        reveal,
+                    });
+                }
             }
-        } else if lower.starts_with("tag ") {
-            let rest = &text["tag ".len()..];
-            if let Some(colon) = rest.find(": ") {
-                let branch = rest[..colon].trim().to_string();
-                let label = rest[colon + 2..].trim().trim_matches('"').to_string();
-                items.push(GitGraphItem::Tag {
-                    branch,
-                    label,
-                    reveal,
-                });
+            "branch" => {
+                if let Some(rel) = link() {
+                    if rel.label.is_some() {
+                        src.problem(item.offset, "a branch takes no label");
+                    }
+                    items.push(GitGraphItem::Branch {
+                        source: rel.from.to_string(),
+                        target: rel.to.to_string(),
+                        reveal,
+                    });
+                }
             }
+            "merge" => {
+                if let Some(rel) = link() {
+                    items.push(GitGraphItem::Merge {
+                        source: rel.from.to_string(),
+                        target: rel.to.to_string(),
+                        label: rel.label.map(unquote).unwrap_or_default().to_string(),
+                        reveal,
+                    });
+                }
+            }
+            _ => match rest.split_once(": ") {
+                Some((branch, label)) if named(branch.trim()) => {
+                    items.push(GitGraphItem::Tag {
+                        branch: branch.trim().to_string(),
+                        label: unquote(label).to_string(),
+                        reveal,
+                    });
+                }
+                Some(_) => {}
+                None => src.problem(
+                    item.offset,
+                    "tag needs a branch and a label, e.g. 'tag main: \"v1.0\"'",
+                ),
+            },
         }
     }
     items
+}
+
+pub(super) fn parse_gitgraph(content: &str) -> Vec<GitGraphItem> {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@gitgraph` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────

@@ -4,7 +4,9 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_FONT_PRIMARY_LABEL, VIZ_FONT_SECONDARY_LABEL, VIZ_STROKE_SEPARATOR, VizReveal,
-    assign_steps, parse_reveal_prefix, parse_value,
+    assign_steps,
+    grammar::{Problem, Source},
+    parse_value,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -36,68 +38,78 @@ struct VennIntersection {
     reveal: VizReveal,
 }
 
-fn parse_venn_diagram(content: &str) -> (Vec<VennCircle>, Vec<VennIntersection>) {
+/// Sets are `- Name` or `- Name (size: N)`; overlaps are `- A & B: label`.
+fn read(src: &Source) -> (Vec<VennCircle>, Vec<VennIntersection>) {
+    src.check_settings(&[]);
     let mut circles = Vec::new();
     let mut intersections = Vec::new();
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
-        }
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-
-        if text.contains(" & ") {
-            // Intersection line: "A & B: Label"
-            if let Some(colon_pos) = text.find(": ") {
-                let sets_part = &text[..colon_pos];
-                let label = text[colon_pos + 2..].trim().to_string();
-                let sets: Vec<String> = sets_part
-                    .split(" & ")
-                    .map(|s| s.trim().to_string())
-                    .collect();
-                intersections.push(VennIntersection {
-                    sets,
-                    label,
-                    reveal,
-                });
-            }
-        } else {
-            // Circle line: "Label (size: N)" or "Label"
-            let (label, size) = if let Some(paren_start) = text.find('(') {
-                let label = text[..paren_start].trim().to_string();
-                let inner = text[paren_start..]
-                    .trim_start_matches('(')
-                    .trim_end_matches(')');
-                let size = sanitize_size(inner.strip_prefix("size:").and_then(parse_value));
-                (label, size)
-            } else {
-                // Could be "Label: value" format
-                if let Some(colon_pos) = text.find(": ") {
-                    let label = text[..colon_pos].trim().to_string();
-                    let val_str = text[colon_pos + 2..].trim();
-                    // Check if it looks like a size value (not an intersection)
-                    if let Some(v) = parse_value(val_str) {
-                        (label, sanitize_size(Some(v)))
-                    } else {
-                        (text.to_string(), DEFAULT_SIZE)
-                    }
-                } else {
-                    (text.to_string(), DEFAULT_SIZE)
-                }
+    for item in &src.items {
+        if item.text.contains(" & ") {
+            item.check_attrs(src, &[]);
+            let Some((sets, label)) = item.label_value() else {
+                src.problem(
+                    item.offset,
+                    format!(
+                        "overlap '{}' needs a label, e.g. '- A & B: shared'",
+                        item.text
+                    ),
+                );
+                continue;
             };
-            circles.push(VennCircle {
-                label,
-                size,
-                reveal,
-            });
+            let sets: Vec<String> = sets.split(" & ").map(|s| s.trim().to_string()).collect();
+            intersections.push((
+                item.offset,
+                VennIntersection {
+                    sets,
+                    label: label.to_string(),
+                    reveal: item.reveal,
+                },
+            ));
+            continue;
+        }
+        item.check_attrs(src, &["size"]);
+        if item.text.is_empty() || item.label_value().is_some() {
+            src.problem(
+                item.offset,
+                format!(
+                    "'{}' is not a set; write '- Name' or '- Name (size: 30)'",
+                    item.text
+                ),
+            );
+            continue;
+        }
+        let size = item.attr("size").map(|s| {
+            let v = parse_value(s);
+            if v.is_none_or(|v| v <= 0.0) {
+                src.problem(item.offset, format!("size: '{s}' is not a positive number"));
+            }
+            v
+        });
+        circles.push(VennCircle {
+            label: item.text.to_string(),
+            size: sanitize_size(size.flatten()),
+            reveal: item.reveal,
+        });
+    }
+    for (offset, i) in &intersections {
+        for set in &i.sets {
+            if !circles.iter().any(|c| c.label.eq_ignore_ascii_case(set)) {
+                src.problem(*offset, format!("'{set}' is not one of the sets"));
+            }
         }
     }
+    (circles, intersections.into_iter().map(|(_, i)| i).collect())
+}
 
-    (circles, intersections)
+fn parse_venn_diagram(content: &str) -> (Vec<VennCircle>, Vec<VennIntersection>) {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@venn` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
 }
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
@@ -439,7 +451,7 @@ mod tests {
 
     #[test]
     fn test_parse_venn_zero_and_negative_sizes_are_sanitised() {
-        let content = "- A (size: 0)\n- B (size: -5)\n- C: 0";
+        let content = "- A (size: 0)\n- B (size: -5)\n- C (size: 0)";
         let (circles, _) = parse_venn_diagram(content);
         assert_eq!(circles.len(), 3);
         for c in &circles {

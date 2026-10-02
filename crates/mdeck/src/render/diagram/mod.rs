@@ -8,7 +8,6 @@ mod debug;
 mod edges;
 mod icons;
 mod layout;
-mod metadata;
 mod nodes;
 mod parsing;
 mod polyline;
@@ -24,6 +23,7 @@ mod tests;
 
 pub use debug::diagram_debug_info;
 pub use icons::draw_icon_fallback as draw_icon;
+pub use parsing::check;
 pub use reveal::count_diagram_steps;
 pub use routes::{
     check_diagram_routes, clear_route_cache, precache_all_diagrams_with_report, set_routing_weights,

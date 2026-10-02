@@ -4,7 +4,8 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_FONT_MIN, VIZ_OPACITY_BORDER_RING, VIZ_STROKE_BORDER, VizReveal, assign_steps,
-    draw_side_legend, fit_text, header_directive, parse_label_value, parse_reveal_prefix,
+    draw_side_legend, fit_text,
+    grammar::{Problem, Source, label_value_items},
     ring_layout, share_legend_items,
 };
 
@@ -17,40 +18,29 @@ struct DonutEntry {
     reveal: VizReveal,
 }
 
+fn read(src: &Source) -> (Vec<DonutEntry>, Option<String>) {
+    src.check_settings(&["center"]);
+    let entries = label_value_items(src, "- Completed: 65%")
+        .into_iter()
+        // a negative share is meaningless → 0
+        .map(|e| DonutEntry {
+            label: e.label,
+            value: e.value.max(0.0),
+            reveal: e.reveal,
+        })
+        .collect();
+    (entries, src.setting("center").map(str::to_string))
+}
+
 fn parse_donut_chart(content: &str) -> (Vec<DonutEntry>, Option<String>) {
-    let mut entries = Vec::new();
-    let mut center_text = None;
+    read(&Source::parse(content))
+}
 
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        // Parse center text directive
-        if trimmed.starts_with('#') {
-            if let Some(("center", rest)) = header_directive(trimmed) {
-                center_text = Some(rest.to_string());
-            }
-            continue;
-        }
-
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-
-        // Parse "Label: 40%" or "Label: 40"; a negative share is meaningless → 0
-        if let Some((label, value)) = parse_label_value(text) {
-            entries.push(DonutEntry {
-                label,
-                value: value.max(0.0),
-                reveal,
-            });
-        }
-    }
-
-    (entries, center_text)
+/// The problems in a `@donut` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
 }
 
 // ─── Renderer ───────────────────────────────────────────────────────────────
@@ -180,7 +170,7 @@ mod tests {
 
     #[test]
     fn test_parse_donut_chart_with_center() {
-        let content = "# center: 78%\n- Complete: 78\n- Remaining: 22";
+        let content = "center: 78%\n- Complete: 78\n- Remaining: 22";
         let (entries, center) = parse_donut_chart(content);
         assert_eq!(entries.len(), 2);
         assert_eq!(center, Some("78%".to_string()));
@@ -197,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_parse_donut_chart_skips_invalid() {
-        let content = "# center: Done\n- Valid: 50%\n- no_value\n# comment\n- Also Valid: 50%";
+        let content = "center: Done\n- Valid: 50%\n- no_value\n# comment\n- Also Valid: 50%";
         let (entries, center) = parse_donut_chart(content);
         assert_eq!(entries.len(), 2);
         assert_eq!(center, Some("Done".to_string()));

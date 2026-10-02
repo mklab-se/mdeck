@@ -7,6 +7,7 @@
 mod card;
 mod layout;
 mod parse;
+pub use parse::check;
 
 use std::sync::Arc;
 

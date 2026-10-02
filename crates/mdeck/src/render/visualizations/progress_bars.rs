@@ -5,7 +5,7 @@ use crate::theme::Theme;
 use super::{
     VIZ_CORNER_TRACK, VIZ_FONT_MIN, VIZ_FONT_PRIMARY_LABEL, VIZ_FONT_TITLE, VIZ_OPACITY_GRID,
     VIZ_OPACITY_LABEL, VIZ_STROKE_BORDER, VizReveal, assign_steps, fit_font_size, fit_text,
-    parse_label_value, parse_reveal_prefix,
+    grammar::{Problem, Source, label_value_items},
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -17,28 +17,27 @@ struct ProgressEntry {
     reveal: VizReveal,
 }
 
-fn parse_progress_bars(content: &str) -> Vec<ProgressEntry> {
-    let mut entries = Vec::new();
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
-        }
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
+fn read(src: &Source) -> Vec<ProgressEntry> {
+    src.check_settings(&[]);
+    label_value_items(src, "- Label: 40")
+        .into_iter()
+        .map(|e| ProgressEntry {
+            label: e.label,
+            value: e.value.clamp(0.0, 100.0),
+            reveal: e.reveal,
+        })
+        .collect()
+}
 
-        // Parse "Label: 75%" or "Label: 75"
-        if let Some((label, value)) = parse_label_value(text) {
-            entries.push(ProgressEntry {
-                label,
-                value: value.clamp(0.0, 100.0),
-                reveal,
-            });
-        }
-    }
-    entries
+fn parse_progress_bars(content: &str) -> Vec<ProgressEntry> {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@progress` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
 }
 
 // ─── Renderer ───────────────────────────────────────────────────────────────

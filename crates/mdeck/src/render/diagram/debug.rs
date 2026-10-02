@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn test_diagram_debug_info_basic() {
-        let content = "A (pos: 1,1)\nB (pos: 2,1)\nA -> B: link";
+        let content = "- A (pos: 1,1)\n- B (pos: 2,1)\n- A -> B: link";
         let info = diagram_debug_info(content);
         assert!(info.contains("NODES (2):"));
         assert!(info.contains("A @ (1,1)"));
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn test_diagram_debug_info_auto_layout() {
-        let content = "A\nB\nC\nA -> B\nB -> C";
+        let content = "- A\n- B\n- C\n- A -> B\n- B -> C";
         let info = diagram_debug_info(content);
         // Auto-layout: 3 nodes → single row at (1,1), (2,1), (3,1)
         assert!(info.contains("NODES (3):"));
@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn debug_info_report_layout() {
-        let info = diagram_debug_info("A (pos: 1,1)\nB (pos: 2,1)\nA --> B");
+        let info = diagram_debug_info("- A (pos: 1,1)\n- B (pos: 2,1)\n- A --> B");
         let lines: Vec<&str> = info.lines().collect();
         assert_eq!(lines[..4], ["NODES (2):", "  A @ (1,1)", "  B @ (2,1)", ""]);
         assert_eq!(lines[4..6], ["EDGES (1):", "  A --> B"]);
@@ -140,7 +140,7 @@ mod tests {
 
     #[test]
     fn auto_layout_wraps_past_five() {
-        let info = diagram_debug_info("A\nB\nC\nD\nE\nF\nG\nA -> B");
+        let info = diagram_debug_info("- A\n- B\n- C\n- D\n- E\n- F\n- G\n- A -> B");
         // 7 nodes: 3 columns
         assert!(info.contains("C @ (3,1)"), "{info}");
         assert!(info.contains("D @ (1,2)"), "{info}");
@@ -151,7 +151,7 @@ mod tests {
     fn the_overlay_routes_what_check_routes() {
         // The overlay used the default three lanes per corridor while the
         // slide and `--check` measured them from the layout.
-        let content = "A (pos: 1,1)\nB (pos: 3,1)\nC (pos: 2,2)\nA -> B\nA -> C";
+        let content = "- A (pos: 1,1)\n- B (pos: 3,1)\n- C (pos: 2,2)\n- A -> B\n- A -> C";
         let (nodes, edges, _) = parse_diagram(content);
         let input = reference_input(&nodes, &edges);
         let config = input.config();

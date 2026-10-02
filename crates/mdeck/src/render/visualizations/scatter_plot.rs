@@ -6,8 +6,8 @@ use super::{
     AxisTitles, PlotFrame, VIZ_FONT_GRID_LABEL, VIZ_FONT_SECONDARY_LABEL,
     VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_GRID, VIZ_OPACITY_GRID_LABEL, VIZ_OPACITY_LABEL,
     VIZ_SCATTER_RADIUS, VIZ_STROKE_GRID, ValueRange, VizReveal, assign_steps, format_axis_value,
-    grid_range_values, header_directive, label_fade, nice_grid_step, parse_reveal_prefix,
-    parse_value, strip_thousands_separators,
+    grammar::{Problem, Source},
+    grid_range_values, label_fade, nice_grid_step, parse_value, strip_thousands_separators,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -27,73 +27,63 @@ struct ScatterData {
     y_label: Option<String>,
 }
 
-fn parse_scatter_plot(content: &str) -> ScatterData {
+const SETTINGS: &[&str] = &["x-label", "y-label"];
+
+fn read(src: &Source) -> ScatterData {
+    src.check_settings(SETTINGS);
     let mut points = Vec::new();
-    let mut x_label = None;
-    let mut y_label = None;
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        if trimmed.starts_with('#') {
-            match header_directive(trimmed) {
-                Some(("x-label", val)) => x_label = Some(val.to_string()),
-                Some(("y-label", val)) => y_label = Some(val.to_string()),
-                _ => {}
+    for item in &src.items {
+        item.check_attrs(src, &["size"]);
+        let size = item.attr("size").and_then(|s| {
+            let v = parse_value(s).filter(|v| *v > 0.0);
+            if v.is_none() {
+                src.problem(item.offset, format!("size: '{s}' is not a positive number"));
             }
-            continue;
-        }
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-
-        // Parse "Label: X, Y" or "Label: X, Y (size: N)"
-        if let Some(colon_pos) = text.find(": ") {
-            let label = text[..colon_pos].trim().to_string();
-            let rest = text[colon_pos + 2..].trim();
-
-            // Extract optional (size: N) suffix
-            let (coords_str, size) = if let Some(paren_start) = rest.find('(') {
-                let coords = rest[..paren_start].trim().trim_end_matches(',').trim();
-                let inner = rest[paren_start..]
-                    .trim_start_matches('(')
-                    .trim_end_matches(')');
-                let sz = inner
-                    .strip_prefix("size:")
-                    .and_then(parse_value)
-                    .filter(|s| *s > 0.0);
-                (coords, sz)
-            } else {
-                (rest, None)
-            };
-
-            // Parse "X, Y"
-            let coords = strip_thousands_separators(coords_str);
+            v
+        });
+        // "Label: X, Y"
+        let parsed = item.label_value().and_then(|(label, coords)| {
+            let coords = strip_thousands_separators(coords);
             let parts: Vec<&str> = coords.split(',').collect();
-            if parts.len() == 2
-                && let (Some(x), Some(y)) = (parse_value(parts[0]), parse_value(parts[1]))
-            {
-                points.push(ScatterPoint {
-                    label,
-                    x,
-                    y,
-                    size,
-                    reveal,
-                });
+            match parts[..] {
+                [x, y] => Some((label, parse_value(x)?, parse_value(y)?)),
+                _ => None,
             }
+        });
+        match parsed {
+            Some((label, x, y)) => points.push(ScatterPoint {
+                label: label.to_string(),
+                x,
+                y,
+                size,
+                reveal: item.reveal,
+            }),
+            None => src.problem(
+                item.offset,
+                format!(
+                    "'{}' is not a label and two numbers, e.g. '- Alice: 80, 90'",
+                    item.text
+                ),
+            ),
         }
     }
     ScatterData {
         points,
-        x_label,
-        y_label,
+        x_label: src.setting("x-label").map(str::to_string),
+        y_label: src.setting("y-label").map(str::to_string),
     }
 }
 
+fn parse_scatter_plot(content: &str) -> ScatterData {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@scatter` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
+}
 // ─── Layout ─────────────────────────────────────────────────────────────────
 
 /// Space around the plot (multiplied by scale).
@@ -282,7 +272,7 @@ mod tests {
 
     #[test]
     fn test_parse_scatter_axis_labels() {
-        let content = "# x-label: Hours Studied\n# y-label: Test Score\n- Alice: 80, 90";
+        let content = "x-label: Hours Studied\ny-label: Test Score\n- Alice: 80, 90";
         let data = parse_scatter_plot(content);
         assert_eq!(data.x_label, Some("Hours Studied".to_string()));
         assert_eq!(data.y_label, Some("Test Score".to_string()));
@@ -307,10 +297,13 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_scatter_compact_axis_directives() {
-        let data = parse_scatter_plot("#x-label: Hours\n#y-label: Score\n- A: 1, 2");
-        assert_eq!(data.x_label.as_deref(), Some("Hours"));
-        assert_eq!(data.y_label.as_deref(), Some("Score"));
+    fn test_commented_settings_are_comments_and_reported() {
+        let content = "#x-label: Hours\n# y-label: Score\n- A: 1, 2\n- B: 3 (size: big)";
+        let data = parse_scatter_plot(content);
+        assert_eq!(data.x_label, None, "'#' starts a comment");
+        assert_eq!(data.y_label, None);
+        let lines: Vec<usize> = check(content).iter().map(|p| p.offset).collect();
+        assert_eq!(lines, [0, 1, 3, 3]);
     }
 
     #[test]

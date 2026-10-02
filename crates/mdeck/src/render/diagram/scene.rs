@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn scene_offsets_nodes_into_the_area() {
-        let (nodes, _, directive) = parse_diagram("A\nB");
+        let (nodes, _, directive) = parse_diagram("- A\n- B");
         let origin = Pos2::new(100.0, 50.0);
         let scene = Scene::layout(&nodes, directive, origin, egui::vec2(800.0, 400.0), 1.0);
         let (layouts, _) = layout_nodes(&nodes, 800.0, 400.0, 100.0, 50.0, 1.0);
@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn scene_applies_scale_factor() {
-        let (nodes, _, directive) = parse_diagram("# scale: 0.5\nA\nB");
+        let (nodes, _, directive) = parse_diagram("scale: 0.5\n- A\n- B");
         let scene = Scene::layout(&nodes, directive, Pos2::ZERO, egui::vec2(800.0, 400.0), 1.0);
         let (layouts, grid) = layout_nodes(&nodes, 800.0, 400.0, 0.0, 0.0, 1.0);
         assert_eq!(scene.boxes[0].width, layouts[0].width * 0.5);

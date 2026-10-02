@@ -4,7 +4,9 @@
 
 use super::palette::Palette;
 pub use super::units::{Range, Unit};
-use crate::render::visualizations::{VizReveal, assign_steps, parse_reveal_prefix};
+pub use crate::render::visualizations::grammar::Problem;
+use crate::render::visualizations::grammar::Source;
+use crate::render::visualizations::{VizReveal, assign_steps};
 
 /// Which way the source runs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -86,12 +88,19 @@ pub struct Line {
     pub offset: usize,
 }
 
-/// Something in the block that does not parse, with its line in the block.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Problem {
-    pub offset: usize,
-    pub message: String,
-}
+/// The keys a block takes (`slide-window` is added by the parser from the
+/// slide's `@thermal-window`).
+const KEYS: &[&str] = &[
+    "image",
+    "data",
+    "visible",
+    "palette",
+    "mapping",
+    "window",
+    "polarity",
+    "label",
+    "slide-window",
+];
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Spec {
@@ -114,100 +123,81 @@ pub struct Spec {
 
 impl Spec {
     pub fn parse(content: &str) -> Spec {
+        let src = Source::parse(content);
+        src.check_settings(KEYS);
         let mut spec = Spec::default();
-        for (offset, raw) in content.lines().enumerate() {
-            let t = raw.trim();
-            if t.is_empty() {
-                continue;
-            }
-            let problem = |message: String| spec_problem(offset, message);
-            // keys may be written `key: value` or `# key: value`
-            let keyed = t.strip_prefix('#').map_or(t, |r| r.trim_start());
-            let is_step = t.starts_with(['-', '+', '*']);
-            if !is_step {
-                let Some((key, value)) = keyed.split_once(':') else {
-                    if !t.starts_with('#') {
-                        spec.problems
-                            .push(problem(format!("'{t}' is not a key or a step")));
+        for s in &src.settings {
+            let (offset, value) = (s.offset, s.value);
+            let key = s.key.to_ascii_lowercase();
+            let problem = |message: String| src.problem(offset, message);
+            spec.keys.insert(key.clone(), offset);
+            match key.as_str() {
+                "image" => spec.image = Some(value.to_string()),
+                "data" => spec.data = Some(value.to_string()),
+                "visible" => spec.visible = Some(value.to_string()),
+                "label" => spec.label = Some(value.to_string()),
+                "palette" => match Palette::from_name(value) {
+                    Some(p) => spec.palette = Some(p),
+                    None => problem(format!(
+                        "palette: '{value}' is not one of iron, white-hot, black-hot, rainbow, arctic, lava"
+                    )),
+                },
+                "polarity" => match value.to_ascii_lowercase().as_str() {
+                    "white-hot" => spec.polarity = Polarity::WhiteHot,
+                    "black-hot" => spec.polarity = Polarity::BlackHot,
+                    _ => problem(format!("polarity: '{value}' is not white-hot or black-hot")),
+                },
+                "mapping" => {
+                    let rest = value.strip_prefix("linear").map(str::trim);
+                    match rest.map(Range::parse) {
+                        Some(Ok(r)) => spec.mapping = Some(r),
+                        Some(Err(e)) => problem(format!("mapping: {e}")),
+                        None => problem(format!(
+                            "mapping: '{value}' must be linear, e.g. linear 18..92 °C"
+                        )),
                     }
-                    continue;
-                };
-                let value = value.trim();
-                let key = key.trim().to_ascii_lowercase();
-                spec.keys.insert(key.clone(), offset);
-                match key.as_str() {
-                    "image" => spec.image = Some(value.to_string()),
-                    "data" => spec.data = Some(value.to_string()),
-                    "visible" => spec.visible = Some(value.to_string()),
-                    "label" => spec.label = Some(value.to_string()),
-                    "palette" => match Palette::from_name(value) {
-                        Some(p) => spec.palette = Some(p),
-                        None => spec.problems.push(problem(format!(
-                            "palette: '{value}' is not one of iron, white-hot, black-hot, rainbow, arctic, lava"
-                        ))),
-                    },
-                    "polarity" => match value.to_ascii_lowercase().as_str() {
-                        "white-hot" => spec.polarity = Polarity::WhiteHot,
-                        "black-hot" => spec.polarity = Polarity::BlackHot,
-                        _ => spec.problems.push(problem(format!(
-                            "polarity: '{value}' is not white-hot or black-hot"
-                        ))),
-                    },
-                    "mapping" => {
-                        let rest = value.strip_prefix("linear").map(str::trim);
-                        match rest.map(Range::parse) {
-                            Some(Ok(r)) => spec.mapping = Some(r),
-                            Some(Err(e)) => spec.problems.push(problem(format!("mapping: {e}"))),
-                            None => spec.problems.push(problem(format!(
-                                "mapping: '{value}' must be linear, e.g. linear 18..92 °C"
-                            ))),
-                        }
-                    }
-                    "window" if !spec.slide_window => match Range::parse(value) {
-                        Ok(r) => spec.window = Some(r),
-                        Err(e) => spec.problems.push(problem(format!("window: {e}"))),
-                    },
-                    "window" => {}
-                    // added by the parser from the slide's @thermal-window
-                    "slide-window" => match Range::parse(value) {
-                        Ok(r) => {
-                            spec.window = Some(r);
-                            spec.slide_window = true;
-                        }
-                        Err(e) => spec
-                            .problems
-                            .push(problem(format!("@thermal-window: {e}"))),
-                    },
-                    other if t.starts_with('#') => {
-                        let _ = other; // a comment that happens to have a colon
-                    }
-                    other => spec
-                        .problems
-                        .push(problem(format!("'{other}' is not a @thermal key"))),
                 }
-                continue;
+                "window" if !spec.slide_window => match Range::parse(value) {
+                    Ok(r) => spec.window = Some(r),
+                    Err(e) => problem(format!("window: {e}")),
+                },
+                // added by the parser from the slide's @thermal-window
+                "slide-window" => match Range::parse(value) {
+                    Ok(r) => {
+                        spec.window = Some(r);
+                        spec.slide_window = true;
+                    }
+                    Err(e) => problem(format!("@thermal-window: {e}")),
+                },
+                _ => {}
             }
-            let (text, reveal) = parse_reveal_prefix(t);
-            match parse_action(text) {
+        }
+        for item in &src.items {
+            item.check_attrs(&src, &[]);
+            match parse_action(item.text) {
                 Ok(action) => spec.lines.push(Line {
                     action,
-                    reveal,
-                    offset,
+                    reveal: item.reveal,
+                    offset: item.offset,
                 }),
-                Err(e) => spec.problems.push(problem(e)),
+                Err(e) => src.problem(item.offset, e),
             }
         }
         if spec.image.is_some() && spec.data.is_some() {
-            spec.problems
-                .push(spec_problem(0, "use image: or data:, not both".to_string()));
+            src.problem(0, "use image: or data:, not both");
         }
         if spec.image.is_none() && spec.data.is_none() {
-            spec.problems
-                .push(spec_problem(0, "needs an image: or data: line".to_string()));
+            src.problem(0, "needs an image: or data: line");
         }
+        // the parser appends `slide-window:` after the steps
+        let appended = spec.key_line("slide-window");
+        spec.problems = src
+            .into_problems()
+            .into_iter()
+            .filter(|p| Some(p.offset) != appended)
+            .collect();
         spec
     }
-
     /// The lines the source can show and their reveal steps; the others are
     /// left out (see [`Action::supported`]).
     pub fn steps(&self, support: &Support) -> Vec<(&Line, usize)> {
@@ -233,10 +223,6 @@ impl Spec {
     pub fn key_line(&self, key: &str) -> Option<usize> {
         self.keys.get(key).copied()
     }
-}
-
-fn spec_problem(offset: usize, message: String) -> Problem {
-    Problem { offset, message }
 }
 
 /// `76%`, `0.76` → 0.76 (a fraction of the image).
@@ -449,7 +435,7 @@ palette: lava
             "image: a.png\ndata: b.png\npalette: plasma\npolarity: sideways\nmapping: log 1..2 °C\n+ lens 50%\n+ above lots\n+ spin\nzoom: 2\n",
         );
         let lines: Vec<usize> = s.problems.iter().map(|p| p.offset).collect();
-        assert_eq!(lines, [2, 3, 4, 5, 6, 7, 8, 0], "{:?}", s.problems);
+        assert_eq!(lines, [0, 2, 3, 4, 5, 6, 7, 8, 8], "{:?}", s.problems);
         assert!(
             Spec::parse("+ reveal").problems[0]
                 .message

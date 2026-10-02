@@ -6,8 +6,8 @@ use super::{
     AxisTitles, PlotFrame, VIZ_CORNER_BAR, VIZ_FONT_CATEGORY_LABEL, VIZ_FONT_GRID_LABEL,
     VIZ_FONT_MIN, VIZ_FONT_VALUE_LABEL, VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_LABEL, ValueRange,
     VizCtx, VizReveal, assign_steps, fit_font_size, fit_text, format_axis_value, format_value,
-    grid_values, header_directive, label_fade, nice_axis_max, nice_grid_step, parse_label_value,
-    parse_reveal_prefix,
+    grammar::{LabelValue, Problem, Source, label_value_items},
+    grid_values, label_fade, nice_axis_max, nice_grid_step,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -18,12 +18,7 @@ enum Orientation {
     Horizontal,
 }
 
-#[derive(Debug, Clone)]
-struct BarEntry {
-    label: String,
-    value: f32,
-    reveal: VizReveal,
-}
+type BarEntry = LabelValue;
 
 struct BarChartData {
     entries: Vec<BarEntry>,
@@ -32,56 +27,31 @@ struct BarChartData {
     y_label: Option<String>,
 }
 
-fn parse_bar_chart(content: &str) -> BarChartData {
-    let mut entries = Vec::new();
-    let mut orientation = Orientation::Vertical;
-    let mut x_label = None;
-    let mut y_label = None;
+const SETTINGS: &[&str] = &["orientation", "x-label", "y-label"];
 
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        // Parse directives from comments
-        if trimmed.starts_with('#') {
-            match header_directive(trimmed) {
-                Some(("orientation", val)) => {
-                    if val.eq_ignore_ascii_case("horizontal") {
-                        orientation = Orientation::Horizontal;
-                    } else if val.eq_ignore_ascii_case("vertical") {
-                        orientation = Orientation::Vertical;
-                    }
-                }
-                Some(("x-label", val)) => x_label = Some(val.to_string()),
-                Some(("y-label", val)) => y_label = Some(val.to_string()),
-                _ => {}
-            }
-            continue;
-        }
-
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-
-        // Parse "Label: 40", "Label: 40%", "Label: $1,000", ...
-        if let Some((label, value)) = parse_label_value(text) {
-            entries.push(BarEntry {
-                label,
-                value,
-                reveal,
-            });
-        }
-    }
-
+fn read(src: &Source) -> BarChartData {
+    src.check_settings(SETTINGS);
+    let orientation = match src.choice("orientation", &["vertical", "horizontal"]) {
+        Some("horizontal") => Orientation::Horizontal,
+        _ => Orientation::Vertical,
+    };
     BarChartData {
-        entries,
+        entries: label_value_items(src, "- Sales: 40"),
         orientation,
-        x_label,
-        y_label,
+        x_label: src.setting("x-label").map(str::to_string),
+        y_label: src.setting("y-label").map(str::to_string),
     }
+}
+
+fn parse_bar_chart(content: &str) -> BarChartData {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@bar` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
 }
 
 // ─── Layout ─────────────────────────────────────────────────────────────────
@@ -451,7 +421,7 @@ mod tests {
 
     #[test]
     fn test_parse_bar_chart_horizontal() {
-        let content = "# orientation: horizontal\n- A: 10\n- B: 20";
+        let content = "orientation: horizontal\n- A: 10\n- B: 20";
         let data = parse_bar_chart(content);
         assert_eq!(data.entries.len(), 2);
         assert_eq!(data.orientation, Orientation::Horizontal);
@@ -491,7 +461,7 @@ mod tests {
 
     #[test]
     fn test_parse_bar_chart_axis_labels() {
-        let content = "# x-label: Categories\n# y-label: Revenue ($M)\n- A: 10\n- B: 20";
+        let content = "x-label: Categories\ny-label: Revenue ($M)\n- A: 10\n- B: 20";
         let data = parse_bar_chart(content);
         assert_eq!(data.x_label, Some("Categories".to_string()));
         assert_eq!(data.y_label, Some("Revenue ($M)".to_string()));

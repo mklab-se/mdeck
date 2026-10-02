@@ -6,7 +6,8 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_CORNER_NODE, VIZ_FONT_PRIMARY_LABEL, VIZ_STROKE_BORDER, VIZ_STROKE_SEPARATOR, VizCtx,
-    VizReveal, assign_steps, parse_reveal_prefix,
+    VizReveal, assign_steps,
+    grammar::{Arrow, Problem, Source},
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -18,43 +19,44 @@ struct OrgEdge {
     reveal: VizReveal,
 }
 
-fn parse_org_chart(content: &str) -> (Vec<String>, Vec<OrgEdge>) {
+/// `- Manager -> Report` links, and `- Name` for a root (or a lone node).
+/// Without any `- Name` line the roots are the names that are never a
+/// report.
+fn read(src: &Source) -> (Vec<String>, Vec<OrgEdge>) {
+    src.check_settings(&[]);
     let mut roots = Vec::new();
     let mut edges = Vec::new();
     let mut seen_nodes: Vec<String> = Vec::new();
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
+    let mut see = |name: &str| {
+        if !seen_nodes.iter().any(|n| n == name) {
+            seen_nodes.push(name.to_string());
         }
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-
-        if let Some(arrow_pos) = text.find(" -> ") {
-            let parent = text[..arrow_pos].trim().to_string();
-            let child = text[arrow_pos + 4..].trim().to_string();
-            if !seen_nodes.contains(&parent) {
-                seen_nodes.push(parent.clone());
+    };
+    for item in &src.items {
+        item.check_attrs(src, &[]);
+        if let Some(rel) = item.relation(&Arrow::FORWARD) {
+            if rel.label.is_some() {
+                src.problem(item.offset, "org chart links take no label");
             }
-            if !seen_nodes.contains(&child) {
-                seen_nodes.push(child.clone());
-            }
+            see(rel.from);
+            see(rel.to);
             edges.push(OrgEdge {
-                parent,
-                child,
-                reveal,
+                parent: rel.from.to_string(),
+                child: rel.to.to_string(),
+                reveal: item.reveal,
             });
+        } else if item.text.contains("->") || item.text.contains(':') || item.text.is_empty() {
+            src.problem(
+                item.offset,
+                format!(
+                    "'{}' is not a person or a link; write '- CEO' or '- CEO -> CTO'",
+                    item.text
+                ),
+            );
         } else {
-            // Root node declaration
-            let node = text.to_string();
-            if !seen_nodes.contains(&node) {
-                seen_nodes.push(node.clone());
-            }
-            if !roots.contains(&node) {
-                roots.push(node);
+            see(item.text);
+            if !roots.iter().any(|r| r == item.text) {
+                roots.push(item.text.to_string());
             }
         }
     }
@@ -72,6 +74,16 @@ fn parse_org_chart(content: &str) -> (Vec<String>, Vec<OrgEdge>) {
     (roots, edges)
 }
 
+fn parse_org_chart(content: &str) -> (Vec<String>, Vec<OrgEdge>) {
+    read(&Source::parse(content))
+}
+
+/// The problems in an `@orgchart` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
+}
 // ─── Tree layout ────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]

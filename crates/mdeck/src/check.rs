@@ -27,6 +27,9 @@ pub enum CheckCategory {
     /// `@thermal` blocks: unreadable sources, colour input, unsupported
     /// settings, comparisons that cannot share a scale.
     Thermal,
+    /// Visual fences: lines that are neither a setting nor an item, unknown
+    /// settings and attributes, values that do not parse.
+    Visual,
 }
 
 impl fmt::Display for CheckCategory {
@@ -43,6 +46,7 @@ impl fmt::Display for CheckCategory {
             CheckCategory::Art => write!(f, "art"),
             CheckCategory::Background => write!(f, "background"),
             CheckCategory::Thermal => write!(f, "thermal"),
+            CheckCategory::Visual => write!(f, "visual"),
         }
     }
 }

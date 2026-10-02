@@ -6,6 +6,7 @@
 
 mod layout;
 mod parse;
+pub use parse::check;
 mod text;
 
 use std::f32::consts::TAU;

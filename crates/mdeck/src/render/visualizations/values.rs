@@ -1,17 +1,4 @@
-//! Parsing values and header directives as written in presentation markdown.
-
-/// Split a chart header line such as `# x-label: Revenue` (or the compact
-/// `#x-label: Revenue`) into its key and trimmed value. Returns `None` for
-/// lines that are not `#`, at most one space, then `key:`.
-pub fn header_directive(line: &str) -> Option<(&str, &str)> {
-    let rest = line.trim().strip_prefix('#')?;
-    let rest = rest.strip_prefix(' ').unwrap_or(rest);
-    let (key, value) = rest.split_once(':')?;
-    if key.is_empty() || key.contains(char::is_whitespace) {
-        return None;
-    }
-    Some((key, value.trim()))
-}
+//! Parsing values as written in presentation markdown.
 
 /// Parse a single numeric value as written in presentation markdown.
 ///
@@ -122,42 +109,9 @@ pub fn parse_label_value(text: &str) -> Option<(String, f32)> {
     Some((label.trim().to_string(), value))
 }
 
-/// Split a `"Label: v1, v2, v3"` item into its label and the values that parse.
-/// Returns `None` when there is no `": "` or no value parses.
-pub fn parse_label_values(text: &str) -> Option<(String, Vec<f32>)> {
-    let (label, values) = text.split_once(": ")?;
-    let values: Vec<f32> = strip_thousands_separators(values)
-        .split(',')
-        .filter_map(parse_value)
-        .collect();
-    if values.is_empty() {
-        return None;
-    }
-    Some((label.trim().to_string(), values))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_header_directive_both_spellings() {
-        assert_eq!(header_directive("# x-label: Foo"), Some(("x-label", "Foo")));
-        assert_eq!(header_directive("#x-label:Foo "), Some(("x-label", "Foo")));
-        assert_eq!(header_directive("# axes: A, B"), Some(("axes", "A, B")));
-        assert_eq!(header_directive("# center:"), Some(("center", "")));
-        assert_eq!(header_directive("# title: a: b"), Some(("title", "a: b")));
-    }
-
-    #[test]
-    fn test_header_directive_rejects_other_lines() {
-        assert_eq!(header_directive("x-label: Foo"), None);
-        assert_eq!(header_directive("#  x-label: Foo"), None);
-        assert_eq!(header_directive("# x-label : Foo"), None);
-        assert_eq!(header_directive("# a plain comment"), None);
-        assert_eq!(header_directive("# note, see: here"), None);
-        assert_eq!(header_directive("#: Foo"), None);
-    }
 
     #[test]
     fn test_parse_value_plain_and_decorated() {
@@ -226,28 +180,5 @@ mod tests {
         assert_eq!(parse_label_value("Bad: inf"), None);
         assert_eq!(parse_label_value("no colon"), None);
         assert_eq!(parse_label_value("Empty: "), None);
-    }
-
-    #[test]
-    fn test_parse_label_values() {
-        assert_eq!(
-            parse_label_values("Revenue: 1,000, 2,000"),
-            Some(("Revenue".into(), vec![1000.0, 2000.0]))
-        );
-        assert_eq!(
-            parse_label_values("S: 100,200,300"),
-            Some(("S".into(), vec![100.0, 200.0, 300.0]))
-        );
-        assert_eq!(
-            parse_label_values("Costs: $80, $90, $120"),
-            Some(("Costs".into(), vec![80.0, 90.0, 120.0]))
-        );
-        // Non-finite entries are dropped rather than poisoning the series
-        assert_eq!(
-            parse_label_values("X: 1, inf, 3"),
-            Some(("X".into(), vec![1.0, 3.0]))
-        );
-        assert_eq!(parse_label_values("X: inf, nan"), None);
-        assert_eq!(parse_label_values("no values"), None);
     }
 }

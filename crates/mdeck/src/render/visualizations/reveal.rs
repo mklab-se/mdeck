@@ -49,20 +49,6 @@ pub enum VizReveal {
     WithPrev,
 }
 
-/// Parse a line's reveal prefix, returning the trimmed content and its reveal marker.
-pub fn parse_reveal_prefix(line: &str) -> (&str, VizReveal) {
-    let trimmed = line.trim();
-    if let Some(rest) = trimmed.strip_prefix("+ ") {
-        (rest, VizReveal::NextStep)
-    } else if let Some(rest) = trimmed.strip_prefix("* ") {
-        (rest, VizReveal::WithPrev)
-    } else if let Some(rest) = trimmed.strip_prefix("- ") {
-        (rest, VizReveal::Static)
-    } else {
-        (trimmed, VizReveal::Static)
-    }
-}
-
 /// Count the number of `+` (NextStep) markers in a visualization content string.
 pub fn count_viz_steps(content: &str) -> usize {
     content
@@ -94,14 +80,6 @@ pub fn assign_steps(reveals: &[VizReveal]) -> Vec<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_parse_reveal_prefix() {
-        assert_eq!(parse_reveal_prefix("- foo"), ("foo", VizReveal::Static));
-        assert_eq!(parse_reveal_prefix("+ bar"), ("bar", VizReveal::NextStep));
-        assert_eq!(parse_reveal_prefix("* baz"), ("baz", VizReveal::WithPrev));
-        assert_eq!(parse_reveal_prefix("plain"), ("plain", VizReveal::Static));
-    }
 
     #[test]
     fn test_count_viz_steps() {

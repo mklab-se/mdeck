@@ -5,8 +5,9 @@ use crate::theme::Theme;
 use super::{
     AxisTitles, PlotFrame, VIZ_CORNER_BAR, VIZ_FONT_CATEGORY_LABEL, VIZ_FONT_VALUE_LABEL,
     VIZ_LABEL_REVEAL_THRESHOLD, VIZ_OPACITY_LABEL, ValueRange, VizCtx, VizReveal, assign_steps,
-    draw_legend_row, format_value, grid_values, header_directive, label_fade, nice_axis_max,
-    nice_grid_step, parse_label_values, parse_reveal_prefix,
+    draw_legend_row, format_value,
+    grammar::{Problem, Source, label_values_items, name_list},
+    grid_values, label_fade, nice_axis_max, nice_grid_step,
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -26,60 +27,44 @@ struct StackedBarData {
     y_label: Option<String>,
 }
 
-fn parse_stacked_bar(content: &str) -> StackedBarData {
-    let mut categories = Vec::new();
-    let mut series = Vec::new();
-    let mut x_label = None;
-    let mut y_label = None;
+const SETTINGS: &[&str] = &["categories", "x-label", "y-label"];
 
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
+fn read(src: &Source) -> StackedBarData {
+    src.check_settings(SETTINGS);
+    let series: Vec<StackedSeries> = label_values_items(src, "- Product A: 40, 45, 50")
+        .into_iter()
+        .map(|s| StackedSeries {
+            label: s.label,
+            values: s.values,
+            reveal: s.reveal,
+        })
+        .collect();
+    // Without `categories:`, number the columns after the longest series
+    let categories = match src.setting("categories") {
+        Some(v) => name_list(v),
+        None => {
+            let n = series.iter().map(|s| s.values.len()).max().unwrap_or(0);
+            (1..=n).map(|i| i.to_string()).collect()
         }
-
-        // Parse directives
-        if trimmed.starts_with('#') {
-            match header_directive(trimmed) {
-                Some(("categories", rest)) => {
-                    categories = rest.split(',').map(|s| s.trim().to_string()).collect();
-                }
-                Some(("x-label", val)) => x_label = Some(val.to_string()),
-                Some(("y-label", val)) => y_label = Some(val.to_string()),
-                _ => {}
-            }
-            continue;
-        }
-
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-
-        // Parse "Series Name: v1, v2, v3, ..."
-        if let Some((label, values)) = parse_label_values(text) {
-            series.push(StackedSeries {
-                label,
-                values,
-                reveal,
-            });
-        }
-    }
-
-    // Without a `# categories:` directive, number the columns after the longest series
-    if categories.is_empty() {
-        let n = series.iter().map(|s| s.values.len()).max().unwrap_or(0);
-        categories = (1..=n).map(|i| i.to_string()).collect();
-    }
-
+    };
     StackedBarData {
         categories,
         series,
-        x_label,
-        y_label,
+        x_label: src.setting("x-label").map(str::to_string),
+        y_label: src.setting("y-label").map(str::to_string),
     }
 }
 
+fn parse_stacked_bar(content: &str) -> StackedBarData {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@stackedbar` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
+}
 // ─── Layout ─────────────────────────────────────────────────────────────────
 
 /// Corner rounding for one stacked segment: only the topmost segment of a stack
@@ -372,7 +357,7 @@ mod tests {
 
     #[test]
     fn test_parse_stacked_bar_basic() {
-        let content = "# categories: Q1, Q2, Q3\n- Product A: 40, 45, 50\n- Product B: 30, 35, 40";
+        let content = "categories: Q1, Q2, Q3\n- Product A: 40, 45, 50\n- Product B: 30, 35, 40";
         let data = parse_stacked_bar(content);
         assert_eq!(data.categories, vec!["Q1", "Q2", "Q3"]);
         assert_eq!(data.series.len(), 2);
@@ -384,7 +369,7 @@ mod tests {
 
     #[test]
     fn test_parse_stacked_bar_reveal_markers() {
-        let content = "# categories: A, B\n- S1: 10, 20\n+ S2: 30, 40\n* S3: 50, 60";
+        let content = "categories: A, B\n- S1: 10, 20\n+ S2: 30, 40\n* S3: 50, 60";
         let data = parse_stacked_bar(content);
         assert_eq!(data.series[0].reveal, VizReveal::Static);
         assert_eq!(data.series[1].reveal, VizReveal::NextStep);
@@ -394,7 +379,7 @@ mod tests {
     #[test]
     fn test_parse_stacked_bar_skips_invalid() {
         let content =
-            "# categories: X, Y\n# some comment\n- Valid: 1, 2\n- no colon here\n- Also: 3, 4";
+            "categories: X, Y\n# some comment\n- Valid: 1, 2\n- no colon here\n- Also: 3, 4";
         let data = parse_stacked_bar(content);
         assert_eq!(data.categories, vec!["X", "Y"]);
         assert_eq!(data.series.len(), 2);
@@ -411,14 +396,14 @@ mod tests {
 
     #[test]
     fn test_parse_stacked_bar_rejects_non_finite() {
-        let data = parse_stacked_bar("# categories: A, B\n- S: inf, nan\n- T: 1, inf");
+        let data = parse_stacked_bar("categories: A, B\n- S: inf, nan\n- T: 1, inf");
         assert_eq!(data.series.len(), 1);
         assert_eq!(data.series[0].values, vec![1.0]);
     }
 
     #[test]
     fn test_parse_stacked_bar_thousands_separators() {
-        let data = parse_stacked_bar("# categories: A, B\n- S: 1,000, 2,000");
+        let data = parse_stacked_bar("categories: A, B\n- S: 1,000, 2,000");
         assert_eq!(data.series[0].values, vec![1000.0, 2000.0]);
     }
 
@@ -427,7 +412,7 @@ mod tests {
         let data = parse_stacked_bar("- Product A: 10, 20\n- Product B: 5, 6, 7");
         assert_eq!(data.categories, vec!["1", "2", "3"]);
         // An explicit directive always wins
-        let data = parse_stacked_bar("# categories: X, Y\n- Product A: 10, 20, 30");
+        let data = parse_stacked_bar("categories: X, Y\n- Product A: 10, 20, 30");
         assert_eq!(data.categories, vec!["X", "Y"]);
     }
 
@@ -444,7 +429,7 @@ mod tests {
 
     #[test]
     fn test_max_stack_ignores_negatives_and_gaps() {
-        let data = parse_stacked_bar("# categories: A, B\n- X: 10, -5\n- Y: 20");
+        let data = parse_stacked_bar("categories: A, B\n- X: 10, -5\n- Y: 20");
         assert_eq!(max_stack(&data.series, 2), 30.0);
         assert_eq!(max_stack(&data.series, 0), 0.0);
     }

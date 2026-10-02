@@ -4,8 +4,8 @@ use crate::theme::Theme;
 
 use super::{
     VIZ_DOT_RADIUS, VIZ_FONT_AXIS_LABEL, VIZ_OPACITY_LABEL, VIZ_STROKE_SEPARATOR, VizCtx,
-    VizReveal, assign_steps, draw_legend_row, header_directive, parse_label_values,
-    parse_reveal_prefix,
+    VizReveal, assign_steps, draw_legend_row,
+    grammar::{Problem, Source, label_values_items, name_list},
 };
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -23,42 +23,33 @@ struct RadarData {
     series: Vec<RadarSeries>,
 }
 
-fn parse_radar_chart(content: &str) -> RadarData {
-    let mut axes = Vec::new();
-    let mut series = Vec::new();
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        // Parse axes directive
-        if trimmed.starts_with('#') {
-            if let Some(("axes", rest)) = header_directive(trimmed) {
-                axes = rest.split(',').map(|s| s.trim().to_string()).collect();
-            }
-            continue;
-        }
-
-        let (text, reveal) = parse_reveal_prefix(trimmed);
-        if text.is_empty() {
-            continue;
-        }
-
-        // Parse "Series Name: v1, v2, v3, ..."
-        if let Some((label, values)) = parse_label_values(text) {
-            series.push(RadarSeries {
-                label,
-                values,
-                reveal,
-            });
-        }
+fn read(src: &Source) -> RadarData {
+    src.check_settings(&["axes"]);
+    let axes = src.setting("axes").map(name_list).unwrap_or_default();
+    if axes.is_empty() && !src.items.is_empty() {
+        src.problem(0, "a radar chart needs 'axes: A, B, C'");
     }
-
+    let series = label_values_items(src, "- Fighter A: 9, 7, 5")
+        .into_iter()
+        .map(|s| RadarSeries {
+            label: s.label,
+            values: s.values,
+            reveal: s.reveal,
+        })
+        .collect();
     RadarData { axes, series }
 }
 
+fn parse_radar_chart(content: &str) -> RadarData {
+    read(&Source::parse(content))
+}
+
+/// The problems in a `@radar` block.
+pub fn check(content: &str) -> Vec<Problem> {
+    let src = Source::parse(content);
+    read(&src);
+    src.into_problems()
+}
 // ─── Renderer ───────────────────────────────────────────────────────────────
 
 /// Fill for a series polygon as a fan of triangles from the centre. Radar
@@ -319,7 +310,7 @@ mod tests {
 
     #[test]
     fn test_parse_radar_chart_basic() {
-        let content = "# axes: Speed, Power, Range\n- Fighter: 9, 7, 5\n- Bomber: 4, 9, 8";
+        let content = "axes: Speed, Power, Range\n- Fighter: 9, 7, 5\n- Bomber: 4, 9, 8";
         let data = parse_radar_chart(content);
         assert_eq!(data.axes, vec!["Speed", "Power", "Range"]);
         assert_eq!(data.series.len(), 2);
@@ -331,7 +322,7 @@ mod tests {
 
     #[test]
     fn test_parse_radar_chart_reveal_markers() {
-        let content = "# axes: A, B, C\n- Series1: 1, 2, 3\n+ Series2: 4, 5, 6\n* Series3: 7, 8, 9";
+        let content = "axes: A, B, C\n- Series1: 1, 2, 3\n+ Series2: 4, 5, 6\n* Series3: 7, 8, 9";
         let data = parse_radar_chart(content);
         assert_eq!(data.series[0].reveal, VizReveal::Static);
         assert_eq!(data.series[1].reveal, VizReveal::NextStep);
@@ -340,7 +331,7 @@ mod tests {
 
     #[test]
     fn test_parse_radar_chart_skips_invalid() {
-        let content = "# axes: X, Y, Z\n# other comment\n- Valid: 1, 2, 3\n- no colon here\n";
+        let content = "axes: X, Y, Z\n# other comment\n- Valid: 1, 2, 3\n- no colon here\n";
         let data = parse_radar_chart(content);
         assert_eq!(data.axes, vec!["X", "Y", "Z"]);
         assert_eq!(data.series.len(), 1);
@@ -356,7 +347,7 @@ mod tests {
 
     #[test]
     fn test_parse_radar_chart_rejects_non_finite_and_thousands() {
-        let data = parse_radar_chart("# axes: A, B, C\n- S: inf, nan, inf\n- T: 1,000, 2,000, 500");
+        let data = parse_radar_chart("axes: A, B, C\n- S: inf, nan, inf\n- T: 1,000, 2,000, 500");
         assert_eq!(data.series.len(), 1);
         assert_eq!(data.series[0].values, vec![1000.0, 2000.0, 500.0]);
     }
