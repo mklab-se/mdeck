@@ -45,7 +45,7 @@ cargo run -p mdeck -- samples/introducing-mdeck.md --windowed
 [Development](docs/development.md) describes the workspace (`crates/mdeck` and
 `crates/mdeck-sdk`), the sample decks and the release process. The format reference is
 [`crates/mdeck/doc/mdeck-spec.md`](crates/mdeck/doc/mdeck-spec.md) (also `mdeck spec`), and the
-v2 design documents with their numbered requirements (`THM-14`, `ENG-17` and so on) are in
+mdeck 2 specification with its numbered requirements (`THM-14`, `ENG-17` and so on) are in
 [`docs/spec/`](docs/spec/README.md). [`CLAUDE.md`](CLAUDE.md) is a dense map of the code's
 patterns; it is written for AI agents but reads fine for people too.
 

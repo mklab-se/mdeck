@@ -23,7 +23,8 @@ the PNG. `scripts/engine-golden.sh` proves a change did not move the other engin
 - The format reference is [`crates/mdeck/doc/mdeck-spec.md`](../crates/mdeck/doc/mdeck-spec.md),
   embedded in the binary (`mdeck spec`); its settings and design tables are generated from the
   code, and tests parse its examples.
-- The v2 design documents are in [`docs/spec/`](spec/README.md).
+- The mdeck 2 specification (numbered requirements, architecture decisions and what is deferred
+  to 2.x) is in [`docs/spec/`](spec/README.md).
 - Writing an engine: [`crates/mdeck/doc/engines.md`](../crates/mdeck/doc/engines.md) and the
   [SDK](sdk/README.md).
 - Contributing (what a pull request needs, and how to add a theme, an engine, a visual or a

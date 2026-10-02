@@ -11,8 +11,8 @@ within each group.
 
 Updated for mdeck 2: items that 2.0 delivered (the presenter view and its timer,
 slide settings, `--check` validation, `+` as the only step marker) or made
-obsolete (stories) are gone. The v2 specification in `docs/spec/` records the
-decisions; what it defers to 2.x is listed in `docs/spec/implementation-plan.md`.
+obsolete (stories) are gone. The mdeck 2 specification in `docs/spec/` records the
+decisions; what it defers to 2.x is listed in its README (`docs/spec/README.md`).
 
 ---
 
