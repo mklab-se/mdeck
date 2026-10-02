@@ -17,9 +17,9 @@ MDeck reloads it in place, staying on the current slide.
 | F | Toggle fullscreen |
 | M | Move to the next monitor |
 | `.` or B | Blackout |
-| H | Presenter HUD with shortcuts (and the current story beat's line) |
+| H | Presenter HUD with shortcuts |
 | C, Shift+C | Next thermal palette for every `@thermal` image; back to the palettes as written |
-| S | AI for this slide: a story on the particles engine, a picture on an art engine |
+| S | AI for this slide: a picture on an art engine |
 | Esc | Clear drawings; press twice to quit (Q twice and Ctrl+C twice also quit) |
 
 | Mouse | Action |

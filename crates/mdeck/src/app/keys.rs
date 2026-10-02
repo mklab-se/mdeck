@@ -31,10 +31,7 @@ pub const SHORTCUTS: &[(&str, &str)] = &[
     ("F", "Toggle fullscreen"),
     ("M", "Move to next monitor"),
     ("H", "Toggle HUD"),
-    (
-        "S",
-        "AI: story (particles) or picture (art engines) for slide",
-    ),
+    ("S", "AI: picture for slide (art engines)"),
     (". / B", "Blackout screen"),
     ("R", "Debug overlay (L/R/off)"),
 ];

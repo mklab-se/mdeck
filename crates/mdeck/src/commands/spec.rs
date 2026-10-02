@@ -78,7 +78,6 @@ IMAGE DIRECTIVES (in alt text)
 PARTICLES ENGINE (ember, autumn, winter, and custom themes on it)
   @illustration: name   Point cloud beside the copy (title: behind it)
                         deck illustrations/ > ~/.config/mdeck/illustrations > built-in
-  ```@story             English hint for `mdeck ai story` (cast, flows, beats)
   mdeck illustration generate --name NAME --description "..."   New cloud via AI
   mdeck illustration import IMAGE --name NAME | list | show NAME | contribute NAME
 

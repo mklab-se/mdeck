@@ -65,9 +65,6 @@ mdeck config set <key> <value> # Set a config value
 Available config keys:
 - `defaults.theme`: default theme, a built-in (`light`, `dark`, `nord`, `ember`,
   `spring`, `summer`, `autumn`, `winter`) or a user theme
-- `mdeck ai story <deck.md> [--slide N | --range A-B] [--stale] [--force]` — write Ember story
-  scripts (cast, flows, beats) into `<deck>.scenes.yaml`; ```` ```@story ```` fences are the
-  author's hints, ```` ```@scene ```` fences are hand-written scripts and are left alone
 - `mdeck ai art <deck.md> [--slide N] [--stale] [--force] [--dry-run] [--engine E] [--node N]`:
   draw a picture per slide for an art engine (`blueprint`, `sketch`, `chalkboard`, `watercolour`, `darkroom`) with the image model; pictures go in
   `art/` next to the deck and `<deck>.art.yaml` records them. `@art: "..."` in the frontmatter is

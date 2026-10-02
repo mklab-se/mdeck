@@ -203,7 +203,7 @@ impl Target<'_> {
             &self.style.id(),
             format!("art/{name}"),
             Some(scene),
-            crate::commands::story::timestamp(),
+            crate::commands::util::timestamp(),
         );
         sidecar::save(self.file, sc)?;
         Ok(())

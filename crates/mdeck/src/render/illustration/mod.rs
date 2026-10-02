@@ -382,26 +382,6 @@ impl Library {
         self.get(name).is_some()
     }
 
-    /// Every name visible to this library, sorted.
-    pub fn names(&self) -> Vec<String> {
-        let mut names: Vec<String> = catalogue_in(self.deck.as_deref(), self.user.as_deref())
-            .into_iter()
-            .map(|(n, _, _)| n)
-            .collect();
-        for n in self
-            .cache
-            .iter()
-            .filter(|(_, v)| v.is_some())
-            .map(|(k, _)| k)
-        {
-            if !names.contains(n) {
-                names.push(n.clone());
-            }
-        }
-        names.sort();
-        names
-    }
-
     /// Problems met so far (unreadable files), drained.
     pub fn take_problems(&mut self) -> Vec<String> {
         std::mem::take(&mut self.problems)
@@ -540,10 +520,8 @@ mod tests {
         assert!(lib.get("kettle").is_none());
         lib.reset();
         assert!(lib.get("kettle").is_some());
-        assert!(lib.names().contains(&"kettle".to_string()));
         lib.insert(sample("teapot"));
         assert!(lib.has("teapot"));
-        assert!(lib.names().contains(&"teapot".to_string()));
         std::fs::remove_dir_all(&tmp).ok();
     }
 

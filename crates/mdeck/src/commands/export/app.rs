@@ -87,7 +87,7 @@ impl ExportApp {
                 .iter()
                 .map(|&i| deck.max_steps.get(i).copied().unwrap_or(0) + 1)
                 .sum();
-            eprintln!("  {total} reveal steps in total (story beats included)");
+            eprintln!("  {total} reveal steps in total");
         }
         Self {
             deck,
@@ -316,8 +316,6 @@ impl ExportApp {
             author: self.deck.presentation.meta.author.clone(),
             hold_copy: false,
             animate: false,
-            beats: None,
-            say: None,
             engine_drew: true,
         };
         let frame = SlideFrame {

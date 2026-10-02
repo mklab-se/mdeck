@@ -21,10 +21,6 @@ pub struct SlideContext {
     pub hold_copy: bool,
     /// Play entry and reveal animations (false for export and thumbnails).
     pub animate: bool,
-    /// Story beats on this slide: (current step, beat count).
-    pub beats: Option<(usize, usize)>,
-    /// The presenter's line for the current beat (shown with the HUD).
-    pub say: Option<String>,
     /// The engine drew this slide live already (a board engine's board);
     /// false for grid thumbnails and the overview zoom.
     pub engine_drew: bool,

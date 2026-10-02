@@ -28,7 +28,6 @@ mdeck ai create ...                # deck from a file, prompt, or stdin
 mdeck ai generate <file.md>        # generate all image placeholders (--force, --style)
 mdeck ai generate-image --prompt   # single image (--icon, --output, --style)
 mdeck ai art <file.md>             # a picture per slide for an art engine (--slide, --stale, --force, --dry-run, --engine, --node)
-mdeck ai story <file.md>           # particle stories for the particles engine (--slide, --range, --stale, --force, --dry-run)
 mdeck ai style list | add | remove | clear | set-default | set-icon-default | show-defaults
 mdeck ai skill [--emit | --reference]
 ```

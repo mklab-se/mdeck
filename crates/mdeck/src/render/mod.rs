@@ -13,7 +13,6 @@ pub mod math;
 pub mod page;
 pub mod particles;
 pub mod sidecar;
-pub mod story;
 // Pen strokes: the laser and the art engines draw with them.
 #[cfg(any(feature = "laser", feature = "art"))]
 pub mod strokes;
@@ -134,8 +133,6 @@ mod tests {
             line: 0,
             source_lines: Vec::new(),
             notes: None,
-            story_hint: None,
-            scene_script: None,
             illustration: None,
             logo: None,
             art: None,

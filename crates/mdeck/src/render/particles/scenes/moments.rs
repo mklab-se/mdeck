@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::dust;
 use crate::render::particles::{Drift, Group, Home, Palette, Scene};
 
-/// A point cloud illustration on the story stage (the right half of a copy
+/// A point cloud illustration on the stage (the right half of a copy
 /// slide): fitted into the stage box with breathing room, warm, and lit from
 /// the first step. `cloud_aspect` is the cloud's height over width.
 pub fn illustration_stage(
@@ -214,7 +214,7 @@ mod tests {
                 ring_points(),
                 crate::engines::stage::figure_box(aspect, layout, 16.0 / 9.0, false),
             );
-            let stage = crate::render::story::stage_box(layout);
+            let stage = crate::engines::stage::stage_box(layout);
             let Home::Mask { u, v, w, h, .. } = &scene.groups[0].home else {
                 panic!("first group is the mask");
             };

@@ -22,7 +22,7 @@ use crate::parser::{Block, Layout, Slide};
 use crate::render::{BlockCx, SlideContext};
 use crate::theme::Theme;
 
-pub use chrome::{draw_chrome, draw_say_line};
+pub use chrome::draw_chrome;
 pub use jobs::display_job;
 
 /// The first slide of a deck reads as its title page when it opens with an
@@ -385,8 +385,6 @@ mod tests {
             line: 0,
             source_lines: Vec::new(),
             notes: None,
-            story_hint: None,
-            scene_script: None,
             illustration: None,
             logo: None,
             art: None,

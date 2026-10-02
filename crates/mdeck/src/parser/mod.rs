@@ -45,7 +45,7 @@ fn parse_slide(raw: String, source_lines: Vec<usize>) -> Slide {
     for d in &mut directives {
         d.line = source_lines.get(d.line).copied().unwrap_or(line + d.line);
     }
-    let (mut blocks, story_hint, scene_script) = take_story_blocks(blocks::parse(&content));
+    let mut blocks = blocks::parse(&content);
     // A slide's @thermal-window is the common window of its thermal images.
     if let Some(window) = trimmed_directive(&directives, "thermal-window") {
         for b in &mut blocks {
@@ -70,8 +70,6 @@ fn parse_slide(raw: String, source_lines: Vec<usize>) -> Slide {
         line,
         source_lines,
         notes,
-        story_hint,
-        scene_script,
         illustration,
         logo,
         art,
@@ -83,32 +81,6 @@ fn trimmed_directive<'a>(directives: &'a [Directive], name: &str) -> Option<&'a 
     directive(directives, name)
         .map(str::trim)
         .filter(|v| !v.is_empty())
-}
-
-/// Pull the story authoring fences out of a slide's blocks so they never
-/// render and never influence layout inference.
-fn take_story_blocks(blocks: Vec<Block>) -> (Vec<Block>, Option<String>, Option<String>) {
-    let mut hint: Option<String> = None;
-    let mut script: Option<String> = None;
-    let rest = blocks
-        .into_iter()
-        .filter(|b| match b {
-            Block::StoryHint { content } => {
-                let h = hint.get_or_insert_with(String::new);
-                if !h.is_empty() {
-                    h.push_str("\n\n");
-                }
-                h.push_str(content.trim());
-                false
-            }
-            Block::SceneScript { content } => {
-                script = Some(content.clone());
-                false
-            }
-            _ => true,
-        })
-        .collect();
-    (rest, hint.filter(|h| !h.is_empty()), script)
 }
 
 /// Count the maximum number of reveal steps in a slide's blocks.

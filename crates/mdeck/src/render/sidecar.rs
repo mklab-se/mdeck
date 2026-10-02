@@ -1,8 +1,8 @@
 //! What the deck sidecars share: a `<deck>.<kind>.yaml` file next to the
 //! deck, read and written as YAML under a comment header, whose entries
 //! belong to a slide by a hash of its source, or by its number when pinned.
-//! The story sidecar (`render::story::sidecar`) and the art sidecar
-//! (`render::art::sidecar`) each keep their own entry format and header.
+//! The art sidecar (`render::art::sidecar`) keeps its own entry format and
+//! header.
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};

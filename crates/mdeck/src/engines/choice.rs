@@ -65,8 +65,7 @@ pub fn with_engine(
 
 /// What `kind` will not show on `slide`, one message per thing, for
 /// `--check` and the summary line when presenting or exporting.
-/// `has_story`: a story (sidecar or inline) exists for the slide.
-pub fn unsupported(kind: EngineKind, slide: &Slide, has_story: bool) -> Vec<String> {
+pub fn unsupported(kind: EngineKind, slide: &Slide) -> Vec<String> {
     let caps = kind.capabilities();
     let mut out = Vec::new();
     if let Some(name) = &slide.illustration
@@ -95,12 +94,6 @@ pub fn unsupported(kind: EngineKind, slide: &Slide, has_story: bool) -> Vec<Stri
             media.join(", ")
         ));
     }
-    if has_story && !caps.stories {
-        out.push(format!(
-            "the slide's story is not played by the {} engine",
-            kind.name()
-        ));
-    }
     out
 }
 
@@ -109,15 +102,11 @@ pub fn unsupported(kind: EngineKind, slide: &Slide, has_story: bool) -> Vec<Stri
 pub fn unsupported_summary(
     kind: EngineKind,
     presentation: &crate::parser::Presentation,
-    stories: &[bool],
 ) -> Option<String> {
     let n = presentation
         .slides
         .iter()
-        .enumerate()
-        .filter(|(i, s)| {
-            !unsupported(kind, s, stories.get(*i).copied().unwrap_or(false)).is_empty()
-        })
+        .filter(|s| !unsupported(kind, s).is_empty())
         .count();
     (n > 0).then(|| {
         format!(
@@ -167,16 +156,16 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_names_illustrations_and_stories() {
+    fn unsupported_names_illustrations() {
         let pres = crate::parser::parse("# A\n@illustration: server\n\n- one\n\n# B\n\n- two\n");
         let a = &pres.slides[0];
-        assert!(unsupported(EngineKind::Particles, a, true).is_empty());
-        let plain = unsupported(EngineKind::Plain, a, true);
-        assert_eq!(plain.len(), 2, "{plain:?}");
-        assert!(plain[0].contains("server") && plain[1].contains("story"));
-        assert!(unsupported(EngineKind::Plain, &pres.slides[1], false).is_empty());
-        let line = unsupported_summary(EngineKind::Plain, &pres, &[false, false]).unwrap();
+        assert!(unsupported(EngineKind::Particles, a).is_empty());
+        let plain = unsupported(EngineKind::Plain, a);
+        assert_eq!(plain.len(), 1, "{plain:?}");
+        assert!(plain[0].contains("server"));
+        assert!(unsupported(EngineKind::Plain, &pres.slides[1]).is_empty());
+        let line = unsupported_summary(EngineKind::Plain, &pres).unwrap();
         assert!(line.contains("1 slide;"), "{line}");
-        assert!(unsupported_summary(EngineKind::Particles, &pres, &[]).is_none());
+        assert!(unsupported_summary(EngineKind::Particles, &pres).is_none());
     }
 }

@@ -1,5 +1,5 @@
 //! A deck as the presenting window and export both hold it: the parsed
-//! presentation and everything resolved for it (stories, reveal steps,
+//! presentation and everything resolved for it (reveal steps,
 //! illustrations, generated art, logos, background images, images), and the
 //! engine that draws under its slides. Both draw through
 //! [`Deck::draw_background`], [`Deck::engine_layer`], [`Deck::draw_slide`]
@@ -18,8 +18,6 @@ use crate::render::illustration::Library;
 use crate::render::image_cache::ImageCache;
 use crate::render::image_cache::ImageState;
 use crate::render::logo::Logos;
-use crate::render::story::Script;
-use crate::render::story::sidecar::{self as story_sidecar, Resolved};
 use crate::render::{self, SlideContext};
 use crate::theme::{Theme, lookup};
 
@@ -28,11 +26,7 @@ pub struct Deck {
     /// The deck's markdown file.
     pub file: PathBuf,
     pub image_cache: ImageCache,
-    /// Resolved story per slide (inline `@scene`, sidecar, or none).
-    pub stories: Vec<Option<Resolved>>,
-    /// Bumped whenever `stories` changes so cached scenes rebuild.
-    pub story_version: u64,
-    /// Reveal steps per slide on the current theme's engine.
+    /// Reveal steps per slide.
     pub max_steps: Vec<usize>,
     /// Point cloud illustrations resolved for this deck.
     pub illustrations: Library,
@@ -75,7 +69,7 @@ pub struct SlideFrame {
 impl Deck {
     /// Resolve everything `presentation` needs in `theme`. Art loads in the
     /// background when `background_art` (the window) and inline otherwise
-    /// (export). Story problems are printed unless `quiet`.
+    /// (export). Problems are printed unless `quiet`.
     pub fn open(
         file: PathBuf,
         presentation: Presentation,
@@ -84,15 +78,9 @@ impl Deck {
         quiet: bool,
     ) -> Self {
         let dir = deck_dir(&file).to_path_buf();
-        let stories = load_stories(&file, &presentation, quiet);
         let mut image_cache = ImageCache::new(dir);
         load_thermal(&mut image_cache, &presentation, quiet);
-        let max_steps = slide_max_steps(
-            &presentation,
-            &stories,
-            theme.engine.plays_stories(),
-            image_cache.thermal(),
-        );
+        let max_steps = slide_max_steps(&presentation, image_cache.thermal());
         let mut art = DeckArt::new(Some(&file), background_art);
         art.sync(&presentation, theme);
         let mut deck = Self {
@@ -100,8 +88,6 @@ impl Deck {
             illustrations: Library::for_deck(file.parent()),
             presentation,
             file,
-            stories,
-            story_version: 0,
             max_steps,
             art,
             logos: Logos::default(),
@@ -118,30 +104,9 @@ impl Deck {
         self.presentation.slides.len()
     }
 
-    /// The story playing on slide `index`, if any.
-    pub fn story(&self, index: usize) -> Option<&Script> {
-        self.stories
-            .get(index)
-            .and_then(|r| r.as_ref())
-            .map(|r| &r.script)
-    }
-
-    /// Which slides have a story (for the engine support summary).
-    pub fn with_story(&self) -> Vec<bool> {
-        self.stories.iter().map(Option::is_some).collect()
-    }
-
-    /// Follow a theme switch: logos and step counts depend on the theme.
+    /// Follow a theme switch: logos depend on the theme.
     pub fn retheme(&mut self, theme: &Theme) {
         self.refresh_logos(theme);
-        self.recount_steps(theme);
-    }
-
-    /// Re-read the story sidecar and rebuild stories and step counts.
-    pub fn reload_stories(&mut self, theme: &Theme) {
-        self.stories = load_stories(&self.file, &self.presentation, true);
-        self.story_version += 1;
-        self.recount_steps(theme);
     }
 
     /// Swap in a re-parsed presentation and drop everything resolved for the
@@ -152,19 +117,10 @@ impl Deck {
         load_thermal(&mut self.image_cache, &self.presentation, false);
         self.illustrations.reset();
         self.art.invalidate();
-        self.reload_stories(theme);
+        self.max_steps = slide_max_steps(&self.presentation, self.image_cache.thermal());
         self.refresh_logos(theme);
         self.refresh_backgrounds(false);
         self.background_fade.clear();
-    }
-
-    fn recount_steps(&mut self, theme: &Theme) {
-        self.max_steps = slide_max_steps(
-            &self.presentation,
-            &self.stories,
-            theme.engine.plays_stories(),
-            self.image_cache.thermal(),
-        );
     }
 
     fn refresh_logos(&mut self, theme: &Theme) {
@@ -243,16 +199,9 @@ impl Deck {
         } else {
             self.art.picture(index)
         };
-        let story = self
-            .stories
-            .get(index)
-            .and_then(|r| r.as_ref())
-            .map(|r| &r.script);
         let shot = engines::Shot {
             rect: frame.rect,
             slide: (!frame.end).then(|| &self.presentation.slides[index]),
-            story,
-            story_version: self.story_version,
             art: art.as_ref(),
             index,
             reveal: frame.reveal,
@@ -318,43 +267,14 @@ fn deck_dir(file: &Path) -> &Path {
     file.parent().unwrap_or(Path::new("."))
 }
 
-/// Load the story sidecar and resolve a story per slide, reporting problems
-/// on stderr unless quiet.
-fn load_stories(file: &Path, presentation: &Presentation, quiet: bool) -> Vec<Option<Resolved>> {
-    let sidecar = match story_sidecar::load(file) {
-        Ok(s) => s,
-        Err(e) => {
-            if !quiet {
-                eprintln!("Warning: story sidecar ignored: {e}");
-            }
-            None
-        }
-    };
-    let (stories, problems) = story_sidecar::resolve(presentation, sidecar.as_ref());
-    if !quiet {
-        for p in problems {
-            eprintln!("Warning: {p}");
-        }
-    }
-    stories
-}
-
-/// Reveal steps per slide: the content's own steps, extended by story beats
-/// when the engine plays stories.
-fn slide_max_steps(
-    presentation: &Presentation,
-    stories: &[Option<Resolved>],
-    plays_stories: bool,
-    thermal: &render::thermal::Library,
-) -> Vec<usize> {
+/// Reveal steps per slide.
+fn slide_max_steps(presentation: &Presentation, thermal: &render::thermal::Library) -> Vec<usize> {
     presentation
         .slides
         .iter()
-        .enumerate()
-        .map(|(i, s)| {
+        .map(|s| {
             // a thermal block's steps depend on what its source can show
-            let content = s
-                .blocks
+            s.blocks
                 .iter()
                 .map(|b| match b {
                     parser::Block::Chart {
@@ -364,16 +284,7 @@ fn slide_max_steps(
                     other => parser::compute_max_steps(std::slice::from_ref(other)),
                 })
                 .max()
-                .unwrap_or(0);
-            if !plays_stories {
-                return content;
-            }
-            let beats = stories
-                .get(i)
-                .and_then(|r| r.as_ref())
-                .map(|r| r.script.extra_steps())
-                .unwrap_or(0);
-            content.max(beats)
+                .unwrap_or(0)
         })
         .collect()
 }
@@ -422,24 +333,6 @@ pub fn report_theme_problems(problems: &[String]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn story_beats_extend_steps_only_when_the_engine_plays_stories() {
-        let md = "# A\n\n- one\n+ two\n";
-        let pres = parser::parse(md);
-        let script = Script::parse(
-            "cast:\n  - { id: a, kind: person, cell: left }\nbeats: [{}, {}, {}, {}]\n",
-        )
-        .unwrap();
-        let stories = vec![Some(Resolved {
-            script,
-            source: story_sidecar::Source::Sidecar,
-        })];
-        // one `+` reveal on the slide; the story has four beats (three extra steps)
-        let lib = render::thermal::Library::default();
-        assert_eq!(slide_max_steps(&pres, &stories, false, &lib), vec![1]);
-        assert_eq!(slide_max_steps(&pres, &stories, true, &lib), vec![3]);
-    }
 
     #[test]
     fn a_cli_engine_wins_over_the_deck() {

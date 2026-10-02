@@ -1,27 +1,21 @@
 //! `S` while presenting: AI for the current slide in the background, a
-//! picture on an art engine or a story on the particles engine, and what
-//! happens when the result comes back.
+//! picture on an art engine, and what happens when the result comes back.
 
 use std::sync::mpsc;
 
 use super::{PresentationApp, Toast};
 use crate::render;
-use crate::render::story::sidecar as story_sidecar;
 
 impl PresentationApp {
-    /// Re-read the sidecar and rebuild per-slide stories and step counts.
-    pub(super) fn reload_stories(&mut self) {
-        self.deck.reload_stories(&self.theme);
-        self.clamp_reveals();
-    }
-
     /// `S`: AI for the current slide, in the background: a picture on an
-    /// art engine, a story on the particles engine.
+    /// art engine.
     pub(super) fn generate(&mut self) {
         if self.theme.engine.medium().is_some() {
             self.generate_art();
         } else {
-            self.generate_story();
+            self.toast = Some(Toast::new(
+                "S draws pictures on art engines (Shift+T)".into(),
+            ));
         }
     }
 
@@ -83,75 +77,6 @@ impl PresentationApp {
             Err(mpsc::TryRecvError::Empty) => {}
             Err(mpsc::TryRecvError::Disconnected) => {
                 self.jobs.art = None;
-            }
-        }
-    }
-
-    /// `S` on the particles engine: write a story for the current slide.
-    pub(super) fn generate_story(&mut self) {
-        if !self.theme.engine.plays_stories() {
-            self.toast = Some(Toast::new(
-                "S writes stories on the particles engine and draws pictures on art engines (Shift+T)".into(),
-            ));
-            return;
-        }
-        if self.jobs.story.is_some() {
-            self.toast = Some(Toast::new("A story is already being written…".into()));
-            return;
-        }
-        if !crate::commands::ai::has_capability("chat") {
-            self.toast = Some(Toast::new(
-                "AI is not configured: run `mdeck ai enable`".into(),
-            ));
-            return;
-        }
-        let idx = self.current_slide;
-        if self
-            .deck
-            .stories
-            .get(idx)
-            .and_then(|r| r.as_ref())
-            .is_some_and(|r| r.source == story_sidecar::Source::Pinned)
-        {
-            self.toast = Some(Toast::new(
-                "This slide's story is pinned (hand-written)".into(),
-            ));
-            return;
-        }
-        let (tx, rx) = mpsc::channel();
-        self.jobs.story = Some(rx);
-        let deck = self.deck.file.clone();
-        std::thread::spawn(move || {
-            let result = crate::commands::story::generate_one_blocking(&deck, idx)
-                .map(|_| ())
-                .map_err(|e| e.to_string());
-            let _ = tx.send((idx, result));
-        });
-        self.toast = Some(Toast::new(format!(
-            "Writing a story for slide {}…",
-            idx + 1
-        )));
-    }
-
-    pub(super) fn poll_story(&mut self) {
-        let Some(rx) = &self.jobs.story else {
-            return;
-        };
-        match rx.try_recv() {
-            Ok((idx, Ok(()))) => {
-                self.jobs.story = None;
-                self.reload_stories();
-                self.toast = Some(Toast::new(format!("Story ready for slide {}", idx + 1)));
-            }
-            Ok((idx, Err(e))) => {
-                self.jobs.story = None;
-                self.incident_log
-                    .record("story_error", &format!("slide {}", idx + 1), &e);
-                self.toast = Some(Toast::new(format!("Story failed: {e}")));
-            }
-            Err(mpsc::TryRecvError::Empty) => {}
-            Err(mpsc::TryRecvError::Disconnected) => {
-                self.jobs.story = None;
             }
         }
     }

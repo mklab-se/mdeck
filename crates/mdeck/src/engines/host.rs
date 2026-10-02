@@ -13,7 +13,6 @@ use super::{Engine, EngineKind};
 use crate::parser::Slide;
 use crate::render::hints::{self, Hint};
 use crate::render::illustration::Library;
-use crate::render::story::Script;
 use crate::theme::Theme;
 
 /// One frame's worth of input from the presentation window or the export.
@@ -22,8 +21,6 @@ pub struct Shot<'a> {
     pub rect: egui::Rect,
     /// The slide to show (the target during a transition); `None` on the end slide.
     pub slide: Option<&'a Slide>,
-    pub story: Option<&'a Script>,
-    pub story_version: u64,
     /// The slide's generated picture, when it has one and it is loaded.
     pub art: Option<&'a std::sync::Arc<crate::render::art::prepare::Prepared>>,
     pub index: usize,
@@ -190,8 +187,6 @@ impl Host {
             reveal: shot.reveal,
             slide: shot.slide,
             title,
-            story: if caps.stories { shot.story } else { None },
-            story_version: shot.story_version,
             figure,
             art,
             hints: &self.hints,

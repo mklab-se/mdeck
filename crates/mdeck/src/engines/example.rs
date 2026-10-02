@@ -119,8 +119,6 @@ mod tests {
             reveal: 0,
             slide: None,
             title: false,
-            story: None,
-            story_version: 0,
             figure: Some(figure),
             art: None,
             hints: &[],

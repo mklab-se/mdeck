@@ -3,10 +3,6 @@ title: "Ember"
 author: "MKLab"
 @theme: ember
 @transition: fade
-@story: >
-  Calm, factual, a little dry. The people in these stories are ordinary
-  colleagues in a Stockholm software company: developers, a product owner,
-  a support engineer. Keep the same person across slides when one fits.
 ---
 
 # Light, held quietly
@@ -47,11 +43,6 @@ faster than he ever had, and for three weeks nobody looked at what it said.
 + The answers went out
 + One of them was wrong in a way that mattered
 
-
-???
-This slide's story is hand-written: a pinned entry in ember.scenes.yaml. The
-beats are released with Space, one per line.
-
 ---
 
 ## The same day, done differently
@@ -61,19 +52,6 @@ Sofia kept the assistant. She also kept reading.
 + Every answer waited in a review queue
 + A rule flagged anything that mentioned money
 + The assistant learned from what she changed
-
-```@story
-Sofia, a support engineer, sits at her laptop on the left. The support queue
-feeds an AI orb, but between the orb and the outgoing mail there is a gate
-that she controls. Step one: tickets flow into the orb. Step two: the orb's
-answers flow to the gate and wait. Step three: Sofia's laptop connects to the
-gate and it lights up as she reviews. Step four: mail leaves the gate, calm
-and white, nothing hot.
-```
-
-???
-This slide has an English @story hint; `mdeck ai story samples/ember.md`
-turns it into a scene in the sidecar.
 
 ---
 

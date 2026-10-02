@@ -36,26 +36,6 @@ pub enum AiCommands {
     },
     /// Create a presentation from content using AI
     Create(CreateArgs),
-    /// Write particle stories for themes on the particles engine, like Ember (saved next to the deck as <deck>.scenes.yaml)
-    Story {
-        /// Markdown file to process
-        file: PathBuf,
-        /// Only this slide (1-based)
-        #[arg(long, conflicts_with = "range")]
-        slide: Option<usize>,
-        /// Only these slides, e.g. 3-7 (1-based, inclusive)
-        #[arg(long)]
-        range: Option<String>,
-        /// Only refresh slides whose story has gone stale
-        #[arg(long)]
-        stale: bool,
-        /// Regenerate even when the current story is up to date
-        #[arg(long)]
-        force: bool,
-        /// Print the scripts and their spoken lines without writing the sidecar
-        #[arg(long)]
-        dry_run: bool,
-    },
     /// Draw a picture for every slide on an art engine, like blueprint (saved in art/ next to the deck, recorded in <deck>.art.yaml)
     Art {
         /// Markdown file to process

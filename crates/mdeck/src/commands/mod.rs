@@ -10,6 +10,5 @@ pub mod generate;
 pub mod illustration;
 pub mod skill;
 pub mod spec;
-pub mod story;
 pub mod theme;
 pub mod util;

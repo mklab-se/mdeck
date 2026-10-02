@@ -21,9 +21,6 @@ pub struct PresentationMeta {
     pub image_style: Option<String>,
     pub icon_style: Option<String>,
     pub slide_level: Option<u8>,
-    /// Deck-level hint for AI story generation (`@story` in the frontmatter):
-    /// tone, cast, anything that should hold across slides.
-    pub story: Option<String>,
     /// `@countdown: false` turns off the opening countdown (Ember and Nord).
     pub countdown: Option<bool>,
     /// `@engine`: run the deck on this engine instead of the theme's.
@@ -63,10 +60,6 @@ pub struct Slide {
     pub source_lines: Vec<usize>,
     /// Speaker notes for this slide (content after `???` separator).
     pub notes: Option<String>,
-    /// English hint for AI story generation (a ```@story fence).
-    pub story_hint: Option<String>,
-    /// Hand-written scene script in YAML (a ```@scene fence).
-    pub scene_script: Option<String>,
     /// Name of the point cloud illustration for this slide (`@illustration`).
     pub illustration: Option<String>,
     /// This slide's `@logo`: a PNG or SVG path, or `none` to hide the logo here.
@@ -158,16 +151,6 @@ pub enum Block {
     /// A ```@chart fence: one of the [`Chart`] visualizations.
     Chart {
         kind: Chart,
-        content: String,
-    },
-    /// ```@story fence: an English hint for the AI story generator. Removed
-    /// from the slide's blocks at parse time (see [`Slide::story_hint`]).
-    StoryHint {
-        content: String,
-    },
-    /// ```@scene fence: a hand-written scene script. Removed from the slide's
-    /// blocks at parse time (see [`Slide::scene_script`]).
-    SceneScript {
         content: String,
     },
     ColumnSeparator,

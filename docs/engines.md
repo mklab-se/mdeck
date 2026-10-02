@@ -38,22 +38,13 @@ circle a pie. Behind it all the dark is space: a star field drifting slowly
 forward, dust, a galaxy, or a nebula, rotating by slide so a run of bullet
 slides never repeats itself. None of this needs a line of authoring.
 
-**It can tell a story.** Describe a scene in English in a ```` ```@story ````
-fence on a slide, run `mdeck ai story talk.md`, and the particles form a cast
-of people and props with flows between them and beats you release with Space,
-each with a line you can say out loud (`H` shows it). Scripts land in
-`talk.scenes.yaml` next to the deck; edit one by hand and mark it
-`pinned: true` to keep it. Stories play on bullet, content, quote and section
-slides, where there is room beside the copy.
-
 **It can draw a thing.** Put `@illustration: server` under a slide's heading
 and the particles settle into a server beside the copy (behind it, faded, on
 a title slide). Thirty-eight illustrations are built in, from `person` and `laptop`
 to `robot`, `rocket`, `lightbulb` and `account`; `mdeck illustration generate --name server
 --description "A server rack"` asks the image model for a new one and reduces
 it to a point cloud file you keep next to the deck or in your user library.
-Story casts draw from the same library, so a cloud you make can act in a
-story too. Made one worth sharing? `mdeck illustration contribute <name>`
+Made one worth sharing? `mdeck illustration contribute <name>`
 opens a prefilled issue; drag the file in and it can become a built-in.
 
 **It opens and closes.** A 3-2-1 countdown counted in particles (any key
@@ -62,7 +53,7 @@ spells THE END before it bursts into black. Nord gets a plain countdown too,
 and any theme can ask for one.
 
 Try the decks in `samples/ember/`: plain text, visualizations, images,
-illustrations, and stories. The format spec has the full vocabulary.
+and illustrations. The format spec has the full vocabulary.
 
 ## More engines
 

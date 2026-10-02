@@ -1,7 +1,7 @@
 //! Themes are data. Each one is a `theme.yaml` (see [`file`]); the four
 //! built-in themes are embedded files in the same format. What a theme
 //! *does* beyond colours and type (a particle field, editorial layouts,
-//! story beats) comes from its engine ([`EngineKind`], see `crate::engines`),
+//! illustrations) comes from its engine ([`EngineKind`], see `crate::engines`),
 //! which MDeck provides.
 
 use std::path::PathBuf;

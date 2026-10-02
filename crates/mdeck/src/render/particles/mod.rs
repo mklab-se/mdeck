@@ -11,7 +11,7 @@
 //! additively by [`gl::GlowRenderer`].
 
 // The field, its renderer and its scenes belong to the particles engine; the
-// scene model and the random numbers are shared (story staging, masks).
+// random numbers are shared (point cloud conversion).
 #[cfg(feature = "particles")]
 pub mod gl;
 #[cfg(feature = "particles")]
@@ -20,14 +20,14 @@ pub mod scenes;
 #[cfg(feature = "particles")]
 mod field;
 mod rng;
+#[cfg(feature = "particles")]
 mod scene;
 
 #[cfg(feature = "particles")]
 pub use field::Field;
 pub use rng::Rng;
 #[cfg(feature = "particles")]
-pub use scene::DEFAULT_TINTS;
-pub use scene::{Drift, Group, Home, Palette, Scene, Tint};
+pub use scene::{DEFAULT_TINTS, Drift, Group, Home, Palette, Scene, Tint};
 
 /// Particles in the presentation window (the site uses 520 on desktop).
 #[cfg(feature = "particles")]

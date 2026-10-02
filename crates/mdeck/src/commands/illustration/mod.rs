@@ -107,7 +107,7 @@ async fn generate(
 
     let mut cloud = convert::convert(&img, name, description)?;
     cloud.prompt = Some(prompt);
-    cloud.generated = Some(crate::commands::story::timestamp());
+    cloud.generated = Some(crate::commands::util::timestamp());
     let path = write_cloud(&cloud, user, force)?;
 
     // keep the source image next to the cloud for inspection

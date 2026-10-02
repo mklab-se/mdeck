@@ -50,7 +50,7 @@ Every frame the host builds a `Stage`:
   (`Bar`, `Path`, `Circle`, `Point`, and `Frame` for boxes to keep out of),
   so an engine can serve a chart instead of decorating around it.
 - `index`, `reveal`, `title`, and the `slide` itself for engines that lay out
-  text (`story` only when the engine plays stories).
+  text.
 
 The host also keeps the clock, times the end slide, swaps the runtime when
 the theme's engine changes, and decides when the caption appears on the end
@@ -105,7 +105,6 @@ glyphs out of the font atlas there.
 | `editorial` | Copy slides use the editorial layouts: a copy column on the left, a stage on the right, display headings and the counter chrome. |
 | `board` | The engine draws every slide itself, text included, and owns the transitions between slides (split-flap). `render_slide` then hands the slide to the engine's `EngineDef::render_slide` (its static renderer, for thumbnails) (`SlideContext::engine_drew` says whether the live engine drew it already), the app skips its transitions and scrolling, and the engine prints its own labels. |
 | `illustrations` | Shows `@illustration`. |
-| `stories` | Plays story beats (and they add reveal steps). |
 | `countdown` | Draws the opening countdown itself (`countdown: burst`). |
 | `end_act` | Plays an act of its own on the end slide. |
 | `art` | Draws generated art: the host fills `Stage::art`, and `EngineKind::medium` says which kind of picture to generate and how to draw it in. |

@@ -1,14 +1,6 @@
 //! Scene description: declarative data saying what every particle should
 //! be doing on a slide. The field itself knows nothing about markdown.
 
-#![cfg_attr(
-    not(all_engines),
-    allow(
-        dead_code,
-        reason = "story staging builds scenes in every build; only the particles engine reads all of them"
-    )
-)]
-
 use std::sync::Arc;
 
 use eframe::egui::Color32;

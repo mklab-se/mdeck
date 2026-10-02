@@ -100,13 +100,11 @@ fn message_line(slide: &parser::Slide, message: &str) -> usize {
 /// Content the deck's engine will not show, one warning per slide and thing.
 pub fn engine_warnings(
     presentation: &parser::Presentation,
-    with_story: &[bool],
     kind: crate::engines::EngineKind,
 ) -> Vec<CheckWarning> {
     let mut out = Vec::new();
     for (i, slide) in presentation.slides.iter().enumerate() {
-        let story = with_story.get(i).copied().unwrap_or(false);
-        for message in crate::engines::unsupported(kind, slide, story) {
+        for message in crate::engines::unsupported(kind, slide) {
             out.push(CheckWarning {
                 slide: i + 1,
                 line: message_line(slide, &message),

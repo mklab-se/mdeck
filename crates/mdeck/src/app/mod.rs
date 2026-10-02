@@ -109,8 +109,6 @@ struct Jobs {
     report_printed: bool,
     /// `S` art generation in flight: receives (slide, result).
     art: Option<mpsc::Receiver<(usize, Result<(), String>)>>,
-    /// `S` story generation in flight: receives (slide, result).
-    story: Option<mpsc::Receiver<(usize, Result<(), String>)>>,
 }
 
 /// Frames per second, measured over half-second windows (shown with the HUD).
@@ -228,11 +226,6 @@ impl PresentationApp {
         self.countdown.is_some()
     }
 
-    /// The story playing on slide `index`, if any.
-    fn story(&self, index: usize) -> Option<&crate::render::story::Script> {
-        self.deck.story(index)
-    }
-
     fn slide_count(&self) -> usize {
         self.deck.slide_count()
     }
@@ -244,7 +237,7 @@ impl PresentationApp {
     }
 
     /// Keep every slide's reveal within its step count (after the counts
-    /// changed: a theme switch, new stories).
+    /// changed).
     fn clamp_reveals(&mut self) {
         for (v, &max) in self.views.iter_mut().zip(&self.deck.max_steps) {
             v.reveal = v.reveal.min(max);

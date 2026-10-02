@@ -125,7 +125,6 @@ pub fn measure_single_block_height(
             measure_table_height(ui, headers, rows, theme, max_width, scale)
         }
         Block::HorizontalRule => 20.0 * scale,
-        Block::StoryHint { .. } | Block::SceneScript { .. } => 0.0,
         Block::Diagram { .. } | Block::Chart { .. } => 500.0 * scale, // visualizations fill available space
         Block::Image { .. } => IMAGE_MAX_HEIGHT * scale,
         Block::ColumnSeparator => 0.0,
@@ -191,7 +190,6 @@ pub fn draw_block(cx: &BlockCx, block: &Block, pos: Pos2, max_width: f32) -> f32
             20.0 * cx.scale
         }
         Block::ColumnSeparator => 0.0, // handled by two-column layout
-        Block::StoryHint { .. } | Block::SceneScript { .. } => 0.0, // never rendered
     }
 }
 

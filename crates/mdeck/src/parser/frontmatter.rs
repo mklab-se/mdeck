@@ -112,7 +112,6 @@ fn parse_frontmatter(yaml_str: &str) -> PresentationMeta {
             "@image-style" => meta.image_style = text,
             "@icon-style" => meta.icon_style = text,
             "@slide-level" => meta.slide_level = value.trim().parse().ok(),
-            "@story" => meta.story = text,
             "@countdown" => meta.countdown = Some(parse_switch(&value)),
             "@engine" => meta.engine = text,
             "@logo" => meta.logo = text,

@@ -126,17 +126,6 @@ impl Field {
         self.rect
     }
 
-    /// Current brightness (0..1) of group `gi`, for drawing things that
-    /// belong to it (labels) with the same fade.
-    pub fn group_life(&self, gi: usize) -> f32 {
-        self.life.get(gi).copied().unwrap_or(0.0)
-    }
-
-    /// Current heat (0..1) of group `gi`.
-    pub fn group_heat(&self, gi: usize) -> f32 {
-        self.heat.get(gi).copied().unwrap_or(0.0)
-    }
-
     /// Scatter every particle randomly over `rect` (initial state, so the
     /// first scene assembles out of dust instead of out of one corner).
     pub fn scatter(&mut self, rect: Rect) {

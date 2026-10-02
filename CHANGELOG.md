@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Removed
+
+- Stories (PIC-06): the ```` ```@story ```` and ```` ```@scene ```` fences, the `@story` deck key,
+  the `<deck>.scenes.yaml` sidecar, `mdeck ai story`, story beats as reveal steps, the beat ticks
+  and spoken line in the HUD, and the `story` check category. `S` while presenting now only draws
+  pictures on art engines.
+
 ## [1.19.0] - 2026-10-02
 
 ### Added

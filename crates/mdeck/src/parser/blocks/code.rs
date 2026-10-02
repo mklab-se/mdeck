@@ -1,5 +1,5 @@
 //! Fenced blocks: code with its language and highlighted lines, and the
-//! `@` fences that hold diagrams, charts and story authoring.
+//! `@` fences that hold diagrams and charts.
 
 use crate::parser::{Block, Chart};
 
@@ -45,8 +45,6 @@ pub(super) fn parse_code_block(lines: &[&str], start: usize, fence_char: char) -
             kind,
             content: code,
         },
-        VizKind::StoryHint => Block::StoryHint { content: code },
-        VizKind::SceneScript => Block::SceneScript { content: code },
         VizKind::None => Block::CodeBlock {
             language,
             code,
@@ -62,23 +60,11 @@ enum VizKind {
     None,
     Diagram,
     Chart(Chart),
-    /// ```@story: an English hint for AI story generation (never rendered).
-    StoryHint,
-    /// ```@scene: a hand-written scene script in YAML (never rendered).
-    SceneScript,
 }
 
 fn parse_code_info(info: &str) -> (Option<String>, Vec<usize>, VizKind) {
     if info.is_empty() {
         return (None, vec![], VizKind::None);
-    }
-
-    // Story authoring fences (see the Ember theme): kept off the slide
-    if info.starts_with("@story") {
-        return (None, vec![], VizKind::StoryHint);
-    }
-    if info.starts_with("@scene") {
-        return (None, vec![], VizKind::SceneScript);
     }
 
     // Check for visualization language tags

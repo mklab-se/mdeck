@@ -431,8 +431,6 @@ mod tests {
                     reveal: 0,
                     slide: None,
                     title: true,
-                    story: None,
-                    story_version: 0,
                     figure: None,
                     art: None,
                     hints: &hints,

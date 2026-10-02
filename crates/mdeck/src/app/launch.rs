@@ -148,9 +148,7 @@ fn resolved_engine(theme: &Theme, pending: &Option<Theme>) -> crate::engines::En
 /// Startup warnings about what the deck asks of its engine: features it
 /// does not support, and generated art that is missing or stale.
 fn report_deck_warnings(deck: &Deck, engine: crate::engines::EngineKind) {
-    if let Some(line) =
-        crate::engines::unsupported_summary(engine, &deck.presentation, &deck.with_story())
-    {
+    if let Some(line) = crate::engines::unsupported_summary(engine, &deck.presentation) {
         eprintln!("warning: {line}");
     }
     for p in deck.art.problems() {

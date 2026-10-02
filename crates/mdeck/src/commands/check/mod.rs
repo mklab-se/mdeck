@@ -11,14 +11,14 @@ mod background;
 mod content;
 mod directives;
 mod engine;
-mod stories;
+mod illustration;
 mod theme;
 mod thermal;
 pub use background::background_warnings;
 pub use content::{cjk_font_warning, math_warnings, warn_missing_cjk_font};
 pub use directives::directive_warnings;
 pub use engine::{art_warnings, deck_theme, engine_warnings};
-pub use stories::illustration_warnings;
+pub use illustration::illustration_warnings;
 pub use theme::theme_warnings;
 pub use thermal::thermal_warnings;
 
@@ -80,11 +80,7 @@ fn collect(
     };
 
     add(diagram_warnings(presentation));
-    // Ember stories: broken inline scripts and sidecar entries that no longer
-    // match their slide.
-    let (story, stories) = stories::story_warnings(file, presentation);
-    add(story);
-    add(illustration_warnings(presentation, &stories, base_path));
+    add(illustration_warnings(presentation, base_path));
     add(
         cjk_font_warning(presentation, render::fonts::cjk_coverage())
             .into_iter()
@@ -113,8 +109,7 @@ fn collect(
             message,
         })
         .collect());
-    let with_story: Vec<bool> = stories.iter().map(Option::is_some).collect();
-    add(engine_warnings(presentation, &with_story, theme.engine));
+    add(engine_warnings(presentation, theme.engine));
     add(art_warnings(file, presentation, &theme));
     Ok(report)
 }
@@ -203,8 +198,6 @@ mod tests {
             line: 0,
             source_lines: Vec::new(),
             notes: notes.map(String::from),
-            story_hint: None,
-            scene_script: None,
             illustration: None,
             logo: None,
             art: None,

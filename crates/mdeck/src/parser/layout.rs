@@ -82,8 +82,6 @@ impl Counts {
                 Block::CodeBlock { .. } => c.code_blocks += 1,
                 Block::BlockQuote { .. } => c.quotes += 1,
                 Block::Diagram { .. } => c.diagrams += 1,
-                // authoring fences are stripped before classification
-                Block::StoryHint { .. } | Block::SceneScript { .. } => {}
                 Block::Chart { .. } => c.visualizations += 1,
                 Block::Table { .. } => c.tables += 1,
                 Block::ColumnSeparator => c.column_separators += 1,

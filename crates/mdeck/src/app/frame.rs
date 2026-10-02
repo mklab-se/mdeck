@@ -132,7 +132,6 @@ impl PresentationApp {
             shared.store(self.current_slide, Ordering::Relaxed);
         }
 
-        self.poll_story();
         self.poll_art();
 
         // Check for file changes

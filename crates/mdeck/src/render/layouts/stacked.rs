@@ -170,8 +170,6 @@ mod tests {
             line: 0,
             source_lines: Vec::new(),
             notes: None,
-            story_hint: None,
-            scene_script: None,
             illustration: None,
             logo: None,
             art: None,

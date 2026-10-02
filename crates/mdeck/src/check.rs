@@ -5,8 +5,6 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum CheckCategory {
     DiagramRouting,
-    /// Ember story scripts: invalid inline `@scene`, stale sidecar entries.
-    Story,
     /// `@illustration` names that do not resolve or layouts that cannot show one.
     Illustration,
     /// Text the available fonts cannot draw (CJK without a system CJK face).
@@ -33,7 +31,6 @@ impl fmt::Display for CheckCategory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CheckCategory::DiagramRouting => write!(f, "architecture"),
-            CheckCategory::Story => write!(f, "story"),
             CheckCategory::Illustration => write!(f, "illustration"),
             CheckCategory::Fonts => write!(f, "fonts"),
             CheckCategory::Math => write!(f, "math"),

@@ -214,9 +214,7 @@ fn open_deck(
     let theme =
         crate::engines::with_engine(theme, deck::deck_engine(cli_engine, &presentation, false));
     let deck = Deck::open(file.to_path_buf(), presentation, &theme, false, false);
-    if let Some(line) =
-        crate::engines::unsupported_summary(theme.engine, &deck.presentation, &deck.with_story())
-    {
+    if let Some(line) = crate::engines::unsupported_summary(theme.engine, &deck.presentation) {
         eprintln!("warning: {line}");
     }
     Ok((deck, theme))

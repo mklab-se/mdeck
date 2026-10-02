@@ -190,7 +190,7 @@ updates every time you save.
 | [Writing slides](docs/writing-slides.md) | Slides, layouts, reveal, math, images, speaker notes |
 | [Visualizations](docs/visualizations.md) | Every chart and diagram, with its syntax |
 | [Themes](docs/themes.md) | Built-in themes, your own theme, logos, design systems |
-| [Engines](docs/engines.md) | Ember's particles, stories and illustrations, and the other engines |
+| [Engines](docs/engines.md) | Ember's particles and illustrations, and the other engines |
 | [Presenting](docs/presenting.md) | Keys, mouse, start options |
 | [Export](docs/export.md) | PNG and PDF |
 | [AI features](docs/ai.md) | Decks from documents, image generation, art for every slide, AI agents |

@@ -28,7 +28,6 @@ pub const GLOBAL_DIRECTIVES: &[&str] = &[
     "image-style",
     "icon-style",
     "slide-level",
-    "story",
     "countdown",
     "logo-position",
     "logo-opacity",

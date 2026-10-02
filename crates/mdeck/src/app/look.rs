@@ -42,8 +42,7 @@ impl PresentationApp {
         }
     }
 
-    /// Switch to `theme` now: step counts follow its engine (story beats are
-    /// an ember feature; other engines step through the content's own reveals).
+    /// Switch to `theme` now.
     pub(super) fn apply_theme(&mut self, theme: Theme) {
         self.theme = crate::engines::with_engine(theme, self.engine_override);
         self.deck.retheme(&self.theme);

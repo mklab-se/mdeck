@@ -1,5 +1,5 @@
 //! The particles engine: a living field of particles under every slide. Each
-//! frame it picks a scene from the stage (countdown digit, end act, story,
+//! frame it picks a scene from the stage (countdown digit, end act,
 //! illustration, hints from renderers, or the scene inferred from the slide's
 //! layout), ticks the field toward it and paints it.
 
@@ -10,17 +10,13 @@ use super::{Capabilities, Engine, EngineDef};
 use crate::parser::Slide;
 use crate::render::illustration::Library;
 use crate::render::particles::{self, Field, scenes};
-use crate::render::story;
 
 /// Seconds into the end slide when the caption fades in: after the bang has
 /// faded to black.
 pub const END_CAPTION_DELAY: f32 = 7.4;
 
 pub static DEF: EngineDef = EngineDef {
-    capabilities: Capabilities {
-        stories: true,
-        ..Capabilities::PICTURES
-    },
+    capabilities: Capabilities::PICTURES,
     create: || Box::new(Particles::new()),
     end_caption_delay: END_CAPTION_DELAY,
     medium: None,
@@ -56,15 +52,13 @@ impl EndPhase {
 }
 
 /// Everything a scene choice depends on: slide index, reveal step, end
-/// phase, story version, countdown phase and the hints' fingerprint.
-type SceneKey = (usize, usize, Option<EndPhase>, u64, Option<CountPhase>, u64);
+/// phase, countdown phase and the hints' fingerprint.
+type SceneKey = (usize, usize, Option<EndPhase>, Option<CountPhase>, u64);
 
 pub struct Particles {
     field: Option<Field>,
     /// What the current scene was built for.
     key: Option<SceneKey>,
-    /// Labels of the staged story, if the current scene is one.
-    labels: Vec<story::Label>,
     /// Field speed for this frame's phase.
     speed: f32,
 }
@@ -74,7 +68,6 @@ impl Particles {
         Self {
             field: None,
             key: None,
-            labels: Vec::new(),
             speed: 1.0,
         }
     }
@@ -87,7 +80,7 @@ impl Default for Particles {
 }
 
 impl Engine for Particles {
-    fn update(&mut self, cx: &FrameCx, stage: &Stage, lib: &mut Library) {
+    fn update(&mut self, cx: &FrameCx, stage: &Stage, _lib: &mut Library) {
         let rect = cx.rect;
         let needs_new_field = match &self.field {
             None => true,
@@ -109,14 +102,12 @@ impl Engine for Particles {
             stage.index,
             stage.reveal,
             end_phase.map(|(p, _)| p),
-            stage.story_version,
             countdown.map(|(p, _)| p),
             stage.hints_key,
         );
         let rect_aspect = rect.width() / rect.height();
         let seed = stage.index as u64 + 1;
         if self.key != Some(key) {
-            self.labels.clear();
             let scene = match (&stage.moment, end_phase) {
                 (Moment::Countdown { mask, .. }, _) => {
                     scenes::digit(mask.0.clone(), mask.1, rect_aspect)
@@ -128,13 +119,7 @@ impl Engine for Particles {
                     EndPhase::Bang | EndPhase::Black => scenes::end_bang(),
                 },
                 _ => {
-                    if let (Some(slide), Some(script)) = (stage.slide, stage.story)
-                        && !stage.title
-                    {
-                        let staged = story::stage(script, slide.layout, rect_aspect, lib);
-                        self.labels = staged.labels;
-                        staged.scene
-                    } else if let Some(fig) = &stage.figure {
+                    if let Some(fig) = &stage.figure {
                         let points = std::sync::Arc::clone(&fig.cloud.points);
                         if fig.backdrop {
                             scenes::illustration_backdrop(points, fig.place)
@@ -192,17 +177,6 @@ impl Engine for Particles {
             return;
         };
         field.paint(ui.painter(), cx.rect, cx.opacity, !cx.still);
-        if !self.labels.is_empty() {
-            story::draw_labels(
-                ui.painter(),
-                &self.labels,
-                field,
-                cx.rect,
-                cx.theme,
-                cx.scale,
-                cx.opacity,
-            );
-        }
         if !cx.still {
             ui.ctx().request_repaint();
         }

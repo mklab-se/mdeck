@@ -421,7 +421,6 @@ impl Writer {
                     kind: Chart::Thermal,
                     ..
                 } => {}
-                Block::StoryHint { .. } | Block::SceneScript { .. } => {}
                 Block::CodeBlock { .. } => {
                     self.unsupported.insert("code blocks".into());
                 }

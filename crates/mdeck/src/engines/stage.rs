@@ -12,12 +12,11 @@
 
 use std::sync::Arc;
 
-use eframe::egui::Rect;
+use eframe::egui::{Pos2, Rect};
 
 use crate::parser::{Layout, Slide};
 use crate::render::hints::Hint;
 use crate::render::illustration::Cloud;
-use crate::render::story::Script;
 use crate::theme::Theme;
 
 /// Points in the unit square, with the shape's width / height.
@@ -131,9 +130,6 @@ pub struct Stage<'a> {
     pub slide: Option<&'a Slide>,
     /// The first slide reads as a title page.
     pub title: bool,
-    pub story: Option<&'a Script>,
-    /// Changes whenever a story is regenerated.
-    pub story_version: u64,
     pub figure: Option<Figure>,
     /// The slide's generated picture, on engines that draw art.
     pub art: Option<Art>,
@@ -179,7 +175,7 @@ pub fn figure_box(cloud_aspect: f32, layout: Layout, rect_aspect: f32, backdrop:
             h,
         };
     }
-    let stage = crate::render::story::stage_box(layout);
+    let stage = stage_box(layout);
     let avail_w = stage.width() * 0.82;
     let avail_h = stage.height() * 0.82;
     // heights are slide-height fractions: h = w * aspect * (W / H)
@@ -195,6 +191,17 @@ pub fn figure_box(cloud_aspect: f32, layout: Layout, rect_aspect: f32, backdrop:
         v: cv - h / 2.0,
         w,
         h,
+    }
+}
+
+/// The part of the slide a picture stands on beside the copy, as slide
+/// fractions.
+pub fn stage_box(layout: Layout) -> Rect {
+    match layout {
+        // Quotes run wider, so the stage is narrower.
+        Layout::Quote => Rect::from_min_max(Pos2::new(0.64, 0.10), Pos2::new(0.96, 0.90)),
+        // Copy sits left; the stage is the right half.
+        _ => Rect::from_min_max(Pos2::new(0.52, 0.10), Pos2::new(0.96, 0.90)),
     }
 }
 

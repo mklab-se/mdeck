@@ -631,7 +631,6 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 |----------------|----------------|-------------------------------------------|----------------|
 | `@theme`       | global         | a built-in or custom theme (section 9)    | `light`        |
 | `@engine`      | global         | an engine (section 9.6)                   | the theme's    |
-| `@story`       | global         | English direction for AI stories (Ember) | none           |
 | `@countdown`   | global         | `true`, `false`: the 3-2-1 opener (themes with a `countdown`) | `true`   |
 | `@transition`  | global         | `fade`, `slide`, `spatial`, `none`        | `slide`        |
 | `@layout`      | slide          | layout name (see Section 4.1)             | auto-inferred  |
@@ -993,8 +992,7 @@ slides show it on the right, beside the copy, warm and lit from the first
 step. Title slides put it behind the centred copy, large, dim and slow: a
 backdrop rather than a picture. Code, chart, diagram, table, image and
 two-column slides never show one, and `mdeck --check` warns when a slide asks
-for an illustration it cannot show, or one that does not exist. A slide that
-plays a story keeps the story; cast the illustration as a story kind instead.
+for an illustration it cannot show, or one that does not exist.
 Other themes ignore the directive.
 
 A name resolves through three places, first match wins: the deck's
@@ -1028,7 +1026,7 @@ description, the prompt that made it, the bounding box's height over width,
 and up to 1500 points in the unit square, stored in **importance order** so
 that the first sixty points already sketch the whole subject and the first
 six hundred fill it in. The field takes as many as it has particles to
-spend, which is why the same file serves a small story cast member and a
+spend, which is why the same file serves a small stage picture and a
 full-frame backdrop, and why an illustration hints at its subject rather than
 copying it.
 
@@ -1038,65 +1036,6 @@ accepts as an attachment and opens a new issue on the MDeck repository with
 the name, description, prompt and a braille sketch filled in. Drag the file
 onto the issue and submit; if it is accepted it ships as a built-in in the
 next release.
-
-#### Ember stories
-
-With Ember, the particle field can tell the slide's story instead of only
-decorating it. A **story script** names a cast of people and props placed in
-stage cells, flows of light between them, and beats the presenter releases
-with Space (beats share the reveal counter with `+` list items). Stories are
-optional, and most decks will not carry any: without one, every slide gets
-the inferred, content-aware field.
-
-Scripts live in one place: a **sidecar** next to the deck, `deck.scenes.yaml`
-(or `.yml`; `.yaml` wins when both exist), one entry per slide.
-`mdeck ai story deck.md` writes them. For each slide it reads the author's
-```` ```@story ```` fence when there is one (an English description of what
-the canvas should do; the fence never renders), otherwise the copy and notes,
-plus the deck-level `@story:` from the frontmatter for tone and cast.
-`--slide N`, `--range A-B`, `--stale` and `--force` narrow the run;
-`--dry-run` prints the scripts and their spoken lines without writing.
-
-An entry is keyed by a hash of the slide's source (copy, hint and notes) plus
-the deck hint, so editing any of them marks the story stale: it still plays,
-`mdeck --check` warns, and `mdeck ai story --stale` refreshes it. To write or
-edit a scene by hand, set `pinned: true` on its entry: pinned entries match
-by slide number, never go stale and are never regenerated. In the
-presentation, `S` writes a story for the current slide in the background and
-`H` shows the current beat's spoken line to the presenter.
-
-```yaml
-cast:
-  - { id: anders, kind: person, label: Anders, cell: left }
-  - { id: queue,  kind: inbox,  label: Support queue, cell: center-top }
-  - { id: model,  kind: orb,    label: The assistant, cell: right, fill: brain }
-flows:
-  - { from: queue, to: model, color: white, at: 1 }
-  - { from: model, to: anders, color: ember, at: 2 }
-beats:
-  - { show: [anders, queue], say: "Anders stopped reading the tickets." }
-  - { show: [model],         say: "He pointed the assistant at the queue." }
-  - { hot: [model],          say: "Nobody noticed what came back." }
-```
-
-Kinds are illustration names (see above): any built-in, user or deck cloud
-can be cast, and `mdeck ai story` offers the model exactly the names the
-deck can resolve. `person`, `hooded`, `man`, `woman`, `thermographer`,
-`presenter-up` and `presenter-down` are figures: sized as people and
-labelled in the brighter face. Cells: `left-top`, `center-top`,
-`right-top`, `left`, `center`, `right`, `left-bottom`, `center-bottom`,
-`right-bottom` (one member per cell). Fills: `outline`, `brain`, `hot`,
-`cold`. Flow colours: `white`, `ember`, `candle`, `pale`. At most seven cast
-members and six beats; each `say` line at most 160 characters. Labels of
-neighbouring cast members must not overlap; the generator rejects and retries
-scripts whose labels collide.
-
-A story needs a stage: the right half of a slide whose copy sits on the left
-(bullet, content, quote and section slides). Code, chart, diagram, table,
-image, two-column and title slides never play a story, whatever a sidecar
-says; their field stays the quiet, content-aware one, and `mdeck ai story`
-skips them. Beats are a feature of the particles engine: under a theme on
-the plain engine a slide steps through its own `+` reveals only.
 
 All themes meet WCAG AA contrast requirements. Cycle themes during a
 presentation with `Shift+T`.
@@ -1528,7 +1467,7 @@ white on a black print. The countdown and the end words glow the same way.
 **The thermal engine.** The deck is seen through a thermal instrument: a
 heat field lies under the slides, drawn in the theme's heat palette
 (`heat: { palette: iron }`) in contour bands and transparent where it is
-cold. Its motion is kept for the story beats:
+cold. Its motion is kept for the moments that matter:
 
 - *The cold opening.* On title and section slides the heading forms in heat:
   points of heat appear inside the letters, spread and join into contours,
@@ -1567,7 +1506,7 @@ stops with the list of engines. A theme's `countdown: burst` becomes the plain
 countdown on an engine that has no countdown of its own.
 
 **Content an engine does not show.** Engines differ in what they can show:
-the plain engine draws no illustrations and plays no stories, and the
+the plain engine draws no illustrations, and the
 split-flap board shows text only. `mdeck --check`
 lists every such slide under the `engine` category (for example
 `slide 4 (line 31): [engine] @illustration: server is not shown by the plain engine`),
@@ -2564,7 +2503,7 @@ in-app HUD (`H`) show the same table.
 | H | Toggle the presenter HUD |
 | C | Next thermal palette for every `@thermal` image and legend (section 14.20) |
 | Shift+C | Thermal palettes as written |
-| S | AI for the current slide, in the background: a story on the particles engine (section 9.1), a picture on an art engine (section 9.7) |
+| S | AI for the current slide, in the background: a picture on an art engine (section 9.7) |
 | `.` or B | Blackout |
 | R | Debug overlay (left, right, off) |
 | Esc | Clear drawings on the current slide; twice within a second quits |

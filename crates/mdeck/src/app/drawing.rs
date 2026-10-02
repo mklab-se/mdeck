@@ -59,13 +59,6 @@ impl PresentationApp {
             author: self.deck.presentation.meta.author.clone(),
             hold_copy: self.countdown_running(),
             animate: !self.reduced_motion,
-            beats: self
-                .story(index)
-                .filter(|s| s.beats.len() > 1)
-                .map(|s| (self.view(index).reveal, s.beats.len())),
-            say: self
-                .story(index)
-                .and_then(|s| s.line(self.view(index).reveal).map(str::to_string)),
             engine_drew: self.theme.engine.paints()
                 && matches!(self.mode, super::AppMode::Presentation { .. }),
         }
@@ -291,9 +284,6 @@ impl PresentationApp {
                 );
             }
             if self.show_hud {
-                if let Some(line) = &self.slide_context(self.current_slide).say {
-                    render::ember::draw_say_line(ui.painter(), &self.theme, rect, line, scale);
-                }
                 let fps_text = format!("{:.0} fps", self.fps.per_second);
                 let fps_color = Theme::with_opacity(self.theme.foreground, 0.3);
                 let fps_galley = ui.painter().layout_no_wrap(

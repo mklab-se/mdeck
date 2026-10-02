@@ -59,8 +59,8 @@ use crate::render::illustration::Library;
 pub enum EngineKind {
     /// Slides on a flat background.
     Plain,
-    /// A living particle field under every slide, editorial copy layouts,
-    /// story beats and point cloud illustrations.
+    /// A living particle field under every slide, editorial copy layouts
+    /// and point cloud illustrations.
     Particles,
     /// A wall of RGB LEDs that light up illustrations, digits and words.
     Led,
@@ -100,8 +100,6 @@ pub struct Capabilities {
     pub board: bool,
     /// Shows `@illustration` point clouds.
     pub illustrations: bool,
-    /// Plays story beats (`@story`, `mdeck ai story`).
-    pub stories: bool,
     /// Draws the opening countdown itself (`countdown: burst` in a theme).
     pub countdown: bool,
     /// Plays an act of its own on the end slide.
@@ -125,7 +123,6 @@ impl Capabilities {
         editorial: false,
         board: false,
         illustrations: false,
-        stories: false,
         countdown: false,
         end_act: false,
         art: false,
@@ -298,11 +295,6 @@ impl EngineKind {
         self.capabilities().board
     }
 
-    /// Story beats add reveal steps to a slide.
-    pub fn plays_stories(self) -> bool {
-        self.capabilities().stories
-    }
-
     /// Frames an export waits on a slide before capturing it, so the engine
     /// has seen the geometry the slide's renderers publish.
     pub fn settle_frames(self) -> u32 {
@@ -363,7 +355,6 @@ mod tests {
             "crate::render::hints",
             "crate::render::illustration",
             "crate::render::image_cache",
-            "crate::render::story",
             "crate::render::art",
             "crate::render::strokes",
             "crate::render::particles",
@@ -455,7 +446,7 @@ mod tests {
         assert!(!plain.paints && !plain.editorial && !plain.illustrations);
         assert_eq!(EngineKind::Plain.settle_frames(), 0);
         let particles = EngineKind::Particles.capabilities();
-        assert!(particles.paints && particles.stories && particles.countdown);
+        assert!(particles.paints && particles.countdown);
         assert_eq!(EngineKind::Particles.settle_frames(), 2);
     }
 }
