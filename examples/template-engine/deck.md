@@ -39,11 +39,7 @@ Calm motion keeps the room's attention on the words.
 
 ---
 
-## A picture
-<!-- picture: rocket -->
-
-- A picture-capable engine draws the slide's picture
-- This one only decorates, so it shows its ground
+> An engine is the room the words are spoken in.
 
 ---
 
