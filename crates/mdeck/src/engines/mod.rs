@@ -17,7 +17,10 @@ pub mod host;
 pub mod plain;
 pub mod rng;
 
-pub use host::{CountPhase, Host, Shot, choose, unsupported, unsupported_summary, with_engine};
+pub use host::{
+    CountPhase, Host, Shot, choose, settings_problems, unsupported, unsupported_summary,
+    with_engine,
+};
 pub use mdeck_sdk::engine::{Capabilities, EngineDef, Medium};
 
 use mdeck_sdk::design::DesignSet;

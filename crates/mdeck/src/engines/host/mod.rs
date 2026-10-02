@@ -421,6 +421,27 @@ impl Host {
     }
 }
 
+/// What is wrong with the engine settings `theme` gives its engine
+/// (ENG-11): values of the wrong type or out of range, and keys the engine
+/// does not read. Checked with [`mdeck_sdk::engine::EngineDef::check_settings`]
+/// and then by creating the engine and asking the settings what it never
+/// read, as the SDK promises.
+pub fn settings_problems(theme: &Theme) -> Vec<String> {
+    let def = theme.engine.def();
+    let settings = crate::theme::engine_settings(theme);
+    let mut out: Vec<String> = Vec::new();
+    let mut add = |p: mdeck_sdk::problem::Problem| {
+        let m = format!("engine {}: {}", def.name, p.message);
+        if !out.contains(&m) {
+            out.push(m);
+        }
+    };
+    def.check_settings(&settings).into_iter().for_each(&mut add);
+    let _runtime = (def.create)(&settings);
+    settings.problems().into_iter().for_each(&mut add);
+    out
+}
+
 /// What a set of settings was read from: changes when any value does.
 fn settings_key(settings: &EngineSettings) -> String {
     let probe = settings.clone();
@@ -484,6 +505,20 @@ mod tests {
         // A frame that published nothing keeps the held geometry.
         adopt_hints(&mut held, &mut key, Vec::new(), false);
         assert_eq!(held.len(), 1);
+    }
+
+    #[test]
+    fn settings_an_engine_does_not_read_are_reported() {
+        use crate::theme::file::ThemeFile;
+        let f = ThemeFile::parse("engine: plain\nsurface: slate\n")
+            .unwrap()
+            .over(&crate::theme::lookup::builtin_file("dark").unwrap());
+        let theme = Theme::build("x", &f).unwrap().theme;
+        assert_eq!(
+            settings_problems(&theme),
+            ["engine plain: unknown setting `surface`"]
+        );
+        assert!(settings_problems(&Theme::dark()).is_empty());
     }
 
     #[test]

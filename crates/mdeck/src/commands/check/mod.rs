@@ -121,6 +121,15 @@ fn collect(
             message,
         })
         .collect());
+    add(crate::engines::settings_problems(&theme)
+        .into_iter()
+        .map(|message| CheckWarning {
+            slide: 0,
+            line: 0,
+            category: CheckCategory::Engine,
+            message: format!("theme {}: {message}", theme.name),
+        })
+        .collect());
     add(engine_warnings(presentation, theme.engine));
     add(asset_warnings(file, presentation, &theme));
     Ok(report)

@@ -94,13 +94,14 @@ fn report(name: &str, l: &Lookup) -> bool {
                 if t.countdown { "on" } else { "off" }
             );
             let advice = validate::review(t);
-            for w in &built.warnings {
+            let engine = crate::engines::settings_problems(t);
+            for w in built.warnings.iter().chain(&engine) {
                 println!("  {} {w}", "warning:".yellow().bold());
             }
             for a in &advice {
                 println!("  {} {a}", "contrast:".yellow().bold());
             }
-            if built.warnings.is_empty() && advice.is_empty() {
+            if built.warnings.is_empty() && advice.is_empty() && engine.is_empty() {
                 println!("  {}", "No issues found.".green());
             }
             true
