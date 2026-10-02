@@ -14,7 +14,7 @@ All visualizations (charts, diagrams, etc.) must follow these principles:
 
 ## Code structure
 
-- **A new chart:** add a variant to `parser::Chart`, its fence tag to `Chart::TAGS` and to `language::FENCES`, arms to `visualizations::draw` and `visualizations::check`, and a module whose `draw_*` takes `(cx: &VizCtx, content, pos, max_width, max_height) -> f32`. Keep parsing and geometry pure (a `layout` step with unit tests) and paint separately.
+- **A new chart:** visuals are looked up by fence tag in the registry (`parser::Chart` is a tag, `Chart::from_info` asks the registry). Add a module whose `draw_*` takes `(cx: &VizCtx, content, pos, max_width, max_height) -> f32` and whose `check` returns grammar problems, register it in `visualizations::builtin::register` (and `BUILTIN_TAGS`), and add its tag to `language::FENCES`. Built-in visuals still draw with egui through a bridge (`builtin::with_viz`); an extension visual draws with the SDK painter (`mdeck_sdk::visual::Visual`). Keep parsing and geometry pure (a `layout` step with unit tests) and paint separately.
 - **Shared pieces first:** `grammar` (`Source::parse` for settings, items, attributes and relations; `label_value_items` and friends; report problems with `src.problem`, and give the module a `check`), `PlotFrame` (axes, grid, value labels), the legend helpers, `reveal_anim_progress` / `assign_steps`, and the `VIZ_FONT_*` tokens.
 - **No long argument lists:** pass `VizCtx`, `BlockCx` or `TextCx` plus small structs rather than adding `#[allow(clippy::too_many_arguments)]`.
 
