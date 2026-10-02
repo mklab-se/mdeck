@@ -52,6 +52,7 @@ pub fn cjk_font_warning(
              {hint}or set {}=/path/to/font.ttc",
             render::fonts::CJK_FONT_ENV
         ),
+        place: None,
     })
 }
 
@@ -84,6 +85,7 @@ pub fn math_warnings(presentation: &parser::Presentation) -> Vec<CheckWarning> {
                     message: format!(
                         "formula `{delim}{tex}{delim}` does not parse ({e}); it shows as text"
                     ),
+                    place: None,
                 });
             }
         }
@@ -112,6 +114,7 @@ pub fn content_warnings(presentation: &parser::Presentation) -> Vec<CheckWarning
                 line,
                 category: CheckCategory::Content,
                 message,
+                place: None,
             })
         };
         for p in &slide.problems {

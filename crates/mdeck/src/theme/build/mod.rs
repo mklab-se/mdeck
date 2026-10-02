@@ -2,7 +2,7 @@
 //! section, called in the order their errors are reported.
 
 use super::file::ThemeFile;
-use super::{Built, Theme, ThemeError};
+use super::{Built, EngineId, Theme, ThemeError};
 
 mod colors;
 mod extras;
@@ -66,6 +66,18 @@ impl Theme {
         let radius =
             range("radius", f.radius, 0.0, 100.0)?.unwrap_or(super::spacing::DEFAULT_RADIUS);
 
+        // The settings of an engine this build lacks were written for that
+        // engine, not for plain: drop them, so the unknown engine is the one
+        // problem reported.
+        let engine_block = if f
+            .engine_name()
+            .is_some_and(|e| EngineId::find(e.trim()).is_none())
+        {
+            Vec::new()
+        } else {
+            f.engine_block().settings
+        };
+
         let p = palette.flattened();
         let mut theme = Theme {
             name: f.name.clone().unwrap_or_else(|| name.to_string()),
@@ -73,7 +85,7 @@ impl Theme {
             copy_hold: 0.0,
             engine_numbers_slides: false,
             countdown,
-            engine_block: f.engine_block().settings,
+            engine_block,
             arrangements,
             spacing,
             radius,
@@ -138,6 +150,19 @@ mod tests {
             "k: 1.5 must be between 0 and 1"
         );
         assert!(range("k", Some(f32::NAN), 0.0, 1.0).is_err());
+    }
+
+    #[test]
+    fn an_unknown_engine_is_reported_once_without_its_settings() {
+        let f = over_dark("engine: { name: aurora, cool: '#ff5fa2', speed: 0.5 }");
+        let built = Theme::build("x", &f).unwrap();
+        assert_eq!(built.theme.engine, EngineId::plain());
+        assert_eq!(built.warnings.len(), 1, "{:?}", built.warnings);
+        assert!(built.warnings[0].contains("engine 'aurora'"));
+        // Its settings are not passed to plain, so nothing reports them.
+        assert!(built.theme.engine_block.is_empty());
+        assert!(crate::engines::settings_problems(&built.theme).is_empty());
+        assert!(super::super::validate::inert(&built.theme).is_empty());
     }
 
     #[test]

@@ -43,6 +43,7 @@ pub fn engine_warnings(
                 line: message_line(slide, &message),
                 category: CheckCategory::Engine,
                 message,
+                place: None,
             });
         }
     }

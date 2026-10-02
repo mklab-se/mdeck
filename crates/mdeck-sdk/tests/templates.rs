@@ -9,8 +9,9 @@
 use std::path::{Path, PathBuf};
 
 const KINDS: [&str; 4] = ["engine", "visual", "design-set", "transition"];
-const FILES: [&str; 6] = [
+const FILES: [&str; 7] = [
     "Cargo.toml",
+    ".gitignore",
     "README.md",
     "deck.md",
     "theme.yaml",
@@ -24,12 +25,13 @@ fn templates() -> PathBuf {
 }
 
 /// Where `file` of the template for `kind` is stored. `Cargo.toml` is kept
-/// as `Cargo.toml.tmpl`, since `cargo package` leaves out nested manifests.
+/// as `Cargo.toml.tmpl`, since `cargo package` leaves out nested manifests,
+/// and `.gitignore` as `gitignore.tmpl`.
 fn source(kind: &str, file: &str) -> PathBuf {
-    let stored = if file == "Cargo.toml" {
-        "Cargo.toml.tmpl"
-    } else {
-        file
+    let stored = match file {
+        "Cargo.toml" => "Cargo.toml.tmpl",
+        ".gitignore" => "gitignore.tmpl",
+        file => file,
     };
     templates().join(kind).join(stored)
 }
@@ -67,7 +69,7 @@ fn templates_use_only_known_placeholders() {
                 rest = &rest[end..];
             }
             assert!(
-                text.contains("{{name}}"),
+                file == ".gitignore" || text.contains("{{name}}"),
                 "{kind}/{file} never uses the name"
             );
         }
@@ -98,13 +100,13 @@ fn files_match_the_template_folders() {
 }
 
 #[test]
-fn no_template_stores_a_cargo_toml() {
-    // `cargo package` would leave it out of the published SDK.
+fn no_template_stores_a_cargo_toml_or_gitignore() {
+    // `cargo package` would leave the manifest out of the published SDK,
+    // and honour the `.gitignore`.
     for kind in KINDS {
-        assert!(
-            !templates().join(kind).join("Cargo.toml").exists(),
-            "{kind}"
-        );
+        for file in ["Cargo.toml", ".gitignore"] {
+            assert!(!templates().join(kind).join(file).exists(), "{kind}/{file}");
+        }
     }
 }
 
@@ -115,13 +117,14 @@ fn the_engine_example_is_the_instantiated_template() {
         return; // outside the mdeck repository (a packaged crate)
     }
     for file in [
+        ".gitignore",
         "src/lib.rs",
         "tests/golden.rs",
         "theme.yaml",
         "deck.md",
         "README.md",
     ] {
-        let template = std::fs::read_to_string(templates().join("engine").join(file)).unwrap();
+        let template = std::fs::read_to_string(source("engine", file)).unwrap();
         let copy = std::fs::read_to_string(example.join(file)).unwrap();
         assert_eq!(
             instantiate(&template, "template-engine"),

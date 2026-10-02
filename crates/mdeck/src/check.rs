@@ -67,11 +67,17 @@ pub struct CheckWarning {
     pub line: usize,
     pub category: CheckCategory,
     pub message: String,
+    /// Where the problem is when it is not in the deck file, shown in place
+    /// of the slide: a theme file, or the extension a theme came from.
+    pub place: Option<String>,
 }
 
 impl fmt::Display for CheckWarning {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "  slide {}", self.slide)?;
+        match &self.place {
+            Some(place) => write!(f, "  {place}")?,
+            None => write!(f, "  slide {}", self.slide)?,
+        }
         if self.line > 0 {
             write!(f, " (line {})", self.line)?;
         }
@@ -136,6 +142,7 @@ mod tests {
             line: 0,
             category: CheckCategory::DiagramRouting,
             message: msg.to_string(),
+            place: None,
         }
     }
 

@@ -70,6 +70,7 @@ digits and hyphens, starting with a letter.
 
 ```text
 aurora/
+├── .gitignore          what git should never store: build output and test leftovers
 ├── Cargo.toml          the crate: its name, version and the one dependency, mdeck-sdk
 ├── README.md           the commands you will use, for you and your colleagues
 ├── deck.md             a sample deck that shows the engine on common slide designs
@@ -596,7 +597,7 @@ mdeck build --with .
 
 ```text
 Checking deck.md (6 slides)...
-  slide 0: [engine] theme aurora: engine aurora: `height` should be between 0.5 and 2, not 5
+  theme 'aurora' (from extension aurora): [engine] engine aurora: `height` should be between 0.5 and 2, not 5
 
 1 warning(s) found.
 ```
@@ -711,8 +712,8 @@ The first command records the new golden image; the second shows that everything
 Windows PowerShell: `$env:MDECK_UPDATE_GOLDEN=1; cargo test; Remove-Item Env:MDECK_UPDATE_GOLDEN`.)
 
 From now on, any change that alters the engine's look by accident fails `cargo test`. Run it
-before every commit. The `aurora.actual.png` file stays behind; it is ignored by git (next part)
-and you can delete it.
+before every commit. Updating also deleted `aurora.actual.png`; while a comparison fails it stays
+next to the golden image, and git ignores it (next part).
 
 **READ** `tests/golden.rs` (generated), to see how it works:
 
@@ -741,7 +742,7 @@ the GPU's.
 
 ### 5.1 Ignore what is generated
 
-**TYPE** `.gitignore` (a new file in `aurora/`):
+**READ** `.gitignore` (generated):
 
 ```text
 # Build output: cargo test and mdeck build write here. Never commit it.
@@ -753,6 +754,9 @@ target/
 # Stills you exported while trying things out.
 out/
 ```
+
+`mdeck sdk new` wrote it, so there is nothing to type. (`ls` does not show files whose name starts
+with a dot; `ls -a` does.)
 
 `target/` holds gigabytes of compiled code and your custom mdeck binary; it can always be
 rebuilt.
@@ -923,7 +927,7 @@ The ordinary mdeck explains what is missing:
 Checking review.md (2 slides)...
   slide 0: [theme] unknown theme 'aurora' (available: dark, light, ...); the deck falls back to dark
   slide 0 (line 4): [extensions] this deck expects `aurora`, which is not installed: install the pack
-  (`mdeck pack install <path|git-url>`) or use an mdeck built with the extension (`mdeck build --with <path|crate>`)
+  (`mdeck pack install <path|git-url>`) or use an mdeck built with the extension (`mdeck build --with <path|crate|git+https://...>`)
 
 2 warning(s) found.
 ```
@@ -1020,6 +1024,11 @@ folder of that name exists yet. Write `--out ~/bin/` or create the folder first.
 
 **The deck shows the dark theme instead of yours.** You presented with the ordinary `mdeck`, not
 the one you built. Run `mdeck --check` on the deck: it says so.
+
+**`mdeck --check` fails a script or CI job.** That is on purpose: `--check` exits with status 1
+when it reports any warning and 0 when it prints `No issues found.`, so a pipeline stops on a deck
+that will not show as written. Fix the warnings it lists, or run it where a failure does not stop
+anything.
 
 ---
 

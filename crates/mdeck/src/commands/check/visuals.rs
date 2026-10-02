@@ -20,6 +20,7 @@ pub fn visual_warnings(presentation: &parser::Presentation) -> Vec<CheckWarning>
                     line: slide.line_at(open + 1 + p.offset),
                     category: CheckCategory::Visual,
                     message: format!("{tag}: {}", p.message),
+                    place: None,
                 });
             }
         }

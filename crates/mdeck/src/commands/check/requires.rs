@@ -32,8 +32,9 @@ pub fn requires_warnings(
         message: format!(
             "this deck expects `{name}`, which is not installed: install the pack \
              (`mdeck pack install <path|git-url>`) or use an mdeck built with the \
-             extension (`mdeck build --with <path|crate>`)"
+             extension (`mdeck build --with <path|crate|git+https://...>`)"
         ),
+        place: None,
     })
     .collect()
 }
@@ -64,6 +65,8 @@ mod tests {
         let w = requires_warnings(&pres, Path::new("/nonexistent-deck-dir"));
         assert_eq!(w.len(), 1, "{w:?}");
         assert!(w[0].message.contains("`no-such-pack-xyz`"));
+        // The hint names every kind of `--with` source, git included.
+        assert!(w[0].message.contains("git+https://"), "{}", w[0].message);
         assert_eq!(w[0].category, CheckCategory::Extensions);
         assert_eq!(w[0].line, 2);
     }

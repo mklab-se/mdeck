@@ -54,6 +54,7 @@ pub fn point_cloud_warnings(
             line: slide.setting_line("picture"),
             category: CheckCategory::PointCloud,
             message,
+            place: None,
         });
     }
     for message in v1_folder(base).into_iter().chain(lib.take_problems()) {
@@ -62,6 +63,7 @@ pub fn point_cloud_warnings(
             line: 0,
             category: CheckCategory::PointCloud,
             message,
+            place: None,
         });
     }
     out

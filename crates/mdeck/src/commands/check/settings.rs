@@ -15,6 +15,7 @@ pub fn settings_warnings(presentation: &parser::Presentation) -> Vec<CheckWarnin
             line,
             category: CheckCategory::Settings,
             message,
+            place: None,
         })
     };
     for s in &presentation.meta.settings {
@@ -266,6 +267,7 @@ pub fn fence_warnings(presentation: &parser::Presentation) -> Vec<CheckWarning> 
                 line: slide.line_at(offset),
                 category: CheckCategory::Visual,
                 message,
+                place: None,
             });
         }
     }
