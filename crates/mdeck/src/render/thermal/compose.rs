@@ -60,7 +60,7 @@ pub fn compose(source: &Source, look: &Look) -> ColorImage {
         source.width.div_ceil(factor),
         source.height.div_ceil(factor),
     );
-    let lut = look.palette.lut();
+    let lut = super::palette::lut(look.palette);
     // stripes stay visible however small the picture is drawn
     let period = (w.max(h) / 90).max(6);
     let color = |t: f32| lut[(t * 255.0).round() as usize];
@@ -166,7 +166,11 @@ mod tests {
         let p = |x: usize| img.pixels[x];
         let gray = |c: Color32| c.r() == c.g() && c.g() == c.b();
         assert!(gray(p(50)) && gray(p(84)), "below is gray");
-        assert_eq!(p(90), Palette::Iron.at(0.9), "above keeps the palette");
+        assert_eq!(
+            p(90),
+            crate::render::thermal::palette::at(Palette::Iron, 0.9),
+            "above keeps the palette"
+        );
     }
 
     #[test]

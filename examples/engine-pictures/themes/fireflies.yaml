@@ -7,7 +7,7 @@ engine:
   name: pictures
   light: "#fff1b8"
   cool: "#b8e0a0"
-countdown: burst
+countdown: on
 colors:
   background: "#070b08"
   text: "#c8d2c4"

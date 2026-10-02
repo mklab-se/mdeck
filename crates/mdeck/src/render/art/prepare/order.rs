@@ -7,7 +7,7 @@ use image::RgbaImage;
 
 use super::{STEPS, darkness};
 use crate::engines::hash01;
-use crate::engines::paint::smoothstep;
+use mdeck_sdk::paint::smoothstep;
 
 const NEIGHBOURS: [(i32, i32); 8] = [
     (-1, -1),

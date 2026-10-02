@@ -19,15 +19,12 @@
 //! rasteriser is built without text support, and the diagrams such
 //! programs draw are mostly text.
 //!
-//! Integration seam for the visual registry: [`lookup`] says whether a tag
-//! is an external visual; [`ExternalVisual::cached`] gives its image and
-//! [`draw`] paints it into a rect. A fence with an external tag that is not
-//! cached yet should draw as its source (the EXT-07 fallback).
-
-#![allow(
-    dead_code,
-    reason = "integration seam: the visual registry (phase 2b) calls lookup, prepare_deck and draw"
-)]
+//! How they are wired: [`configure`] (called by `mdeck::run` with the user
+//! config) makes their tags fence tags the parser knows ([`configured_tag`]);
+//! the deck runs [`prepare_deck`] when it opens (window and export) and
+//! records each fence's image in its image cache; the block renderer draws
+//! it with [`draw`] in a box of [`BOX`] slide units, or shows the fence's
+//! source when no image could be made (the EXT-07 fallback).
 
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
@@ -41,6 +38,62 @@ use serde::Serialize;
 
 use crate::config::Config;
 use crate::parser;
+
+/// The box every external visual is asked to fill, in 1920x1080 slide
+/// units: the image is drawn into whatever space the design gives it,
+/// keeping its aspect, so the request (and the cache key) does not depend
+/// on the slide.
+pub const BOX: (u32, u32) = (1600, 800);
+
+/// The external visual tags configured for this process (see [`configure`]).
+static CONFIGURED: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
+
+/// Make the configured external visuals' tags known to the parser. Called
+/// once by `mdeck::run` with the user config (the parser and renderer never
+/// read configuration themselves).
+pub fn configure(config: &Config) {
+    let tags = all(config)
+        .into_iter()
+        .map(|v| &*Box::leak(v.tag.trim_start_matches('@').to_string().into_boxed_str()))
+        .collect();
+    let _ = CONFIGURED.set(tags);
+}
+
+/// The configured external visual tag (without `@`) equal to `tag`.
+pub fn configured_tag(tag: &str) -> Option<&'static str> {
+    CONFIGURED
+        .get()?
+        .iter()
+        .copied()
+        .find(|t| *t == tag.trim_start_matches('@'))
+}
+
+/// The request for `fence` under theme colours `tokens`.
+pub fn request_for(fence: &Fence, tokens: &mdeck_sdk::tokens::Tokens) -> Request {
+    let t = |c: mdeck_sdk::paint::Color| c.to_hex();
+    let tokens = BTreeMap::from([
+        ("background".to_string(), t(tokens.background)),
+        ("text".to_string(), t(tokens.text)),
+        ("heading".to_string(), t(tokens.heading)),
+        ("accent".to_string(), t(tokens.accent)),
+        ("accent-soft".to_string(), t(tokens.accent_soft)),
+        ("secondary".to_string(), t(tokens.secondary)),
+        ("muted".to_string(), t(tokens.muted)),
+        ("rule".to_string(), t(tokens.rule)),
+        ("code-background".to_string(), t(tokens.code_background)),
+        ("code-text".to_string(), t(tokens.code_text)),
+        ("positive".to_string(), t(tokens.positive)),
+        ("negative".to_string(), t(tokens.negative)),
+    ]);
+    Request {
+        tag: fence.tag.clone(),
+        source: fence.source.clone(),
+        tokens,
+        width: BOX.0,
+        height: BOX.1,
+        scale: SCALE,
+    }
+}
 
 /// How long a program may take before it is stopped.
 pub const TIMEOUT: Duration = Duration::from_secs(30);
@@ -81,13 +134,9 @@ fn normalise(tag: &str) -> String {
     format!("@{}", tag.trim().trim_start_matches('@'))
 }
 
-/// The external visual for `tag` in the user config, if one is configured.
-pub fn lookup(tag: &str) -> Option<ExternalVisual> {
-    lookup_in(&Config::load_or_default(), tag)
-}
-
-/// [`lookup`] in a given config.
-pub fn lookup_in(config: &Config, tag: &str) -> Option<ExternalVisual> {
+/// The external visual for `tag` in `config`, if one is configured.
+#[cfg(test)]
+fn lookup_in(config: &Config, tag: &str) -> Option<ExternalVisual> {
     let tag = normalise(tag);
     config
         .visuals
@@ -309,21 +358,23 @@ pub fn prepare_deck(
     presentation: &parser::Presentation,
     config: &Config,
     request: impl Fn(&Fence) -> Request,
-) -> Vec<String> {
+) -> (Vec<(Fence, PathBuf)>, Vec<String>) {
     let visuals = all(config);
     if visuals.is_empty() {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     }
+    let mut ready = Vec::new();
     let mut problems = Vec::new();
     for fence in fences(presentation, &visuals) {
         let Some(visual) = visuals.iter().find(|v| v.tag == fence.tag) else {
             continue;
         };
-        if let Err(e) = visual.ensure(deck, &request(&fence), TIMEOUT) {
-            problems.push(format!("slide {}: {}: {e:#}", fence.slide, fence.tag));
+        match visual.ensure(deck, &request(&fence), TIMEOUT) {
+            Ok(path) => ready.push((fence, path)),
+            Err(e) => problems.push(format!("slide {}: {}: {e:#}", fence.slide, fence.tag)),
         }
     }
-    problems
+    (ready, problems)
 }
 
 /// Paint a cached image into `rect`, as large as fits with its aspect kept,
@@ -476,13 +527,15 @@ mod tests {
         let found = fences(&pres, &all(&c));
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].source, "hello\n");
-        let problems = prepare_deck(&deck, &pres, &c, |f| request(&f.source));
+        let (ready, problems) = prepare_deck(&deck, &pres, &c, |f| request(&f.source));
         assert!(problems.is_empty(), "{problems:?}");
+        assert_eq!(ready.len(), 1);
+        assert!(ready[0].1.is_file());
         let cached: Vec<_> = std::fs::read_dir(cache_dir(&deck)).unwrap().collect();
         assert_eq!(cached.len(), 1);
 
         let broken = config("exit 1");
-        let problems = prepare_deck(&dir.join("other.md"), &pres, &broken, |f| {
+        let (_, problems) = prepare_deck(&dir.join("other.md"), &pres, &broken, |f| {
             request(&f.source)
         });
         assert_eq!(problems.len(), 1);

@@ -5,20 +5,17 @@
 //! first image sits in a panel on the board. The countdown is drawn in solid
 //! flaps, the board scrambles awake, and the end words clear flap by flap.
 
+pub mod design;
 pub mod draw;
 mod flaps;
 pub mod layout;
 mod wheel;
 mod writer;
 
-use eframe::egui;
+use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Needs};
+use mdeck_sdk::paint::{Painter, Rect};
+use mdeck_sdk::stage::{Frame, Look, Moment, Stage};
 
-use super::stage::{FrameCx, Look, Moment, Stage};
-use super::{Capabilities, Engine, EngineDef};
-use crate::parser::{Block, Slide};
-use crate::render::illustration::Library;
-use crate::render::image_cache::{ImageCache, ImageState};
-use crate::theme::Theme;
 use draw::{Geometry, Labels, Scene, View};
 use layout::{Board, COLS, Cell, PANEL, ROWS, Style};
 
@@ -27,18 +24,20 @@ use layout::{Board, COLS, Cell, PANEL, ROWS, Style};
 pub const END_CAPTION_DELAY: f32 = 5.8;
 
 pub static DEF: EngineDef = EngineDef {
+    name: "splitflap",
+    summary: "A departure board: every slide in split flaps that turn to the next.",
     capabilities: Capabilities {
-        paints: true,
         board: true,
+        transition: true,
         countdown: true,
-        end_act: true,
+        ending: true,
         ..Capabilities::NONE
     },
-    create: || Box::new(SplitFlap::new()),
-    end_caption_delay: END_CAPTION_DELAY,
-    medium: None,
-    render_slide: Some(render_slide),
-    problems: Some(layout::problems),
+    settings: &[],
+    needs: Needs { page: false },
+    ending_caption_delay: END_CAPTION_DELAY,
+    create: |_| Box::new(SplitFlap::new()),
+    board: Some(&design::BOARD),
 };
 /// The end words stay this long, then the board clears.
 const END_WORDS: f32 = 3.6;
@@ -169,14 +168,14 @@ impl Default for SplitFlap {
 }
 
 impl Engine for SplitFlap {
-    fn update(&mut self, cx: &FrameCx, stage: &Stage, _lib: &mut Library) {
+    fn update(&mut self, frame: &Frame, stage: &Stage) {
         let look = stage.moment.look(END_WORDS);
-        let key = (stage.index, stage.reveal, look, stage.title);
+        let key = (stage.index, stage.step, look, stage.title);
         if self.key != Some(key) {
             let board = match look {
                 Look::Slide => stage
                     .slide
-                    .map(|s| layout::lay_out(s, stage.title, stage.reveal))
+                    .map(|s| layout::lay_out(s, stage.title, stage.step))
                     .unwrap_or_else(Board::blank),
                 Look::Digit(d) => layout::digit(d),
                 Look::Burst => layout::scramble(7),
@@ -185,16 +184,16 @@ impl Engine for SplitFlap {
             };
             self.panel = look == Look::Slide && board.image.is_some();
             let brisk = !matches!(look, Look::Slide);
-            self.retarget(&board, cx.still, brisk);
+            self.retarget(&board, frame.still, brisk);
             self.key = Some(key);
         }
-        if !cx.still {
-            self.advance(cx.dt);
+        if !frame.still {
+            self.advance(frame.dt);
         }
     }
 
-    fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, stage: &Stage) {
-        let geo = Geometry::new(cx.rect, cx.scale);
+    fn paint(&mut self, painter: &mut Painter, frame: &Frame, stage: &Stage) {
+        let geo = Geometry::new(frame.rect, frame.scale);
         let views = self.views();
         let hidden = self.panel.then(|| panel_rect(&geo));
         let right = format!("{:02} / {:02}", stage.index + 1, stage.count.max(1));
@@ -207,124 +206,28 @@ impl Engine for SplitFlap {
             hidden,
             labels,
         };
-        draw::paint(ui, &geo, cx.theme, &scene, cx.opacity, cx.scale);
-        if !cx.still && views.iter().any(|v| v.t > 0.0) || self.wait.iter().any(|w| *w > 0.0) {
-            ui.ctx().request_repaint();
-        }
+        draw::paint(
+            painter,
+            &geo,
+            frame.tokens,
+            &scene,
+            frame.opacity,
+            frame.scale,
+        );
+    }
+
+    /// Repaint while any flap is still turning (or waiting to).
+    fn animating(&self) -> bool {
+        self.shown
+            .iter()
+            .zip(&self.target)
+            .any(|(shown, target)| *shown != target.ch)
     }
 }
 
 /// The image panel: the right-hand columns of the board, inside its frame.
-fn panel_rect(geo: &Geometry) -> egui::Rect {
+fn panel_rect(geo: &Geometry) -> Rect {
     geo.area(COLS - PANEL + 1, 0, COLS, ROWS)
-}
-
-/// Draw a slide the way the board shows it when no engine runs live
-/// (thumbnails in the grid, the overview zoom), and the slide's image in
-/// its panel always. `engine_drew`: the engine already drew the board.
-pub fn render_slide(
-    block: &crate::render::BlockCx,
-    slide: &Slide,
-    rect: egui::Rect,
-    cx: &crate::render::SlideContext,
-) {
-    let crate::render::BlockCx {
-        ui,
-        theme,
-        opacity,
-        scale,
-        image_cache,
-        reveal_step: reveal,
-        ..
-    } = *block;
-    let title = crate::render::ember::is_title(slide, cx.index);
-    let board = layout::lay_out(slide, title, reveal);
-    let geo = Geometry::new(rect, scale);
-    if !cx.engine_drew {
-        let views: Vec<View> = board
-            .cells
-            .iter()
-            .map(|c| View {
-                from: *c,
-                to: *c,
-                t: 0.0,
-            })
-            .collect();
-        let right = format!("{:02} / {:02}", cx.index + 1, cx.count.max(1));
-        let scene = Scene {
-            views: &views,
-            hidden: board.image.map(|_| panel_rect(&geo)),
-            labels: Some(Labels {
-                left: cx.deck_title.as_deref().unwrap_or(""),
-                right: &right,
-            }),
-        };
-        draw::paint(ui, &geo, theme, &scene, opacity, scale);
-    }
-    match board.image.and_then(|i| slide.blocks.get(i)) {
-        Some(Block::Image { path, .. }) => draw_panel_image(
-            ui,
-            path,
-            panel_rect(&geo),
-            theme,
-            opacity,
-            image_cache,
-            scale,
-        ),
-        // the composed evidence view, annotations and all
-        Some(Block::Chart {
-            kind: crate::parser::Chart::Thermal,
-            content,
-            step_base,
-        }) => {
-            let panel = panel_rect(&geo).shrink(8.0 * scale);
-            let block = block.after_steps(*step_base);
-            crate::render::thermal::draw(&block, content, panel.min, panel.width(), panel.height());
-        }
-        _ => {}
-    }
-}
-
-/// The image fills the panel (cropped to cover it), with the flaps' corner
-/// radius and a hairline frame.
-fn draw_panel_image(
-    ui: &egui::Ui,
-    path: &str,
-    panel: egui::Rect,
-    theme: &Theme,
-    opacity: f32,
-    image_cache: &ImageCache,
-    scale: f32,
-) {
-    let painter = ui.painter();
-    let radius = 6.0 * scale;
-    match image_cache.state(ui.ctx(), path) {
-        ImageState::Ready(texture) => {
-            let ts = texture.size_vec2();
-            let k = (panel.width() / ts.x).max(panel.height() / ts.y);
-            let seen = egui::vec2(panel.width() / k / ts.x, panel.height() / k / ts.y);
-            let uv = egui::Rect::from_center_size(egui::pos2(0.5, 0.5), seen);
-            painter.add(
-                egui::epaint::RectShape::filled(
-                    panel,
-                    radius,
-                    egui::Color32::WHITE.gamma_multiply(opacity),
-                )
-                .with_texture(texture.id(), uv),
-            );
-            crate::render::hints::push(ui.ctx(), crate::render::hints::Hint::Frame(panel));
-        }
-        ImageState::Loading => {}
-        ImageState::Missing => {
-            painter.rect_filled(panel, radius, theme.code_background.gamma_multiply(opacity));
-        }
-    }
-    painter.rect_stroke(
-        panel,
-        radius,
-        egui::Stroke::new(1.0 * scale, theme.rule.gamma_multiply(opacity)),
-        egui::StrokeKind::Outside,
-    );
 }
 
 #[cfg(test)]
@@ -365,6 +268,41 @@ mod tests {
         assert!(sf.views().iter().all(|v| v.t == 0.0 && v.from == v.to));
         let text: String = sf.shown.iter().collect();
         assert!(text.contains("ON TIME"));
+    }
+
+    /// The board draws its flaps and the heading's characters (accent ink)
+    /// headless, and settles at once in a still.
+    #[test]
+    fn the_board_draws_headless() {
+        use mdeck_sdk::content::{Block, Inline, Slide};
+        use mdeck_sdk::paint::Color;
+        use mdeck_sdk::testing::Headless;
+        use mdeck_sdk::tokens::{EngineSettings, Tokens};
+
+        let slide = Slide {
+            blocks: vec![Block::Heading {
+                level: 1,
+                inlines: vec![Inline::Text("MMMMMMMMMMMMMMMMMMMMMMMMMMMMMM".into())],
+            }],
+            design: "points".into(),
+            ..Default::default()
+        };
+        let mut h = Headless::new(480, 270);
+        let tokens = Tokens::default();
+        let settings = EngineSettings::new();
+        let mut frame = Frame::new(h.rect(), &tokens, &settings);
+        frame.still = true;
+        let mut stage = Stage::new(Moment::Slide);
+        stage.slide = Some(&slide);
+        let mut sf = SplitFlap::new();
+        let img = h.render_engine(&mut sf, &frame, &stage);
+        assert!(!sf.animating(), "a still is at rest");
+        let reddish = |c: Color| c.r() > 120 && c.g() < 90 && c.b() < 70;
+        let ink = (0..img.width())
+            .flat_map(|x| (0..img.height()).map(move |y| (x, y)))
+            .filter(|&(x, y)| img.get(x, y).is_some_and(reddish))
+            .count();
+        assert!(ink > 100, "the heading's characters show: {ink}");
     }
 
     #[test]

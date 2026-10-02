@@ -317,7 +317,44 @@ impl ToEgui for TextureFilter {
 /// ```
 #[derive(Clone)]
 pub struct Texture {
-    pub(crate) handle: egui::TextureHandle,
+    pub(crate) handle: TextureRef,
+}
+
+/// What a [`Texture`] points at: a texture mdeck uploaded (freed with its
+/// last clone), or egui's font atlas (owned by egui).
+#[derive(Clone)]
+pub(crate) enum TextureRef {
+    Owned(egui::TextureHandle),
+    FontAtlas([usize; 2]),
+}
+
+impl TextureRef {
+    pub(crate) fn id(&self) -> egui::TextureId {
+        match self {
+            TextureRef::Owned(h) => h.id(),
+            TextureRef::FontAtlas(_) => egui::TextureId::default(),
+        }
+    }
+
+    pub(crate) fn size(&self) -> [usize; 2] {
+        match self {
+            TextureRef::Owned(h) => h.size(),
+            TextureRef::FontAtlas(size) => *size,
+        }
+    }
+
+    /// Replace the pixels; the font atlas is egui's and stays as it is.
+    pub(crate) fn set(&mut self, image: impl Into<egui::ImageData>, options: egui::TextureOptions) {
+        if let TextureRef::Owned(h) = self {
+            h.set(image, options);
+        }
+    }
+}
+
+impl From<egui::TextureHandle> for TextureRef {
+    fn from(h: egui::TextureHandle) -> Self {
+        TextureRef::Owned(h)
+    }
 }
 
 impl Texture {

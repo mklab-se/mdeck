@@ -1,20 +1,19 @@
-//! Drawing paths: points ordered into strokes a pen can follow.
+//! Pen strokes: points ordered into strokes a pen can follow.
 //! A nearest-neighbour tour, untangled with 2-opt and rounded with Chaikin's
 //! corner cutting, then timed so the pen lifts on long jumps. Used by the
 //! art engines' reveal order and their line drawings.
 
-use eframe::egui::{Pos2, Rect};
-
-use crate::engines::stage::Place;
+use mdeck_sdk::paint::{Pos2, Rect};
+use mdeck_sdk::stage::Place;
 
 /// Most points a picture is traced through. Clouds are in importance order
 /// (the first points sketch the silhouette) and glyph masks are shuffled, so
 /// the first points are the right ones either way; the tour is quadratic.
 pub const MAX_POINTS: usize = 560;
 
-/// A drawing: the path through its points and when the pen reaches each.
+/// A pen drawing: the path through its points and when the pen reaches each.
 #[derive(Clone, Debug)]
-pub struct Picture {
+pub struct Strokes {
     /// Points in slide fractions.
     pub points: Vec<Pos2>,
     /// `pen[i]`: the move from point `i - 1` to `i` is drawn (else the
@@ -29,7 +28,7 @@ pub struct Picture {
     pub born: f32,
 }
 
-impl Picture {
+impl Strokes {
     /// The pen's position `t` seconds into the drawing, and whether it is down.
     pub fn tip(&self, t: f32) -> Option<(Pos2, bool)> {
         if self.points.is_empty() || t < 0.0 || t >= self.duration {
@@ -178,7 +177,7 @@ pub fn plan(
     weight: f32,
     aspect: f32,
     born: f32,
-) -> Picture {
+) -> Strokes {
     let dist = |a: Pos2, b: Pos2| (((a.x - b.x) * aspect).powi(2) + (a.y - b.y).powi(2)).sqrt();
     let mut points = Vec::new();
     let mut pen = Vec::new();
@@ -210,7 +209,7 @@ pub fn plan(
         acc += c;
         at.push(acc / total * duration);
     }
-    Picture {
+    Strokes {
         points,
         pen,
         at,

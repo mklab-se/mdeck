@@ -6,7 +6,7 @@ use eframe::egui::Color32;
 
 use super::arrangement::{Emphasis, Font, Ink, RoleStyle, Size};
 use super::color::mix;
-use super::{EngineKind, Theme, contrast};
+use super::{EngineId, Theme, contrast};
 use crate::parser::Design;
 
 /// Minimum contrast ratios (WCAG 2 AA: 4.5 for body text, 3 for large text).
@@ -161,29 +161,25 @@ fn size_px(t: &Theme, s: &RoleStyle) -> f32 {
     base * s.scale
 }
 
-/// Settings each engine reads from the theme's `engine:` block. Phase 2b
-/// moves this into each engine's definition (the SDK's `EngineSettings`
-/// reports unread keys itself).
-pub fn engine_keys(engine: EngineKind) -> &'static [&'static str] {
-    const TINTS: &[&str] = &["light", "cool"];
-    const ART: &[&str] = &["kind", "style", "references"];
-    match engine {
-        EngineKind::Plain | EngineKind::SplitFlap => &[],
-        EngineKind::Particles | EngineKind::Led | EngineKind::Blocks => TINTS,
-        EngineKind::Thermal => &["palette", "drift"],
-        EngineKind::Line => &["surface", "light", "cool", "kind", "style", "references"],
-        EngineKind::Sketch => &["light", "cool", "kind", "style", "references"],
-        EngineKind::Watercolour | EngineKind::Darkroom => ART,
+/// Settings `engine` reads from the theme's `engine:` block: the keys its
+/// definition declares (`EngineDef::settings`), plus the core's own keys
+/// that apply to it (the particle tints on every engine that paints a layer
+/// under the copy, the art keys on an engine with a medium).
+pub fn engine_keys(engine: EngineId) -> Vec<&'static str> {
+    let mut keys: Vec<&'static str> = engine.def().settings.iter().map(|s| s.key).collect();
+    if engine.paints() && !engine.is_board() {
+        keys.extend(["light", "cool"]);
     }
+    if engine.medium().is_some() {
+        keys.extend(["kind", "style", "references"]);
+    }
+    keys
 }
 
 /// Engines that draw on the theme's `page:` (paper, a slate) and look wrong
-/// without one.
-fn needs_page(engine: EngineKind) -> bool {
-    matches!(
-        engine,
-        EngineKind::Line | EngineKind::Sketch | EngineKind::Watercolour
-    )
+/// without one (ENG-12).
+fn needs_page(engine: EngineId) -> bool {
+    engine.def().needs.page
 }
 
 /// Keys of `theme` that have no effect with its engine and design set

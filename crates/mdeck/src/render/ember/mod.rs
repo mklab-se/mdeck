@@ -10,8 +10,6 @@ use eframe::egui::Color32;
 use crate::parser::{Design, Slide};
 use crate::theme::Theme;
 
-#[cfg(feature = "thermal")]
-pub use crate::render::designs::COLD_OPEN_HOLD;
 pub use chrome::draw_chrome;
 
 fn fade(c: Color32, a: f32) -> Color32 {

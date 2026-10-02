@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::design::DesignCx;
+use crate::design::{DesignCx, DesignServices};
 use crate::geometry::Hint;
 use crate::paint::painter::FontFamilies;
 use crate::paint::{Color, FontRole, FromEgui, Painter, Pos2, Rect, ToEgui, Vec2};
@@ -101,8 +101,34 @@ pub fn design_cx<'a>(
         index,
         animate,
         published: Vec::new(),
+        services: None,
+        engine_live: false,
+        deck_title: None,
+        count: 0,
         ui,
     }
+}
+
+/// Lend a design set the host's images and visuals.
+pub fn with_services<'a>(
+    mut cx: DesignCx<'a>,
+    services: &'a mut dyn DesignServices,
+) -> DesignCx<'a> {
+    cx.services = Some(services);
+    cx
+}
+
+/// Tell a design set the deck's title and slide count.
+pub fn with_deck(mut cx: DesignCx<'_>, title: Option<String>, count: usize) -> DesignCx<'_> {
+    cx.deck_title = title;
+    cx.count = count;
+    cx
+}
+
+/// Tell a board's design set whether its engine painted the slide live.
+pub fn with_engine_live(mut cx: DesignCx<'_>, live: bool) -> DesignCx<'_> {
+    cx.engine_live = live;
+    cx
 }
 
 /// The geometry a design set published.
@@ -122,6 +148,13 @@ pub fn transition_cx(
         tokens,
         rect,
         forward,
+    }
+}
+
+/// An egui texture as an SDK texture.
+pub fn texture(handle: egui::TextureHandle) -> crate::paint::Texture {
+    crate::paint::Texture {
+        handle: handle.into(),
     }
 }
 

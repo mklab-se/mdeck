@@ -33,7 +33,7 @@ impl Theme {
         let mut warnings = Vec::new();
         let palette = Palette::resolve(f, &mut warnings)?;
         let (engine, countdown, transition) = settings::engine_and_countdown(f, &mut warnings)?;
-        let surface = settings::surface(f)?;
+        settings::surface(f)?;
         let fonts = fonts::resolve(&f.fonts, &mut warnings)?;
         let line_height = settings::line_height(f)?;
         let fill_opacity = settings::fill_opacity(f)?;
@@ -41,7 +41,7 @@ impl Theme {
         let logo = extras::logo(&f.logo, &mut warnings)?;
         let page = extras::page(&f.page)?;
         let art = extras::art(f)?;
-        let heat = extras::heat(&f.heat()?)?;
+        extras::heat(&f.heat()?)?;
         let [h1_size, h2_size, h3_size, body_size, code_size] = settings::sizes(&f.sizes)?;
         let arrangements = super::arrangement::Arrangements::resolve(
             f.designs
@@ -55,11 +55,12 @@ impl Theme {
             range("radius", f.radius, 0.0, 100.0)?.unwrap_or(super::spacing::DEFAULT_RADIUS);
 
         let p = palette.flattened();
-        let theme = Theme {
+        let mut theme = Theme {
             name: f.name.clone().unwrap_or_else(|| name.to_string()),
             engine,
+            copy_hold: 0.0,
+            engine_numbers_slides: false,
             countdown,
-            surface,
             engine_block: f.engine_block().settings,
             arrangements,
             spacing,
@@ -96,10 +97,10 @@ impl Theme {
             syntax,
             logo,
             page,
-            heat,
             art,
             source: None,
         };
+        theme.set_engine(engine);
         Ok(Built { theme, warnings })
     }
 }
@@ -151,7 +152,6 @@ mod tests {
     fn invalid_values_are_errors() {
         let bad = |yaml: &str| Theme::build("x", &over_dark(yaml)).unwrap_err().to_string();
         assert!(bad("colors: { accent: 'orange' }").contains("colors.accent"));
-        assert!(bad("engine: fireworks").contains("engine"));
         assert!(bad("countdown: loud").contains("countdown"));
         assert!(bad("sizes: { h1: -3 }").contains("sizes.h1"));
         assert!(bad("charts: { fill-opacity: 2 }").contains("fill-opacity"));

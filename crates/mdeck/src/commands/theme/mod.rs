@@ -112,14 +112,23 @@ fn report(name: &str, l: &Lookup) -> bool {
                 if t.countdown { "on" } else { "off" }
             );
             let advice = validate::review(t);
+            // unknown keys are already in `inert`, with what the engine reads
+            let engine: Vec<String> = crate::engines::settings_problems(t)
+                .into_iter()
+                .filter(|m| !m.contains("unknown setting"))
+                .collect();
             let inert = validate::inert(t);
-            for w in built.warnings.iter().chain(&inert) {
+            for w in built.warnings.iter().chain(&inert).chain(&engine) {
                 println!("  {} {w}", "warning:".yellow().bold());
             }
             for a in &advice {
                 println!("  {} {a}", "contrast:".yellow().bold());
             }
-            if built.warnings.is_empty() && advice.is_empty() && inert.is_empty() {
+            if built.warnings.is_empty()
+                && advice.is_empty()
+                && inert.is_empty()
+                && engine.is_empty()
+            {
                 println!("  {}", "No issues found.".green());
             }
             true

@@ -120,9 +120,19 @@ fn collect(
             message,
         })
         .collect());
+    add(crate::engines::settings_problems(&theme)
+        .into_iter()
+        .map(|message| CheckWarning {
+            slide: 0,
+            line: 0,
+            category: CheckCategory::Engine,
+            message: format!("theme {}: {message}", theme.name),
+        })
+        .collect());
     add(illustration_warnings(presentation, file, &theme));
     add(design_warnings(presentation));
     add(engine_warnings(presentation, theme.engine));
+    add(engine::picture_stage_warnings(presentation, &theme));
     add(asset_warnings(file, presentation, &theme));
     Ok(report)
 }

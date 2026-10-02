@@ -10,7 +10,7 @@ use std::time::Instant;
 
 use eframe::egui;
 
-use crate::engines::{self, CountPhase, EngineKind, Host};
+use crate::engines::{self, CountPhase, EngineId, Host};
 use crate::parser::{self, Presentation};
 use crate::render::art::gallery::DeckArt;
 use crate::render::background::{Backgrounds, FadeIn};
@@ -82,6 +82,7 @@ impl Deck {
         let mut image_cache = ImageCache::new(dir);
         load_thermal(&mut image_cache, &presentation, quiet);
         let max_steps = slide_max_steps(&mut presentation, image_cache.thermal());
+        prepare_external(&mut image_cache, &file, &presentation, theme, quiet);
         let mut art = DeckArt::new(Some(&file), background_art);
         art.sync(&presentation, theme);
         let mut deck = Self {
@@ -95,7 +96,7 @@ impl Deck {
             logos: Logos::default(),
             backgrounds: Backgrounds::default(),
             background_fade: FadeIn::default(),
-            engine: Host::new(EngineKind::Plain),
+            engine: Host::new(EngineId::plain()),
         };
         deck.refresh_logos(theme);
         deck.refresh_backgrounds(quiet);
@@ -118,6 +119,13 @@ impl Deck {
         self.presentation = presentation;
         self.image_cache.clear();
         load_thermal(&mut self.image_cache, &self.presentation, false);
+        prepare_external(
+            &mut self.image_cache,
+            &self.file,
+            &self.presentation,
+            theme,
+            false,
+        );
         self.illustrations.reset();
         self.art.invalidate();
         self.max_steps = slide_max_steps(&mut self.presentation, self.image_cache.thermal());
@@ -216,6 +224,7 @@ impl Deck {
             still: frame.still,
             deck_title: self.presentation.meta.title.as_deref(),
             count,
+            deck_dir: deck_dir(&self.file),
         };
         match rehearse_at {
             Some(t) => self.engine.rehearse(ui, shot, &mut self.illustrations, t),
@@ -311,6 +320,32 @@ fn load_thermal(cache: &mut ImageCache, presentation: &Presentation, quiet: bool
     }
 }
 
+/// Run the external visual programs whose images the deck still lacks
+/// (EXT-18) and record each fence's image; problems are printed unless
+/// `quiet`.
+fn prepare_external(
+    cache: &mut ImageCache,
+    file: &Path,
+    presentation: &Presentation,
+    theme: &Theme,
+    quiet: bool,
+) {
+    let config = crate::config::Config::load_or_default();
+    let tokens = engines::host::convert::tokens(theme);
+    let (ready, problems) =
+        crate::extensions::external::prepare_deck(file, presentation, &config, |fence| {
+            crate::extensions::external::request_for(fence, &tokens)
+        });
+    for (fence, image) in ready {
+        cache.set_external(&fence.tag, &fence.source, image);
+    }
+    if !quiet {
+        for p in problems {
+            eprintln!("warning: visual: {p}");
+        }
+    }
+}
+
 fn deck_dir(file: &Path) -> &Path {
     file.parent().unwrap_or(Path::new("."))
 }
@@ -356,10 +391,10 @@ pub fn deck_theme(
 /// The engine override for a deck: `--engine`, then its `engine` (whose
 /// problems are printed unless quiet). `None` keeps the theme's own.
 pub fn deck_engine(
-    cli: Option<EngineKind>,
+    cli: Option<EngineId>,
     presentation: &Presentation,
     quiet: bool,
-) -> Option<EngineKind> {
+) -> Option<EngineId> {
     if cli.is_some() {
         return cli;
     }
@@ -398,8 +433,8 @@ mod tests {
     fn a_cli_engine_wins_over_the_deck() {
         let pres = parser::parse("---\nengine: led\n---\n# A\n");
         assert_eq!(
-            deck_engine(Some(EngineKind::Plain), &pres, true),
-            Some(EngineKind::Plain)
+            deck_engine(Some(EngineId::plain()), &pres, true),
+            Some(EngineId::plain())
         );
     }
 }

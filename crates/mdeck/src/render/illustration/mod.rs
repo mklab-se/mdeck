@@ -192,29 +192,30 @@ pub fn user_dir() -> Option<PathBuf> {
 
 include!(concat!(env!("OUT_DIR"), "/builtin_illustrations.rs"));
 
-type ParsedBuiltins = Mutex<Vec<(&'static str, Arc<Cloud>)>>;
+type ParsedBuiltins = Mutex<Vec<(String, Arc<Cloud>)>>;
 
+/// A point cloud embedded in the binary: mdeck's own and every extension's,
+/// through the registry (EXT-08: the deck and user folders come first).
 fn builtin(name: &str) -> Option<Arc<Cloud>> {
     static PARSED: OnceLock<ParsedBuiltins> = OnceLock::new();
-    let (_, text) = BUILTIN.iter().find(|(n, _)| *n == name)?;
+    let bytes = crate::registry::get().point_cloud_bytes(name)?;
     let cache = PARSED.get_or_init(|| Mutex::new(Vec::new()));
     let mut guard = cache.lock().unwrap_or_else(|p| p.into_inner());
-    if let Some((_, c)) = guard.iter().find(|(n, _)| *n == name) {
+    if let Some((_, c)) = guard.iter().find(|(n, _)| n == name) {
         return Some(Arc::clone(c));
     }
+    let text = String::from_utf8_lossy(bytes);
     let cloud = Arc::new(
-        Cloud::parse(text)
+        Cloud::parse(&text)
             .unwrap_or_else(|e| panic!("built-in illustration `{name}` is invalid: {e}")),
     );
-    if let Some(slot) = BUILTIN.iter().find(|(n, _)| *n == name) {
-        guard.push((slot.0, Arc::clone(&cloud)));
-    }
+    guard.push((name.to_string(), Arc::clone(&cloud)));
     Some(cloud)
 }
 
-/// Names of the built-in clouds, in library order.
+/// Names of the embedded clouds, in library order.
 pub fn builtin_names() -> Vec<&'static str> {
-    BUILTIN.iter().map(|(n, _)| *n).collect()
+    crate::registry::get().point_cloud_names().collect()
 }
 
 /// Load a cloud from a file.

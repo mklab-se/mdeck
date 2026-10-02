@@ -1,11 +1,11 @@
 //! Casting a scene: which particles join which group, where each one rests,
 //! and which neighbours are joined by hairlines.
 
-use eframe::egui::Rect;
+use mdeck_sdk::paint::Rect;
 
 use super::Field;
 use super::motion::path_point;
-use crate::render::particles::{Group, Home, Rng};
+use crate::engines::particles::{Group, Home, Rng};
 
 /// Contiguous index ranges of an `n`-particle pool, one per group, sized by
 /// share (the last group takes the remainder).
@@ -175,15 +175,15 @@ fn home_point(home: &Home, rect: Rect, min_side: f32, rng: &mut Rng) -> (f32, f3
 mod tests {
     use std::sync::Arc;
 
-    use eframe::egui::{self, Pos2};
+    use mdeck_sdk::paint::{Pos2, Vec2};
 
     use super::*;
-    use crate::render::particles::Scene;
+    use crate::engines::particles::Scene;
 
     #[test]
     fn a_mask_group_takes_the_first_points_in_order() {
         let mut field = Field::new(4, 1);
-        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1000.0, 1000.0));
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(1000.0, 1000.0));
         field.scatter(rect);
         let points: Vec<[f32; 2]> = (0..10).map(|i| [i as f32 / 10.0, 0.5]).collect();
         let scene = Scene::new(vec![Group::new(

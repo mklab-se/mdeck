@@ -42,6 +42,20 @@ impl fmt::Display for RegistryError {
 
 impl std::error::Error for RegistryError {}
 
+/// One registration: what kind of thing, its name and who registered it.
+///
+/// See [`Registry::registrations`] for an example.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Registration<'a> {
+    /// `engine`, `visual`, `design set`, `transition`, `theme` or `point cloud`.
+    pub kind: &'static str,
+    /// The name it is registered under.
+    pub name: &'a str,
+    /// `mdeck` for the built-ins, else the origin set with
+    /// [`Registry::set_origin`].
+    pub origin: &'a str,
+}
+
 /// An extension's entry point: register everything it brings.
 ///
 /// ```
@@ -300,6 +314,35 @@ impl Registry {
     /// ```
     pub fn theme_names(&self) -> impl Iterator<Item = &str> + '_ {
         self.themes.keys().map(String::as_str)
+    }
+
+    /// Everything registered, kind by kind and by name within a kind, with
+    /// who registered it (`mdeck extensions list`).
+    ///
+    /// ```
+    /// let mut r = mdeck_sdk::registry::Registry::new();
+    /// r.set_origin("acme");
+    /// r.theme("dusk", "name: dusk\n").unwrap();
+    /// let all: Vec<_> = r.registrations().collect();
+    /// assert_eq!((all[0].kind, all[0].name, all[0].origin), ("theme", "dusk", "acme"));
+    /// ```
+    pub fn registrations(&self) -> impl Iterator<Item = Registration<'_>> + '_ {
+        fn of<'a, T>(
+            kind: &'static str,
+            map: &'a BTreeMap<String, Entry<T>>,
+        ) -> impl Iterator<Item = Registration<'a>> + 'a {
+            map.iter().map(move |(name, e)| Registration {
+                kind,
+                name,
+                origin: &e.origin,
+            })
+        }
+        of("engine", &self.engines)
+            .chain(of("visual", &self.visuals))
+            .chain(of("design set", &self.design_sets))
+            .chain(of("transition", &self.transitions))
+            .chain(of("theme", &self.themes))
+            .chain(of("point cloud", &self.point_clouds))
     }
 
     /// The bytes of the embedded point cloud `name`.

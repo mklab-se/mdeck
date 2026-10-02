@@ -11,11 +11,18 @@ readme = "../../README.md"
 keywords = ["markdown", "presentation", "slides"]
 categories = ["command-line-utilities"]
 
+[lib]
+name = "mdeck"
+path = "src/lib.rs"
+
 [[bin]]
 name = "mdeck"
 path = "src/main.rs"
 
 [dependencies]
+# The extension interfaces the built-ins register through (EXT-06).
+# `unstable-egui`: built-in visuals still draw with egui (a 2.0 deferral).
+mdeck-sdk = { workspace = true, features = ["unstable-egui"] }
 eframe.workspace = true
 clap.workspace = true
 clap_complete.workspace = true
@@ -44,7 +51,15 @@ ratex-layout.workspace = true
 ratex-types.workspace = true
 pdf-writer.workspace = true
 flate2.workspace = true
-mdeck-sdk.workspace = true
+
+[dev-dependencies]
+# EXT-14 end to end: an SDK tutorial engine registered next to the built-ins.
+engine-ambience = { path = "../../examples/engine-ambience" }
+
+# Runs on the main thread (no test harness): export opens a window.
+[[test]]
+name = "extension_engine"
+harness = false
 
 [features]
 default = [

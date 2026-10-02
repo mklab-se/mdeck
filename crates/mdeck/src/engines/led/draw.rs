@@ -2,13 +2,15 @@
 //! flicker, shimmer, the ambient aurora, a reveal sweep, the burst and the
 //! marquee), then one mesh of lenses, bloom, glow and cores.
 
-use eframe::egui::{self, Color32, Pos2, Rect};
+use mdeck_sdk::paint::{
+    Color as Color32, Mesh, Pos2, Rect, SPRITE_CORE, SPRITE_GLOW, SPRITE_LENS, Texture, Vec2,
+    additive, mix, premul,
+};
+use mdeck_sdk::tokens::Tokens;
 
 use super::light::border_positions;
 use super::{Grid, Led};
 use crate::engines::hash01;
-use crate::engines::paint::{SPRITE_CORE, SPRITE_GLOW, SPRITE_LENS, additive, mix, premul};
-use crate::theme::Theme;
 
 /// A lit LED: its index, level and colour.
 type Lit = (usize, f32, Color32);
@@ -98,20 +100,20 @@ impl Led {
 /// glow (additive), then crisp cores on top, so bright areas light the air
 /// in front of the wall.
 pub(super) fn wall(
-    texture: egui::TextureId,
+    texture: Texture,
     grid: &Grid,
     lit: &[Lit],
     lens: Color32,
     opacity: f32,
-) -> egui::Mesh {
+) -> Mesh {
     let pitch = grid.pitch;
     let n = grid.len();
-    let mut mesh = egui::Mesh::with_texture(texture);
-    mesh.reserve_triangles(n * 2 * 3);
-    mesh.reserve_vertices(n * 4 * 3);
+    let mut mesh = Mesh::with_texture(texture);
+    mesh.indices.reserve(n * 2 * 3);
+    mesh.vertices.reserve(n * 4 * 3);
     let mut sprite = |p: Pos2, r: f32, uv: Rect, color: Color32| {
-        mesh.add_rect_with_uv(
-            Rect::from_center_size(p, egui::vec2(r * 2.0, r * 2.0)),
+        mesh.add_rect_uv(
+            Rect::from_center_size(p, Vec2::new(r * 2.0, r * 2.0)),
             uv,
             color,
         );
@@ -150,7 +152,7 @@ pub(super) struct Palette {
 }
 
 impl Palette {
-    pub(super) fn of(theme: &Theme) -> Self {
+    pub(super) fn of(theme: &Tokens) -> Self {
         Palette {
             stops: [theme.accent, theme.accent_soft, theme.particle_cool],
             bulb: theme.secondary,
@@ -170,7 +172,7 @@ impl Palette {
 
 /// An unlit lens: the background, lifted a little (pressed in a little on a
 /// light theme).
-pub(super) fn lens_color(theme: &Theme) -> Color32 {
+pub(super) fn lens_color(theme: &Tokens) -> Color32 {
     let bg = theme.background;
     let luma = (0.299 * bg.r() as f32 + 0.587 * bg.g() as f32 + 0.114 * bg.b() as f32) / 255.0;
     if luma > 0.5 {

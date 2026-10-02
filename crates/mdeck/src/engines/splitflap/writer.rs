@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 
 use super::layout::{Cell, Style};
 use super::wheel::{SOLID, flap_chars};
-use crate::parser::{Block, Chart, Inline, ListItem, ListMarker};
+use mdeck_sdk::content::{Block, Inline, ListItem, ListMarker};
 
 /// One styled line of text, before placement.
 #[derive(Clone, Debug, Default)]
@@ -363,27 +363,17 @@ impl Writer {
                     self.blank(0);
                     self.wrap(Vec::new(), cells, 0, width, 0);
                 }
-                Block::List {
-                    ordered,
-                    start,
-                    items,
-                } => {
+                Block::List { ordered, items } => {
                     self.blank(0);
-                    self.list(items, *ordered, 0, *start, width);
+                    self.list(items, *ordered, 0, 1, width);
                 }
-                Block::BlockQuote { blocks } | Block::Callout { blocks, .. } => {
+                Block::BlockQuote { inlines } => {
                     let mut cells = vec![Cell {
                         ch: '"',
                         style: Style::Accent,
                     }];
-                    let mut text = Vec::new();
-                    for (i, p) in Block::quote_paragraphs(blocks).into_iter().enumerate() {
-                        if i > 0 {
-                            text.push(Inline::Text(" ".into()));
-                        }
-                        text.extend(p);
-                    }
-                    self.styled(&text, Style::Normal, &mut cells);
+                    // the quote's paragraphs (joined by line breaks) run on
+                    self.styled(inlines, Style::Normal, &mut cells);
                     cells.push(Cell {
                         ch: '"',
                         style: Style::Accent,
@@ -391,41 +381,27 @@ impl Writer {
                     self.blank(0);
                     self.wrap(Vec::new(), cells, 1, width, 0);
                 }
-                Block::Table { headers, rows, .. } => {
+                Block::Table { headers, rows } => {
                     self.blank(0);
                     self.table(headers, rows, width);
                 }
-                Block::Chart {
-                    kind: Chart::KpiCards,
-                    content,
-                    ..
-                } => {
+                Block::Visual { tag, content, .. } if tag == "kpi" => {
                     self.blank(0);
                     self.figures(content, width);
                 }
-                Block::Chart {
-                    kind: Chart::ProgressBars,
-                    content,
-                    ..
-                } => {
+                Block::Visual { tag, content, .. } if tag == "progress" => {
                     self.blank(0);
                     self.progress(content, width);
                 }
                 Block::HorizontalRule => self.blank(0),
                 Block::Image { .. } | Block::ColumnSeparator => {}
                 // in the image panel (see `layout::lay_out`)
-                Block::Chart {
-                    kind: Chart::Thermal,
-                    ..
-                } => {}
+                Block::Visual { tag, .. } if tag == THERMAL => {}
                 Block::CodeBlock { .. } => {
                     self.unsupported.insert("code blocks".into());
                 }
-                Block::Diagram { .. } => {
-                    self.unsupported.insert("diagrams".into());
-                }
-                other => {
-                    self.unsupported.insert(viz_name(other).to_string());
+                Block::Visual { tag, .. } => {
+                    self.unsupported.insert(visual_name(tag));
                 }
             }
         }
@@ -444,28 +420,32 @@ fn label_values(content: &str) -> Vec<(String, String)> {
         .collect()
 }
 
-fn viz_name(block: &Block) -> &'static str {
-    let Block::Chart { kind, .. } = block else {
-        return "visualizations";
+/// The fence tag of a thermal image, which the board shows in its panel.
+pub(super) const THERMAL: &str = "thermal";
+
+/// A visual kind, by its fence tag, the way `--check` names it.
+fn visual_name(tag: &str) -> String {
+    let known = match tag {
+        "architecture" => "diagrams",
+        "wordcloud" => "word clouds",
+        "timeline" => "timelines",
+        "pie" => "pie charts",
+        "bar" => "bar charts",
+        "line" => "line charts",
+        "donut" => "donut charts",
+        "funnel" => "funnel charts",
+        "radar" => "radar charts",
+        "stackedbar" => "stacked bar charts",
+        "venn" => "Venn diagrams",
+        "scatter" => "scatter plots",
+        "orgchart" => "org charts",
+        "gantt" => "Gantt charts",
+        "gitgraph" => "git graphs",
+        "flower" => "flowers",
+        "artifactflow" => "artifact flows",
+        THERMAL => "thermal images",
+        // a visual from an extension: named by its tag
+        other => return format!("@{other} visuals"),
     };
-    match kind {
-        Chart::WordCloud => "word clouds",
-        Chart::Timeline => "timelines",
-        Chart::Pie => "pie charts",
-        Chart::Bar => "bar charts",
-        Chart::Line => "line charts",
-        Chart::Donut => "donut charts",
-        Chart::Funnel => "funnel charts",
-        Chart::Radar => "radar charts",
-        Chart::StackedBar => "stacked bar charts",
-        Chart::VennDiagram => "Venn diagrams",
-        Chart::ScatterPlot => "scatter plots",
-        Chart::Org => "org charts",
-        Chart::Gantt => "Gantt charts",
-        Chart::GitGraph => "git graphs",
-        Chart::Flower => "flowers",
-        Chart::ArtifactFlow => "artifact flows",
-        Chart::Thermal => "thermal images",
-        _ => "visualizations",
-    }
+    known.to_string()
 }

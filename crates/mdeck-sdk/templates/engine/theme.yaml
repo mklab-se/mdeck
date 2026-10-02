@@ -5,7 +5,7 @@ extends: dark
 engine:
   name: {{name}}
   cool: "#8fb2ff"
-countdown: none
+countdown: off
 colors:
   background: "#0c0c10"
   accent: "#ff6a3d"

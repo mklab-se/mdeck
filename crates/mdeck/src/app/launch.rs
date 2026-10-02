@@ -35,7 +35,7 @@ pub(super) struct Launch {
     pub(super) incident_log: Arc<IncidentLog>,
     pub(super) defaults: DefaultsConfig,
     /// `--engine`.
-    pub(super) cli_engine: Option<crate::engines::EngineKind>,
+    pub(super) cli_engine: Option<crate::engines::EngineId>,
     /// `--reduced-motion` or `defaults.reduced_motion`.
     pub(super) reduced_motion: bool,
     /// `--theme`: present in this theme instead of the deck's.
@@ -147,13 +147,13 @@ impl PresentationApp {
 
 /// The engine the window will run on: the pending theme's when one waits
 /// for its fonts, else the current theme's.
-fn resolved_engine(theme: &Theme, pending: &Option<Theme>) -> crate::engines::EngineKind {
+fn resolved_engine(theme: &Theme, pending: &Option<Theme>) -> crate::engines::EngineId {
     pending.as_ref().unwrap_or(theme).engine
 }
 
 /// Startup warnings about what the deck asks of its engine: features it
 /// does not support, and generated art that is missing or stale.
-fn report_deck_warnings(deck: &Deck, engine: crate::engines::EngineKind) {
+fn report_deck_warnings(deck: &Deck, engine: crate::engines::EngineId) {
     if let Some(line) = crate::engines::unsupported_summary(engine, &deck.presentation) {
         eprintln!("warning: {line}");
     }

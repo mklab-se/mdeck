@@ -1,11 +1,11 @@
 //! Where the wall lights: a picture's points splatted onto the LEDs, the
 //! light around what the slide's renderers drew, and the marquee ring.
 
-use eframe::egui::{Pos2, Rect};
+use mdeck_sdk::geometry::Hint;
+use mdeck_sdk::paint::{Pos2, Rect};
+use mdeck_sdk::stage::Place;
 
 use super::{Grid, PITCH};
-use crate::engines::stage::Place;
-use crate::render::hints::Hint;
 
 /// Add each point's light to the LEDs around it (a small gaussian), so a
 /// stroke of points lights a clean line of LEDs.
@@ -68,8 +68,8 @@ pub(super) fn hint_light(grid: &Grid, hints: &[Hint]) -> Vec<f32> {
             Hint::Bar(b) if vertical => {
                 // a peak marker floating over the bar's value label, a dimmer
                 // row above it, like a level meter's peak hold
-                let (c0, r0) = grid.cell_of(b.left_top());
-                let (c1, _) = grid.cell_of(b.right_top());
+                let (c0, r0) = grid.cell_of(b.min);
+                let (c1, _) = grid.cell_of(Pos2::new(b.max.x, b.min.y));
                 let row = (r0 - 0.5 - 38.0 / PITCH).floor() as i64;
                 for c in (c0.ceil() as i64)..=(c1.floor() as i64) {
                     set(c, row, 0.95);
@@ -78,8 +78,8 @@ pub(super) fn hint_light(grid: &Grid, hints: &[Hint]) -> Vec<f32> {
             }
             Hint::Bar(b) => {
                 // horizontal: a marker past the bar's end and its value label
-                let (c1, r0) = grid.cell_of(b.right_top());
-                let (_, r1) = grid.cell_of(b.right_bottom());
+                let (c1, r0) = grid.cell_of(Pos2::new(b.max.x, b.min.y));
+                let (_, r1) = grid.cell_of(b.max);
                 let col = (c1 + 0.5 + 90.0 / PITCH).ceil() as i64;
                 for r in (r0.ceil() as i64)..=(r1.floor() as i64) {
                     set(col, r, 0.95);
@@ -160,11 +160,11 @@ pub(super) fn border_positions(grid: &Grid) -> std::collections::HashMap<usize, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use eframe::egui;
+    use mdeck_sdk::paint::Vec2;
 
     #[test]
     fn a_stroke_of_points_lights_a_line_of_leds() {
-        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1920.0, 1080.0));
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(1920.0, 1080.0));
         let g = Grid::new(rect, 1.0);
         let mut d = vec![0.0; g.len()];
         // a horizontal stroke across the middle of the unit square
@@ -186,7 +186,7 @@ mod tests {
 
     #[test]
     fn the_marquee_border_is_one_closed_ring() {
-        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(200.0, 120.0));
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(200.0, 120.0));
         let g = Grid::new(rect, 1.0);
         let ring = border_positions(&g);
         let expected = 2 * (g.cols - 2) + 2 * (g.rows - 2) - 4;

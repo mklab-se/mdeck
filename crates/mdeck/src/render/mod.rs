@@ -1,5 +1,6 @@
 pub mod art;
 pub mod background;
+pub mod board;
 pub mod context;
 pub mod designs;
 pub mod diagram;
@@ -11,10 +12,6 @@ pub mod image_cache;
 pub mod logo;
 pub mod math;
 pub mod page;
-pub mod particles;
-// Pen strokes: the art engines draw with them.
-#[cfg(feature = "art")]
-pub mod strokes;
 pub mod syntax;
 pub mod text;
 pub mod thermal;
@@ -81,7 +78,7 @@ pub fn measure_slide_content_height(
 /// Render a single slide in its design, as the theme arranges it.
 pub fn render_slide(cx: &BlockCx, slide: &Slide, rect: egui::Rect, slide_cx: &SlideContext) {
     if let Some(board) = cx.theme.engine.board() {
-        board(cx, slide, rect, slide_cx);
+        board::render(board, cx, slide, rect, slide_cx);
         return;
     }
     designs::render(cx, slide, rect, slide_cx);

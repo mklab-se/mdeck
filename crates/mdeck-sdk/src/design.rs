@@ -5,7 +5,7 @@
 
 use crate::content::Slide;
 use crate::geometry::Hint;
-use crate::paint::{Painter, Rect};
+use crate::paint::{Painter, Rect, Texture};
 use crate::problem::Problem;
 use crate::tokens::Tokens;
 
@@ -56,6 +56,19 @@ pub trait DesignSet: Send + Sync {
     }
 }
 
+/// What the host lends a design set besides the painter: the deck's images
+/// and the registered visuals. The host implements it; extensions only use
+/// it through [`DesignCx::image`] and [`DesignCx::visual`].
+pub trait DesignServices {
+    /// The image at `path` (relative to the deck) as a texture, or `None`
+    /// while it loads or when it cannot be read.
+    fn image(&mut self, painter: &Painter, path: &str) -> Option<Texture>;
+
+    /// Draw the visual with fence tag `tag` from `src` into `rect` at reveal
+    /// `step`, returning the height it used (0 when no visual has the tag).
+    fn visual(&mut self, painter: &Painter, tag: &str, src: &str, rect: Rect, step: usize) -> f32;
+}
+
 /// What a design set draws with.
 ///
 /// Made by the host for each slide. See [`DesignSet`] for an example.
@@ -67,6 +80,10 @@ pub struct DesignCx<'a> {
     pub(crate) index: usize,
     pub(crate) animate: bool,
     pub(crate) published: Vec<Hint>,
+    pub(crate) services: Option<&'a mut dyn DesignServices>,
+    pub(crate) engine_live: bool,
+    pub(crate) deck_title: Option<String>,
+    pub(crate) count: usize,
     #[cfg_attr(not(feature = "unstable-egui"), allow(dead_code))]
     pub(crate) ui: Option<&'a mut egui::Ui>,
 }
@@ -97,6 +114,16 @@ impl<'a> DesignCx<'a> {
         self.index
     }
 
+    /// The deck's title, for sets that print it.
+    pub fn deck_title(&self) -> Option<&str> {
+        self.deck_title.as_deref()
+    }
+
+    /// The number of slides in the deck (0 when the host does not say).
+    pub fn count(&self) -> usize {
+        self.count
+    }
+
     /// Whether to animate (false for stills and reduced motion).
     pub fn animate(&self) -> bool {
         self.animate
@@ -105,6 +132,32 @@ impl<'a> DesignCx<'a> {
     /// Publish drawn geometry for the engine (see [`crate::geometry`]).
     pub fn publish(&mut self, hint: Hint) {
         self.published.push(hint);
+    }
+
+    /// Whether the board engine this set belongs to already painted the
+    /// slide live underneath (in the presentation window and export). A
+    /// board's set then draws only what the engine leaves to it; without a
+    /// live engine (thumbnails, the overview) it draws the whole slide.
+    pub fn engine_live(&self) -> bool {
+        self.engine_live
+    }
+
+    /// The image at `path` (relative to the deck), loaded once and cached
+    /// by the host; `None` while it loads or when it cannot be read.
+    pub fn image(&mut self, path: &str) -> Option<Texture> {
+        let painter = self.painter.clone();
+        self.services.as_mut()?.image(&painter, path)
+    }
+
+    /// Draw the registered visual with fence tag `tag` (without `@`) from
+    /// `src` into `rect` at reveal `step`, returning the height it used (0
+    /// when the host has no such visual).
+    pub fn visual(&mut self, tag: &str, src: &str, rect: Rect, step: usize) -> f32 {
+        let painter = self.painter.clone();
+        match self.services.as_mut() {
+            Some(s) => s.visual(&painter, tag, src, rect, step),
+            None => 0.0,
+        }
     }
 
     /// The raw egui `Ui` the slide is drawn in, when the host has one.

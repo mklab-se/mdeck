@@ -33,10 +33,6 @@ pub const CODE_FIT_FLOOR: f32 = 0.4;
 /// the slide scrolls.
 pub const PROSE_FIT_FLOOR: f32 = 0.8;
 
-/// Seconds the copy of a title or section slide holds back while an engine
-/// with a cold opening forms the heading in heat.
-pub const COLD_OPEN_HOLD: f32 = 1.5;
-
 /// A slide laid out.
 pub struct Plan<'s> {
     pub pieces: Vec<Piece<'s>>,
@@ -455,8 +451,10 @@ fn visual_base(block: &Block) -> Option<usize> {
 pub fn render(cx: &BlockCx, slide: &Slide, rect: Rect, deck: &SlideContext) {
     let (fitted, plan) = layout(cx.ui, slide, cx.theme, rect, cx.scale, deck);
     let a = fitted.arrangement(slide.design);
-    let cold_open = cx.theme.engine.capabilities().cold_open
-        && matches!(slide.design, Design::Title | Design::Section);
+    // an engine that forms headings itself (the thermal cold opening) gets
+    // the title and section copy late, and the heading's layout as a hint
+    let cold_open =
+        cx.theme.copy_hold > 0.0 && matches!(slide.design, Design::Title | Design::Section);
     let mut age = if deck.hold_copy {
         motion::entry_age(cx.ui, deck.index, deck.animate, true);
         -1.0
@@ -464,7 +462,7 @@ pub fn render(cx: &BlockCx, slide: &Slide, rect: Rect, deck: &SlideContext) {
         motion::entry_age(cx.ui, deck.index, deck.animate, false)
     };
     if cold_open && age >= 0.0 && deck.animate {
-        age -= COLD_OPEN_HOLD;
+        age -= cx.theme.copy_hold;
     }
     let cx = cx.with_theme(&fitted);
     paint(&cx, &plan, a, deck, (age, cold_open), rect);
