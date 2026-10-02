@@ -942,8 +942,8 @@ A point cloud name resolves through these places, first match wins:
 
 1. the deck's generated point clouds, `<deck>.assets/point-clouds/` (made by
    `mdeck ai point-cloud`, section 9.7);
-2. `illustrations/<name>.mdpc` next to the deck;
-3. the user library: `illustrations/` in the user folder
+2. `point-clouds/<name>.mdpc` next to the deck;
+3. the user library: `point-clouds/` in the user folder
    (`~/.config/mdeck/` on Linux, `~/Library/Application Support/mdeck/` on
    macOS, `%APPDATA%\mdeck\` on Windows);
 4. the `point-clouds/` folders of installed packs (section 18);
@@ -974,7 +974,7 @@ mdeck point-cloud show server   # a preview image
 constellation of glowing particles forming the subject, then reduces the
 image to a cloud. Given a deck, it writes every missing name into
 `<deck>.assets/point-clouds/`; with `--name`, and `mdeck point-cloud import`,
-it writes `./illustrations/<name>.mdpc` (`--user` writes to the user library
+it writes `./point-clouds/<name>.mdpc` (`--user` writes to the user library
 instead, and `--force` overwrites an import). A cloud is JSON: a name, a
 description, the prompt that made it, the bounding box's height over width,
 and up to 1500 points in the unit square, stored in **importance order** so
@@ -2902,6 +2902,7 @@ comment, one `key: value` per line.
 | top-level `particles:`, `heat:`, `art:`, `surface:` in a theme | the same keys inside the theme's `engine:` block |
 | `countdown: none`, `plain` or `burst` in a theme | `countdown: on` or `off` (the engine decides the look) |
 | `<deck>.art.yaml` and `art/` | `<deck>.assets/manifest.yaml` and `<deck>.assets/artworks/` |
+| point clouds in `illustrations/` (next to the deck and in the user folder) | `point-clouds/` (rename the folder; `--check` reports a v1 one) |
 | `mdeck ai art`, `mdeck ai create`, `mdeck ai generate` | `mdeck ai pictures`, `mdeck ai deck`, `mdeck ai images` and `mdeck ai icons` |
 | `mdeck illustration generate` | `mdeck ai point-cloud` |
 | `mdeck illustration import`, `list`, `show`, `contribute` | `mdeck point-cloud import`, `list`, `show`, `contribute` |

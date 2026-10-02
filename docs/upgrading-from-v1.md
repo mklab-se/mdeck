@@ -157,6 +157,7 @@ All other tags are unchanged. Inside every visual there is now one grammar:
 | `![prompt](image-generation)` | `![prompt](generate:)` |
 | `(icon: generate-image, prompt: "...")` | `(icon: generate:, prompt: "...")` |
 | `<deck>.art.yaml` and `art/` | `<deck>.assets/` with one `manifest.yaml` for every generated asset |
+| point clouds in `illustrations/` (next to the deck and in the user folder) | `point-clouds/` (rename the folder; `--check` reports a v1 one) |
 
 v2 never rewrites the deck: placeholders stay in the source and are matched to their files
 through the manifest. Run `mdeck ai talk.md` once to regenerate what is missing in the new layout.

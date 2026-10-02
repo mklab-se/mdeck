@@ -174,8 +174,10 @@ an AI harness can convert a deck.
   <name> --from <dir>` (was `mdeck theme new --from`), `mdeck ai deck` (was `mdeck ai create`) and
   `mdeck ai skill`. `mdeck ai talk.md` generates everything the deck is missing. The deck forms
   share `--slide N`, `--stale`, `--force` and `--dry-run`.
-- **`mdeck point-cloud`** replaces `mdeck illustration` (`import`, `list`, `show`, `contribute`;
-  the old name still works), and the `--check` category for `picture` names is `point-cloud`.
+- **`mdeck point-cloud`** replaces `mdeck illustration` (`import`, `list`, `show`, `contribute`),
+  and the `--check` category for `picture` names is `point-cloud`. Point clouds live in a
+  `point-clouds/` folder next to the deck and in the user folder (was `illustrations/`); `--check`
+  reports a deck that still has a v1 `illustrations/` folder of clouds.
 - `mdeck config set` help lists `defaults.reduced_motion`, `defaults.image_style` and
   `defaults.icon_style`; `-v` reads as a general verbosity flag on every command.
 - **One style system.** A named style is a prompt plus optional reference images

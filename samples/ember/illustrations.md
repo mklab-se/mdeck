@@ -29,7 +29,7 @@ into, warm and breathing, beside the copy.
 
 + Built in: person, laptop, server, robot and sixteen more
 + Your own: `mdeck ai point-cloud --name kettle --description "A kettle"`
-+ Kept next to the deck in `illustrations/`, or in your user library
++ Kept next to the deck in `point-clouds/`, or in your user library
 
 ---
 

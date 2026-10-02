@@ -80,8 +80,8 @@ IMAGE OPTIONS (in alt text: ![Team @width: 60%](team.jpg))
 PICTURES (on the design's stage; every engine but plain and splitflap)
   <!-- picture: name -->  The slide's artwork on an art engine, else the point
                         cloud of that name, else an image file of that path
-                        clouds: deck.assets/point-clouds > deck illustrations/ >
-                        user folder illustrations/ > packs > built-in
+                        clouds: deck.assets/point-clouds > deck point-clouds/ >
+                        user folder point-clouds/ > packs > built-in
   <!-- picture: none -->  Keep the stage empty
   mdeck ai point-cloud deck.md   Generate the deck's missing names (deck.assets/)
   mdeck ai point-cloud --name NAME --description "..."   A library cloud via AI

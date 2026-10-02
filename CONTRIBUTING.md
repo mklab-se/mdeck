@@ -345,7 +345,7 @@ mdeck point-cloud contribute <name>
 It writes a copy of the cloud as `<name>.mdpc.json` (GitHub accepts `.json` attachments, not
 `.mdpc`) and opens a prefilled GitHub issue with the cloud's details and a sketch of it; drag that
 file onto the issue and submit (`--no-open` prints the link instead). The maintainer reviews it and, if it reads well at a glance, adds it as
-`crates/mdeck/illustrations/<name>.mdpc` (the build picks up every file there). Names are
+`crates/mdeck/point-clouds/<name>.mdpc` (the build picks up every file there). Names are
 lowercase letters, digits and hyphens. Please contribute only pictures you made or have the
 right to license under MIT.
 

@@ -157,7 +157,6 @@ pub enum Commands {
     },
 
     /// Point clouds, the `.mdpc` pictures engines draw (import, list, show, contribute; `mdeck ai point-cloud` generates)
-    #[command(alias = "illustration")]
     PointCloud {
         #[command(subcommand)]
         command: PointCloudCommands,
@@ -193,7 +192,7 @@ pub enum PointCloudCommands {
         #[arg(long)]
         name: String,
         /// Save to the user library (in the user config folder, see `mdeck config
-        /// show`) instead of ./illustrations
+        /// show`) instead of ./point-clouds
         #[arg(long)]
         user: bool,
         /// Overwrite an existing point cloud of the same name
@@ -381,17 +380,16 @@ mod tests {
     use clap::{CommandFactory, Parser};
 
     #[test]
-    fn point_clouds_have_their_own_command_and_the_old_name_still_parses() {
-        // CON-01: the user-facing term is "point cloud"
-        for name in ["point-cloud", "illustration"] {
-            let cli = Cli::try_parse_from(["mdeck", name, "list"]).unwrap();
-            assert!(matches!(
-                cli.command,
-                Some(Commands::PointCloud {
-                    command: PointCloudCommands::List
-                })
-            ));
-        }
+    fn point_clouds_have_their_own_command_and_the_v1_name_is_gone() {
+        // CON-01: the user-facing term is "point cloud"; v2 is a clean break
+        let cli = Cli::try_parse_from(["mdeck", "point-cloud", "list"]).unwrap();
+        assert!(matches!(
+            cli.command,
+            Some(Commands::PointCloud {
+                command: PointCloudCommands::List
+            })
+        ));
+        assert!(Cli::try_parse_from(["mdeck", "illustration", "list"]).is_err());
         let help = Cli::command().render_help().to_string();
         assert!(
             help.contains("point-cloud") && !help.contains("illustration"),
