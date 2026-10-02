@@ -1,12 +1,12 @@
 pub mod ai;
 pub mod ai_reply;
 pub mod art;
+pub mod assets;
 pub mod check;
 pub mod completion;
 pub mod config;
 pub mod create;
 pub mod export;
-pub mod generate;
 pub mod illustration;
 pub mod skill;
 pub mod spec;

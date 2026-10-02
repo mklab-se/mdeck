@@ -1,5 +1,5 @@
 //! The watercolour engine: every slide is a sheet of cold-press paper (the
-//! theme's `page:`), and the slide's generated watercolour (`mdeck ai art`)
+//! theme's `page:`), and the slide's generated watercolour (`mdeck ai pictures`)
 //! blooms onto it: a pale first wash over the whole picture, then the
 //! colour spreading outward from where the paint is heaviest, the dark
 //! accents dropped in last. Without art, the slide's `picture` is

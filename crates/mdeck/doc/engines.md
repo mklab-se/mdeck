@@ -42,7 +42,7 @@ Every frame the host builds a `Stage`:
   on the right beside the copy, or large and centred behind a title
   (`backdrop`). The cloud's points are in importance order: the first sixty
   already sketch the subject.
-- `art`: on an art engine, the slide's generated picture (`mdeck ai art`),
+- `art`: on an art engine, the slide's generated picture (`mdeck ai pictures`),
   loaded and prepared (trimmed, paper keyed out, with a time map), with
   `place` chosen like a figure's. `None` until it has loaded, or when the
   slide has none: then draw the `figure` in your medium instead.
@@ -131,8 +131,9 @@ shared (`render::art`); the engine only decides the medium:
   (`prepare::Strategy`: `Draw` along the ink, `Hatch` outlines then tone,
   `Bloom` washes spreading, `Develop` shadows first). Line art is always
   drawn with `Draw`.
-- **Generation and caching** are the core's: `mdeck ai art` and the `S` key
-  generate in the medium's style, `render::art::sidecar` records pictures by
+- **Generation and caching** are the core's: `mdeck ai pictures` and the `S` key
+  generate in the medium's style, the deck's asset manifest
+  (`assets::manifest`, read by `render::art::resolve`) records pictures by
   slide hash and style id, and `render::art::gallery::DeckArt` loads and
   prepares them (on worker threads in the window, before drawing in export).
 - **Drawing in.** `engines::art::Drawing` wraps a prepared picture:

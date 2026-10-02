@@ -288,7 +288,7 @@ impl PresentationApp {
             for block in &slide.blocks {
                 if let parser::Block::Image { path, .. } = block
                     && !path.is_empty()
-                    && path != "image-generation"
+                    && !crate::assets::placeholders::is_image(path)
                 {
                     self.deck.image_cache.preload(ctx, path);
                 }

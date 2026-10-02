@@ -1,13 +1,15 @@
-//! AI feature management
+//! `mdeck ai`: everything AI makes, and its setup.
 //!
-//! `mdeck ai`                : show status (chat + image generation)
-//! `mdeck ai test`           : test AI connection (chat and/or image generation)
-//! `mdeck ai enable`         : enable AI for mdeck
-//! `mdeck ai disable`        : disable AI for mdeck
-//! `mdeck ai config`         : interactive config wizard
-//! `mdeck ai style ...`      : manage image styles
-//! `mdeck ai generate-image` : generate a single image from a prompt
-//! `mdeck ai generate`       : generate all AI images for a presentation
+//! `mdeck ai`                 : show status (chat + image generation)
+//! `mdeck ai <deck.md>`       : generate every asset the deck is missing
+//! `mdeck ai images`          : images for `![prompt](generate:)` (or one from `--prompt`)
+//! `mdeck ai icons`           : diagram icons for `(icon: generate:)` (or one from `--prompt`)
+//! `mdeck ai pictures`        : artworks for the art engines
+//! `mdeck ai point-cloud`     : point clouds for `picture` (a deck's, or one by name)
+//! `mdeck ai theme`           : a theme from a design system
+//! `mdeck ai deck`            : a whole deck from content
+//! `mdeck ai skill`           : the AI agent skill
+//! `mdeck ai status/test/enable/disable/config/style` : setup
 
 mod image;
 mod style;
@@ -18,57 +20,96 @@ use colored::Colorize;
 
 use ailloy::config_tui;
 
-pub use image::{display_image_result, image_ext};
+pub use image::{display_image_result, generate_one, image_ext};
 
-use crate::cli::AiCommands;
+use crate::cli::{AiArgs, AiCommands};
+use crate::commands::assets::{self, images::Which};
 use crate::config::Config;
 use crate::prompt;
 
 const APP_NAME: &str = "mdeck";
 
-pub async fn run(cmd: Option<AiCommands>, quiet: bool) -> Result<()> {
+pub async fn run(args: AiArgs, quiet: bool) -> Result<()> {
+    let AiArgs {
+        command,
+        file,
+        select,
+    } = args;
+    let Some(cmd) = command else {
+        return match file {
+            Some(file) => assets::run_all(file, select, quiet).await,
+            None => config_tui::print_ai_status(APP_NAME, &["chat", "image"]),
+        };
+    };
     match cmd {
-        None => config_tui::print_ai_status(APP_NAME, &["chat", "image"]),
-        Some(AiCommands::Test { message }) => test(message).await,
-        Some(AiCommands::Enable) => config_tui::enable_ai(APP_NAME),
-        Some(AiCommands::Disable) => config_tui::disable_ai(APP_NAME),
-        Some(AiCommands::Config) => {
-            let mut config = ailloy::config::Config::load_global()?;
-            config_tui::run_interactive_config(&mut config, &["chat", "image"]).await?;
-            Ok(())
-        }
-        Some(AiCommands::Style { command }) => style::run_style(command).await,
-        Some(AiCommands::GenerateImage(args)) => image::generate_image_cmd(args).await,
-        Some(AiCommands::Generate { file, force, style }) => {
-            crate::commands::generate::run(file, force, style, quiet).await
-        }
-        Some(AiCommands::Create(args)) => crate::commands::create::run(args, quiet).await,
-        Some(AiCommands::Art {
+        AiCommands::Images(a) => deck_images(Which::Images, a, quiet).await,
+        AiCommands::Icons(a) => deck_images(Which::Icons, a, quiet).await,
+        AiCommands::Pictures {
             file,
-            slide,
-            stale,
-            force,
-            dry_run,
+            select,
             engine,
             node,
-        }) => {
+        } => {
             let opts = crate::commands::art::Options {
-                slide,
-                stale,
-                force,
-                dry_run,
+                select,
                 engine,
                 node,
                 quiet,
             };
             crate::commands::art::run(file, opts).await
         }
-        Some(AiCommands::Status) => config_tui::print_ai_status(APP_NAME, &["chat", "image"]),
-        Some(AiCommands::Skill { emit, reference }) => {
+        AiCommands::PointCloud(a) => match (a.file, a.name) {
+            (Some(file), _) => {
+                assets::point_clouds::run_deck(&file, &a.select, a.description.as_deref(), quiet)
+                    .await
+            }
+            (None, Some(name)) => {
+                let description = a.description.unwrap_or_default();
+                crate::commands::illustration::generate(
+                    &name,
+                    &description,
+                    a.user,
+                    a.select.force,
+                    quiet,
+                )
+                .await
+            }
+            (None, None) => anyhow::bail!("give a deck, or --name and --description"),
+        },
+        AiCommands::Theme {
+            name,
+            from,
+            user,
+            force,
+        } => crate::commands::theme::new(&name, Some(&from), user, force, quiet).await,
+        AiCommands::Deck(args) => crate::commands::create::run(args, quiet).await,
+        AiCommands::Skill { emit, reference } => {
             crate::commands::skill::run(emit, reference);
             Ok(())
         }
+        AiCommands::Status => config_tui::print_ai_status(APP_NAME, &["chat", "image"]),
+        AiCommands::Test { message } => test(message).await,
+        AiCommands::Enable => config_tui::enable_ai(APP_NAME),
+        AiCommands::Disable => config_tui::disable_ai(APP_NAME),
+        AiCommands::Config => {
+            let mut config = ailloy::config::Config::load_global()?;
+            config_tui::run_interactive_config(&mut config, &["chat", "image"]).await?;
+            Ok(())
+        }
+        AiCommands::Style { command } => style::run_style(command).await,
     }
+}
+
+/// `mdeck ai images` / `mdeck ai icons`: a deck's placeholders, or one
+/// picture from `--prompt`.
+async fn deck_images(which: Which, a: crate::cli::ImagesArgs, quiet: bool) -> Result<()> {
+    if let Some(prompt) = &a.prompt {
+        return assets::images::one_off(which, prompt, a.style.as_deref(), a.output).await;
+    }
+    let Some(file) = a.file else {
+        anyhow::bail!("give a deck, or --prompt");
+    };
+    assets::images::run(&file, which, &a.select, a.style.as_deref(), quiet).await
 }
 
 /// Check if ailloy has a default node for a capability.

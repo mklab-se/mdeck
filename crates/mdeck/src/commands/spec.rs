@@ -66,12 +66,13 @@ IMAGE OPTIONS (in alt text)
 POINT CLOUDS (pictures for the particles engine and others)
   <!-- picture: name -->  Point cloud beside the copy (title: behind it)
                         deck illustrations/ > ~/.config/mdeck/illustrations > built-in
-  mdeck illustration generate --name NAME --description "..."   New cloud via AI
+  mdeck ai point-cloud deck.md   Generate the deck's missing names (deck.assets/)
+  mdeck ai point-cloud --name NAME --description "..."   A library cloud via AI
   mdeck illustration import IMAGE --name NAME | list | show NAME | contribute NAME
 
 ART ENGINES (line, sketch, watercolour, darkroom; spec 9.7)
-  mdeck ai art deck.md  Draw a picture per slide (--slide N, --stale, --force,
-                        --dry-run, --engine, --node); kept in art/ and deck.art.yaml
+  mdeck ai pictures deck.md  Draw a picture per slide (--slide N, --stale, --force,
+                        --dry-run, --engine, --node); kept in deck.assets/
   S                     While presenting: draw this slide's picture
   Without art           The slide's picture (point cloud) is drawn in the medium
 
@@ -121,7 +122,8 @@ THEMES (custom themes are YAML files; mdeck spec, section 9.4)
   page: { surface, margin, shadow, grain, radius }   The slide as a sheet on a surface
   art: { kind, style, references }   House style of generated art
   mdeck theme list | check <n> | preview <n> -o <dir>
-  mdeck theme new <n> [--from <design system folder>]
+  mdeck theme new <n>    A commented starter
+  mdeck ai theme <n> --from <design system folder>
 "#;
 
 /// Build the quick reference card. The settings and fences are generated

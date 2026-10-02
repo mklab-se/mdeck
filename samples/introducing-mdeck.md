@@ -202,7 +202,7 @@ The same slides, a whole different show:
 - **led**: a wall of RGB LEDs that light up your illustrations
 - **splitflap**: every slide on a departure board
 - **blocks**: pictures built from falling blocks
-- **line**: a drawing made for every slide (`mdeck ai art`), inked onto a blue sheet or drawn in chalk on a slate
+- **line**: a drawing made for every slide (`mdeck ai pictures`), inked onto a blue sheet or drawn in chalk on a slate
 - **sketch**: a drawing made for every slide, pencilled into a sketchbook
 - **watercolour** and **darkroom**: paintings that bloom, photographs that develop
 
@@ -223,7 +223,7 @@ logo:
 ```
 
 Add a logo to any deck with `logo: logo.svg`, or turn a design system into a
-theme with `mdeck theme new acme --from ./brand`.
+theme with `mdeck ai theme acme --from ./brand`.
 
 ---
 

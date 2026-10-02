@@ -36,12 +36,7 @@ pub async fn run(cmd: ThemeCommands, quiet: bool) -> Result<()> {
     match cmd {
         ThemeCommands::List => list(),
         ThemeCommands::Check { name } => check(&name),
-        ThemeCommands::New {
-            name,
-            from,
-            user,
-            force,
-        } => new(&name, from.as_deref(), user, force, quiet).await,
+        ThemeCommands::New { name, user, force } => new(&name, None, user, force, quiet).await,
         ThemeCommands::Preview {
             name,
             output_dir,
@@ -175,7 +170,14 @@ colors:
     )
 }
 
-async fn new(name: &str, from: Option<&Path>, user: bool, force: bool, quiet: bool) -> Result<()> {
+/// `mdeck theme new` (a starter) and `mdeck ai theme` (`from` a design system).
+pub async fn new(
+    name: &str,
+    from: Option<&Path>,
+    user: bool,
+    force: bool,
+    quiet: bool,
+) -> Result<()> {
     if !lookup::valid_name(name) {
         bail!("theme names are lowercase letters, digits, '-' and '_' (got '{name}')");
     }

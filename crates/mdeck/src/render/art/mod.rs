@@ -1,14 +1,15 @@
 //! Generated artwork for the art engines (line, sketch,
-//! watercolour, darkroom). `mdeck ai art` makes a picture per slide with the
-//! configured image model, in the style of the deck's medium ([`style`]),
-//! and records it in a sidecar next to the deck ([`sidecar`]). Presenting
+//! watercolour, darkroom). `mdeck ai pictures` makes a picture per slide
+//! with the configured image model, in the style of the deck's medium
+//! ([`style`]), and records it in the deck's asset manifest ([`resolve`],
+//! [`crate::assets::manifest`]). Presenting
 //! never calls the AI: [`gallery::Gallery`] loads what is cached, and
 //! [`prepare`] works out the order an engine draws each picture in.
 
 pub mod gallery;
 mod loader;
 pub mod prepare;
-pub mod sidecar;
+pub mod resolve;
 pub mod style;
 
 use crate::parser::Slide;

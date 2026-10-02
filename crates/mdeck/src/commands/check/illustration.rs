@@ -6,13 +6,16 @@ use crate::parser;
 use crate::render;
 
 /// Illustration warnings: names that do not resolve, layouts that never show
-/// one, and unreadable cloud files (reported once, on slide 0).
+/// one, and unreadable cloud files (reported once, on slide 0). `deck` is
+/// the deck file: its folder and its generated point clouds are searched.
 pub fn illustration_warnings(
     presentation: &parser::Presentation,
-    base: &std::path::Path,
+    deck: &std::path::Path,
 ) -> Vec<CheckWarning> {
     let mut out = Vec::new();
-    let mut lib = render::illustration::Library::for_deck(Some(base));
+    let base = deck.parent().unwrap_or(std::path::Path::new("."));
+    let mut lib = render::illustration::Library::for_deck(Some(base))
+        .with_assets(crate::assets::point_cloud_dir(deck));
     for (i, slide) in presentation.slides.iter().enumerate() {
         let Some(name) = &slide.illustration else {
             continue;
@@ -22,7 +25,7 @@ pub fn illustration_warnings(
         } else if !lib.has(name) {
             format!(
                 "no illustration named `{name}` (run `mdeck illustration list`, or \
-                 `mdeck illustration generate --name {name} --description \"...\"`)"
+                 `mdeck ai point-cloud <deck>` to generate it)"
             )
         } else if !render::ember::handles(slide) {
             format!(
@@ -71,7 +74,7 @@ mod tests {
         std::fs::write(tmp.join("illustrations/broken.mdpc"), "{").unwrap();
         let md = "\n## Fine\n<!-- picture: kettle -->\n\n- a\n\n---\n\n\n## Missing\n<!-- picture: nothing -->\n\n- a\n\n---\n\n\n## Code\n<!-- picture: kettle -->\n\n```rust\nfn main() {}\n```\n\n---\n\n\n## Bad\n<!-- picture: Bad Name -->\n\n- a\n\n---\n\n\n## Broken\n<!-- picture: broken -->\n\n- a\n";
         let pres = parser::parse(md);
-        let warnings = illustration_warnings(&pres, &tmp);
+        let warnings = illustration_warnings(&pres, &tmp.join("talk.md"));
         let by_slide: Vec<(usize, String)> = warnings
             .iter()
             .map(|w| (w.slide, w.message.clone()))

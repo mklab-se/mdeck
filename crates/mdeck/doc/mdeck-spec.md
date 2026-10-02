@@ -385,22 +385,27 @@ When rendered in a standard markdown viewer, the `@` options appear as alt text,
 
 #### AI Image Generation
 
-Use `image-generation` as the image path to mark an image for AI generation:
+Use `generate:` as the image path to ask for a generated image:
 
 ```markdown
-![A futuristic cityscape at sunset](image-generation)
+![A futuristic cityscape at sunset](generate:)
 ```
 
-The alt text serves as the image prompt. Leave it empty for auto-prompting from slide context (requires chat capability):
+The alt text is the prompt. Leave it empty to have the chat model write one from the slide:
 
 ```markdown
-![](image-generation)
+![](generate:)
 ```
 
-Run `mdeck ai generate <file.md>` to generate all marked images. The command:
+Run `mdeck ai images <file.md>` (or `mdeck ai <file.md>` for every kind of asset). The command:
 - Detects orientation automatically (horizontal for full-slide, vertical for side-panel layouts)
-- Applies the configured image style (via `image-style` frontmatter, config default, or hardcoded fallback)
-- Rewrites the markdown file, replacing `image-generation` with actual file paths
+- Applies the image style (`--style`, then `image-style`, then the config default, then the built-in one)
+- Writes the image to `<deck>.assets/images/` and records it in `<deck>.assets/manifest.yaml`
+  (section 9.7, "Generated assets"). The deck is never rewritten: the placeholder stays as it is
+  and is resolved through the manifest when the deck opens, so it can be regenerated at any time.
+
+Until it is generated, a placeholder shows as a quiet card with its prompt, and `mdeck --check`
+reports it (category `assets`).
 
 ### 5.5 Code blocks
 
@@ -694,13 +699,16 @@ In this example:
 | `style`  | `primary`, `secondary`, `muted` | `primary`     | Visual emphasis       |
 | `prompt` | quoted string                   | none          | AI icon generation prompt |
 
-Use `icon: generate-image` with a `prompt` to mark a node for AI icon generation:
+Use `icon: generate:` to ask for a generated icon; `prompt` says what to draw (the node's label when
+it is left out):
 
 ```
-- Gateway (icon: generate-image, prompt: "An API gateway router icon", pos: 1,2)
+- Gateway (icon: generate:, prompt: "An API gateway router icon", pos: 1,2)
 ```
 
-Run `mdeck ai generate <file.md>` to generate all marked icons. The generated icon replaces `generate-image` with the actual filename.
+Run `mdeck ai icons <file.md>` to generate them into `<deck>.assets/icons/`, recorded in the deck's
+manifest. The line stays as written; until its icon exists the node shows the generic icon and
+`mdeck --check` reports it.
 
 If no components are explicitly declared, they are inferred from relationship lines. Each unique name becomes a component with default icon and auto-positioned layout.
 
@@ -997,7 +1005,8 @@ New clouds come from the image model or from any image of light strokes on a
 dark ground:
 
 ```bash
-mdeck illustration generate --name server --description "A server rack in a datacenter"
+mdeck ai point-cloud talk.md     # every picture name the deck uses that resolves nowhere
+mdeck ai point-cloud --name server --description "A server rack in a datacenter"
 mdeck illustration import sketch.png --name sketch
 mdeck illustration list          # every name visible from here, and what shadows what
 mdeck illustration show server   # a preview image
@@ -1250,7 +1259,7 @@ Tools for the loop of converting, looking and adjusting:
 |---|---|
 | `mdeck theme list` | every theme visible from here, and where it comes from |
 | `mdeck theme new <name>` | writes a commented starter theme to `themes/<name>.yaml` |
-| `mdeck theme new <name> --from <dir>` | reads a design system folder (`SKILL.md`, `readme.md`, CSS tokens, `*.tokens.json`, Tailwind config) and writes the theme with AI (see `mdeck ai`); font files and logos (PNG or SVG files with "logo" in their path) found there are copied into the theme folder |
+| `mdeck ai theme <name> --from <dir>` | reads a design system folder (`SKILL.md`, `readme.md`, CSS tokens, `*.tokens.json`, Tailwind config) and writes the theme with AI (see `mdeck ai`); font files and logos (PNG or SVG files with "logo" in their path) found there are copied into the theme folder |
 | `mdeck theme check <name>` | reports errors, fallbacks and weak contrast |
 | `mdeck theme preview <name> --output-dir <dir>` | exports a sampler deck (title, bullets, code, chart, diagram, table, quote) in the theme, as PNGs to look at |
 
@@ -1548,7 +1557,7 @@ art-world: A Victorian harbour town where a small team builds modern machines.
 - No picture here
 ```
 
-**Making the art.** `mdeck ai art talk.md` draws a picture for every slide
+**Making the art.** `mdeck ai pictures talk.md` draws a picture for every slide
 that takes one and has none that is current, four at a time with retries
 (about 20 seconds each). `--slide N` redraws one slide, `--stale` only the
 slides whose picture has gone stale, `--force` all of them, `--dry-run` lists
@@ -1556,15 +1565,48 @@ what would be drawn, `--engine` draws for another art engine than the deck's,
 and `--node` uses another image node than the default. Pressing `S` while
 presenting draws the current slide's picture in the background.
 
-**Where it is kept.** The pictures go in `art/` next to the deck and are
-recorded in `talk.art.yaml`: per picture the slide number, a hash of the
-slide's source and the deck's world, the style it was made in, the file and
-the scene. Editing a slide makes its picture **stale**: it is still shown,
-and `mdeck --check` says so. Set `pinned: true` on an entry to keep a picture
-for its slide number whatever the slide says (it is never stale and never
-redrawn); `file:` may then point at any PNG or JPEG of your own. Line art is
-shared by every line medium, so switching a deck between line media costs
-nothing.
+**Where it is kept.** The pictures go in `talk.assets/artworks/` and are
+recorded in the deck's asset manifest (see "Generated assets" below): per
+picture the slide number, a hash of the slide's source and the deck's world,
+the style it was made in, the file and the scene. Editing a slide makes its
+picture **stale**: it is still shown, and `mdeck --check` says so. Set
+`state: pinned` on an entry to keep a picture for its slide number whatever
+the slide says (it is never stale and never redrawn); `file:` may then point
+at any PNG or JPEG of your own. Line art is shared by every line medium, so
+switching a deck between line media costs nothing.
+
+**Generated assets.** Everything `mdeck ai` makes for a deck lives in one
+folder next to it, `talk.assets/` for `talk.md`: `artworks/`, `images/`
+(`![prompt](generate:)`), `icons/` (`icon: generate:`) and `point-clouds/`
+(`picture` names that resolve nowhere else). One file,
+`talk.assets/manifest.yaml`, records every asset:
+
+```yaml
+version: 2
+assets:
+- kind: artwork            # artwork | image | icon | point-cloud
+  file: artworks/talk-02-line-765658.jpg   # relative to talk.assets/
+  slide: 2                 # the slide it was made for
+  hash: 4a189c3aa2f2a217   # the slide's source when it was made (artworks)
+  style: line-9b4b0041     # the style it was made in
+  prompt: A navigator holds one large, unmarked map
+  generated: 2026-09-28 12:32
+  state: current           # current | stale | pinned
+- kind: image
+  file: images/rocket-at-dawn.png
+  placeholder: a rocket at dawn   # the prompt as written in the deck
+  slide: 3
+  style: default-1a2b3c4d
+  state: current
+```
+
+An asset is **current** (made from its source as it reads now, in the style
+in use), **stale** (its slide or style changed since: still shown, reported
+by `--check`) or **pinned** (kept whatever its source says, never
+regenerated). `mdeck ai` refreshes `current` and `stale` whenever it writes
+the manifest; `pinned` is yours to set. A file replaced by hand is used as it
+is. Every `mdeck ai` generation command takes `--slide N`, `--stale`,
+`--force` and `--dry-run`: by default it makes what is missing or stale.
 
 **Style.** Each medium has a style card: a style prompt and two small
 neutral style swatches (a still life and a street), sent as reference images

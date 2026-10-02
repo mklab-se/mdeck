@@ -11,7 +11,7 @@ use eframe::egui;
 
 use super::loader::Pool;
 use super::prepare::{Prepared, Strategy, prepare};
-use super::sidecar::{self, Coverage, Resolved};
+use super::resolve::{self, Coverage, Resolved};
 use super::style::Style;
 use super::{ArtKind, Medium};
 use crate::parser::Presentation;
@@ -31,7 +31,7 @@ const WORKERS: usize = 3;
 pub struct DeckArt {
     deck: Option<PathBuf>,
     background: bool,
-    /// The style and sidecar state `resolved` was worked out for.
+    /// The style and manifest state `resolved` was worked out for.
     key: Option<String>,
     style: Option<Style>,
     strategy: Strategy,
@@ -70,7 +70,7 @@ impl DeckArt {
         }
     }
 
-    /// Read the sidecar again on the next [`DeckArt::sync`] (the deck was
+    /// Read the manifest again on the next [`DeckArt::sync`] (the deck was
     /// reloaded or new art was generated).
     pub fn invalidate(&mut self) {
         self.key = None;
@@ -95,14 +95,14 @@ impl DeckArt {
         }
         self.problems.clear();
         let sc = match &self.deck {
-            Some(deck) => sidecar::load(deck).unwrap_or_else(|e| {
+            Some(deck) => crate::assets::manifest::load(deck).unwrap_or_else(|e| {
                 self.problems.push(e.to_string());
                 None
             }),
             None => None,
         };
         self.resolved = match &self.deck {
-            Some(deck) => sidecar::resolve(deck, presentation, sc.as_ref(), &style.id()),
+            Some(deck) => resolve::resolve(deck, presentation, sc.as_ref(), &style.id()),
             None => vec![None; presentation.slides.len()],
         };
         self.strategy = strategy_for(medium, style.kind);
@@ -110,7 +110,7 @@ impl DeckArt {
         self.key = Some(key);
     }
 
-    /// Problems reading the sidecar, for the startup line and `--check`.
+    /// Problems reading the manifest, for the startup line and `--check`.
     pub fn problems(&self) -> &[String] {
         &self.problems
     }
@@ -123,7 +123,7 @@ impl DeckArt {
     pub fn coverage(&self, presentation: &Presentation) -> Option<Coverage> {
         self.style
             .as_ref()
-            .map(|_| sidecar::coverage(presentation, &self.resolved))
+            .map(|_| resolve::coverage(presentation, &self.resolved))
     }
 
     /// Slide `index`'s picture, when it has one and it is loaded. The first

@@ -5,9 +5,9 @@
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::path::PathBuf;
 
 use super::ArtKind;
+pub use crate::assets::style::Reference;
 use crate::theme::Theme;
 
 /// A built-in style card.
@@ -107,16 +107,6 @@ pub const DARKROOM: Card = Card {
     ],
 };
 
-/// A reference image to send with a generation.
-#[derive(Clone, Debug)]
-pub enum Reference {
-    Bundled {
-        name: &'static str,
-        bytes: &'static [u8],
-    },
-    File(PathBuf),
-}
-
 /// The style a deck's art is generated in: the medium's card, or what the
 /// theme's `art:` block says instead.
 #[derive(Clone, Debug)]
@@ -174,15 +164,7 @@ impl Style {
         let mut h = DefaultHasher::new();
         self.kind.name().hash(&mut h);
         self.prompt.hash(&mut h);
-        for r in &self.references {
-            match r {
-                Reference::Bundled { name, bytes } => {
-                    name.hash(&mut h);
-                    bytes.len().hash(&mut h);
-                }
-                Reference::File(p) => p.hash(&mut h),
-            }
-        }
+        crate::assets::style::hash_references(&self.references, &mut h);
         format!("{}-{:08x}", self.name, h.finish() as u32)
     }
 }

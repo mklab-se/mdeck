@@ -15,10 +15,49 @@ pub struct Config {
     pub routing: Option<RoutingWeightsConfig>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub styles: Option<BTreeMap<String, String>>,
+    pub styles: Option<BTreeMap<String, NamedStyle>>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub icon_styles: Option<BTreeMap<String, String>>,
+    pub icon_styles: Option<BTreeMap<String, NamedStyle>>,
+}
+
+/// A named style: a prompt, optionally with reference images. Written as a
+/// plain string when it has no references.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum NamedStyle {
+    Prompt(String),
+    Full {
+        prompt: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        references: Vec<PathBuf>,
+    },
+}
+
+impl NamedStyle {
+    fn new(prompt: &str, references: Vec<PathBuf>) -> Self {
+        if references.is_empty() {
+            NamedStyle::Prompt(prompt.to_string())
+        } else {
+            NamedStyle::Full {
+                prompt: prompt.to_string(),
+                references,
+            }
+        }
+    }
+
+    pub fn prompt(&self) -> &str {
+        match self {
+            NamedStyle::Prompt(p) | NamedStyle::Full { prompt: p, .. } => p,
+        }
+    }
+
+    pub fn references(&self) -> &[PathBuf] {
+        match self {
+            NamedStyle::Prompt(_) => &[],
+            NamedStyle::Full { references, .. } => references,
+        }
+    }
 }
 
 fn default_one() -> f64 {
@@ -137,9 +176,45 @@ impl Config {
     // ── Style helpers ──────────────────────────────────────────────────
 
     pub fn add_style(&mut self, name: &str, description: &str) {
-        self.styles
-            .get_or_insert_with(BTreeMap::new)
-            .insert(name.to_string(), description.to_string());
+        let map = self.styles.get_or_insert_with(BTreeMap::new);
+        let refs = map
+            .get(name)
+            .map(|s| s.references().to_vec())
+            .unwrap_or_default();
+        map.insert(name.to_string(), NamedStyle::new(description, refs));
+    }
+
+    /// The reference images of a named image (or, with `icon`, icon) style.
+    pub fn style_references(&self, name: &str, icon: bool) -> &[PathBuf] {
+        let map = if icon {
+            &self.icon_styles
+        } else {
+            &self.styles
+        };
+        map.as_ref()
+            .and_then(|m| m.get(name))
+            .map(NamedStyle::references)
+            .unwrap_or(&[])
+    }
+
+    /// Give an existing named style these reference images (none clears
+    /// them). Returns whether the style exists.
+    pub fn set_style_references(
+        &mut self,
+        name: &str,
+        icon: bool,
+        references: Vec<PathBuf>,
+    ) -> bool {
+        let map = if icon {
+            &mut self.icon_styles
+        } else {
+            &mut self.styles
+        };
+        let Some(style) = map.as_mut().and_then(|m| m.get_mut(name)) else {
+            return false;
+        };
+        *style = NamedStyle::new(style.prompt(), references);
+        true
     }
 
     pub fn remove_style(&mut self, name: &str) -> bool {
@@ -173,20 +248,23 @@ impl Config {
     }
 
     pub fn get_style(&self, name: &str) -> Option<&str> {
-        self.styles.as_ref()?.get(name).map(|s| s.as_str())
+        self.styles.as_ref()?.get(name).map(NamedStyle::prompt)
     }
 
     pub fn list_styles(&self) -> Vec<(&str, &str)> {
         self.styles
             .as_ref()
-            .map(|m| m.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect())
+            .map(|m| m.iter().map(|(k, v)| (k.as_str(), v.prompt())).collect())
             .unwrap_or_default()
     }
 
     pub fn add_icon_style(&mut self, name: &str, description: &str) {
-        self.icon_styles
-            .get_or_insert_with(BTreeMap::new)
-            .insert(name.to_string(), description.to_string());
+        let map = self.icon_styles.get_or_insert_with(BTreeMap::new);
+        let refs = map
+            .get(name)
+            .map(|s| s.references().to_vec())
+            .unwrap_or_default();
+        map.insert(name.to_string(), NamedStyle::new(description, refs));
     }
 
     pub fn remove_icon_style(&mut self, name: &str) -> bool {
@@ -211,12 +289,12 @@ impl Config {
     pub fn list_icon_styles(&self) -> Vec<(&str, &str)> {
         self.icon_styles
             .as_ref()
-            .map(|m| m.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect())
+            .map(|m| m.iter().map(|(k, v)| (k.as_str(), v.prompt())).collect())
             .unwrap_or_default()
     }
 
     pub fn get_icon_style(&self, name: &str) -> Option<&str> {
-        self.icon_styles.as_ref()?.get(name).map(|s| s.as_str())
+        self.icon_styles.as_ref()?.get(name).map(NamedStyle::prompt)
     }
 
     /// Resolve the effective image style description.

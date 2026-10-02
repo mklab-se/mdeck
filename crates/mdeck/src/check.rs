@@ -23,8 +23,9 @@ pub enum CheckCategory {
     Visual,
     /// Content the deck's engine does not show, and `engine` problems.
     Engine,
-    /// Generated art for the art engines: missing, stale, unreadable.
-    Art,
+    /// Generated assets (artworks, images, icons, point clouds): missing,
+    /// stale, or a manifest that cannot be read.
+    Assets,
     /// `background` images that are missing or unreadable, bad opacities.
     Background,
     /// `@thermal` blocks: unreadable sources, colour input, unsupported
@@ -44,7 +45,7 @@ impl fmt::Display for CheckCategory {
             CheckCategory::Content => write!(f, "content"),
             CheckCategory::Visual => write!(f, "visual"),
             CheckCategory::Engine => write!(f, "engine"),
-            CheckCategory::Art => write!(f, "art"),
+            CheckCategory::Assets => write!(f, "assets"),
             CheckCategory::Background => write!(f, "background"),
             CheckCategory::Thermal => write!(f, "thermal"),
         }

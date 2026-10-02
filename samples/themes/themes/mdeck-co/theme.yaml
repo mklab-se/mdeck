@@ -1,12 +1,12 @@
 # Generated from the sample design system with
-#   mdeck theme new mdeck-co --from ../design-systems/mdeck-co
+#   mdeck ai theme mdeck-co --from ../design-systems/mdeck-co
 # (a Claude Design export, see samples/design-systems/), which also copied
 # its logos into logos/. Left as the model wrote it, so it shows what the
 # conversion produces.
 name: MDeck Co
 extends: dark
 engine: particles
-countdown: burst
+countdown: on
 colors:
   background: "#050505"
   text: "#8f8f98"

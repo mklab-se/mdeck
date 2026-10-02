@@ -177,7 +177,7 @@ fn report_deck_warnings(deck: &Deck, engine: crate::engines::EngineKind) {
         parts.push(format!("{} stale", c.stale));
     }
     eprintln!(
-        "warning: art for the {} engine: {}; run `mdeck ai art {}` (or press S on a slide)",
+        "warning: art for the {} engine: {}; run `mdeck ai pictures {}` (or press S on a slide)",
         medium.name,
         parts.join(", "),
         deck.file.file_name().unwrap_or_default().to_string_lossy()
@@ -215,7 +215,7 @@ fn warn_before_presenting(presentation: &Presentation, file: &std::path::Path) {
         .slides
         .iter()
         .flat_map(|s| s.blocks.iter())
-        .filter(|b| matches!(b, parser::Block::Image { path, .. } if path == "image-generation"))
+        .filter(|b| matches!(b, parser::Block::Image { path, .. } if crate::assets::placeholders::is_image(path)))
         .count();
     if ungenerated > 0 {
         use colored::Colorize;
@@ -225,7 +225,7 @@ fn warn_before_presenting(presentation: &Presentation, file: &std::path::Path) {
             ungenerated
         );
         eprintln!(
-            "  Run `mdeck ai generate {}` to generate them first.\n",
+            "  Run `mdeck ai images {}` to generate them first.\n",
             file.display()
         );
     }

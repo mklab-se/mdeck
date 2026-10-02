@@ -12,7 +12,7 @@ A blueprint deck, drawn as it opens
 
 # Every slide gets its own drawing
 
-- `mdeck ai art` draws a picture for each slide
+- `mdeck ai pictures` draws a picture for each slide
 - Line art, inked onto the sheet stroke by stroke
 - Generated once, presented many times, offline
 

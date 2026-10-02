@@ -1,4 +1,4 @@
-//! `mdeck theme new --from <folder>`: read a design system and have the
+//! `mdeck ai theme <name> --from <folder>`: read a design system and have the
 //! chat model write the theme.
 
 use std::path::{Path, PathBuf};

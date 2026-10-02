@@ -97,7 +97,7 @@ pub struct Capabilities {
     pub countdown: bool,
     /// Plays an act of its own on the end slide.
     pub end_act: bool,
-    /// Draws generated art (`mdeck ai art`) in its medium.
+    /// Draws generated art (`mdeck ai pictures`) in its medium.
     pub art: bool,
     /// Prints the slide number itself on a numbered surface (the line
     /// engine's sheet, see [`crate::theme::Theme::numbers_slides`]), so the

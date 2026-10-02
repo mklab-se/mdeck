@@ -1,4 +1,4 @@
-//! The AI calls behind `ai create`: a file name, the outline, then the deck.
+//! The AI calls behind `mdeck ai deck`: a file name, the outline, then the deck.
 
 use anyhow::Result;
 use colored::Colorize;

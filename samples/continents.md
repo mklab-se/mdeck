@@ -20,12 +20,12 @@ A tour of our planet's landmasses
 - Lake Victoria is the world's second-largest freshwater lake
 - Africa has more languages than any other continent (~2,000)
 
-![A sweeping African savanna at golden hour with acacia trees silhouetted against the sky and a distant mountain range](image-generation)
+![A sweeping African savanna at golden hour with acacia trees silhouetted against the sky and a distant mountain range](generate:)
 
 
 ## Antarctica
 
-![A vast Antarctic ice shelf meeting deep blue ocean, with towering icebergs and a dramatic aurora australis in the sky](image-generation)
+![A vast Antarctic ice shelf meeting deep blue ocean, with towering icebergs and a dramatic aurora australis in the sky](generate:)
 
 An untouched frozen world at the bottom of the Earth.
 
@@ -39,7 +39,7 @@ An untouched frozen world at the bottom of the Earth.
 - Technically the driest continent (it's a polar desert)
 - Winds can reach over 320 km/h (200 mph)
 
-![A close-up of crystalline blue glacial ice formations with light refracting through the surface](image-generation)
+![A close-up of crystalline blue glacial ice formations with light refracting through the surface](generate:)
 
 
 ## Asia
@@ -51,7 +51,7 @@ An untouched frozen world at the bottom of the Earth.
 - The Great Wall of China stretches over 21,000 km
 - Home to the world's oldest continuously inhabited city (Damascus)
 
-![A dramatic Himalayan mountain panorama at sunrise with snow-capped peaks emerging above clouds](image-generation)
+![A dramatic Himalayan mountain panorama at sunrise with snow-capped peaks emerging above clouds](generate:)
 
 
 ## Europe
@@ -63,7 +63,7 @@ An untouched frozen world at the bottom of the Earth.
 - The European Alps were formed 65 million years ago
 - Venice is built on 118 small islands connected by 400+ bridges
 
-![A charming European village nestled in an Alpine valley with snow-capped peaks, a church steeple, and autumn foliage](image-generation)
+![A charming European village nestled in an Alpine valley with snow-capped peaks, a church steeple, and autumn foliage](generate:)
 
 
 ## North America
@@ -75,7 +75,7 @@ An untouched frozen world at the bottom of the Earth.
 - Contains the world's largest freshwater system (the Great Lakes)
 - Greenland is the world's largest island
 
-![An aerial view of the Grand Canyon at sunset with layered red rock formations and the Colorado River winding below](image-generation)
+![An aerial view of the Grand Canyon at sunset with layered red rock formations and the Colorado River winding below](generate:)
 
 
 ## South America
@@ -87,7 +87,7 @@ An untouched frozen world at the bottom of the Earth.
 - The Andes is the longest continental mountain range (7,000 km)
 - The Atacama Desert is the driest non-polar place on Earth
 
-![A lush Amazon rainforest canopy from above with a winding river cutting through endless green, mist rising at dawn](image-generation)
+![A lush Amazon rainforest canopy from above with a winding river cutting through endless green, mist rising at dawn](generate:)
 
 
 ## Australia & Oceania
@@ -99,7 +99,7 @@ An untouched frozen world at the bottom of the Earth.
 - Home to 80% of species found nowhere else (unique wildlife)
 - The Outback covers roughly 70% of the Australian landmass
 
-![A vibrant underwater scene of the Great Barrier Reef with colorful coral formations, tropical fish, and crystal-clear turquoise water](image-generation)
+![A vibrant underwater scene of the Great Barrier Reef with colorful coral formations, tropical fish, and crystal-clear turquoise water](generate:)
 
 
 ## One Planet

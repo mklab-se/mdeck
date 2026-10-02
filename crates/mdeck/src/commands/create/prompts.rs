@@ -215,7 +215,7 @@ pub fn generation_system_prompt(style: &Option<String>) -> String {
         - Output ONLY the markdown content.\n\n\
         IMAGES — use them to create visual impact and atmosphere:\n\
         - The TITLE SLIDE should almost always include an atmospheric image that sets the mood. \
-          Use `![descriptive prompt](image-generation)` to generate one.\n\
+          Use `![descriptive prompt](generate:)` to generate one.\n\
         - PRODUCT or TOPIC INTRODUCTION slides: pair content with a relevant image to create \
           a split layout (content on left, image on right). Place the image inline after the \
           text content on the same slide.\n\

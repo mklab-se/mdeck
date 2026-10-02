@@ -12,7 +12,6 @@ pub mod logo;
 pub mod math;
 pub mod page;
 pub mod particles;
-pub mod sidecar;
 // Pen strokes: the art engines draw with them.
 #[cfg(feature = "art")]
 pub mod strokes;

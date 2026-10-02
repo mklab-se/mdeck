@@ -7,6 +7,7 @@ use crate::check::{CheckCategory, CheckReport, CheckWarning};
 use crate::parser;
 use crate::render;
 
+mod assets;
 mod background;
 mod content;
 mod engine;
@@ -14,9 +15,10 @@ mod illustration;
 mod settings;
 mod theme;
 mod thermal;
+pub use assets::asset_warnings;
 pub use background::background_warnings;
 pub use content::{cjk_font_warning, content_warnings, math_warnings, warn_missing_cjk_font};
-pub use engine::{art_warnings, deck_theme, engine_warnings};
+pub use engine::{deck_theme, engine_warnings};
 pub use illustration::illustration_warnings;
 pub use settings::{fence_warnings, settings_warnings};
 pub use theme::theme_warnings;
@@ -84,7 +86,7 @@ fn collect(
     };
 
     add(diagram_warnings(presentation));
-    add(illustration_warnings(presentation, base_path));
+    add(illustration_warnings(presentation, file));
     add(
         cjk_font_warning(presentation, render::fonts::cjk_coverage())
             .into_iter()
@@ -116,7 +118,7 @@ fn collect(
         })
         .collect());
     add(engine_warnings(presentation, theme.engine));
-    add(art_warnings(file, presentation, &theme));
+    add(asset_warnings(file, presentation, &theme));
     Ok(report)
 }
 

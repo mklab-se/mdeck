@@ -234,21 +234,21 @@ pub const SETTINGS: &[SettingDef] = &[
         Scope::Deck,
         Kind::Text,
         "",
-        "The deck's world for `mdeck ai art`: setting, era, recurring characters",
+        "The deck's world for `mdeck ai pictures`: setting, era, recurring characters",
     ),
     def(
         "image-style",
         Scope::Deck,
         Kind::Text,
         "",
-        "The style of images made by `mdeck ai generate`",
+        "The style of images made by `mdeck ai images`",
     ),
     def(
         "icon-style",
         Scope::Deck,
         Kind::Text,
         "",
-        "The style of diagram icons made by `mdeck ai generate`",
+        "The style of diagram icons made by `mdeck ai icons`",
     ),
     def(
         "design",
@@ -269,7 +269,7 @@ pub const SETTINGS: &[SettingDef] = &[
         Scope::Slide,
         Kind::Text,
         "",
-        "What `mdeck ai art` draws for this slide",
+        "What `mdeck ai pictures` draws for this slide",
     ),
     def(
         "zoom-to",

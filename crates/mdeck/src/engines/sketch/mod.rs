@@ -1,6 +1,6 @@
 //! The sketch engine: a sketchbook. Every slide is a sheet of drawing paper
 //! on a desk (the theme's `page:`), and the slide's generated picture
-//! (`mdeck ai art`), graphite and ink in the MKLab house style by default,
+//! (`mdeck ai pictures`), graphite and ink in the MKLab house style by default,
 //! is drawn in with a pencil: the outlines first, along the lines, then the
 //! shading laid in stroke by stroke in bands that sweep across the picture.
 //! Without art, the slide's `picture` is drawn in pencil; the

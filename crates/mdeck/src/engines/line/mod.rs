@@ -1,4 +1,4 @@
-//! The line engine: the slide's generated line art (`mdeck ai art`) drawn
+//! The line engine: the slide's generated line art (`mdeck ai pictures`) drawn
 //! stroke by stroke on a surface the theme chooses with `surface:`.
 //!
 //! - **`sheet`** (the `blueprint` theme): a draughtsman's sheet. Every slide

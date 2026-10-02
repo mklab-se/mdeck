@@ -12,7 +12,7 @@ A darkroom deck, developed as it opens
 
 # Every slide gets a photograph
 
-- `mdeck ai art` makes a photograph for each slide
+- `mdeck ai pictures` makes a photograph for each slide
 - The print develops, shadows first, under the safelight
 - Then the white light comes on
 

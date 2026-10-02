@@ -59,7 +59,7 @@ heading and three bullets a bullet slide. Then pick a theme and an engine.</em><
     <td><img src="media/showcase/stack-gear.jpg" alt="A gear built from falling blocks"><br><sub><b>Falling blocks</b>: pictures built block by block</sub></td>
   </tr>
   <tr>
-    <td><img src="media/showcase/blueprint-why.jpg" alt="Generated line art inked onto a blueprint sheet"><br><sub><b>Blueprint</b>: a drawing made for every slide with <code>mdeck ai art</code></sub></td>
+    <td><img src="media/showcase/blueprint-why.jpg" alt="Generated line art inked onto a blueprint sheet"><br><sub><b>Blueprint</b>: a drawing made for every slide with <code>mdeck ai pictures</code></sub></td>
     <td><img src="media/showcase/blueprint-title.jpg" alt="A title slide over a dim blueprint drawing of a ship launch"><br><sub>The title sheet, its drawing dim behind the copy</sub></td>
   </tr>
   <tr>

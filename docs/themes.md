@@ -143,13 +143,13 @@ unreadable. See `samples/features/backgrounds.md` and spec section 9.8.
 
 **From a design system.** If your brand already lives in a design system (a
 Claude Design export, CSS tokens, a Tailwind config, W3C design tokens),
-`mdeck theme new acme --from path/to/design-system` reads its rules and tokens,
+`mdeck ai theme acme --from path/to/design-system` reads its rules and tokens,
 copies its fonts and logos into the theme folder, and writes the theme with AI.
 Then look at it and adjust:
 
 ```bash
 mdeck theme new acme                       # a commented starter theme in themes/
-mdeck theme new acme --from ./brand        # convert a design system (AI)
+mdeck ai theme acme --from ./brand         # convert a design system (AI)
 mdeck theme check acme                     # errors, fallbacks, hard-to-read colours
 mdeck theme preview acme -o /tmp/acme      # a sampler deck as PNGs
 mdeck theme list                           # every theme visible from here

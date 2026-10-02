@@ -14,18 +14,30 @@ pub(super) async fn run_style(cmd: StyleCommands) -> Result<()> {
             name,
             description,
             icon,
+            references,
             interactive,
         }
         | StyleCommands::Set {
             name,
             description,
             icon,
+            references,
             interactive,
         } => {
             if interactive {
-                return super::style_chat::run_interactive_style(name, icon).await;
+                let saved = name.clone();
+                super::style_chat::run_interactive_style(name, icon).await?;
+                return match saved {
+                    Some(n) if !references.is_empty() => save_references(&n, icon, references),
+                    _ => Ok(()),
+                };
             }
-            save_style(name, description, icon)
+            let saved = name.clone();
+            save_style(name, description, icon)?;
+            match saved {
+                Some(n) if !references.is_empty() => save_references(&n, icon, references),
+                _ => Ok(()),
+            }
         }
         StyleCommands::Remove { name, icon } => remove_style(&name, icon),
         StyleCommands::List => {
@@ -76,6 +88,25 @@ fn save_style(name: Option<String>, description: Option<String>, icon: bool) -> 
             name.cyan().bold()
         );
     }
+    Ok(())
+}
+
+/// Give a saved style its reference images (absolute, so the style works
+/// from any deck).
+fn save_references(name: &str, icon: bool, references: Vec<std::path::PathBuf>) -> Result<()> {
+    let mut refs = Vec::new();
+    for r in references {
+        if !r.is_file() {
+            anyhow::bail!("reference image {} not found", r.display());
+        }
+        refs.push(std::fs::canonicalize(&r).unwrap_or(r));
+    }
+    let mut config = Config::load_or_default();
+    if !config.set_style_references(name, icon, refs) {
+        anyhow::bail!("no style named {name}");
+    }
+    config.save()?;
+    println!("  with its reference images");
     Ok(())
 }
 
