@@ -223,6 +223,7 @@ pub fn hint(hint: &Hint, theme: &Theme) -> SdkHint {
         },
         Hint::Point(p) => SdkHint::Point(h::pos(*p)),
         Hint::Frame(r) => SdkHint::Frame(h::rect(*r)),
+        Hint::Copy(r) => SdkHint::Copy(h::rect(*r)),
         Hint::Text { galley, pos, slide } => {
             let (font, color) = heading_font(galley, theme);
             SdkHint::Text {

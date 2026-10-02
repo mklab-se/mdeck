@@ -150,12 +150,22 @@ pub fn run(args: ExportArgs) -> anyhow::Result<()> {
 
     let (deck, theme) = open_deck(&file, theme, engine.as_deref())?;
     std::fs::create_dir_all(&output_dir)?;
-    let targets = select_slides(slide, range.as_deref(), deck.slide_count())?;
+    let mut targets = select_slides(slide, range.as_deref(), deck.slide_count())?;
+    // a moment is one image, drawn on one slide
+    let debug = debug && moment.is_none();
+    let what = match moment {
+        Some(m) => {
+            let chose = slide.is_some() || range.is_some();
+            targets = m.target(&targets, chose, deck.slide_count());
+            format!("{} (on slide {})", m.file_name(), targets[0] + 1)
+        }
+        None => describe_targets(&targets, deck.slide_count()),
+    };
     let pdf_path = (format == Format::Pdf).then(|| output_dir.join(pdf_filename(&file, notes)));
     eprintln!(
         "{} {} to {} ({width}x{height}{})",
         if debug { "Debug export:" } else { "Exporting" },
-        describe_targets(&targets, deck.slide_count()),
+        what,
         pdf_path.as_ref().unwrap_or(&output_dir).display(),
         if notes { ", with speaker notes" } else { "" },
     );

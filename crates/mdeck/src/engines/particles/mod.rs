@@ -23,7 +23,8 @@ use std::sync::Arc;
 
 use mdeck_sdk::content::{Block, Slide};
 use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Needs};
-use mdeck_sdk::paint::Painter;
+use mdeck_sdk::geometry::Hint;
+use mdeck_sdk::paint::{Painter, Rect};
 use mdeck_sdk::stage::{Frame, Moment, PictureSource, Stage};
 
 /// Particles in the presentation window (the site uses 520 on desktop).
@@ -161,10 +162,15 @@ fn scene_for(stage: &Stage, frame: &Frame, end_phase: Option<EndPhase>, seed: u6
                 && uses_geometry(slide)
             {
                 scenes::from_hints(stage.geometry, rect, seed)
-            } else if let Some(slide) = stage.slide {
-                scenes::for_slide(slide, seed, stage.title)
             } else {
-                scenes::constellation(seed)
+                let mut scene = match stage.slide {
+                    Some(slide) => scenes::for_slide(slide, seed, stage.title),
+                    None => scenes::constellation(seed),
+                };
+                if let Some(copy) = copy_box(stage.geometry, rect) {
+                    scenes::keep_clear(&mut scene, copy, rect_aspect);
+                }
+                scene
             }
         }
     }
@@ -240,6 +246,26 @@ impl Engine for Particles {
         };
         field.paint(painter, frame.rect, frame.opacity, !frame.settled());
     }
+}
+
+/// Where the slide's copy is, as slide fractions (left, top, right,
+/// bottom), when the design published it.
+fn copy_box(geometry: &[Hint], rect: Rect) -> Option<scenes::clear::Box> {
+    let copy = geometry
+        .iter()
+        .filter_map(|h| match h {
+            Hint::Copy(r) => Some(*r),
+            _ => None,
+        })
+        .reduce(|a, b| a.union(b))?;
+    let u = |x: f32| (x - rect.left()) / rect.width();
+    let v = |y: f32| (y - rect.top()) / rect.height();
+    Some([
+        u(copy.left()),
+        v(copy.top()),
+        u(copy.right()),
+        v(copy.bottom()),
+    ])
 }
 
 /// Designs whose field follows the drawn content rather than a fixed scene.

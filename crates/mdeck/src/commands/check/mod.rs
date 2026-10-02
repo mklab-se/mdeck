@@ -26,10 +26,18 @@ pub use settings::{fence_warnings, settings_warnings};
 pub use theme::theme_warnings;
 pub use thermal::thermal_warnings;
 
-pub fn run(file: PathBuf, verbose: u8, quiet: bool, engine: Option<String>) -> anyhow::Result<()> {
+pub fn run(
+    file: PathBuf,
+    verbose: u8,
+    quiet: bool,
+    engine: Option<String>,
+    theme: Option<String>,
+) -> anyhow::Result<()> {
     let content = std::fs::read_to_string(&file)?;
     let base_path = file.parent().unwrap_or(Path::new("."));
-    let presentation = parser::parse(&content);
+    let mut presentation = parser::parse(&content);
+    // `--theme` beats the deck's `theme`, as it does when presenting
+    override_theme(&mut presentation, theme.as_deref());
 
     if presentation.slides.is_empty() {
         anyhow::bail!("No slides found in {}", file.display());
@@ -69,6 +77,13 @@ pub fn run(file: PathBuf, verbose: u8, quiet: bool, engine: Option<String>) -> a
             eprintln!("No issues found.");
         }
         Ok(())
+    }
+}
+
+/// Check the deck in `theme` (the `--theme` flag) instead of its own.
+fn override_theme(presentation: &mut parser::Presentation, theme: Option<&str>) {
+    if let Some(name) = theme.map(str::trim).filter(|n| !n.is_empty()) {
+        presentation.meta.theme = Some(name.to_string());
     }
 }
 
@@ -272,6 +287,31 @@ mod tests {
             notes: notes.map(String::from),
             ..Default::default()
         }
+    }
+
+    // `--check --theme departures` checks the deck on the split-flap board:
+    // a diagram it cannot show is reported, not silently dropped.
+    #[cfg(feature = "splitflap")]
+    #[test]
+    fn the_theme_flag_checks_the_deck_in_that_theme() {
+        let content = "---\ntheme: ember\n---\n# Map\n\n```@architecture\n- A (icon: api)\n- B (icon: database)\n- A -> B\n```\n";
+        let mut p = parser::parse(content);
+        let file = Path::new("/nonexistent/talk.md");
+        let engine = |p: &parser::Presentation| {
+            collect(file, content, p, Path::new("/nonexistent"), None)
+                .unwrap()
+                .warnings()
+                .filter(|w| w.category == CheckCategory::Engine)
+                .map(|w| w.message.clone())
+                .collect::<Vec<_>>()
+        };
+        assert!(engine(&p).is_empty(), "{:?}", engine(&p));
+        override_theme(&mut p, Some(" departures "));
+        let w = engine(&p);
+        assert!(
+            w.iter().any(|m| m.contains("diagrams are not shown")),
+            "{w:?}"
+        );
     }
 
     #[test]

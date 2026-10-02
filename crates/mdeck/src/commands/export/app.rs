@@ -132,6 +132,9 @@ impl ExportApp {
 
     /// File name for the current slide/step, zero-padded to the deck size.
     fn output_filename(&self) -> String {
+        if let Some(moment) = self.rehearsal.moment {
+            return moment.file_name().to_string();
+        }
         super::export_filename(
             self.cursor.slide(),
             self.deck.slide_count(),
@@ -292,16 +295,20 @@ impl ExportApp {
                 egui::pos2(-(origin.0 as f32), -(origin.1 as f32)),
                 egui::vec2(self.width as f32, self.height as f32),
             );
-            let view = crate::app::presenter::View {
-                deck: &self.deck,
+            // the engine under the "now" slide, settled, as the window shows it
+            let mut host = crate::engines::Host::new(self.theme.engine).without_hints();
+            let mut view = crate::app::presenter::View {
+                deck: &mut self.deck,
                 theme: &self.theme,
+                engine: Some(&mut host),
+                still: true,
                 index: idx,
                 reveal,
                 end: false,
                 // a fixed time, so the export is reproducible
                 elapsed: std::time::Duration::from_secs(754),
             };
-            crate::app::presenter::draw(ui, full, &view);
+            crate::app::presenter::draw(ui, full, &mut view);
             return;
         }
         let radius = self.theme.page.as_ref().map_or(0.0, |p| p.radius * scale);

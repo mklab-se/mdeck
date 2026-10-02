@@ -2597,6 +2597,17 @@ palettes as written.
 zoom into the spot named `Hotspot` on the previous slide's `@thermal` image:
 the old slide magnifies around the spot and fades as the new one settles. If
 the previous slide shows no such spot, the transition is the usual one.
+`transition: zoom` beside it says the same thing in so many words; `zoom-to`
+alone implies it, and `transition: zoom` without `zoom-to` is reported by
+`--check`.
+
+```markdown
+# The hotspot, up close
+<!--
+transition: zoom
+zoom-to: Hotspot
+-->
+```
 
 **Engines.** The block draws the same on every engine. The thermal engine
 keeps its field dark around it; a board engine (`splitflap`) shows the block,

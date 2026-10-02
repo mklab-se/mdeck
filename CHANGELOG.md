@@ -257,6 +257,23 @@ an AI harness can convert a deck.
   references) now makes what was generated with it stale; only a changed path used to.
 - Chart and diagram geometry is no longer collected for engines after switching to the `plain`
   engine or into the overview, where nothing used it and it piled up.
+- A slide that names a `picture:` shows its stored artwork on the art engines again: the artwork
+  comes first and the point cloud is the fallback, as documented.
+- `mdeck --check --theme <name>` checks the deck in that theme, so `--theme departures` reports
+  the diagrams and charts the split-flap board cannot show instead of finding no issues.
+- The split-flap board shows a hyphen as a bar above the hinge, so `Sign-ups` no longer reads
+  `SIGN UPS`.
+- `mdeck export --moment countdown|end` writes one image (`countdown.png`, `end.png`) instead of
+  the same image once per slide; `--slide` picks the slide it is drawn on.
+- Without a generated picture, the line, sketch and watercolour engines draw a slide's point cloud
+  as a finished drawing instead of one wandering pen line: the cloud's own lines traced clean and
+  smooth, section hatching on the shadow side in line, hatching and cross-hatching in sketch, and
+  washes laid over the shape in watercolour.
+- On the particles engine the clusters keep clear of the copy whatever the design set: with
+  `designs: standard` (a centred title, wide bullets) they no longer land on the words. Designs
+  publish their copy box as the new SDK hint `Hint::Copy`.
+- The presenter view's current slide shows the engine's layer (particles, generated pictures, the
+  blueprint sheet) as the slides window does, run by its own engine so the slides are not slowed.
 
 ### Deferred to 2.x
 

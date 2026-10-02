@@ -42,7 +42,7 @@ y-label: Rivets per span
 <!-- picture: gear -->
 
 - Without a picture, the point cloud named by `picture` is drawn with a technical pen
-- A slide that names a point cloud gets no generated art; `picture: none` keeps it empty
+- A generated picture comes first once there is one; `picture: none` keeps the slide empty
 
 # Thank you
 <!-- picture-prompt: A lighthouse keeper waving from the gallery of a lighthouse at dusk, a small robot beside them holding a lantern. -->

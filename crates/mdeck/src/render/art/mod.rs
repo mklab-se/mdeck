@@ -77,15 +77,12 @@ impl Medium {
 }
 
 /// Whether a slide gets a generated picture: its layout has a stage for one
-/// (the editorial layouts: title, section, quote, bullet and copy slides),
-/// it did not say `picture: none`, and it did not choose a point cloud for
-/// its picture without a `picture-prompt` (phase 2 makes the picture one
-/// source: an artwork when there is one, else the point cloud).
+/// (the editorial layouts: title, section, quote, bullet and copy slides)
+/// and it did not say `picture: none`. A slide that names a point cloud or an
+/// image with `picture:` still takes art: the picture is one source (D13), a
+/// current artwork first, then the point cloud, then the image.
 pub fn wants_art(slide: &Slide) -> bool {
-    let art = slide.art.as_deref().map(str::trim);
-    art != Some("none")
-        && (slide.illustration.is_none() || art.is_some())
-        && crate::render::ember::handles(slide)
+    slide.art.as_deref().map(str::trim) != Some("none") && crate::render::ember::handles(slide)
 }
 
 /// The scene a slide's own `picture-prompt` describes, if it does.
@@ -106,7 +103,9 @@ mod tests {
         let md = "# Title\n\nA talk\n\n# Copy\n\n- one\n\n# No art\n<!-- picture: none -->\n\n- two\n\n# Code\n\n```rust\nfn main() {}\n```\n\n# Scene\n<!-- picture-prompt: a lighthouse at dawn -->\n\n- three\n\n# Cloud\n<!-- picture: gear -->\n\n- four\n";
         let pres = crate::parser::parse(md);
         let wants: Vec<bool> = pres.slides.iter().map(wants_art).collect();
-        assert_eq!(wants, [true, true, false, false, true, false]);
+        // `picture: gear` names the fallback, not an opt-out: the slide takes
+        // an artwork first (D13), so stored artworks for it are shown.
+        assert_eq!(wants, [true, true, false, false, true, true]);
         assert_eq!(slide_scene(&pres.slides[4]), Some("a lighthouse at dawn"));
         assert_eq!(slide_scene(&pres.slides[1]), None);
     }

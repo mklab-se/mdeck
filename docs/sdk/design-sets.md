@@ -50,8 +50,8 @@ set never parses markdown itself.
   reached it.
 - `cx.tokens()` gives the theme's colours, `cx.scale()` the scale to multiply every size by,
   `cx.animate()` whether to animate (false for stills and reduced motion).
-- `cx.publish(Hint::Frame(rect))` tells the engine where the copy is, so it stays calm there.
-  Publish the copy's box and every image or card.
+- `cx.publish(Hint::Copy(rect))` tells the engine where the copy is, so it keeps its brightest
+  motion off it; `cx.publish(Hint::Frame(rect))` marks an image or a card it must stay out of.
 
 The content model is a first draft in SDK 2.0 and may gain fields in minor versions (never lose
 them); match on it with a wildcard arm (`_ => {}`) so new block kinds do not break you.

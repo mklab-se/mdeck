@@ -24,6 +24,9 @@ pub enum Hint {
     Point(Pos2),
     /// A box the field must stay out of: the content area, a node, a card.
     Frame(Rect),
+    /// The slide's copy as the design laid it out (the field keeps its
+    /// clusters off it).
+    Copy(Rect),
     /// A heading as laid out, at the place it settles: an engine that forms
     /// titles itself (the thermal cold opening) draws it from the glyphs.
     Text {

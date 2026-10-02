@@ -42,7 +42,7 @@ y-label: Range in kilometres
 <!-- picture: lightbulb -->
 
 - Without a picture, the point cloud named by `picture` is drawn in chalk
-- A slide that names a point cloud gets no generated art; `picture: none` keeps it empty
+- A generated picture comes first once there is one; `picture: none` keeps the slide empty
 
 # Class dismissed
 <!-- picture-prompt: A lighthouse keeper waving from the gallery at dawn, gulls around the tower, a calm sea. -->

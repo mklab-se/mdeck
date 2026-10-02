@@ -146,7 +146,8 @@ fn egui_hint(hint: mdeck_sdk::geometry::Hint) -> Option<crate::render::hints::Hi
             radius,
         },
         S::Point(p) => Hint::Point(h::egui_pos(p)),
-        S::Text { .. } => return None,
+        // the copy is the design's to publish, not a visual's
+        S::Text { .. } | S::Copy(_) => return None,
     })
 }
 

@@ -49,3 +49,6 @@ mdeck export talk.md --moment burst                # or 3, 2, 1, burst, end
 second) and exports that frame. `--moment` exports the opening countdown, one of its digits, the
 burst after it, or the engine's end act, instead of the slides. Both are reproducible: the same
 command gives the same picture.
+A moment is one image, `countdown.png` (`countdown-2.png`, `countdown-burst.png`, ...) or
+`end.png`, drawn on the slide `--slide` names, else the first slide for the countdown and the
+last for the end.

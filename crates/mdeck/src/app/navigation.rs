@@ -46,14 +46,8 @@ impl PresentationApp {
             TransitionDirection::Forward,
         );
         // `zoom-to: Spot` on the next slide zooms into that spot of this one
-        if !self.reduced_motion
-            && let Some(spot) =
-                crate::parser::setting(&self.deck.presentation.slides[idx + 1].settings, "zoom-to")
-        {
-            t.zoom = Some(crate::render::transition::Zoom {
-                spot: spot.trim().to_string(),
-                anchor: None,
-            });
+        if !self.reduced_motion {
+            t.zoom = zoom_into(&self.deck.presentation.slides[idx + 1]);
         }
         self.transition = Some(t);
     }
@@ -171,5 +165,43 @@ impl PresentationApp {
             self.mode = AppMode::Presentation { end: false };
         }
         self.overview_transition_start = None;
+    }
+}
+
+/// The zoom into `next`: `transition: zoom` with `zoom-to: <spot>`, or
+/// `zoom-to` alone (it implies the zoom). `transition: zoom` without a spot
+/// has nothing to zoom into; `--check` reports it.
+fn zoom_into(next: &crate::parser::Slide) -> Option<crate::render::transition::Zoom> {
+    let spot = crate::parser::setting(&next.settings, "zoom-to")?.trim();
+    (!spot.is_empty()).then(|| crate::render::transition::Zoom {
+        spot: spot.to_string(),
+        anchor: None,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn transition_zoom_with_a_spot_and_zoom_to_alone_both_zoom() {
+        let p = crate::parser::parse(
+            "# A\n\n# B\n<!--\ntransition: zoom\nzoom-to: Hotspot\n-->\n\n# C\n<!-- zoom-to: Valve -->\n\n# D\n<!-- transition: zoom -->\n\n# E\n<!-- transition: fade -->\n",
+        );
+        let spots: Vec<Option<String>> = p
+            .slides
+            .iter()
+            .map(|s| zoom_into(s).map(|z| z.spot))
+            .collect();
+        assert_eq!(
+            spots,
+            [
+                None,
+                Some("Hotspot".into()),
+                Some("Valve".into()),
+                None,
+                None
+            ]
+        );
     }
 }

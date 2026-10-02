@@ -29,7 +29,8 @@ them and hands them to the engine on the next frame as `stage.geometry`:
 | `Path(points)` | line series, routed edges, timelines | runners travel from the first point to the last |
 | `Circle { center, radius }` | pies, donuts, radar rings, Venn sets | sparks orbit the rim |
 | `Point(pos)` | scatter dots, timeline events | (ignored here) |
-| `Frame(rect)` | images, cards, nodes, the copy | stays dark inside |
+| `Frame(rect)` | images, cards, nodes | stays dark inside |
+| `Copy(rect)` | the design, around the slide's copy | (ignored here; the particles engine moves its clusters off it) |
 | `Text { .. }` | headings, as laid out | (ignored here; an engine can form titles from them) |
 
 The engine turns hints into a `Scene` it can draw quickly:

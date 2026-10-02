@@ -522,6 +522,16 @@ fn paint(
             }
         }
     }
+    // where the copy is, so an engine that fills the slide keeps clear of it
+    if let Some(copy) = plan
+        .pieces
+        .iter()
+        .filter(|p| matches!(p.kind, Kind::Text { .. }))
+        .map(|p| p.bounds)
+        .reduce(|a, b| a.union(b))
+    {
+        crate::render::hints::push(cx.ui.ctx(), crate::render::hints::Hint::Copy(copy));
+    }
     // the plate first: a band and the copy may lie over it
     let entry = &a.entry;
     let reveal_age = cx.reveal_timestamp.map(|t| t.elapsed().as_secs_f32());
