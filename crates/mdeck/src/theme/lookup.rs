@@ -1,5 +1,5 @@
 //! Finding themes by name: the deck's `themes/` folder, then
-//! `~/.config/mdeck/themes/`, then the built-ins (the same order as
+//! `themes/` in the user folder ([`user_dir`]), then the built-ins (the same order as
 //! illustrations). A theme is `<name>.yaml` or `<name>/theme.yaml`.
 
 use std::path::{Path, PathBuf};
@@ -60,7 +60,7 @@ const MAX_DEPTH: usize = 8;
 pub enum Origin {
     /// `<deck dir>/themes/`.
     Deck(PathBuf),
-    /// `~/.config/mdeck/themes/`.
+    /// `themes/` in the user folder ([`user_dir`]).
     User(PathBuf),
     /// The `themes/` folder of an installed pack.
     Pack(PathBuf),

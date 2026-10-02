@@ -253,6 +253,10 @@ an AI harness can convert a deck.
 - The published `mdeck-sdk` crate keeps the template manifests `mdeck sdk new` writes
   (`cargo package` dropped any `Cargo.toml` below the crate root).
 - Theme errors no longer name non-colour keys `colors.<key>`.
+- Editing a style's reference image in place (a theme's engine `references`, a named style's
+  references) now makes what was generated with it stale; only a changed path used to.
+- Chart and diagram geometry is no longer collected for engines after switching to the `plain`
+  engine or into the overview, where nothing used it and it piled up.
 
 ### Deferred to 2.x
 

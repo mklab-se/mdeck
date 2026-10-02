@@ -385,9 +385,11 @@ Standard markdown blockquotes:
 > rendered prominently on the slide.
 ```
 
-A quote keeps its structure: several paragraphs, lists and nested quotes stay
-as written, inside the quote's accent bar. On a quote slide, a quote of
-several paragraphs whose last paragraph is short ends in its attribution:
+A quote keeps its paragraphs, each starting a new line inside the quote's
+accent bar. Lists and nested quotes inside it give their text as further
+lines: a nested quote is not drawn as a quote within a quote. A quote of
+several paragraphs whose last paragraph is short (80 characters or fewer)
+ends in its attribution, set apart under the quotation:
 
 ```markdown
 > The negative is the score, the print is the performance.
@@ -1191,8 +1193,10 @@ OTF from the type foundry or Google Fonts). The bundled faces:
 | `hanken-medium` | Hanken Grotesk Medium |
 | `jetbrains-mono` | JetBrains Mono Regular |
 
-A font file that is missing, unreadable or outside the theme folder falls back
-to the inherited face with a warning.
+A font file that is missing or outside the theme folder falls back to the
+inherited face with a warning. A file that is there but is not a usable
+TTF/OTF font falls back to the role's default with a warning: the `body` face
+for `display`, `lead` and `strong`, `sans` for `body`, `mono` for `mono`.
 
 **Syntax themes.** `code.syntax` names one of the bundled syntax themes
 (`base16-ocean.dark`, `base16-eighties.dark`, `base16-mocha.dark`,

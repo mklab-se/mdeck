@@ -16,7 +16,7 @@ use crate::check::{CheckCategory, CheckReport, CheckWarning};
 // ─── Routing weights ─────────────────────────────────────────────────────────
 
 /// The routing weights for this process, set once at startup from the
-/// config (`routing:` in `~/.config/mdeck/config.yaml`).
+/// config (`routing:` in the user `config.yaml`).
 static ROUTING_WEIGHTS: OnceLock<CostWeights> = OnceLock::new();
 
 /// Use `weights` for every diagram routed from now on. The program sets
