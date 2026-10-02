@@ -147,50 +147,10 @@ fn target_dir(user: bool) -> Result<PathBuf> {
     }
 }
 
-/// The starter theme `mdeck theme new` writes: every key, commented, with
-/// the values `dark` gives.
+/// The starter theme `mdeck theme new` writes: every key, commented,
+/// generated from the format's key table so it cannot drift (THM-17).
 fn starter(name: &str) -> String {
-    format!(
-        r##"# {name}: a custom MDeck theme. Every key is optional; unset keys come
-# from the theme named by `extends`. See `mdeck spec`, section 9.4.
-# Check it with `mdeck theme check {name}` and look at it with
-# `mdeck theme preview {name} --output-dir /tmp/{name}`.
-name: {name}
-extends: dark              # dark | light | nord | ember | another theme
-# engine: plain            # plain | particles | led | splitflap | blocks | thermal | ...
-# countdown: off           # on | off (the engine decides how it looks)
-# transition: fade         # slide | fade | spatial | none (a deck's own wins)
-colors:
-  background: "#1e1e1e"    # slide background
-  text: "#c8c8c8"          # body text
-  heading: "#ffffff"       # headings
-  accent: "#5294e2"        # links, quote bars, highlights
-  # muted: "#8a8a8a"       # captions, eyebrows, slide numbers
-  # strong: "#ffffff"      # **bold** text
-  # rule: "#3a3a3a"        # hairlines
-  # accent-soft: "#8fb8ee" # lighter accent
-  # secondary: "#e8a838"   # a second, rarer highlight
-  # code-background: "#2d2d2d"
-  # code-text: "#d4d4d4"
-  # positive: "#5cdb95"
-  # negative: "#ff6b6b"
-  # series: ["#5cb8ff", "#ff7e67", "#5cdb95", "#e8a838"]
-# fonts:                   # a bundled face or a .ttf/.otf file in this folder
-#   display: sans          # sans, mono, spectral-light, hanken-light,
-#   body: sans             # hanken-regular, hanken-medium, jetbrains-mono
-#   strong: sans
-#   mono: mono
-# sizes: {{ h1: 96, h2: 72, h3: 52, body: 44, code: 30 }}   # px at 1920x1080
-# text: {{ line-height: 1.4 }}
-# charts: {{ fill-opacity: 0.85 }}
-# code: {{ syntax: base16-ocean.dark }}
-# logo:                    # a PNG or SVG in this folder, in a corner of every slide
-#   file: logo.svg
-#   position: top-right    # top-left | top-right | bottom-left | bottom-right
-#   height: 56             # px at 1920x1080
-#   opacity: 0.6
-"##
-    )
+    crate::theme::schema::starter(name, false)
 }
 
 /// `mdeck theme new` (a starter) and `mdeck ai theme` (`from` a design system).

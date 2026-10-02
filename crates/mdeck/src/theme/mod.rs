@@ -15,6 +15,7 @@ mod error;
 pub mod file;
 pub mod lookup;
 mod paths;
+pub mod schema;
 pub mod spacing;
 pub mod validate;
 
