@@ -47,7 +47,8 @@ impl std::error::Error for RegistryError {}
 /// See [`Registry::registrations`] for an example.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Registration<'a> {
-    /// `engine`, `visual`, `design set`, `transition`, `theme` or `point cloud`.
+    /// `engine`, `visual`, `design set`, `transition`, `theme`, `point cloud`
+    /// or `font`.
     pub kind: &'static str,
     /// The name it is registered under.
     pub name: &'a str,
@@ -96,6 +97,7 @@ pub struct Registry {
     transitions: BTreeMap<String, Entry<Box<dyn Transition>>>,
     themes: BTreeMap<String, Entry<&'static str>>,
     point_clouds: BTreeMap<String, Entry<&'static [u8]>>,
+    fonts: BTreeMap<String, Entry<&'static [u8]>>,
 }
 
 impl Default for Registry {
@@ -116,6 +118,7 @@ impl fmt::Debug for Registry {
                 "point_clouds",
                 &self.point_clouds.keys().collect::<Vec<_>>(),
             )
+            .field("fonts", &self.fonts.keys().collect::<Vec<_>>())
             .finish()
     }
 }
@@ -159,6 +162,7 @@ impl Registry {
             transitions: BTreeMap::new(),
             themes: BTreeMap::new(),
             point_clouds: BTreeMap::new(),
+            fonts: BTreeMap::new(),
         }
     }
 
@@ -235,6 +239,29 @@ impl Registry {
             &self.origin,
             bytes,
         )
+    }
+
+    /// Register an embedded font file: `file` is the name an embedded theme
+    /// writes in its `fonts:` block (`AcmeSans-Regular.ttf`), `bytes` the
+    /// `.ttf` or `.otf` file. This is how a crate's own themes use the
+    /// company's fonts without a folder on disk.
+    ///
+    /// ```
+    /// let mut r = mdeck_sdk::registry::Registry::new();
+    /// r.font("AcmeSans-Regular.ttf", b"font bytes").unwrap();
+    /// // The theme then says: fonts: { body: AcmeSans-Regular.ttf }
+    /// assert_eq!(r.font_bytes("AcmeSans-Regular.ttf"), Some(&b"font bytes"[..]));
+    /// assert!(r.font_bytes("Other.ttf").is_none());
+    /// ```
+    pub fn font(&mut self, file: &str, bytes: &'static [u8]) -> Result<(), RegistryError> {
+        insert(&mut self.fonts, "font", file, &self.origin, bytes)
+    }
+
+    /// The bytes of the embedded font file `file`.
+    ///
+    /// See [`Registry::font`] for an example.
+    pub fn font_bytes(&self, file: &str) -> Option<&'static [u8]> {
+        self.fonts.get(file).map(|e| e.item)
     }
 
     /// The engine named `name`.
@@ -343,6 +370,7 @@ impl Registry {
             .chain(of("transition", &self.transitions))
             .chain(of("theme", &self.themes))
             .chain(of("point cloud", &self.point_clouds))
+            .chain(of("font", &self.fonts))
     }
 
     /// The bytes of the embedded point cloud `name`.
@@ -431,6 +459,7 @@ mod tests {
         r.design_set(Box::new(D)).unwrap();
         r.transition(Box::new(T)).unwrap();
         r.point_cloud("c", b"").unwrap();
+        r.font("f.ttf", b"").unwrap();
         r.set_origin("pack");
         let errs = [
             r.engine(&NOP).unwrap_err(),
@@ -438,6 +467,7 @@ mod tests {
             r.design_set(Box::new(D)).unwrap_err(),
             r.transition(Box::new(T)).unwrap_err(),
             r.point_cloud("c", b"").unwrap_err(),
+            r.font("f.ttf", b"").unwrap_err(),
         ];
         for e in &errs {
             assert_eq!((e.first.as_str(), e.second.as_str()), ("mdeck", "pack"));

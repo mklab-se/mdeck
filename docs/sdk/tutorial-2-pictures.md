@@ -7,10 +7,11 @@ countdown digit, the end words. Between slides the motes migrate instead of cutt
 |---|---|---|
 | ![picture](../../examples/engine-pictures/tests/golden/picture.png) | ![countdown](../../examples/engine-pictures/tests/golden/countdown.png) | ![end](../../examples/engine-pictures/tests/golden/end.png) |
 
-The complete crate is [`examples/engine-pictures`](../../examples/engine-pictures). Run its tests
-with `cargo test -p engine-pictures`.
+**What you will build:** `pictures`, a field of 700 glowing motes that gathers into the slide's
+picture, the countdown digits and the end words.
+The complete crate is [`examples/engine-pictures`](../../examples/engine-pictures).
 
-You will learn:
+**What you will learn:**
 
 - to declare capabilities, so the core hands you the picture and the moments;
 - to draw a point cloud in your own medium, in the box the design gives it;
@@ -18,7 +19,15 @@ You will learn:
 - to ease between slides, and to skip the easing for stills;
 - to stay clear of the copy, and to fall back when there is nothing to draw.
 
+**Before you start:** set up the [prerequisites](prerequisites.md), and work through
+[Your first engine](tutorial-0-your-first-engine.md) first if you have not written an engine yet.
+This step explains a finished engine instead of having you type it: every code block is a
+**READ** block, taken from the file its label names, so read them next to that file. To run the
+engine yourself, see [Try it](#try-it) at the end.
+
 ## Capabilities
+
+**READ** `examples/engine-pictures/src/lib.rs`, the definition:
 
 ```rust
 pub static DEF: EngineDef = EngineDef {
@@ -57,6 +66,8 @@ itself.
 Every mote has a position and a target, both in slide fractions, and a brightness and a target
 brightness:
 
+**READ** `examples/engine-pictures/src/lib.rs`, `Mote`:
+
 ```rust
 pub struct Mote {
     pub pos: [f32; 2],
@@ -70,6 +81,8 @@ pub struct Mote {
 Computing targets is the expensive part, so it happens only when what is shown changes. The
 engine keys it on the moment's `Look` (which ignores masks and progress), the slide, the picture
 and the size:
+
+**READ** `examples/engine-pictures/src/lib.rs`, in `update`:
 
 ```rust
 let key = Key {
@@ -91,6 +104,8 @@ if self.key.as_ref() != Some(&key) {
 A point cloud is a picture reduced to points in the unit square, **most important first**: any
 prefix of the points is a fair sketch of the whole. An engine with 300 particles takes the first
 300 and still gets a recognisable shape.
+
+**READ** `examples/engine-pictures/src/lib.rs`, `draw_picture`:
 
 ```rust
 fn draw_picture(&mut self, index: usize, cloud: &Cloud, pic: &Picture, rect: Rect) {
@@ -134,6 +149,8 @@ engine would trace the points, a blocks engine would drop bricks on them.
 there is no picture, it shows its ground: a low band of resting motes. A slide is never left empty
 because an optional input is missing.
 
+**READ** `examples/engine-pictures/src/lib.rs`, in `form`:
+
 ```rust
 Moment::Slide => match cloud(stage.picture.as_ref()) {
     Some((cloud, pic)) => self.draw_picture(stage.index, &cloud, pic, rect),
@@ -148,6 +165,8 @@ slide number so neighbouring slides differ.
 
 The core hands over each countdown digit and the end words as a `Mask`: points sampled inside the
 glyphs, in the unit square of their ink, shuffled so any prefix covers the whole shape.
+
+**READ** `examples/engine-pictures/src/lib.rs`, in `form`:
 
 ```rust
 Moment::Countdown { mask, .. } => {
@@ -171,6 +190,8 @@ one in the theme's fonts.
 
 When the targets change, the motes do not jump. Each frame, each mote moves a fraction of the way:
 
+**READ** `examples/engine-pictures/src/lib.rs`, in `update`:
+
 ```rust
 let dt = frame.dt.clamp(0.0, 0.1);
 for m in &mut self.motes {
@@ -186,6 +207,8 @@ for m in &mut self.motes {
 per mote make the arrival organic instead of mechanical.
 
 For stills and reduced motion there is no journey: the motes are put on their targets at once.
+
+**READ** `examples/engine-pictures/src/lib.rs`, in `update`:
 
 ```rust
 if self.settled {
@@ -213,6 +236,8 @@ backdrop, the resting band below the copy, easing that arrives, a centred digit,
 back to the ground. The golden tests render the three stills at the top of this page. A countdown
 mask comes from the headless painter, exactly as the core makes it:
 
+**READ** `examples/engine-pictures/tests/golden.rs`, the `mask` helper:
+
 ```rust
 fn mask(h: &mut Headless, text: &str) -> Mask {
     let mut out = None;
@@ -223,8 +248,23 @@ fn mask(h: &mut Headless, text: &str) -> Mask {
 
 ## Try it
 
+To run this engine you need a clone of the mdeck repository, the one case where you do: the
+examples live there and build against its SDK. **RUN** once, in the folder where you keep code:
+
 ```bash
-mdeck build --with examples/engine-pictures
+git clone https://github.com/mklab-se/mdeck
+cd mdeck
+cargo test -p engine-pictures
+```
+
+`--mdeck-path .` makes `mdeck build` use the clone's mdeck too (the example depends on the
+clone's SDK, and both must be the same). Alternatively, create your own crate with
+`mdeck sdk new engine <name>` and copy the example's `src/lib.rs` and theme into it.
+
+Then, **RUN** in `mdeck/`, with any deck of yours as `my-deck.md`:
+
+```bash
+mdeck build --with examples/engine-pictures --mdeck-path .
 ./target/release/mdeck export my-deck.md --theme fireflies --at 0.5 --moment countdown
 ./target/release/mdeck export my-deck.md --theme fireflies --at 2 --moment end
 ```

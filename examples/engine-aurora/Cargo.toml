@@ -1,0 +1,17 @@
+[package]
+# The engine from docs/sdk/tutorial-0-your-first-engine.md, as it stands at
+# the end of the tutorial. Its own crate (made with `mdeck sdk new engine
+# aurora`) depends on `mdeck-sdk = "2.x"` from crates.io; here it is a
+# workspace member, so CI builds and tests the tutorial's code.
+name = "aurora"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "SDK tutorial: your first engine, from an empty folder to your colleagues' decks"
+publish = false
+
+[dependencies]
+mdeck-sdk = { path = "../../crates/mdeck-sdk" }

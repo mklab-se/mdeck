@@ -1,9 +1,9 @@
 ---
-title: The template-engine engine
-theme: template-engine
+title: The aurora engine
+theme: aurora
 ---
 
-# The template-engine engine
+# The aurora engine
 
 A sample deck that shows the engine on the common designs
 

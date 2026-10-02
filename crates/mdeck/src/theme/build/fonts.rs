@@ -36,6 +36,29 @@ fn shown(path: &Path) -> String {
         .to_string()
 }
 
+/// A font file's name as shown and its bytes: an absolute path (a theme on
+/// disk, made absolute against its folder), else the font an extension
+/// registered under that name (`Registry::font`, for the themes it embeds).
+fn font_file(
+    key: &str,
+    v: &str,
+    registered: Option<&'static [u8]>,
+) -> Result<(String, Vec<u8>), ThemeError> {
+    let path = Path::new(v);
+    if path.is_absolute() {
+        let shown = shown(path);
+        let bytes = std::fs::read(path).map_err(|e| ThemeError::file(&shown, e))?;
+        return Ok((shown, bytes));
+    }
+    match registered {
+        Some(bytes) => Ok((v.to_string(), bytes.to_vec())),
+        None => Err(ThemeError::invalid(
+            key,
+            format!("'{v}' must be a file in a theme folder, or a font an extension registers"),
+        )),
+    }
+}
+
 /// The face `fonts.<role>` names, or `None` when unset. A file that cannot
 /// be read is an error; one egui cannot use falls back with a warning.
 fn face(
@@ -60,15 +83,7 @@ fn face(
             ),
         ));
     }
-    let path = Path::new(v);
-    if !path.is_absolute() {
-        return Err(ThemeError::invalid(
-            key,
-            format!("'{v}' must be a file in a theme folder"),
-        ));
-    }
-    let v = shown(path);
-    let bytes = std::fs::read(path).map_err(|e| ThemeError::file(&v, e))?;
+    let (v, bytes) = font_file(&key, v, crate::registry::get().font_bytes(v))?;
     match crate::render::fonts::register_file_face(bytes, mono) {
         Ok(fam) => Ok(Some(fam)),
         Err(e) => {
@@ -112,9 +127,25 @@ mod tests {
         let e = face("mono", &Some("x.ttf".into()), true, &mut w).unwrap_err();
         assert_eq!(
             e.to_string(),
-            "fonts.mono: 'x.ttf' must be a file in a theme folder"
+            "fonts.mono: 'x.ttf' must be a file in a theme folder, or a font an extension registers"
         );
         assert!(w.is_empty());
+    }
+
+    #[test]
+    fn an_embedded_theme_finds_a_font_its_extension_registers() {
+        static FONT: &[u8] = b"the font file";
+        let (shown, bytes) = font_file("fonts.body", "Acme.ttf", Some(FONT)).unwrap();
+        assert_eq!((shown.as_str(), bytes.as_slice()), ("Acme.ttf", FONT));
+        assert!(font_file("fonts.body", "Acme.ttf", None).is_err());
+        // A file on disk wins over the name lookup.
+        let dir = std::env::temp_dir().join(format!("mdeck-font-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("Acme.ttf");
+        std::fs::write(&file, b"on disk").unwrap();
+        let (_, bytes) = font_file("fonts.body", file.to_str().unwrap(), Some(FONT)).unwrap();
+        assert_eq!(bytes, b"on disk");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

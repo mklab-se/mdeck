@@ -1,14 +1,19 @@
-# {{name}}
+# aurora
 
 An engine for [mdeck](https://github.com/mklab-se/mdeck), made with
-`mdeck sdk new engine {{name}}`.
+`mdeck sdk new engine aurora`.
+
+This is the engine from the SDK tutorial
+[Your first engine](../../docs/sdk/tutorial-0-your-first-engine.md), as it stands at the end of
+the tutorial. It is a member of mdeck's workspace, so CI builds and tests it:
+`cargo test -p aurora`.
 
 ## Files
 
 | File | What it is |
 |---|---|
 | `src/lib.rs` | The engine: its definition (`DEF`), `register()` and the `Engine` hooks |
-| `theme.yaml` | The showcase theme, registered as `{{name}}` |
+| `theme.yaml` | The showcase theme, registered as `aurora` |
 | `deck.md` | A sample deck that shows the engine on common designs |
 | `tests/golden.rs` | A golden-image test of the settled frame |
 
@@ -36,20 +41,20 @@ cargo test                          # unit tests and the golden image
 MDECK_UPDATE_GOLDEN=1 cargo test    # accept a deliberate change of look
 ```
 
-The first test run records `tests/golden/{{name}}.png`. Commit it.
+The first test run records `tests/golden/aurora.png`. Commit it.
 
 ## Version control and sharing
 
 ```bash
 printf 'target/\n*.actual.png\nout/\n' > .gitignore
-git init -b main && git add . && git commit -m "The {{name}} engine"
+git init -b main && git add . && git commit -m "The aurora engine"
 git tag v0.1.0
 ```
 
 Push it to a (private) repository, and colleagues build an mdeck with it:
 
 ```bash
-mdeck build --with git+ssh://git@github.com/acme/{{name}}.git#v0.1.0
+mdeck build --with git+ssh://git@github.com/acme/aurora.git#v0.1.0
 ```
 
 ## Learn more

@@ -2817,13 +2817,19 @@ crates built on the `mdeck-sdk` crate:
 mdeck sdk new engine glow                # a crate that builds and tests as it is
 mdeck sdk preview --engine glow -o shots # every design, a chart, images, a picture, both moments
 mdeck build --with ./glow                # an mdeck with it inside: ./target/release/mdeck
-mdeck build --with ./glow --with acme-visuals@1.2 --out ~/bin
+mdeck build --with ./glow --with acme-visuals@1.2 --out ~/bin/
+mdeck build --with git+ssh://git@github.com/acme/glow.git#v1.0.0   # a (private) git repository
 ```
 
 `mdeck sdk new` makes an `engine`, `visual`, `design-set` or `transition`.
 `mdeck build` needs a Rust toolchain: it generates a cargo project that
 registers the built-ins and each extension, builds it in release mode and
-copies the binary to `--out`. `mdeck extensions list` shows the installed
+copies the binary to `--out` (a file, or a folder: one that exists or ends in
+a slash). `--with` takes a crate folder, a crates.io name with an optional
+version, or a git URL (`git+https://`, `git+ssh://`, `git+file://` or
+`git@host:org/repo`) with an optional `#tag`, `#branch` or `#commit`. An
+extension's `register` may also embed themes, fonts (`Registry::font`, for
+the `fonts:` of those themes) and point clouds. `mdeck extensions list` shows the installed
 packs and the engines, visuals, transitions and themes this mdeck provides,
 with their origin. The SDK guide is the repository's `docs/sdk/` folder.
 
