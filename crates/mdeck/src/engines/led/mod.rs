@@ -8,13 +8,13 @@
 
 use std::sync::Arc;
 
-use eframe::egui::{self, Pos2, Rect};
+use mdeck_sdk::cloud::Cloud;
+use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Needs};
+use mdeck_sdk::geometry::Hint;
+use mdeck_sdk::paint::{Painter, Pos2, Rect, Texture, TextureFilter, smoothstep, sprite_sheet};
+use mdeck_sdk::stage::{Frame, Look, Moment, Picture, PictureSource, Place, Stage};
 
-use super::paint::{Sprites, smoothstep};
-use super::stage::{FrameCx, Look, Moment, Place, Stage};
-use super::{Capabilities, Engine, EngineDef, hash01};
-use crate::render::hints::Hint;
-use crate::render::illustration::Library;
+use crate::engines::hash01;
 use draw::{Palette, lens_color, wall};
 use light::{hint_light, splat};
 
@@ -26,12 +26,17 @@ mod light;
 pub const END_CAPTION_DELAY: f32 = 5.4;
 
 pub static DEF: EngineDef = EngineDef {
-    capabilities: Capabilities::PICTURES,
-    create: || Box::new(Led::new()),
-    end_caption_delay: END_CAPTION_DELAY,
-    medium: None,
-    render_slide: None,
-    problems: None,
+    name: "led",
+    summary: "A wall of RGB LEDs behind every slide; pictures light up, nothing moves.",
+    capabilities: Capabilities {
+        picture: true,
+        ..Capabilities::NONE
+    },
+    settings: &[],
+    needs: Needs { page: false },
+    ending_caption_delay: END_CAPTION_DELAY,
+    create: |_| Box::new(Led::new()),
+    board: None,
 };
 
 /// LED pitch in px on a 1920x1080 slide.
@@ -47,7 +52,7 @@ const FLICKER: f32 = 0.16;
 type Key = (usize, Look, usize, u64, bool);
 
 /// A picture on the wall, before it is lit.
-struct Picture {
+struct Lighting {
     density: Vec<f32>,
     weight: f32,
     centre: Pos2,
@@ -130,14 +135,15 @@ pub struct Led {
     reveal: (usize, usize),
     /// Burst ring progress (the countdown's last digit overloads the wall).
     burst: Option<f32>,
-    sprites: Sprites,
+    /// The sprite sheet, uploaded on the first paint.
+    sprites: Option<Texture>,
 }
 
 impl Led {
     pub fn new() -> Self {
         Self {
             grid: None,
-            rect: Rect::NOTHING,
+            rect: Rect::ZERO,
             key: None,
             level: Vec::new(),
             goal: Vec::new(),
@@ -153,7 +159,7 @@ impl Led {
             sweep: None,
             reveal: (usize::MAX, 0),
             burst: None,
-            sprites: Sprites::new("mdeck-led-sprites"),
+            sprites: None,
         }
     }
 
@@ -178,7 +184,7 @@ impl Led {
     /// What the stage shows as point density per LED, how strongly it
     /// lights (`weight`), where its power-on sweep starts and whether it
     /// comes up briskly. Sets the slide's ambient light and marquee.
-    fn picture(&mut self, grid: &Grid, cx: &FrameCx, stage: &Stage, look: Look) -> Picture {
+    fn picture(&mut self, grid: &Grid, cx: &Frame, stage: &Stage, look: Look) -> Lighting {
         let rect = cx.rect;
         let rect_aspect = rect.width() / rect.height();
         let mut density = vec![0.0f32; grid.len()];
@@ -191,33 +197,34 @@ impl Led {
         match (&stage.moment, look) {
             (Moment::Countdown { mask, .. }, _) => {
                 let h = 0.60;
-                let w = h * mask.1 / rect_aspect;
+                let w = h * mask.aspect / rect_aspect;
                 let place = Place {
                     u: 0.5 - w / 2.0,
                     v: 0.47 - h / 2.0,
                     w,
                     h,
                 };
-                splat(grid, rect, &mask.0, place, &mut density);
+                splat(grid, rect, &mask.points, place, &mut density);
                 centre = rect.center();
                 brisk = true;
                 self.ambient = 0.025;
             }
             (Moment::End { words, .. }, Look::EndWords) => {
                 let w = 0.64;
-                let h = w / words.1 * rect_aspect;
+                let h = w / words.aspect * rect_aspect;
                 let place = Place {
                     u: 0.5 - w / 2.0,
                     v: 0.47 - h / 2.0,
                     w,
                     h,
                 };
-                splat(grid, rect, &words.0, place, &mut density);
+                splat(grid, rect, &words.points, place, &mut density);
                 brisk = true;
             }
             (Moment::Slide, _) => {
-                if let Some(fig) = &stage.figure {
-                    splat(grid, rect, &fig.cloud.points, fig.place, &mut density);
+                let figure = cloud(stage);
+                if let Some((fig, cloud)) = figure {
+                    splat(grid, rect, &cloud.points, fig.place, &mut density);
                     let p = fig.place;
                     centre = Pos2::new(
                         rect.left() + (p.u + p.w / 2.0) * rect.width(),
@@ -228,11 +235,11 @@ impl Led {
                     }
                 }
                 self.border = stage.title;
-                self.ambient = if stage.figure.is_some() { 0.05 } else { 0.11 };
+                self.ambient = if figure.is_some() { 0.05 } else { 0.11 };
             }
             _ => {}
         }
-        Picture {
+        Lighting {
             density,
             weight,
             centre,
@@ -254,7 +261,7 @@ impl Led {
             } else {
                 smoothstep(0.36, 0.62, x)
             };
-            for h in stage.hints {
+            for h in stage.geometry {
                 if let Hint::Frame(r) = h
                     && r.expand(grid.pitch).contains(p)
                 {
@@ -267,10 +274,10 @@ impl Led {
 
     /// Build the picture for the stage: per-LED target brightness and hue,
     /// the ambient zone, and power-on delays.
-    fn build(&mut self, cx: &FrameCx, stage: &Stage, look: Look) {
+    fn build(&mut self, cx: &Frame, stage: &Stage, look: Look) {
         let grid = self.grid.expect("grid built before the picture");
         let n = grid.len();
-        let Picture {
+        let Lighting {
             density,
             weight,
             centre,
@@ -280,7 +287,7 @@ impl Led {
 
         // what the renderers drew lights the wall around it
         let hinted = if matches!(stage.moment, Moment::Slide) {
-            hint_light(&grid, stage.hints)
+            hint_light(&grid, stage.geometry)
         } else {
             vec![0.0; n]
         };
@@ -370,7 +377,7 @@ impl Default for Led {
 }
 
 impl Engine for Led {
-    fn update(&mut self, cx: &FrameCx, stage: &Stage, _lib: &mut Library) {
+    fn update(&mut self, cx: &Frame, stage: &Stage) {
         if self.grid.is_none() || (self.rect.size() - cx.rect.size()).length() > 1.0 {
             self.resize(Grid::new(cx.rect, cx.scale));
         }
@@ -382,22 +389,20 @@ impl Engine for Led {
             self.rect = cx.rect;
         }
         let look = stage.moment.look(END_WORDS);
-        let figure = stage
-            .figure
-            .as_ref()
-            .map(|f| Arc::as_ptr(&f.cloud) as usize)
+        let figure = cloud(stage)
+            .map(|(_, c)| Arc::as_ptr(c) as usize)
             .unwrap_or(0);
-        let key = (stage.index, look, figure, stage.hints_key, stage.title);
+        let key = (stage.index, look, figure, stage.geometry_key, stage.title);
         if self.key != Some(key) {
             self.build(cx, stage, look);
             self.key = Some(key);
         }
 
         // a reveal on the same slide sends a sweep of light across the wall
-        if self.reveal.0 == stage.index && stage.reveal > self.reveal.1 && !cx.still {
+        if self.reveal.0 == stage.index && stage.step > self.reveal.1 && !cx.still {
             self.sweep = Some(self.time);
         }
-        self.reveal = (stage.index, stage.reveal);
+        self.reveal = (stage.index, stage.step);
         self.burst = match stage.moment {
             Moment::Burst { progress } => Some(progress),
             _ => None,
@@ -411,22 +416,38 @@ impl Engine for Led {
         self.advance(cx.dt);
     }
 
-    fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, _stage: &Stage) {
+    fn paint(&mut self, painter: &mut Painter, cx: &Frame, _stage: &Stage) {
         let Some(grid) = self.grid else {
             return;
         };
-        let texture = self.sprites.id(ui.ctx());
-        let palette = Palette::of(cx.theme);
+        let texture = self
+            .sprites
+            .get_or_insert_with(|| {
+                painter.load_texture("mdeck-led-sprites", &sprite_sheet(), TextureFilter::Linear)
+            })
+            .clone();
+        let palette = Palette::of(cx.tokens);
         let sweep_x = self.sweep.map(|s| (self.time - s) / 0.75);
         if sweep_x.is_some_and(|x| x > 1.3) {
             self.sweep = None;
         }
         let lit = self.shade(&grid, &palette, sweep_x, cx.rect.center());
-        let mesh = wall(texture, &grid, &lit, lens_color(cx.theme), cx.opacity);
-        ui.painter().add(egui::Shape::mesh(mesh));
-        if !cx.still {
-            ui.ctx().request_repaint();
-        }
+        let mesh = wall(texture, &grid, &lit, lens_color(cx.tokens), cx.opacity);
+        painter.mesh(mesh);
+    }
+
+    /// The wall always shimmers.
+    fn animating(&self) -> bool {
+        true
+    }
+}
+
+/// The slide's picture when it is a point cloud, with the cloud.
+fn cloud<'s>(stage: &'s Stage) -> Option<(&'s Picture, &'s Arc<Cloud>)> {
+    let pic = stage.picture.as_ref()?;
+    match &pic.source {
+        PictureSource::Cloud(c) => Some((pic, c)),
+        _ => None,
     }
 }
 
@@ -436,7 +457,7 @@ mod tests {
 
     #[test]
     fn grid_covers_the_slide_with_even_margins() {
-        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1920.0, 1080.0));
+        let rect = Rect::from_min_size(Pos2::ZERO, mdeck_sdk::paint::Vec2::new(1920.0, 1080.0));
         let g = Grid::new(rect, 1.0);
         assert_eq!((g.cols, g.rows), (142, 80));
         let first = g.centre(0);

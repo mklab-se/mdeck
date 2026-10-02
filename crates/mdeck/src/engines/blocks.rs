@@ -7,25 +7,30 @@
 
 use std::sync::Arc;
 
-use eframe::egui::{self, Color32, Pos2, Rect};
+use mdeck_sdk::cloud::Mask;
+use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Needs};
+use mdeck_sdk::paint::{Color as Color32, Mesh, Painter, Pos2, Rect, Vec2, mix, premul};
+use mdeck_sdk::stage::{Frame, Look, Moment, PictureSource, Place, Stage};
+use mdeck_sdk::tokens::Tokens;
 
-use super::paint::{mix, premul};
-use super::stage::{FrameCx, Look, Mask, Moment, Place, Stage};
-use super::{Capabilities, Engine, EngineDef, hash01};
-use crate::render::illustration::Library;
-use crate::theme::Theme;
+use crate::engines::hash01;
 
 /// Seconds into the end slide when the caption fades in: the words have
 /// landed, held, and cleared.
 pub const END_CAPTION_DELAY: f32 = 5.4;
 
 pub static DEF: EngineDef = EngineDef {
-    capabilities: Capabilities::PICTURES,
-    create: || Box::new(Blocks::new()),
-    end_caption_delay: END_CAPTION_DELAY,
-    medium: None,
-    render_slide: None,
-    problems: None,
+    name: "blocks",
+    summary: "Pictures built from falling blocks that land, settle and clear row by row.",
+    capabilities: Capabilities {
+        picture: true,
+        ..Capabilities::NONE
+    },
+    settings: &[],
+    needs: Needs { page: false },
+    ending_caption_delay: END_CAPTION_DELAY,
+    create: |_| Box::new(Blocks::new()),
+    board: None,
 };
 const END_WORDS: f32 = 3.6;
 /// Gravity, px/s² on a 1920x1080 slide.
@@ -66,6 +71,8 @@ pub struct Blocks {
     clearing: Option<(Stack, f32)>,
     /// The countdown's burst: blocks fly apart (progress 0..1).
     burst: Option<f32>,
+    /// Something moved in the last paint (a falling piece, a clear, a burst).
+    moving: bool,
 }
 
 impl Blocks {
@@ -76,13 +83,14 @@ impl Blocks {
             stack: None,
             clearing: None,
             burst: None,
+            moving: true,
         }
     }
 
-    fn build(&self, cx: &FrameCx, stage: &Stage, look: Look) -> Option<Stack> {
+    fn build(&self, cx: &Frame, stage: &Stage, look: Look) -> Option<Stack> {
         let aspect = cx.rect.width() / cx.rect.height();
         let mask_place = |mask: &Mask, h: f32| {
-            let w = h * mask.1 / aspect;
+            let w = h * mask.aspect / aspect;
             Place {
                 u: 0.5 - w / 2.0,
                 v: 0.47 - h / 2.0,
@@ -93,23 +101,26 @@ impl Blocks {
         let (points, place, rows, spread, weight): (&[[f32; 2]], Place, usize, f32, f32) =
             match (&stage.moment, look) {
                 (Moment::Countdown { mask, .. }, _) => {
-                    (&mask.0, mask_place(mask, 0.56), 15, 0.45, 1.0)
+                    (&mask.points, mask_place(mask, 0.56), 15, 0.45, 1.0)
                 }
                 (Moment::End { words, .. }, Look::EndWords) => {
                     let w = 0.64;
-                    let h = w / words.1 * aspect;
+                    let h = w / words.aspect * aspect;
                     let place = Place {
                         u: 0.5 - w / 2.0,
                         v: 0.47 - h / 2.0,
                         w,
                         h,
                     };
-                    (&words.0, place, 9, 1.1, 1.0)
+                    (&words.points, place, 9, 1.1, 1.0)
                 }
                 (Moment::Slide, _) => {
-                    let fig = stage.figure.as_ref()?;
+                    let fig = stage.picture.as_ref()?;
+                    let PictureSource::Cloud(cloud) = &fig.source else {
+                        return None;
+                    };
                     let weight = if fig.backdrop { 0.42 } else { 1.0 };
-                    (&fig.cloud.points, fig.place, 26, 1.7, weight)
+                    (&cloud.points, fig.place, 26, 1.7, weight)
                 }
                 _ => return None,
             };
@@ -136,13 +147,12 @@ impl Default for Blocks {
 }
 
 impl Engine for Blocks {
-    fn update(&mut self, cx: &FrameCx, stage: &Stage, _lib: &mut Library) {
+    fn update(&mut self, cx: &Frame, stage: &Stage) {
         let look = stage.moment.look(END_WORDS);
-        let figure = stage
-            .figure
-            .as_ref()
-            .map(|f| Arc::as_ptr(&f.cloud) as usize)
-            .unwrap_or(0);
+        let figure = match stage.picture.as_ref().map(|p| &p.source) {
+            Some(PictureSource::Cloud(c)) => Arc::as_ptr(c) as usize,
+            _ => 0,
+        };
         let key = (stage.index, look, figure, stage.title);
         if self.key != Some(key) {
             match look {
@@ -179,11 +189,10 @@ impl Engine for Blocks {
         }
     }
 
-    fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, _stage: &Stage) {
+    fn paint(&mut self, painter: &mut Painter, cx: &Frame, _stage: &Stage) {
         let rect = cx.rect;
-        let theme = cx.theme;
-        let palette = palette(theme);
-        let mut mesh = egui::Mesh::default();
+        let palette = palette(cx.tokens);
+        let mut mesh = Mesh::default();
         let mut moving = false;
 
         if let Some((old, since)) = &self.clearing {
@@ -237,7 +246,7 @@ impl Engine for Blocks {
                     let bounce = (u * std::f32::consts::PI).sin() * (1.0 - u);
                     (-bounce * stack.cell * unit * 0.22, 1.0 - 0.10 * bounce)
                 };
-                let mut offset = egui::vec2(0.0, dy);
+                let mut offset = Vec2::new(0.0, dy);
                 let mut fade = 1.0;
                 if let Some(b) = self.burst {
                     // the digit bursts: every piece flies out from the centre
@@ -252,10 +261,8 @@ impl Engine for Blocks {
                 for &(c, r) in &piece.cells {
                     let cell = cell_rect(stack, c, r, rect).translate(offset);
                     let h = cell.height() * squash;
-                    let cell = Rect::from_min_max(
-                        Pos2::new(cell.left(), cell.bottom() - h),
-                        cell.right_bottom(),
-                    );
+                    let cell =
+                        Rect::from_min_max(Pos2::new(cell.left(), cell.bottom() - h), cell.max);
                     block(
                         &mut mesh,
                         cell,
@@ -265,10 +272,12 @@ impl Engine for Blocks {
                 }
             }
         }
-        ui.painter().add(egui::Shape::mesh(mesh));
-        if moving && !cx.still {
-            ui.ctx().request_repaint();
-        }
+        painter.mesh(mesh);
+        self.moving = moving && !cx.still;
+    }
+
+    fn animating(&self) -> bool {
+        self.moving
     }
 }
 
@@ -280,12 +289,12 @@ fn cell_rect(stack: &Stack, c: i32, r: i32, rect: Rect) -> Rect {
         rect.left() + stack.origin.x * rect.width() + c as f32 * s,
         rect.top() + stack.origin.y * unit + r as f32 * s,
     );
-    Rect::from_min_size(min, egui::vec2(s, s)).shrink(s * 0.05)
+    Rect::from_min_size(min, Vec2::new(s, s)).shrink(s * 0.05)
 }
 
 /// A bevelled block: a light top and left edge, a dark bottom and right,
 /// the face slightly lit from above.
-fn block(mesh: &mut egui::Mesh, r: Rect, colour: Color32, opacity: f32) {
+fn block(mesh: &mut Mesh, r: Rect, colour: Color32, opacity: f32) {
     if opacity <= 0.0 || r.width() <= 0.5 || r.height() <= 0.5 {
         return;
     }
@@ -298,65 +307,40 @@ fn block(mesh: &mut egui::Mesh, r: Rect, colour: Color32, opacity: f32) {
     let face_top = premul(mix(colour, Color32::WHITE, 0.06), opacity);
     let face_bottom = premul(mix(colour, Color32::BLACK, 0.06), opacity);
     // four trapezoids around the face
-    let trap = |mesh: &mut egui::Mesh, pts: [Pos2; 4], c: Color32| {
+    let trap = |mesh: &mut Mesh, pts: [Pos2; 4], c: Color32| {
         let base = mesh.vertices.len() as u32;
         for p in pts {
-            mesh.colored_vertex(p, c);
+            mesh.vertex(p, Pos2::ZERO, c);
         }
-        mesh.add_triangle(base, base + 1, base + 2);
-        mesh.add_triangle(base, base + 2, base + 3);
+        mesh.triangle(base, base + 1, base + 2);
+        mesh.triangle(base, base + 2, base + 3);
     };
-    trap(
-        mesh,
-        [
-            r.left_top(),
-            r.right_top(),
-            inner.right_top(),
-            inner.left_top(),
-        ],
-        light,
-    );
-    trap(
-        mesh,
-        [
-            r.left_top(),
-            inner.left_top(),
-            inner.left_bottom(),
-            r.left_bottom(),
-        ],
-        side,
-    );
-    trap(
-        mesh,
-        [
-            inner.right_top(),
-            r.right_top(),
-            r.right_bottom(),
-            inner.right_bottom(),
-        ],
-        shade,
-    );
-    trap(
-        mesh,
-        [
-            inner.left_bottom(),
-            inner.right_bottom(),
-            r.right_bottom(),
-            r.left_bottom(),
-        ],
-        dark,
-    );
-    let base = mesh.vertices.len() as u32;
-    mesh.colored_vertex(inner.left_top(), face_top);
-    mesh.colored_vertex(inner.right_top(), face_top);
-    mesh.colored_vertex(inner.right_bottom(), face_bottom);
-    mesh.colored_vertex(inner.left_bottom(), face_bottom);
-    mesh.add_triangle(base, base + 1, base + 2);
-    mesh.add_triangle(base, base + 2, base + 3);
+    let (lt, rt, rb, lb) = corners(r);
+    let (ilt, irt, irb, ilb) = corners(inner);
+    trap(mesh, [lt, rt, irt, ilt], light);
+    trap(mesh, [lt, ilt, ilb, lb], side);
+    trap(mesh, [irt, rt, rb, irb], shade);
+    trap(mesh, [ilb, irb, rb, lb], dark);
+    let base = mesh.vertex(ilt, Pos2::ZERO, face_top);
+    mesh.vertex(irt, Pos2::ZERO, face_top);
+    mesh.vertex(irb, Pos2::ZERO, face_bottom);
+    mesh.vertex(ilb, Pos2::ZERO, face_bottom);
+    mesh.triangle(base, base + 1, base + 2);
+    mesh.triangle(base, base + 2, base + 3);
+}
+
+/// A rect's corners: left top, right top, right bottom, left bottom.
+fn corners(r: Rect) -> (Pos2, Pos2, Pos2, Pos2) {
+    (
+        r.min,
+        Pos2::new(r.max.x, r.min.y),
+        r.max,
+        Pos2::new(r.min.x, r.max.y),
+    )
 }
 
 /// The block colours, from the theme.
-fn palette(theme: &Theme) -> [Color32; 5] {
+fn palette(theme: &Tokens) -> [Color32; 5] {
     [
         theme.accent,
         theme.secondary,
@@ -517,7 +501,7 @@ mod tests {
             h: 0.8,
         };
         let s = stack(&square_ring(), place, 16.0 / 9.0, RING, 0.0, 1);
-        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1920.0, 1080.0));
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(1920.0, 1080.0));
         let r = cell_rect(&s, 3, 4, rect);
         assert!((r.width() - r.height()).abs() < 0.01, "{r:?}");
     }
