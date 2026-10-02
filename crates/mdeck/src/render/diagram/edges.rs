@@ -222,7 +222,18 @@ fn draw_arrowhead(
     ));
 }
 
-/// A pill-shaped label a fifth of the way along the edge.
+/// How far along an edge its label's centre sits: a fifth of the way, but
+/// far enough that a label of `size` clears the node the edge leaves (its
+/// first segment runs along `dir`) by `gap`, and short of the middle, so the
+/// labels of two edges running opposite ways between the same nodes stay
+/// apart.
+fn label_distance(total_len: f32, dir: egui::Vec2, size: egui::Vec2, gap: f32) -> f32 {
+    let dir = dir.normalized();
+    let clear = dir.x.abs() * size.x / 2.0 + dir.y.abs() * size.y / 2.0 + gap;
+    (total_len * 0.20).max(clear).min(total_len * 0.45)
+}
+
+/// A pill-shaped label near the start of the edge, clear of its node.
 fn draw_edge_label(
     painter: &egui::Painter,
     smooth_points: &[Pos2],
@@ -231,7 +242,6 @@ fn draw_edge_label(
     style: &EdgeStyle,
 ) {
     let m = style.metrics;
-    let mid = polyline_point_at_distance(smooth_points, total_len * 0.20);
     let galley = painter.layout_no_wrap(
         label.to_string(),
         style.label_font.clone(),
@@ -239,6 +249,9 @@ fn draw_edge_label(
     );
     let label_w = galley.rect.width() + m.label_pad_h * 2.0;
     let label_h = galley.rect.height() + m.label_pad_v * 2.0;
+    let dir = smooth_points[1] - smooth_points[0];
+    let along = label_distance(total_len, dir, egui::vec2(label_w, label_h), m.label_pad_h);
+    let mid = polyline_point_at_distance(smooth_points, along);
     let label_rect = egui::Rect::from_center_size(mid, egui::vec2(label_w, label_h));
     painter.rect_filled(label_rect, label_h / 2.0, style.label_bg);
     painter.galley(
@@ -253,7 +266,26 @@ fn draw_edge_label(
 
 #[cfg(test)]
 mod tests {
+    use super::label_distance;
     use crate::theme::Theme;
+    use eframe::egui::vec2;
+
+    #[test]
+    fn labels_clear_the_node_they_leave() {
+        // A short horizontal edge: a fifth of 160 would put the centre of
+        // a 90 wide label 13 inside the source node.
+        let d = label_distance(160.0, vec2(1.0, 0.0), vec2(90.0, 40.0), 6.0);
+        assert_eq!(d, 51.0);
+        // Never as far as the middle.
+        let d = label_distance(100.0, vec2(1.0, 0.0), vec2(90.0, 40.0), 6.0);
+        assert_eq!(d, 45.0);
+        // A vertical edge of that length clears by the label's height.
+        let d = label_distance(160.0, vec2(0.0, 1.0), vec2(90.0, 40.0), 6.0);
+        assert_eq!(d, 32.0);
+        // Long edges keep the label a fifth of the way along.
+        let d = label_distance(1000.0, vec2(-1.0, 0.0), vec2(90.0, 40.0), 6.0);
+        assert_eq!(d, 200.0);
+    }
 
     #[test]
     fn test_edge_palette_dark_has_entries() {
