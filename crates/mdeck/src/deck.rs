@@ -259,7 +259,7 @@ impl Deck {
         cx: &SlideContext,
         scale: f32,
     ) {
-        if theme.engine.capabilities().editorial {
+        if render::ember::draws_chrome(theme) {
             render::ember::draw_chrome(painter, theme, rect, cx, scale);
             return;
         }

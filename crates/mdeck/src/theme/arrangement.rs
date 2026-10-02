@@ -66,17 +66,6 @@ pub enum Stage {
     Backdrop,
 }
 
-impl Stage {
-    pub fn name(self) -> &'static str {
-        match self {
-            Stage::None => "none",
-            Stage::Right => "right",
-            Stage::Left => "left",
-            Stage::Backdrop => "backdrop",
-        }
-    }
-}
-
 /// The line over the copy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
@@ -361,6 +350,10 @@ pub struct Ornaments {
     pub emphasis: Emphasis,
     /// A soft dark pillow behind the copy, so it reads over a picture.
     pub pillow: bool,
+    /// A quote's attribution gets a typographic dash in front.
+    pub attribution_dash: bool,
+    /// The deck's first slide, live, shows a quiet "Space to begin".
+    pub begin_hint: bool,
 }
 
 impl Default for Ornaments {
@@ -379,6 +372,8 @@ impl Default for Ornaments {
             title_rule: false,
             emphasis: Emphasis::Italic,
             pillow: false,
+            attribution_dash: false,
+            begin_hint: false,
         }
     }
 }
@@ -567,9 +562,9 @@ fn space_ok(key: &str, s: &Space) -> Result<(), String> {
                 && super::spacing::em_factor(t).is_none() =>
         {
             Err(format!(
-            "{key}: '{t}' is not {}, a number of px or a multiple of the size (0.5em)",
-            super::spacing::TOKENS.join(", ")
-        ))
+                "{key}: '{t}' is not {}, a number of px or a multiple of the size (0.5em)",
+                super::spacing::TOKENS.join(", ")
+            ))
         }
         Space::Px(p) if !(0.0..=1000.0).contains(p) => {
             Err(format!("{key}: {p} must be 0 to 1000 px"))
@@ -628,7 +623,13 @@ mod tests {
         assert_eq!(points.1.eyebrow, Eyebrow::Numeral);
         // DES-10a: editorial arranges image, code, table and chart slides
         // itself: an eyebrow and the entry stagger on every one
-        for d in [Design::Media, Design::Code, Design::Table, Design::Visual, Design::Split] {
+        for d in [
+            Design::Media,
+            Design::Code,
+            Design::Table,
+            Design::Visual,
+            Design::Split,
+        ] {
             assert_eq!(e.get(d).eyebrow, Eyebrow::Numeral, "{d:?}");
             assert_eq!(e.get(d).entry.kind, Motion::Stagger, "{d:?}");
         }
@@ -646,7 +647,10 @@ mod tests {
         assert_eq!(q.roles.attribution.color, Ink::Accent);
         assert_eq!(q.ornaments.quote_bar, Bar::None);
         // untouched keys keep the set's values
-        assert_eq!(q.roles.attribution.size, base.get(Design::Quote).roles.attribution.size);
+        assert_eq!(
+            q.roles.attribution.size,
+            base.get(Design::Quote).roles.attribution.size
+        );
         assert_eq!(q.copy, base.get(Design::Quote).copy);
         assert_eq!(a.get(Design::Points).ornaments.bullet, "◆");
     }

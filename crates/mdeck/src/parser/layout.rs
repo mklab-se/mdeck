@@ -16,6 +16,10 @@ pub enum Layout {
     Bullet,
     Diagram,
     Visualization,
+    #[allow(
+        dead_code,
+        reason = "the particle scenes still name it; no design maps to it"
+    )]
     TwoColumn,
     #[default]
     Content,
@@ -27,8 +31,14 @@ impl Layout {
         match design {
             Design::Title => Layout::Title,
             Design::Section => Layout::Section,
-            Design::Statement | Design::Table | Design::Content => Layout::Content,
-            Design::Points | Design::Split => Layout::Bullet,
+            Design::Statement => Layout::Content,
+            // a slide that gives its stage up to wide content is quiet
+            // behind it, like a chart
+            Design::Content if blocks.iter().any(wide) => Layout::Visualization,
+            Design::Content => Layout::Content,
+            Design::Table | Design::Columns => Layout::Visualization,
+            Design::Points => Layout::Bullet,
+            Design::Split => Layout::Image,
             Design::Media => Layout::Image,
             Design::Gallery => Layout::Gallery,
             Design::Quote => Layout::Quote,
@@ -40,9 +50,20 @@ impl Layout {
                     Layout::Visualization
                 }
             }
-            Design::Columns => Layout::TwoColumn,
         }
     }
+}
+
+/// A block that needs more width than a copy column gives it.
+fn wide(b: &Block) -> bool {
+    matches!(
+        b,
+        Block::Image { .. }
+            | Block::CodeBlock { .. }
+            | Block::Table { .. }
+            | Block::Chart { .. }
+            | Block::Diagram { .. }
+    )
 }
 
 #[cfg(test)]
@@ -52,7 +73,9 @@ mod tests {
 
     #[test]
     fn every_design_has_a_layout_view() {
-        let pres = parse("# Title\n\n## Sub\n\n---\n\n## Points\n\n- a\n\n---\n\n## D\n\n```@architecture\nA -> B\n```\n");
+        let pres = parse(
+            "# Title\n\n## Sub\n\n---\n\n## Points\n\n- a\n\n---\n\n## D\n\n```@architecture\nA -> B\n```\n",
+        );
         let layouts: Vec<Layout> = pres.slides.iter().map(|s| s.layout).collect();
         assert_eq!(layouts, [Layout::Title, Layout::Bullet, Layout::Diagram]);
         for d in Design::ALL {

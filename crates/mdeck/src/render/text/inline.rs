@@ -207,8 +207,24 @@ pub fn heading_job(
     scale: f32,
 ) -> egui::text::LayoutJob {
     let size = theme.heading_size(level) * scale;
-    if theme.engine.capabilities().editorial {
-        return crate::render::ember::display_job(inlines, size, color, max_width, theme);
+    if crate::theme::uses_editorial(theme) {
+        let a = theme.arrangement(crate::parser::Design::Content);
+        let mut r = crate::render::designs::style::resolve(
+            theme,
+            &a.roles.heading,
+            a.ornaments.emphasis,
+            level,
+            scale,
+        );
+        r.size = size;
+        r.color = color;
+        return crate::render::designs::style::job(
+            theme,
+            &r,
+            inlines,
+            max_width,
+            egui::Align::LEFT,
+        );
     }
     display_inlines_job(inlines, size, color, max_width, theme)
 }

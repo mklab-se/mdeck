@@ -95,6 +95,11 @@ mod tests {
             xs: Some(100.0),
             ..Default::default()
         };
-        assert!(Spacing::resolve(&f).unwrap_err().to_string().contains("grow"));
+        assert!(
+            Spacing::resolve(&f)
+                .unwrap_err()
+                .to_string()
+                .contains("grow")
+        );
     }
 }

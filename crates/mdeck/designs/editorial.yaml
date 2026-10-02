@@ -40,12 +40,15 @@ base:
     title-rule: false
     emphasis: accent
     pillow: true
+    attribution-dash: false
+    begin-hint: false
 
 designs:
   title:
     copy: { region: [0.19, 0.08, 0.62, 0.80], align: center, valign: middle }
     stage: backdrop
     eyebrow: deck
+    ornaments: { begin-hint: true }
     roles:
       eyebrow: { gap: 30 }
       title: { size: h1, scale: 1.08, gap: 40 }

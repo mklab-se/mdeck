@@ -35,7 +35,9 @@ pub fn draw_code_block(
 
     // Draw background
     let bg_rect = egui::Rect::from_min_size(pos, egui::vec2(max_width, total_height));
-    cx.ui.painter().rect_filled(bg_rect, 8.0 * scale, bg_color);
+    cx.ui
+        .painter()
+        .rect_filled(bg_rect, theme.radius * scale, bg_color);
 
     // Draw line highlights using actual galley row positions
     if !highlight_lines.is_empty() {

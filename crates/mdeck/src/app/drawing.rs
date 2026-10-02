@@ -76,20 +76,15 @@ impl PresentationApp {
     ) -> Option<f32> {
         let slide = &self.deck.presentation.slides[idx];
         let step = self.view(idx).reveal;
-        let padding = 80.0 * scale;
-        let content_width = match slide.layout {
-            crate::parser::Layout::Code => rect.width() * 0.75,
-            _ => rect.width() - padding * 2.0,
-        };
-        let heights: Vec<f32> = slide
-            .blocks
-            .iter()
-            .map(|b| {
-                render::text::measure_single_block_height(ui, b, &self.theme, content_width, scale)
-            })
-            .collect();
-        let item_height = self.theme.body_size * scale + 8.0 * scale;
-        super::helpers::revealed_bottom(&slide.blocks, &heights, step, item_height, 20.0 * scale)
+        render::designs::revealed_bottom(
+            ui,
+            slide,
+            &self.theme,
+            rect,
+            scale,
+            &self.slide_context(idx),
+            step,
+        )
     }
 
     /// Draw a slide at full reveal (all steps visible). Used by grid view.
@@ -139,8 +134,14 @@ impl PresentationApp {
 
         let idx = self.current_slide;
         let slide = &self.deck.presentation.slides[idx];
-        let (content_height, available_height) =
-            render::measure_slide_content_height(ui, slide, &self.theme, rect, scale);
+        let (content_height, available_height) = render::measure_slide_content_height(
+            ui,
+            slide,
+            &self.theme,
+            rect,
+            scale,
+            &self.slide_context(idx),
+        );
         let overflow = content_height - available_height;
 
         if overflow <= 0.0 {

@@ -69,56 +69,6 @@ pub(super) fn event_matches_file(event_path: &std::path::Path, file: &std::path:
     }
 }
 
-/// Bottom edge (relative to the content top) of the lowest element revealed at
-/// exactly `step`, using pre-measured block `heights` and the list geometry
-/// used by the renderer. Returns `None` when nothing is revealed at that step.
-pub(super) fn revealed_bottom(
-    blocks: &[parser::Block],
-    heights: &[f32],
-    step: usize,
-    item_height: f32,
-    block_spacing: f32,
-) -> Option<f32> {
-    if step == 0 {
-        return None;
-    }
-    let mut y = 0.0;
-    let mut best: Option<f32> = None;
-    for (i, block) in blocks.iter().enumerate() {
-        let h = heights.get(i).copied().unwrap_or(0.0);
-        match block {
-            parser::Block::List { items, .. } => {
-                let mut steps = Vec::new();
-                flatten_item_steps(items, &mut steps);
-                for (flat_idx, item_step) in steps.iter().enumerate() {
-                    if *item_step == step {
-                        let bottom = y + (flat_idx + 1) as f32 * item_height;
-                        best = Some(best.map_or(bottom, |b: f32| b.max(bottom)));
-                    }
-                }
-            }
-            parser::Block::Diagram { step_base, .. } | parser::Block::Chart { step_base, .. } => {
-                let own = parser::steps::default_visual_steps(block);
-                if step > *step_base && step <= step_base + own {
-                    let bottom = y + h;
-                    best = Some(best.map_or(bottom, |b: f32| b.max(bottom)));
-                }
-            }
-            _ => {}
-        }
-        y += h + block_spacing;
-    }
-    best
-}
-
-/// Every list item's step in render order (depth first).
-fn flatten_item_steps(items: &[parser::ListItem], out: &mut Vec<usize>) {
-    for item in items {
-        out.push(item.step);
-        flatten_item_steps(&item.children, out);
-    }
-}
-
 pub(super) fn spawn_file_watcher(
     path: &std::path::Path,
     ctx: egui::Context,
@@ -203,57 +153,6 @@ mod tests {
             &crate::parser::steps::default_visual_steps,
         );
         blocks
-    }
-
-    #[test]
-    fn flatten_item_steps_follows_render_order() {
-        let blocks = numbered("- a\n+ b\n  - b1\n+ c\n- d");
-        let Block::List { items, .. } = &blocks[0] else {
-            panic!()
-        };
-        let mut steps = Vec::new();
-        flatten_item_steps(items, &mut steps);
-        assert_eq!(steps, vec![0, 1, 1, 2, 0]);
-    }
-
-    #[test]
-    fn revealed_bottom_finds_lowest_item_for_step() {
-        let blocks = numbered("# H\n\n+ one\n+ two\n  - two a");
-        let heights = vec![60.0, 3.0 * 40.0];
-        // Heading (60) + spacing (20) = list top at 80; item i bottom = 80 + (i+1)*40
-        assert_eq!(revealed_bottom(&blocks, &heights, 0, 40.0, 20.0), None);
-        assert_eq!(
-            revealed_bottom(&blocks, &heights, 1, 40.0, 20.0),
-            Some(120.0)
-        );
-        // Step 2 reveals items 2 and 3 → the lower one wins
-        assert_eq!(
-            revealed_bottom(&blocks, &heights, 2, 40.0, 20.0),
-            Some(200.0)
-        );
-        assert_eq!(revealed_bottom(&blocks, &heights, 3, 40.0, 20.0), None);
-    }
-
-    #[test]
-    fn revealed_bottom_handles_stepped_non_list_blocks() {
-        // A bar chart with two reveal steps below a paragraph
-        let mut blocks =
-            crate::parser::blocks::parse("text\n\n```@bar\n- A: 1\n+ B: 2\n+ C: 3\n```");
-        let max = crate::parser::steps::number(
-            &mut blocks,
-            true,
-            &crate::parser::steps::default_visual_steps,
-        );
-        let heights = vec![50.0, 300.0];
-        assert!(max >= 1, "sample chart should have reveal steps");
-        assert_eq!(
-            revealed_bottom(&blocks, &heights, 1, 40.0, 20.0),
-            Some(370.0)
-        );
-        assert_eq!(
-            revealed_bottom(&blocks, &heights, max + 1, 40.0, 20.0),
-            None
-        );
     }
 
     use crate::parser::Slide;

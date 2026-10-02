@@ -15,7 +15,15 @@ pub fn full_reference() -> String {
         SETTINGS_MARKER,
         crate::language::settings_reference().trim_end(),
     )
+    .replace(
+        DESIGNS_MARKER,
+        crate::parser::design::rules_reference().trim_end(),
+    )
 }
+
+/// Where the format reference takes the design catalogue and the
+/// recognition table.
+const DESIGNS_MARKER: &str = "<!-- generated: designs -->";
 
 /// Where the format reference takes the generated settings tables.
 const SETTINGS_MARKER: &str = "<!-- generated: settings -->";
@@ -182,6 +190,8 @@ mod tests {
     #[test]
     fn the_format_reference_takes_the_generated_settings() {
         assert!(SPEC.contains(SETTINGS_MARKER));
+        assert!(SPEC.contains(DESIGNS_MARKER));
+        assert!(full_reference().contains("| `statement` |"));
         let full = full_reference();
         assert!(!full.contains(SETTINGS_MARKER));
         assert!(full.contains("| `picture-prompt` |"));

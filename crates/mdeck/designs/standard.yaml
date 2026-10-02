@@ -41,6 +41,8 @@ base:
     title-rule: false
     emphasis: italic
     pillow: false
+    attribution-dash: true
+    begin-hint: false
 
 designs:
   title:

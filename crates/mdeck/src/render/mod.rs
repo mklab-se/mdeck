@@ -1,13 +1,13 @@
 pub mod art;
 pub mod background;
 pub mod context;
+pub mod designs;
 pub mod diagram;
 pub mod ember;
 pub mod fonts;
 pub mod hints;
 pub mod illustration;
 pub mod image_cache;
-pub mod layouts;
 pub mod logo;
 pub mod math;
 pub mod page;
@@ -23,7 +23,7 @@ pub mod visualizations;
 
 use eframe::egui;
 
-use crate::parser::{Layout, Slide};
+use crate::parser::Slide;
 use crate::theme::Theme;
 
 pub use context::{BlockCx, SlideContext, TextCx};
@@ -61,69 +61,30 @@ pub fn is_wide_block(block: &crate::parser::Block) -> bool {
 }
 
 /// Measure the content height of a slide (for scroll/overflow detection),
-/// laying blocks out at the same column width the slide's layout draws them.
-/// Returns (content_height, available_height) where available_height is the
-/// usable area within the slide rect after padding.
+/// with the same layout drawing uses. Returns `(content_height,
+/// available_height)`; the slide scrolls when the first is larger.
 pub fn measure_slide_content_height(
     ui: &egui::Ui,
     slide: &Slide,
     theme: &Theme,
     rect: egui::Rect,
     scale: f32,
+    deck: &SlideContext,
 ) -> (f32, f32) {
-    let padding = layouts::SLIDE_PADDING * scale;
-    let available_height = rect.height() - padding * 2.0;
     // a board never scrolls: what does not fit is cut (and reported)
     if theme.engine.is_board() {
-        return (0.0, available_height);
+        return (0.0, rect.height());
     }
-
-    if theme.engine.lays_out(slide) {
-        let h = ember::measure_content_height(ui, slide, theme, rect, scale);
-        return (h, rect.height() * 0.80);
-    }
-
-    let content_height = match slide.layout {
-        Layout::Bullet | Layout::Content | Layout::Code => {
-            layouts::stacked::measure_content_height(ui, slide, theme, rect, scale)
-        }
-        Layout::TwoColumn => {
-            layouts::two_column::measure_content_height(ui, slide, theme, rect, scale)
-        }
-        layout => {
-            let width = layouts::content_width(layout, rect, scale);
-            text::measure_blocks_height(ui, &slide.blocks, theme, width, scale)
-        }
-    };
-
-    (content_height, available_height)
+    designs::measure(ui, slide, theme, rect, scale, deck)
 }
 
-/// Render a single slide using its inferred layout.
+/// Render a single slide in its design, as the theme arranges it.
 pub fn render_slide(cx: &BlockCx, slide: &Slide, rect: egui::Rect, slide_cx: &SlideContext) {
-    let theme = cx.theme;
-    if let Some(board) = theme.engine.board() {
+    if let Some(board) = cx.theme.engine.board() {
         board(cx, slide, rect, slide_cx);
         return;
     }
-    if theme.engine.lays_out(slide) {
-        ember::render(cx, slide, rect, slide_cx);
-        return;
-    }
-    let render = match slide.layout {
-        Layout::Title => layouts::title::render,
-        Layout::Section => layouts::section::render,
-        Layout::Quote => layouts::quote::render,
-        Layout::Bullet => layouts::bullet::render,
-        Layout::Code => layouts::code::render,
-        Layout::TwoColumn => layouts::two_column::render,
-        Layout::Content => layouts::content::render,
-        Layout::Image => layouts::image_slide::render,
-        Layout::Gallery => layouts::gallery::render,
-        Layout::Diagram => layouts::diagram::render,
-        Layout::Visualization => layouts::visualization::render,
-    };
-    render(cx, slide, rect);
+    designs::render(cx, slide, rect, slide_cx);
 }
 
 /// Helpers for tests that need a live `egui::Ui` to lay out text.
@@ -155,10 +116,10 @@ mod tests {
     use crate::parser::{Block, Inline, ListItem, ListMarker};
     use test_support::with_ui;
 
-    fn slide(layout: Layout, blocks: Vec<Block>) -> Slide {
+    fn slide(design: crate::parser::Design, blocks: Vec<Block>) -> Slide {
         Slide {
             blocks,
-            layout,
+            design,
             raw_source: String::new(),
             notes: None,
             ..Default::default()
@@ -180,7 +141,7 @@ mod tests {
                 ))
                 .collect();
             let s = slide(
-                Layout::Bullet,
+                crate::parser::Design::Points,
                 vec![
                     Block::Heading {
                         level: 1,
@@ -193,8 +154,9 @@ mod tests {
                     },
                 ],
             );
-            let (content, available) = measure_slide_content_height(ui, &s, &theme, rect, 1.0);
-            assert_eq!(available, 1080.0 - 160.0);
+            let (content, available) =
+                measure_slide_content_height(ui, &s, &theme, rect, 1.0, &SlideContext::default());
+            assert!((available - 1080.0 * 0.852).abs() < 1.0, "{available}");
             assert!(content > available, "{content} should overflow {available}");
         });
     }
@@ -205,12 +167,13 @@ mod tests {
             let theme = Theme::dark();
             let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1920.0, 1080.0));
             let s = slide(
-                Layout::Content,
+                crate::parser::Design::Content,
                 vec![Block::Paragraph {
                     inlines: vec![Inline::Text("Hello".into())],
                 }],
             );
-            let (content, available) = measure_slide_content_height(ui, &s, &theme, rect, 1.0);
+            let (content, available) =
+                measure_slide_content_height(ui, &s, &theme, rect, 1.0, &SlideContext::default());
             assert!(content < available);
         });
     }

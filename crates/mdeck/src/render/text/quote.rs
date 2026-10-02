@@ -116,7 +116,7 @@ pub fn draw_callout(cx: &BlockCx, kind: Alert, blocks: &[Block], pos: Pos2, max_
     let painter = cx.ui.painter();
     painter.rect_filled(
         rect,
-        8.0 * scale,
+        theme.radius * scale,
         Theme::with_opacity(theme.accent, cx.opacity * 0.10),
     );
     let edge = egui::Rect::from_min_size(pos, egui::vec2(4.0 * scale, height));
