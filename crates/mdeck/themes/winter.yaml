@@ -2,6 +2,7 @@
 # particle field glowing ice-blue and white (particles engine).
 name: Winter
 extends: ember
+variant-of: ember
 colors:
   background: "#0a1220"      # polar night
   text: "#c3cfdd"            # frost
@@ -24,7 +25,7 @@ colors:
     - "#4fd1c5" # glacier
     - "#e3ecf6" # snow
     - "#5b8def" # twilight
-particles:
+engine:
   light: "#f4f8ff"
   cool: "#b9e2ff"
 annotations:

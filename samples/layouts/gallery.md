@@ -1,11 +1,11 @@
 ---
-title: "Layout Test: Gallery Slides"
+title: "Design: gallery"
 theme: dark
 transition: fade
 ---
 
-# Layout Test: Gallery Slides
-Focused tests for the gallery layout
+# Design: gallery
+Focused tests for the gallery design
 
 
 # Two Images

@@ -202,7 +202,7 @@ pub fn draw_timeline(
     let layout = timeline_layout(pos, max_width, height, scale, entries.len());
 
     // Draw the main timeline line
-    let line_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_AXIS);
+    let line_color = Theme::with_opacity(theme.rule, opacity * VIZ_OPACITY_AXIS);
     painter.line_segment(
         [layout.line_start, layout.line_end],
         Stroke::new(VIZ_STROKE_SEPARATOR * scale, line_color),

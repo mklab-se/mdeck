@@ -6,6 +6,7 @@
 name: Darkroom
 extends: dark
 engine: darkroom
+designs: editorial
 countdown: on
 colors:
   background: "#141011"      # the darkroom
@@ -29,9 +30,6 @@ colors:
     - "#e8d9b5" # cream
     - "#d46b5c" # rust
     - "#5a4d4a" # dark grey
-particles:
-  light: "#ffffff"
-  cool: "#ff9a7a"
 fonts:
   display: spectral-light
   body: hanken-regular

@@ -3,7 +3,7 @@
 **Version:** 2.0 (in progress)
 **Status:** Draft
 
-MDeck is a markdown-based presentation tool. Authors write standard markdown; MDeck infers slide layout from content structure and renders it as a presentation.
+MDeck is a markdown-based presentation tool. Authors write standard markdown; MDeck recognises each slide's design from its content and renders it as a presentation.
 
 ---
 
@@ -11,7 +11,7 @@ MDeck is a markdown-based presentation tool. Authors write standard markdown; MD
 
 1. **Readability over expressiveness.** A MDeck document should read as a natural markdown document. Someone reading the raw source should understand the content without knowing MDeck exists.
 
-2. **Inference over configuration.** MDeck determines slide layout from content structure. Authors should almost never need to specify a layout explicitly.
+2. **Inference over configuration.** MDeck recognises each slide's design from its content. Authors should almost never need to choose one explicitly.
 
 3. **Standard markdown first.** Every feature uses standard CommonMark markdown when possible. What mdeck adds is either invisible on other renderers (frontmatter, HTML comments, alt text) or reads as meaningful markdown there (a fenced block of chart data, a `+` bullet, a notes block).
 
@@ -147,124 +147,48 @@ Footnotes (`text[^1]` with `[^1]: the note` anywhere in the deck) are notes too:
 
 ---
 
-## 4. Slide Layout Inference
+## 4. Slide Designs
 
-After parsing a slide's content into block elements, MDeck classifies them and matches against layout patterns. The first match wins, checked in the order below.
+Every slide has a **design**: what kind of slide it is (a title, a list, a quote, a chart).
+MDeck recognises the design from the slide's content, the same way in every theme; the theme
+decides how each design looks (section 9.9). No design ever drops content: whatever a design has
+no place for shows in its body, in reading order.
 
-### Element types
+### 4.1 The designs
 
-| Symbol    | Meaning                              |
-|-----------|--------------------------------------|
-| `H1`      | Level-1 heading                      |
-| `H2`      | Level-2 heading                      |
-| `H3`      | Level-3 heading                      |
-| `P`       | Paragraph                            |
-| `UL`/`OL` | Unordered/ordered list               |
-| `IMG`     | Image                                |
-| `CODE`    | Fenced code block                    |
-| `QUOTE`   | Blockquote                           |
-| `DIAGRAM` | Architecture diagram block (`@architecture`) |
+<!-- generated: designs -->
 
-### Layout patterns
+`mdeck --check -v` prints each slide's design and the rule that matched, for example
+`slide 4: statement (at most a heading + 1 or 2 short paragraphs)`.
 
-#### 1. Diagram Slide
+What each design shows:
 
-**Match:** Contains a `DIAGRAM` element.
-**Rendering:** Diagram is the primary content. Optional heading above becomes the slide title.
+- **title**: the H1 large, the H2 or paragraph as its subtitle. On the first slide the deck's
+  `author` is the byline (standard) or part of the eyebrow (editorial).
+- **section**: the heading as a divider, a deeper heading or short line as its kicker.
+- **statement**: one idea in large type, its heading small above it. The common
+  `## Heading` + a sentence slide.
+- **points**: the heading, an optional lead paragraph and the list. Every nesting level is
+  drawn, ordered lists show their numbers.
+- **split**: the text in one column, the image in the other.
+- **media**: the image large, a paragraph before it as its lead, one after it as its caption.
+  `![alt @fill](path)` covers the whole slide, with the heading in a band at the bottom.
+- **gallery**: the images in a grid (two side by side, three as two over one, four as 2x2, more
+  in rows of three), each with its alt text as a caption.
+- **quote**: the quotation large; the paragraph after it, or the quote's own short last
+  paragraph, is the attribution (a leading `--` or `---` is dropped).
+- **code**: the code block with its heading and short lead. Code shrinks to fit (down to 40% of
+  its size) before the slide scrolls; long lines shrink instead of wrapping.
+- **visual**: the chart or diagram fills the space under its heading and lead; text written
+  after it stays after it.
+- **columns**: a leading H1 or H2 spans the columns; every `+++` starts the next column.
+- **table**: the table with its heading and lead.
+- **content**: everything in reading order. Two charts, a diagram with bullets, code with an
+  image: all shown.
 
-#### 2. Title Slide
+### 4.2 Choosing a design
 
-**Match:** Only an `H1`, and optionally one of: a single `H2`, or a single short `P` (under 120 characters). No other elements.
-**Rendering:** `H1` is rendered large and centered. `H2` or `P` is rendered below as subtitle.
-
-```markdown
-# Building Resilient Systems
-
-A practical guide to fault tolerance
-```
-
-#### 3. Section Divider
-
-**Match:** A single heading (`H1` or `H2`) with no other content.
-**Rendering:** Heading rendered large and centered as a visual section break.
-
-```markdown
-# Part Two
-```
-
-#### 4. Image Slide
-
-**Match:** A single `IMG`, optionally preceded by a heading, optionally followed by a short `P` (caption).
-**Rendering:** Image fills the slide. Heading at top, caption at bottom.
-
-```markdown
-# System Architecture
-
-![Architecture overview](arch.png)
-
-The complete system at a glance.
-```
-
-#### 5. Gallery Slide
-
-**Match:** Two or more `IMG` elements, with no other content or only a heading.
-**Rendering:** Images in a grid. 2 images: side by side. 3: top 2, bottom 1 centered. 4: 2x2.
-
-```markdown
-# Comparison
-
-![Before](before.png)
-![After](after.png)
-```
-
-#### 6. Quote Slide
-
-**Match:** A `QUOTE`, optionally followed by a `P` (attribution), optionally preceded by a heading. May include one image.
-**Rendering:** Blockquote large and centered. Attribution below in smaller italic text, right-aligned. Leading `--` or `---` in the attribution is stripped. If an image is present, the quote renders in the left 55% and the image in the right 40% as a side panel.
-
-```markdown
-> The best way to predict the future is to invent it.
-
--- Alan Kay
-```
-
-#### 7. Code Slide
-
-**Match:** A `CODE` block, optionally preceded by a heading and/or a short `P`. May include one image.
-**Rendering:** Code block with syntax highlighting as primary element. Heading at top. If an image is present, the code renders in the left 55% and the image in the right 40% as a side panel.
-
-```markdown
-# Connection Pool
-
-```rust
-pub struct Pool {
-    connections: Vec<Connection>,
-    max_size: usize,
-}
-```
-```
-
-#### 8. Bullet Slide
-
-**Match:** A heading followed by a `UL` or `OL`. May include one image.
-**Rendering:** Heading at top, list below with generous spacing. Nesting supported up to 3 levels. If an image is present, the content renders in the left 55% and the image in the right 40% as a side panel.
-
-```markdown
-# Key Takeaways
-
-- Resilience is a system property
-- Failure is inevitable; recovery is a design choice
-- Test your assumptions under stress
-```
-
-#### 9. Content Slide (Fallback)
-
-**Match:** Anything not matching the above.
-**Rendering:** Elements top-to-bottom in source order with reasonable spacing. Optional heading at top.
-
-### 4.1 Choosing a design
-
-When inference produces the wrong result, choose the slide's design with the `design` setting:
+When recognition gives the wrong design, choose one with the `design` setting:
 
 ```markdown
 # Comparison
@@ -277,7 +201,16 @@ Left column content...
 Right column content...
 ```
 
-Design names: `title`, `section`, `statement`, `points`, `split`, `media`, `gallery`, `quote`, `code`, `visual`, `columns`, `table`, `content`. Until the v2 designs land, `statement` and `table` draw as content, `points` as a bullet slide, `split` as a bullet slide (or content without a list), `media` as an image slide, `visual` as a chart or diagram slide and `columns` as two columns. An unknown name keeps the inferred layout and is reported by `mdeck --check`.
+A chosen design that has no place for some of the slide's content shows the rest in its body, in
+reading order; a chosen design that lacks its core block (`design: quote` on a slide without a
+quote) draws the slide as `content`. `mdeck --check` reports both. An unknown name keeps the
+recognised design and is reported too.
+
+### 4.3 Overflow
+
+Content that does not fit first shrinks: code down to 40% of its size, then prose and lists down
+to 80%. Past that the slide scrolls smoothly (Up and Down), with fade cues at the edges. The
+height that decides scrolling is measured with the same layout that draws the slide.
 
 ---
 
@@ -285,7 +218,7 @@ Design names: `title`, `section`, `statement`, `points`, `split`, `media`, `gall
 
 ### 5.1 Headings
 
-Standard ATX headings. Levels 1-3 are meaningful for layout; levels 4-6 are rendered as body-weight text.
+Standard ATX headings. Levels 1-3 are meaningful for design recognition; levels 4-6 are rendered as body-weight text.
 
 ```markdown
 # Level 1 — Slide title / section
@@ -478,7 +411,7 @@ Standard pipe-delimited tables:
 | Rendering | WIP     |
 ```
 
-Tables are rendered with theme-appropriate styling. They do not trigger a special layout; they are block elements within whatever layout the slide otherwise matches. The second line must be a separator row (`|---|`); its colons set each column's alignment (`|:--|` left, `|:-:|` centre, `|--:|` right). Escape a pipe inside a cell as `\|`; pipes inside inline code are kept as text. A lone `| text |` line without a separator row is a paragraph.
+Tables are rendered with theme-appropriate styling. A heading with one table (and at most a short paragraph) is a `table` slide; anywhere else a table is a block in the slide's design. The second line must be a separator row (`|---|`); its colons set each column's alignment (`|:--|` left, `|:-:|` centre, `|--:|` right). Escape a pipe inside a cell as `\|`; pipes inside inline code are kept as text. A lone `| text |` line without a separator row is a paragraph.
 
 ### 5.8 Horizontal rules within slides
 
@@ -765,6 +698,18 @@ An unrecognized icon name falls back to `box`. Icons are simple and clear line d
 
 ### 9.1 Built-in themes
 
+The built-in themes come in two tiers, in this order in `mdeck theme list` and
+`Shift+T`:
+
+- **Themes:** `dark` (the default: plain, dark, a bright foreground, standard
+  designs, fades, no countdown), `light`, `nord`, `ember`, `thermal`,
+  `marquee`, `departures`, `stack`, `blueprint`, `chalkboard`, `sketchbook`,
+  `watercolour`, `darkroom`.
+- **Variants** (recolourings, `variant-of:`): `spring` and `summer` of
+  `light`, `autumn` and `winter` of `ember`.
+
+A deck that names no theme (and no `defaults.theme` in the config) gets `dark`.
+
 **`light`**
 
 | Property        | Value           |
@@ -829,8 +774,9 @@ living field of glowing particles behind every slide. The field morphs from
 slide to slide and follows the content: a title slide opens on a constellation
 (after the particles assemble into the logo), a bullet slide lights one
 cluster per item as the items reveal, a quote slide burns like a candle, a
-code slide rains. Slides whose content fills the frame (code, tables, charts,
-diagrams, images) keep their regular layouts with the Ember palette.
+code slide rains. Ember uses the editorial design set (section 9.9), which
+arranges every design, code, tables, charts and images included, with an
+eyebrow, display type and a staggered entry.
 
 **`marquee`**
 
@@ -873,7 +819,7 @@ A theme for the blocks engine (section 9.6):
 
 **`blueprint`**
 
-A draftsman's sheet for the line engine (`surface: sheet`, sections 9.6 and 9.7): a
+A draftsman's sheet for the line engine (`engine: { name: line, surface: sheet }`, sections 9.6 and 9.7): a
 Prussian blue sheet with a fine grid, a ruled border and a title block, laid
 on a dark drafting table (`page:`), with generated line art inked in
 blue-white, construction lines first.
@@ -899,11 +845,11 @@ technology), drawn in with a pencil; an editorial serif for headings.
 | Headings (graphite) | `#1F1D1A`   |
 | Accent (a red pencil) | `#A8472A` |
 | Secondary (a blue pencil) | `#35657F` |
-| The pencil (`particles.cool`) | `#2F5D50` |
+| The pencil (`engine.cool`) | `#2F5D50` |
 
 **`chalkboard`**
 
-A green slate in a wooden frame for the line engine (`surface: slate`), with the ghosts
+A green slate in a wooden frame for the line engine (`engine: { name: line, surface: slate }`), with the ghosts
 of earlier drawings wiped off it; generated line art is drawn in chalk.
 
 | Property        | Value           |
@@ -946,7 +892,7 @@ the presenter chrome is a counter and a progress hairline.
 
 #### The countdown
 
-Ember, Nord and the engine showcase themes open with a three-second
+Nord, Ember and the engine showcase themes open with a three-second
 countdown before the first slide (any theme can, with `countdown: on` in
 section 9.4; a deck's `countdown: on|off` wins over the theme). The engine
 decides how it looks: an engine with a countdown of its own draws it, any
@@ -972,11 +918,12 @@ setting:
 - 100 cores
 ```
 
-Where it goes depends on the layout. Bullet, content, quote and section
-slides show it on the right, beside the copy, warm and lit from the first
-step. Title slides put it behind the centred copy, large, dim and slow: a
-backdrop rather than a picture. Code, chart, diagram, table, image and
-two-column slides never show one, and `mdeck --check` warns when a slide asks
+Where it goes is the design's stage (section 9.9). In the editorial set,
+statement, points, quote, section and text-only content slides show it on
+the right, beside the copy, warm and lit from the first step. Title slides
+put it behind the centred copy, large, dim and slow: a backdrop rather than
+a picture. Split, media, gallery, code, visual, columns and table slides
+never show one, and the standard set leaves no stage at all, and `mdeck --check` warns when a slide asks
 for an illustration it cannot show, or one that does not exist.
 Engines that cannot draw a picture ignore the setting, and `--check` says so.
 
@@ -1059,16 +1006,15 @@ match wins:
 2. the user folder: `~/.config/mdeck/themes/` on Linux,
    `~/Library/Application Support/mdeck/themes/` on macOS,
    `%APPDATA%\mdeck\themes\` on Windows
-3. the built-in themes (`dark`, `light`, `nord`, `ember`, `spring`, `summer`,
-   `autumn`, `winter`, `marquee`, `departures`, `stack`, `blueprint`,
-   `sketchbook`, `chalkboard`, `watercolour`, `darkroom`, `thermal`)
+3. the `themes/` folders of installed packs (`mdeck pack`)
+4. the built-in themes (section 9.1)
 
 `theme` may also be a path to a file (`theme: brand/acme.yaml`), relative
 to the deck. A user or deck theme may reuse a built-in name to replace it.
 Theme names are lowercase letters, digits, `-` and `_`. `defaults.theme` in
 the config accepts built-in and user themes. An unknown name or an invalid
 theme file is reported (by `--check`, and as a warning when presenting or
-exporting) and the deck falls back to `light`.
+exporting) and the deck falls back to `dark`.
 
 **The format.** Every key is optional. Unset keys come from the theme named by
 `extends`, which is `dark` when the file does not say. So a brand theme can be
@@ -1090,10 +1036,28 @@ The full set of keys:
 ```yaml
 name: Acme
 extends: dark
-engine: plain              # plain | particles | led | splitflap | blocks | line | sketch | watercolour | darkroom | thermal (section 9.6)
+variant-of: dark           # this theme recolours another: listed with the variants
+engine:                    # the engine and its settings (section 9.6); `engine: plain` names one alone
+  name: thermal            # plain | particles | led | splitflap | blocks | line | sketch | watercolour | darkroom | thermal
+  palette: iron            # thermal: iron | white-hot | black-hot | rainbow | arctic | lava
+  drift: false             # thermal: true lets embers drift through the dark on ordinary slides
+  light: "#d7d7e1"         # particles, led, blocks, line, sketch: the brightest tint
+  cool: "#afc3f0"          # particles, led, blocks, line, sketch: a cool tint besides the accents
+  surface: sheet           # line: sheet | slate
+  kind: line               # art engines: line | tonal (section 9.7)
+  style: "graphite and ink, cross-hatching"   # art engines: the style prompt
+  references: [refs/teacup.jpg]               # art engines: style swatches in the theme folder
+designs: standard          # standard | editorial: how the slide designs look (section 6)
+arrangements: {}           # per-design overrides of the design set (section 6)
 countdown: off             # on | off: the 3-2-1 opener (the engine decides its look)
-surface: sheet             # the line engine's ground: sheet | slate (section 9.6; interim, moves into an engine block)
 transition: fade           # slide | fade | spatial | none (a deck's `transition` wins)
+spacing:                   # the gaps the designs use, px on a 1920x1080 slide
+  xs: 8
+  sm: 16
+  md: 24
+  lg: 40
+  xl: 64
+radius: 8                  # corner radius of code blocks, tables and callouts, px
 colors:                    # #rgb, #rrggbb or #rrggbbaa
   background: "#0b1020"    # slide background
   text: "#c9d1e3"          # body text
@@ -1117,16 +1081,10 @@ annotations:               # the presenter's pen (drag) and arrow (Shift+drag) t
   pen-outline: "#1e82b4"
   arrow: "#ffc832"
   arrow-outline: "#c88c00"
-particles:                 # particles and led engines: tints besides the accents
-  light: "#d7d7e1"
-  cool: "#afc3f0"
-heat:                      # thermal engine: the heat field
-  palette: iron            # iron | white-hot | black-hot | rainbow | arctic | lava
-  drift: false             # true: embers drift through the dark on ordinary slides
 fonts:                     # a bundled face, or a .ttf/.otf file in the theme folder
   display: fonts/Acme-Display.ttf   # headings
   body: hanken-regular     # body text and list items
-  lead: hanken-light       # lead paragraphs in the particles copy column (default: body)
+  lead: hanken-light       # lead paragraphs where the design set uses it (editorial; default: body)
   strong: hanken-medium    # **bold** runs (default: body)
   mono: jetbrains-mono     # code, labels, eyebrows
 sizes:                     # px on a 1920x1080 slide; everything scales with the window
@@ -1148,17 +1106,40 @@ logo:                      # a logo in a corner of every slide (section 9.5)
   opacity: 0.6             # 0 to 1
 page:                      # lay every slide on a sheet with a surface around it
   surface: "#0a1b33"       # what is around the sheet (a desk, a drafting table)
-  margin: 26               # px around the sheet on a 1920x1080 slide (0 to 200)
+  margin: 26               # px around the sheet on a 1920x1080 slide (0 to 300)
   shadow: 0.7              # the sheet's shadow on the surface, 0 to 1 (default 0.5)
   grain: 0.25              # paper fibre on the sheet, 0 to 1 (default 0.5)
   radius: 2                # corner radius in px (0 to 60, default 6)
-art:                       # how generated art looks on an art engine (section 9.7)
-  kind: line               # line (ink lines the engine draws) | tonal (a finished picture)
-  style: "graphite and ink, cross-hatching, old craft meets modern technology"
-  references: [refs/teacup.jpg, refs/street.jpg]   # style swatches, in the theme folder
 ```
 
-Unknown keys are errors, so a typo never goes unnoticed.
+Unknown keys are errors, so a typo never goes unnoticed. The v1 top-level
+`particles:`, `heat:`, `art:` and `surface:` sections moved into the engine
+block; a theme that still has one gets an error saying where it went.
+
+**The engine block.** `engine:` is the engine's name, or a block with `name`
+and the engine's settings. Settings merge key by key through `extends` while
+the child names the same engine (or none); a child that names a different
+engine starts from its own settings only. When a deck's `engine` or
+`--engine` runs another engine, the theme's settings are ignored.
+`mdeck theme check` warns about a setting the theme's engine does not read.
+
+**Variants.** `variant-of: <theme>` marks a theme as a recolouring of
+another (it normally also `extends` it). Variants are listed after the
+themes in `mdeck theme list` and `Shift+T`. It is the theme's own key: a theme
+extending a variant is not a variant unless it says so.
+
+**Spacing and radius.** `spacing` is the scale of gaps the slide designs
+name (`xs` to `xl`, growing), and `radius` the corner radius of cards. Change
+them to make every design airier or tighter at once.
+
+**Checking a theme.** `mdeck theme check <name>` reports errors, fallbacks,
+contrast below WCAG AA (4.5:1 for small text, 3:1 for large text of 24 px or
+more) for every text colour the theme draws (body text, headings, bold,
+links, muted captions and eyebrows, code on its background, the soft accent
+where the design set draws emphasis in it, and every role of every design at
+its size and opacity), and keys that do nothing: an engine setting the engine
+does not read, `fonts.lead` when no design uses the lead face, and an engine
+that draws on a page (line, sketch, watercolour) without a `page:`.
 
 **The page.** With a `page:` block the slide is a sheet (the theme's
 `background`) lying on `surface`, with a soft shadow and a fine paper grain.
@@ -1166,7 +1147,7 @@ Everything on the slide, the engine's layer included, draws on the sheet.
 `surface` is required for a page; the other keys have defaults. It works on
 every engine.
 
-**Art.** On an art engine (section 9.7) the `art:` block sets the house style
+**Art.** On an art engine (section 9.7) the engine block sets the house style
 of the deck's generated pictures. `kind` overrides the medium's own kind,
 `style` replaces the medium's style prompt (the part that carries the look),
 and `references` replaces the medium's bundled style swatches with your own
@@ -1174,8 +1155,8 @@ images (paths inside the theme folder; sent to image models that accept
 reference images). Pictures made in one style are never shown in another.
 
 **Engines.** The engine decides what a theme does beyond colours and type
-(section 9.6). A theme picks one by name with `engine:`; a deck can run on
-another with `engine`.
+(section 9.6). A theme picks one with `engine:` (a name or a block with its
+settings); a deck can run on another with `engine`.
 
 **Fonts.** Fonts are named by *role*, not weight, because a slide draws each
 role with one face. A value is either a bundled face or a TTF/OTF file inside
@@ -1329,8 +1310,8 @@ from the theme, so every theme looks like itself on every engine.
 their unlit lenses just visible. Nothing ever moves: pictures appear by
 lighting LEDs. A `picture` powers on from its centre outward, each LED
 flickering as it strikes, and then shimmers slowly between the theme's
-`accent`, `accent-soft` and `particles.cool`; the hottest cores whiten toward
-`particles.light`. Brightness follows the point cloud's density, so strokes
+`accent`, `accent-soft` and `engine.cool`; the hottest cores whiten toward
+`engine.light`. Brightness follows the point cloud's density, so strokes
 stay brighter than fills and the picture keeps its structure. Title slides get
 a marquee border of chasing bulbs in `secondary`; slides without an
 illustration get a slow, faint aurora on the side away from the copy. A reveal
@@ -1378,7 +1359,7 @@ agendas, schedules, status and numbers read best.
 **The blocks engine.** A `picture` is cut into a grid of blocks,
 grouped into pieces of two to four, and the pieces drop from above the slide,
 bottom row first, land with a small bounce and settle into the picture. The
-blocks are bevelled, in `accent`, `secondary`, `particles.cool`,
+blocks are bevelled, in `accent`, `secondary`, `engine.cool`,
 `accent-soft` and the fifth `series` colour. Leaving a slide, the stack
 flashes and clears row by row, like a completed line. Slides without an
 illustration stay calm. Exports show the settled stack.
@@ -1411,8 +1392,8 @@ slide's generated drawing (section 9.7; graphite and ink by default) is
 drawn in with a pencil you can see: first the outlines, traced along the
 lines, then the shading, laid in stroke by stroke in bands that sweep across
 the picture while the pencil zigzags along them. The pencil's body is
-`particles.cool`; its lead and line art are the `heading` colour. Line art
-(`art: { kind: line }` in a theme) is drawn with a faint underdrawing first.
+the engine block's `cool`; its lead and line art are the `heading` colour. Line art
+(`kind: line` in a theme's engine block) is drawn with a faint underdrawing first.
 On a title slide the drawing sits large and faint behind the title. Without
 art, the slide's `picture` is drawn in pencil, and so are the
 countdown and the end words. Exports show the finished drawing.
@@ -1447,7 +1428,7 @@ white on a black print. The countdown and the end words glow the same way.
 
 **The thermal engine.** The deck is seen through a thermal instrument: a
 heat field lies under the slides, drawn in the theme's heat palette
-(`heat: { palette: iron }`) in contour bands and transparent where it is
+(`engine: { name: thermal, palette: iron }`) in contour bands and transparent where it is
 cold. Its motion is kept for the moments that matter:
 
 - *The cold opening.* On title and section slides the heading forms in heat:
@@ -1458,7 +1439,7 @@ cold. Its motion is kept for the moments that matter:
 - *Heat signatures.* A `picture` glows like a warm body; the
   countdown digits heat up and cool off; the end words glow and fade.
 - *Calm evidence.* Where a slide shows a chart, a diagram, an image or a
-  `@thermal` block, the field stays dark. With `heat: { drift: true }` a few
+  `@thermal` block, the field stays dark. With `drift: true` in the engine block a few
   embers drift through the dark on ordinary slides, cooling as they rise;
   by default the background is still.
 - *Cooling between slides.* Nothing is cleared on a slide change: the old
@@ -1517,9 +1498,9 @@ cost, and it works offline.
 | `watercolour` | loose watercolours on white paper (tonal) | a pale wash, then the colour blooming from where the paint is heaviest |
 | `darkroom` | black-and-white documentary photographs (tonal) | developing as a print, shadows first, under a red safelight |
 
-**Which slides get a picture.** The slides with room for one: title,
-section, quote, bullet and copy slides (the editorial layouts; not slides
-with code, tables, charts, diagrams or images). `picture: none` on a slide
+**Which slides get a picture.** The slides whose design has a stage in
+the theme's design set (section 9.9): in the editorial set title, section,
+statement, points, quote and text-only content slides. `picture: none` on a slide
 leaves it without.
 
 **Scenes.** `picture-prompt:` in a slide's settings says what its picture
@@ -1602,7 +1583,7 @@ is. Every `mdeck ai` generation command takes `--slide N`, `--stale`,
 
 **Style.** Each medium has a style card: a style prompt and two small
 neutral style swatches (a still life and a street), sent as reference images
-to models that accept them. A theme's `art:` block (section 9.4) replaces
+to models that accept them. A theme's engine block (`style`, `references`, section 9.4) replaces
 either.
 
 **Without art.** An art engine never needs the AI to present: a slide with
@@ -1670,7 +1651,72 @@ background, and `The quiet one` shows the deck's image, fainter.
 An image with `@fill` (section 3) is different: it is content and takes the
 slide over. A background stays behind the heading and the text.
 
-## 10. Two-Column Layout
+### 9.9 Designs and arrangements
+
+A theme decides how every design (section 4) looks, with data only.
+
+**Design sets.** `designs: standard` (the default) is the classic slide:
+content centred, the heading on top, no ornament and no entry motion.
+`designs: editorial` is the magazine spread: a copy column on the left, an
+eyebrow (the slide's Roman numeral and the deck title), display type, a
+soft pillow behind the copy, a staggered entry and a stage on the right
+where the engine draws the slide's picture. Both sets arrange every design
+and recognise slides the same way. The set is independent of the engine:
+`designs: editorial` with `engine: plain` is Ember's look on a still
+screen; `designs: standard` with `engine: particles` puts centred slides
+over the particle field.
+
+**Arrangements.** `arrangements:` overrides any key of any design's
+arrangement; `all:` applies to every design. Overrides are partial and
+merge key by key through `extends`.
+
+```yaml
+designs: editorial
+arrangements:
+  all:
+    ornaments: { bullet: "◆" }
+  quote:
+    copy: { region: [0.12, 0.25, 0.76, 0.5], align: center }
+    roles:
+      quote: { size: h2, scale: 0.9, font: display }
+      attribution: { color: accent }
+    ornaments: { quote-bar: none, quote-marks: true }
+  title:
+    roles:
+      title: { case: upper, tracking: 0.04 }
+    entry: { kind: fade, duration-ms: 900 }
+```
+
+An arrangement's keys:
+
+| Key | Values |
+|---|---|
+| `copy` | `{ region: [x, y, width, height], align: left\|center\|right, valign: top\|middle\|bottom }`: where the text goes, in fractions of the slide |
+| `wide` | like `copy`: where a `content` slide's copy goes when it holds an image, code, a table or a visual (its stage is given up) |
+| `plate` | `{ region, place: below\|beside, align, valign, gap, rule }`: where the image, gallery, code, table, visual or columns go; `below` puts it under the copy, `beside` in its own region; `rule` draws a hairline over each column |
+| `stage` | `none`, `right`, `left` or `backdrop`: where the engine may draw the slide's picture |
+| `eyebrow` | `none`, `numeral` (Roman numeral and deck title) or `deck` (author and deck title) |
+| `byline` | `true`: a title page shows the deck's author |
+| `entry` | `{ kind: none\|fade\|rise\|stagger, step-ms, duration-ms, rise, reveal: slide\|rise\|fade, reveal-ms }`: how copy comes in, and how a `+` item revealed with Next comes in |
+| `roles.<role>` | `{ font: display\|body\|lead\|strong\|mono, size, scale, color, opacity, case: none\|upper\|lower, tracking, line-height, gap, align, italic }` for each role: `eyebrow`, `title`, `subtitle`, `kicker`, `byline`, `heading`, `statement`, `lead`, `body`, `list`, `nested`, `quote`, `attribution`, `caption` |
+| `ornaments` | `bullet` (a glyph or `dot`), `bullet-color`, `indent`, `nested-indent`, `item-gap`, `numbering`, `quote-marks`, `quote-bar: none\|left`, `bar-color`, `bar-width`, `attribution-dash`, `title-rule`, `emphasis: italic\|accent`, `pillow`, `begin-hint` |
+
+Sizes are theme size tokens (`h1`, `h2`, `h3`, `body`, `code`, or `level`
+for a heading's own level) or px at 1920x1080. Colours are theme colour
+roles (`text`, `heading`, `muted`, `strong`, `accent`, `accent-soft`,
+`secondary`, `bright`, `rule`). Gaps are spacing tokens (`xs`, `sm`, `md`,
+`lg`, `xl`, from the theme's `spacing:`), px, or a multiple of the
+element's own size (`0.5em`). The built-in sets are
+`crates/mdeck/designs/standard.yaml` and `editorial.yaml`; every key is
+listed there.
+
+**Invariants** (not themeable): a `@fill` media image covers the whole
+slide with its copy in a band at the bottom; gallery grids (two side by
+side, three as two over one, four as 2x2, rows of three after); several
+visuals on one plate sit side by side when the plate is wide, else
+stacked; the fit floors (code 40%, prose 80%).
+
+## 10. Columns
 
 A `+++` line splits a slide into two columns (the `columns` design); it is recognised without a setting:
 
@@ -1688,7 +1734,7 @@ Old approach with manual config.
 New approach with auto-discovery.
 ```
 
-Content before `+++` is the left column; content after is the right column. If no `+++` is found, all content goes in the left column.
+Content before `+++` is the left column; content after is the right column. More `+++` lines give more columns. A leading H1 or H2 spans the columns.
 
 The `+++` separator was chosen because it is visually distinct from `---` (slide break) and is not a standard markdown construct.
 
@@ -1927,20 +1973,12 @@ TEXT. Any other line is a problem that `--check` reports (category
 `visual`); it is never drawn.
 ```
 
-### 13.4 Phase 4: Classify layout
+### 13.4 Phase 4: Recognise the design
 
 ```
-classify(elements) -> Layout:
-    if has(DIAGRAM):           Diagram
-    if has(VISUALIZATION):     Visualization
-    if is_title_pattern():     Title
-    if is_section_divider():   Section
-    if single_image():         Image
-    if multi_image():          Gallery
-    if has(QUOTE):             Quote
-    if has(CODE):              Code
-    if heading_and_list():     Bullets
-    else:                      Content
+design(slide) -> Design:
+    if slide sets design: and has the design's core block:  that design
+    else: the first rule of the recognition table (section 4.1) that matches
 ```
 
 ---

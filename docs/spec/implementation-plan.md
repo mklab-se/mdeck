@@ -140,7 +140,7 @@ the binary where `--out` says.
 |---|---|---|
 | 1 | Language and content model: D1-D7, story removal from the format, samples converted to v2 syntax | done |
 | 2 | Workspace, SDK, registries, paint; engines v2 (D10-D13), laser removed, line merged, D24/D26 fixed | in progress: `mdeck-sdk` crate exists (not wired), laser removed, line merged, D24/D26 fixed, visual grammar done |
-| 3 | Designs and themes v2 (D8, D9), default theme, layout defects | todo |
+| 3 | Designs and themes v2 (D8, D9), default theme, layout defects | done (see Phase 3 notes and deferrals) |
 | 4 | Presenter view, per-slide transitions, slide jump, `--theme`, `export --at`; generated assets and `mdeck ai` (D14) | done |
 | 5 | Extensibility tooling: `mdeck build`, packs, external visual programs, `mdeck sdk new/preview`, SDK docs and tutorials | todo |
 | 6 | Documentation, README, gallery, format reference, CHANGELOG, release workflow (publish `mdeck-sdk`), v2.0.0 | todo |
@@ -196,6 +196,41 @@ Five branches were merged onto phase 1 (October 2026):
   visual; `*` is static there too, and `count_viz_steps` counts `+` items through the grammar so
   the parser's slide numbering and the visual agree. Tags are exact v2 tags only.
 
+## Phase 3 notes
+
+What later phases build on:
+
+- **Designs.** `parser::design` is the catalogue (`Design`) and the one recognition table
+  (`RULES`, thresholds as named constants; `rules_reference` fills
+  `<!-- generated: designs -->` in the format reference, a test keeps `docs/writing-slides.md`
+  in sync). `Slide::design` and `Slide::recognition` replace the layout as the renderer's input;
+  `--check -v` prints the design and the rule, `--check` (category `settings`) reports a chosen
+  design with a rest or without its core block (which then falls back to `content`).
+  `parser::design_layout` is gone.
+- **`Slide::layout` stays as a derived view** (`parser::Layout::of(design, blocks)`) only for the
+  engines and particle scenes that key their scenery on it (`render/particles`, `engines/stage`,
+  `engines/splitflap`), so phase 2b's files did not have to change. Designs without an editorial
+  stage map to quiet kinds (table, columns, wide content: `Visualization`; split: `Image`).
+  Engines should move to `slide.design` and `render::design_stage`, then the enum goes.
+- **Arrangements** (`theme/arrangement.rs`) are typed and `deny_unknown_fields`: a set file is a
+  `base` plus per-design keys, theme `arrangements:` overrides merge as YAML values key by key
+  (through `extends` in `ThemeFile::over`, then over the set), `all:` applies to every design.
+  `Theme::arrangement(design)` is what the renderer reads; `theme::spacing` holds the spacing
+  scale and `radius`.
+- **One renderer** (`render::designs`): `parts::of` (roles), `plan` (copy `Stack`, plate,
+  footer, columns; `below` or `beside`), `layout` (fit: code to 40%, then prose to 80%),
+  `measure`, `revealed_bottom` and `render` share the plan. `render/layouts` and the editorial
+  renderer in `render/ember` are gone; `render::ember` keeps the chrome and the compatibility
+  questions engines ask (`is_title` is now `design == Title`, `handles` is the editorial stage).
+- **Seams with phase 2b, final:** `theme::uses_editorial(theme)` (the theme's design set),
+  `theme::engine_settings(theme)` (the theme's `engine:` block, `Theme::engine_block`), and
+  `render::design_has_stage(slide, theme)` / `render::design_stage` (the arrangement's stage; a
+  `content` slide with a wide block gives it up).
+- **Themes v2:** `engine:` block (string shorthand kept), `variant-of:`, default theme `dark`,
+  pack theme folders in the lookup, `theme/schema.rs` key table for the starter, inert-key and
+  missing-page warnings, contrast over every rendered text pair, `theme preview` one slide per
+  design, chart grids on `rule`/`muted`.
+
 ## Deferrals
 
 Any requirement deferred to 2.x is listed here and in the release notes.
@@ -205,8 +240,23 @@ Any requirement deferred to 2.x is listed here and in the release notes.
   the theme's `engine:` block (`surface:` and `particles`/`heat`/`art` move there); image options
   in the settings grammar and their validation (LANG-12, VIZ-11); `picture:` resolving to
   artworks and image paths as one source (PIC-02, D13).
-- **Phase 3:** designs and themes v2 (D8, D9) as planned; `design:` still maps onto the v1
-  `Layout` enum.
+- **Phase 3:**
+  - DES-14 (a code extension providing a whole design set) beyond the SDK trait: the board
+    engine still draws through its engine hook; registering design sets is phase 2b/5 work.
+  - Engines and particle scenes still read the derived `Slide::layout` (see Phase 3 notes).
+  - THM-11's last sentence: `--check -v` does not yet say that the theme's engine settings are
+    ignored when the deck or `--engine` runs another engine.
+  - THM-12 is partial: `theme check` warns for paper engines without a `page:`; engines do not
+    declare their needs through the SDK yet.
+  - The per-engine settings table (`theme::validate::engine_keys`) and the starter's engine list
+    match on `EngineKind`; they move into each engine's definition with the registries.
+  - Inline images in a copy column are boxed at a fixed height (60% of the column width, at most
+    400 px) so measurement does not depend on the decoded image; a portrait image is letterboxed
+    in that box.
+  - The SDK template and example themes still write `countdown: none|burst`, which theme building
+    rejects (it accepts `on|off`).
+  - Italic display text (editorial quotes) is egui's synthetic slant; no italic faces are
+    bundled.
 - **Phase 6:** `docs/*.md`, the README and the AI supplement were converted mechanically to the
   v2 syntax but not rewritten; the gallery and tutorial screenshots were not regenerated; the
   format reference still describes v1 layouts and engines outside the sections phase 1 changed.

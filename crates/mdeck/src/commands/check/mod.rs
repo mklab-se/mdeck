@@ -88,7 +88,6 @@ fn collect(
     };
 
     add(diagram_warnings(presentation));
-    add(illustration_warnings(presentation, file));
     add(
         cjk_font_warning(presentation, render::fonts::cjk_coverage())
             .into_iter()
@@ -121,9 +120,40 @@ fn collect(
             message,
         })
         .collect());
+    add(illustration_warnings(presentation, file, &theme));
+    add(design_warnings(presentation));
     add(engine_warnings(presentation, theme.engine));
     add(asset_warnings(file, presentation, &theme));
     Ok(report)
+}
+
+/// Slides whose `design` setting could not hold their content (DES-04):
+/// the rest shows in the body, or the slide falls back to `content`.
+fn design_warnings(presentation: &parser::Presentation) -> Vec<CheckWarning> {
+    use parser::design::Reason;
+    presentation
+        .slides
+        .iter()
+        .enumerate()
+        .filter_map(|(i, slide)| {
+            let r = &slide.recognition;
+            let message = match &r.reason {
+                Reason::ChosenWithRest => format!(
+                    "design: {} does not have a role for everything on this slide; the rest \
+                     shows in its body, in reading order",
+                    r.design.name()
+                ),
+                Reason::FellBack(_) => format!("this slide is drawn as {}", r.describe()),
+                _ => return None,
+            };
+            Some(CheckWarning {
+                slide: i + 1,
+                line: slide.setting_line("design"),
+                category: CheckCategory::Settings,
+                message,
+            })
+        })
+        .collect()
 }
 
 /// Routes the diagram layout could not draw cleanly.
@@ -201,9 +231,9 @@ fn slide_summary(index: usize, slide: &parser::Slide) -> String {
         .map(|t| crate::commands::util::truncate_chars(t.trim(), 48))
         .filter(|t| !t.is_empty());
     let mut line = format!(
-        "  slide {:>3}: {:<11} {:>2} block{}, {} step{}",
+        "  slide {:>3}: {}, {} block{}, {} step{}",
         index + 1,
-        format!("{:?}", slide.layout).to_lowercase(),
+        slide.recognition.describe(),
         slide.blocks.len(),
         if slide.blocks.len() == 1 { "" } else { "s" },
         steps,
@@ -222,12 +252,12 @@ fn slide_summary(index: usize, slide: &parser::Slide) -> String {
 mod tests {
     use super::*;
 
-    use crate::parser::{Block, Layout, Slide};
+    use crate::parser::{Block, Design, Slide};
 
-    fn slide(blocks: Vec<Block>, layout: Layout, notes: Option<&str>) -> Slide {
+    fn slide(blocks: Vec<Block>, design: Design, notes: Option<&str>) -> Slide {
         Slide {
             blocks,
-            layout,
+            design,
             raw_source: String::new(),
             notes: notes.map(String::from),
             ..Default::default()
@@ -251,6 +281,22 @@ mod tests {
     }
 
     #[test]
+    fn a_design_that_cannot_hold_the_slide_is_reported() {
+        let p = parser::parse(
+            "# A\n<!-- design: quote -->\n\n- one\n\n> q\n\n# B\n<!-- design: code -->\n\n- x\n\n# C\n<!-- design: points -->\n\n- y\n",
+        );
+        let w = design_warnings(&p);
+        assert_eq!(w.len(), 2, "{w:?}");
+        assert!(
+            w[0].message.contains("shows in its body"),
+            "{}",
+            w[0].message
+        );
+        assert_eq!(w[0].line, 2);
+        assert!(w[1].message.contains("no code block"), "{}", w[1].message);
+    }
+
+    #[test]
     fn fence_lines_find_each_tagged_fence() {
         let md = "---\ntitle: T\n---\n# A\n\n```@architecture\na -> b\n```\n\n```text\n```@architecture\n```\n\n~~~ @architecture\nc\n~~~\n";
         let p = parser::parse(md);
@@ -266,7 +312,10 @@ mod tests {
         .slides[0];
         let line = slide_summary(4, s);
         assert!(line.contains("slide   5:"), "{line}");
-        assert!(line.contains("bullet"), "{line}");
+        assert!(
+            line.contains("slide   5: points (a heading + one list,"),
+            "{line}"
+        );
         assert!(line.contains("2 blocks"), "{line}");
         assert!(line.contains("2 steps"), "{line}");
         assert!(line.contains("\"Räksmörgås & friends\""), "{line}");
@@ -277,7 +326,7 @@ mod tests {
     fn summary_without_heading_or_notes() {
         let s = slide(
             vec![Block::Paragraph { inlines: vec![] }],
-            Layout::Content,
+            Design::Content,
             None,
         );
         let line = slide_summary(0, &s);

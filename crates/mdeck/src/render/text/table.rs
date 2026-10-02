@@ -173,7 +173,7 @@ pub fn draw_table(
     let layout = layout_table(ui, headers, rows, theme, max_width, scale);
     let pad = layout.cell_padding;
     let num_cols = layout.col_widths.len();
-    let rounding = 6.0 * scale;
+    let rounding = theme.radius * 0.75 * scale;
     let band_left = pos.x + pad * 0.5;
     let band_right = pos.x + max_width - pad * 0.5;
 

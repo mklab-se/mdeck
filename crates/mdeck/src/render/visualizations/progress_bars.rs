@@ -230,7 +230,7 @@ impl BarRows<'_> {
         let row_y = self.rows.row_y(i);
 
         // Track background
-        let track_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
+        let track_color = Theme::with_opacity(theme.rule, opacity * VIZ_OPACITY_GRID);
         let track_rect = self.rows.track_rect(i);
         painter.rect_filled(track_rect, VIZ_CORNER_TRACK * scale, track_color);
 
@@ -248,7 +248,7 @@ impl BarRows<'_> {
         }
 
         // Subtle border on track
-        let border_color = Theme::with_opacity(theme.foreground, opacity * VIZ_OPACITY_GRID);
+        let border_color = Theme::with_opacity(theme.rule, opacity);
         painter.rect_stroke(
             track_rect,
             VIZ_CORNER_TRACK * scale,

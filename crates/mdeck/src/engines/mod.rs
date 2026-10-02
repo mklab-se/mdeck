@@ -267,11 +267,6 @@ impl EngineKind {
         self.capabilities().paints
     }
 
-    /// Lays `slide` out with the editorial layouts instead of the generic ones.
-    pub fn lays_out(self, slide: &Slide) -> bool {
-        self.capabilities().editorial && crate::render::ember::handles(slide)
-    }
-
     /// Draws every slide itself (a board), text and transitions included.
     pub fn is_board(self) -> bool {
         self.capabilities().board

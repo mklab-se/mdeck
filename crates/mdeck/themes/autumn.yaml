@@ -2,6 +2,7 @@
 # field glowing in amber, rust and gold (particles engine).
 name: Autumn
 extends: ember
+variant-of: ember
 colors:
   background: "#17110d"      # wet bark at dusk
   text: "#d6c4ae"            # dry grass
@@ -24,7 +25,7 @@ colors:
     - "#d4957a" # clay
     - "#7e8c9a" # autumn sky
     - "#d6c4ae" # dry grass
-particles:
+engine:
   light: "#f5e3c8"
   cool: "#e5b34b"
 code: { syntax: base16-mocha.dark }

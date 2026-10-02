@@ -46,6 +46,7 @@ $ARGUMENTS must be one of: `major`, `minor`, `patch`. If empty or invalid, stop 
 ### 4. Bump version numbers
 
 - Update `version` in the root `Cargo.toml` `[workspace.package]` section
+- Update the pinned `mdeck-sdk = { ..., version = "=X.Y.Z" }` in the root `[workspace.dependencies]` to the same version (mdeck and mdeck-sdk release in lockstep)
 
 ### 5. Update CHANGELOG
 

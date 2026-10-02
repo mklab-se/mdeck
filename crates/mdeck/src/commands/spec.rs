@@ -15,7 +15,15 @@ pub fn full_reference() -> String {
         SETTINGS_MARKER,
         crate::language::settings_reference().trim_end(),
     )
+    .replace(
+        DESIGNS_MARKER,
+        crate::parser::design::rules_reference().trim_end(),
+    )
 }
+
+/// Where the format reference takes the design catalogue and the
+/// recognition table.
+const DESIGNS_MARKER: &str = "<!-- generated: designs -->";
 
 /// Where the format reference takes the generated settings tables.
 const SETTINGS_MARKER: &str = "<!-- generated: settings -->";
@@ -38,16 +46,20 @@ SLIDES
 
 /// The quick reference card between its settings and its keyboard section.
 const CARD_MIDDLE: &str = r#"DESIGNS (recognised from the content, or chosen with <!-- design: name -->)
-  title        H1 + optional subtitle
-  section      Lone heading, centered
-  points       Heading + list
-  quote        Blockquote + optional attribution
-  code         Code block + optional heading
-  media        Single image + optional heading/caption
+  title        H1 + one short line (the first slide's lone H1 too)
+  section      A lone heading, or a heading + a deeper one
+  statement    A heading + 1 or 2 short paragraphs
+  points       A heading + one list
+  split        One image + text
+  media        One image (lead and caption allowed)
   gallery      2+ images
-  visual       A chart or diagram
-  columns      Two columns split by +++
-  statement, split, table, content   (drawn as content until phase 3)
+  quote        One quote + attribution
+  code         One code block + heading/short paragraph
+  visual       One chart or diagram + heading/short paragraph
+  columns      Columns split by +++
+  table        One table + heading/short paragraph
+  content      Anything else, in reading order (nothing is ever dropped)
+  mdeck --check -v prints each slide's design and the rule that matched
 
 STEPS (list markers)
   -  *  Static (always visible)
@@ -117,10 +129,12 @@ CHART AXIS LABELS
 THEMES (custom themes are YAML files; mdeck spec, section 9.4)
   themes/<name>.yaml     Next to the deck (or <name>/theme.yaml with fonts)
   user folder            ~/.config/mdeck/themes (macOS: ~/Library/Application Support)
-  extends: dark          Unset keys come from another theme
-  engine: plain|particles|...  What the theme does beyond colours (section 9.6)
+  extends: dark          Unset keys come from another theme (dark is the default)
+  variant-of: ember      A recolouring: listed after the themes
+  engine: { name: thermal, palette: iron }   The engine and its settings (9.6)
+  designs: standard|editorial   How the slide designs look; arrangements: overrides
+  spacing: { md: 24 }  radius: 8   Gaps and corners every design uses
   page: { surface, margin, shadow, grain, radius }   The slide as a sheet on a surface
-  art: { kind, style, references }   House style of generated art
   mdeck theme list | check <n> | preview <n> -o <dir>
   mdeck theme new <n>    A commented starter
   mdeck ai theme <n> --from <design system folder>
@@ -182,6 +196,8 @@ mod tests {
     #[test]
     fn the_format_reference_takes_the_generated_settings() {
         assert!(SPEC.contains(SETTINGS_MARKER));
+        assert!(SPEC.contains(DESIGNS_MARKER));
+        assert!(full_reference().contains("| `statement` |"));
         let full = full_reference();
         assert!(!full.contains(SETTINGS_MARKER));
         assert!(full.contains("| `picture-prompt` |"));

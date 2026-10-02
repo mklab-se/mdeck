@@ -119,9 +119,9 @@ impl PlotFrame {
     ) {
         let painter = cx.ui.painter();
         let scale = cx.scale;
-        let grid_color = cx.fg(VIZ_OPACITY_GRID);
+        let grid_color = cx.rule(VIZ_OPACITY_GRID);
         let grid_font = cx.font(VIZ_FONT_GRID_LABEL);
-        let label_color = cx.fg(VIZ_OPACITY_GRID_LABEL);
+        let label_color = cx.muted(VIZ_OPACITY_GRID_LABEL);
         let zero = zero_label.then_some(0.0);
         for (i, value) in zero.into_iter().chain(ticks).enumerate() {
             let gy = self.y_at(value, range);
@@ -148,7 +148,7 @@ impl PlotFrame {
     pub fn draw_titles(&self, cx: &VizCtx, titles: &AxisTitles) {
         let painter = cx.ui.painter();
         let font = cx.font(VIZ_FONT_AXIS_LABEL);
-        let color = cx.fg(0.7);
+        let color = cx.muted(1.0);
         if let Some(text) = titles.x {
             draw_x_axis_label(
                 painter,
@@ -175,7 +175,7 @@ impl PlotFrame {
 }
 
 fn axis_line(cx: &VizCtx, points: [Pos2; 2]) {
-    let color = cx.fg(VIZ_OPACITY_AXIS);
+    let color = cx.rule(VIZ_OPACITY_AXIS);
     cx.ui
         .painter()
         .line_segment(points, Stroke::new(VIZ_STROKE_AXIS * cx.scale, color));

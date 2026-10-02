@@ -5,8 +5,12 @@
 # drawn as technical pen lines.
 name: Blueprint
 extends: dark
-engine: line
-surface: sheet               # interim: moves into an engine block in v2
+engine:
+  name: line
+  surface: sheet
+  light: "#ffffff"           # the pen's glint
+  cool: "#bcd6f5"
+designs: editorial
 countdown: on
 colors:
   background: "#123a6e"      # Prussian blue
@@ -30,9 +34,6 @@ colors:
     - "#c3b5ff" # violet
     - "#8fb0d9" # pale blue
     - "#ffb3d1" # pink
-particles:
-  light: "#ffffff"           # the pen's glint
-  cool: "#bcd6f5"
 fonts:
   display: hanken-light
   body: hanken-regular

@@ -6,6 +6,7 @@ colors:
   text: "#1a1a2e"
   heading: "#16213e"
   accent: "#0f3460"
+  accent-soft: "#2a5a8c"    # links and emphasis: a lighter navy that still reads on white
   code-background: "#f5f5f5"
   code-text: "#333333"
   positive: "#167a3e"

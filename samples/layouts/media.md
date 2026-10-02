@@ -1,11 +1,11 @@
 ---
-title: "Layout Test: Image Slides"
+title: "Design: media"
 theme: dark
 transition: fade
 ---
 
-# Layout Test: Image Slides
-Focused tests for the image layout
+# Design: media
+Focused tests for the image design
 
 
 # Default Image

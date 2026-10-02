@@ -1,5 +1,5 @@
 ---
-title: Layout Test Suite
+title: Every design
 theme: dark
 ---
 

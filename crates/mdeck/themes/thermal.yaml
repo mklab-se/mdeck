@@ -4,7 +4,10 @@
 # slides). Pairs with `@thermal` blocks for thermal images.
 name: Thermal
 extends: ember
-engine: thermal
+engine:
+  name: thermal
+  palette: iron
+  drift: false
 countdown: on
 colors:
   background: "#05030d"
@@ -26,14 +29,8 @@ colors:
     - "#57108c"
     - "#2f63d8"
     - "#13a5c9"
-particles:
-  light: "#fff1c4"
-  cool: "#7a3fd0"
 annotations:
   pen: "#fde35a"
   pen-outline: "#57108c"
   arrow: "#f37a0c"
   arrow-outline: "#57108c"
-heat:
-  palette: iron
-  drift: false

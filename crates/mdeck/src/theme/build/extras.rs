@@ -51,13 +51,13 @@ pub(super) fn logo(f: &file::Logo, warnings: &mut Vec<String>) -> Result<Option<
     }
 }
 
-/// `heat:`: the thermal engine's palette and drift.
+/// `engine.palette` and `engine.drift`: the thermal engine's heat field.
 pub(super) fn heat(f: &file::Heat) -> Result<super::super::Heat, ThemeError> {
     let mut heat = super::super::Heat::default();
     if let Some(name) = &f.palette {
         heat.palette = crate::render::thermal::Palette::from_name(name).ok_or_else(|| {
             ThemeError::Invalid {
-                key: "heat.palette".to_string(),
+                key: "engine.palette".to_string(),
                 reason: format!(
                     "'{name}' is not one of iron, white-hot, black-hot, rainbow, arctic, lava"
                 ),
@@ -86,22 +86,17 @@ pub(super) fn page(f: &file::Page) -> Result<Option<Page>, ThemeError> {
 
 /// `art:`; a blank style counts as unset.
 pub(super) fn art(f: &ThemeFile) -> Result<ThemeArt, ThemeError> {
-    let kind = match f.art.kind.as_deref() {
+    let a = f.art()?;
+    let kind = match a.kind.as_deref() {
         None => None,
         Some(k) => Some(crate::render::art::ArtKind::from_name(k).ok_or_else(|| {
-            ThemeError::invalid("art.kind", format!("'{k}' is not line or tonal"))
+            ThemeError::invalid("engine.kind", format!("'{k}' is not line or tonal"))
         })?),
     };
     Ok(ThemeArt {
         kind,
-        style: f.art.style.clone().filter(|s| !s.trim().is_empty()),
-        references: f
-            .art
-            .references
-            .iter()
-            .flatten()
-            .map(PathBuf::from)
-            .collect(),
+        style: a.style.clone().filter(|s| !s.trim().is_empty()),
+        references: a.references.iter().flatten().map(PathBuf::from).collect(),
     })
 }
 
@@ -183,14 +178,15 @@ mod tests {
 
     #[test]
     fn art_kind_and_blank_style() {
-        let f = ThemeFile::parse("art: { style: '  ', references: [a.png] }").unwrap();
+        let f =
+            ThemeFile::parse("engine: { name: sketch, style: '  ', references: [a.png] }").unwrap();
         let a = art(&f).unwrap();
         assert_eq!(a.style, None);
         assert_eq!(a.references, [PathBuf::from("a.png")]);
-        let f = ThemeFile::parse("art: { kind: oil }").unwrap();
+        let f = ThemeFile::parse("engine: { name: sketch, kind: oil }").unwrap();
         assert_eq!(
             art(&f).unwrap_err().to_string(),
-            "art.kind: 'oil' is not line or tonal"
+            "engine.kind: 'oil' is not line or tonal"
         );
     }
 }

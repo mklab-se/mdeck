@@ -1,17 +1,22 @@
 ---
-title: "Layout Test: Section Slides"
+title: "Design: section"
 theme: dark
 transition: fade
 ---
 
-# Layout Test: Section Slides
-Focused tests for the section layout
+# Design: section
+Focused tests for the section design
 
+---
 
-# Part One
+## Part One
 
+---
 
 ## Intermission
 
+### A short break, then the second half
+
+---
 
 # The Grand Finale

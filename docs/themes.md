@@ -8,19 +8,36 @@ line of frontmatter, or write your own in a few lines of YAML.
 
 ## Built-in themes and transitions
 
-Seventeen built-in themes: **light**, **dark**, **nord**, **ember**, four
-seasons, **spring**, **summer**, **autumn** and **winter**, and a showcase
-theme for each engine, **marquee** (LED), **departures** (split-flap),
-**stack** (blocks), **blueprint** (generated line art on a
-drafting sheet), **sketchbook** (generated drawings, pencilled in),
-**chalkboard** (generated line art in chalk), **watercolour** (generated
-paintings that bloom), **darkroom** (generated photographs that develop) and
-**thermal** (a thermal instrument: headings form in heat, see
-[Thermal](engines.md#thermal-the-deck-through-a-thermal-camera)). Transitions are
-**fade** (the default), **slide**, **spatial**, and **none**. Set them in the frontmatter
-(a theme can set its own with `transition:`) or cycle them live with `Shift+T` and `T`. Every theme draws symbols (①, ✓, →) from
-bundled fallback faces, and Chinese, Japanese and Korean from a font on your
-system (`mdeck --check` tells you if none was found):
+The built-in themes come in two tiers. `mdeck theme list` and `Shift+T` show
+the themes first, then the variants.
+
+**Themes:**
+
+| Theme | Engine | Designs | What it is |
+|---|---|---|---|
+| **dark** | plain | standard | The default: plain dark, a bright foreground, fades, no countdown |
+| **light** | plain | standard | Dark text on white |
+| **nord** | plain | standard | The Nord palette |
+| **ember** | particles | editorial | Monochrome luxury on near-black with a living particle field |
+| **thermal** | thermal | editorial | A thermal instrument: headings form in heat (see [Thermal](engines.md#thermal-the-deck-through-a-thermal-camera)) |
+| **marquee** | led | editorial | A wall of LEDs |
+| **departures** | splitflap | board | A departure board |
+| **stack** | blocks | editorial | Falling blocks |
+| **blueprint** | line | editorial | Generated line art inked on a drafting sheet |
+| **chalkboard** | line | editorial | Generated line art in chalk on a slate |
+| **sketchbook** | sketch | editorial | Generated drawings, pencilled in |
+| **watercolour** | watercolour | editorial | Generated paintings that bloom |
+| **darkroom** | darkroom | editorial | Generated photographs that develop |
+
+**Variants** (recolourings of a theme): **spring** and **summer** of light,
+**autumn** and **winter** of ember.
+
+A deck without a `theme` gets `dark` (or your configured default). Transitions
+are **fade** (the default), **slide**, **spatial**, and **none**. Set them in
+the frontmatter (a theme can set its own with `transition:`) or cycle them live
+with `Shift+T` and `T`. Every theme draws symbols (①, ✓, →) from bundled
+fallback faces, and Chinese, Japanese and Korean from a font on your system
+(`mdeck --check` tells you if none was found):
 
 ```yaml
 ---
@@ -41,8 +58,12 @@ transition: spatial
 ## Your own theme
 
 **Your own themes are YAML files**, and the built-in ones are written the same
-way. Put `themes/acme.yaml` next to a deck (or in `~/.config/mdeck/themes/`) and
-set `theme: acme`; everything you leave out comes from the theme it extends:
+way. Put `themes/acme.yaml` next to a deck (or in your user themes folder:
+`~/Library/Application Support/mdeck/themes/` on macOS, `~/.config/mdeck/themes/`
+on Linux) and set `theme: acme`; everything you leave out comes from the theme it
+extends, and a theme without `extends` extends `dark`. Themes are looked up in
+the deck's `themes/`, then your user folder, then installed packs, then the
+built-ins:
 
 ```yaml
 name: Acme
@@ -58,14 +79,53 @@ fonts:
 engine: plain                  # or particles, for Ember's living field in your colours
 ```
 
-A theme sets colours, the chart palette, fonts by role, sizes, the syntax
-theme, the countdown, the engine and a **logo**. Themes are data only, so a deck can never
-run code. Custom themes work everywhere a built-in one does: presenting,
-`Shift+T`, PNG and PDF export, and `--check`.
+A theme sets colours, the chart palette, fonts by role, sizes, spacing and
+corner radius, the syntax theme, the countdown, the default transition, the
+design set and its arrangements, the engine and its settings, and a **logo**.
+Themes are data only, so a deck can never run code. Custom themes work
+everywhere a built-in one does: presenting, `Shift+T`, PNG and PDF export, and
+`--check`. A recolouring of another theme says so with `variant-of: <theme>`,
+and is then listed with the variants.
 
-**Engines.** The engine is what a theme does beyond colours and type: the
-particle field, the LED wall, the departure board, the falling
-blocks, or the generated pictures of a blueprint or a chalkboard (both the line engine), a sketchbook, a watercolour or a darkroom. See [Engines](engines.md).
+**Spacing and corners.** `spacing:` is the scale the slide designs use for
+their gaps (`xs`, `sm`, `md`, `lg`, `xl`, px on a 1920x1080 slide; 8, 16, 24,
+40 and 64 by default), and `radius:` the corner radius of code blocks, tables
+and callouts (8 by default). Change them to make every slide airier or tighter
+in one place:
+
+```yaml
+spacing: { md: 32, lg: 56 }
+radius: 4
+```
+
+## The engine and its settings
+
+The engine is what a theme does beyond colours and type: the particle field,
+the LED wall, the departure board, the falling blocks, or the generated
+pictures of a blueprint or a chalkboard (both the line engine), a sketchbook, a
+watercolour or a darkroom. See [Engines](engines.md). `engine: plain` names
+one; a block names it and gives its settings:
+
+```yaml
+engine:
+  name: thermal
+  palette: iron          # iron, white-hot, black-hot, rainbow, arctic, lava
+  drift: false           # embers drifting on ordinary slides
+```
+
+| Setting | Read by | What it does |
+|---|---|---|
+| `light`, `cool` | particles, led, blocks, line, sketch | the brightest tint and a cool tint the engine draws in |
+| `palette`, `drift` | thermal | the heat field's palette, embers drifting |
+| `surface` | line | `sheet` (a draughtsman's blue sheet) or `slate` (chalk) |
+| `kind`, `style`, `references` | line, sketch, watercolour, darkroom | the house style of generated pictures (below) |
+
+A theme that extends another and names the same engine (or none) inherits its
+settings key by key; one that names a different engine starts from its own
+settings only. When a deck or `--engine` runs another engine, the theme's
+settings for its own engine are ignored. In v1 these lived in top-level
+`particles:`, `heat:`, `art:` and `surface:` sections; a theme that still has
+them gets an error saying where each key went.
 
 ## Pages and art
 
@@ -81,15 +141,19 @@ page:
   radius: 2
 ```
 
-On an art engine, an `art:` block sets the house style of the generated
+On an art engine, the engine block sets the house style of the generated
 pictures, so a brand's illustration style is theme data like its colours:
 
 ```yaml
-art:
+engine:
+  name: sketch
   kind: line             # line (ink the engine draws) or tonal (a finished picture)
   style: "detailed graphite and ink, cross-hatching, old craft meets modern technology"
   references: [refs/teacup.jpg, refs/street.jpg]   # your own style swatches
 ```
+
+The sketch, watercolour and line engines draw on the page; `mdeck theme check`
+warns when a theme picks one of them without a `page:`.
 
 ## Logos
 
@@ -150,12 +214,75 @@ Then look at it and adjust:
 ```bash
 mdeck theme new acme                       # a commented starter theme in themes/
 mdeck ai theme acme --from ./brand         # convert a design system (AI)
-mdeck theme check acme                     # errors, fallbacks, hard-to-read colours
-mdeck theme preview acme -o /tmp/acme      # a sampler deck as PNGs
-mdeck theme list                           # every theme visible from here
+mdeck theme check acme                     # errors, fallbacks, contrast, keys that do nothing
+mdeck theme preview acme -o /tmp/acme      # one slide per design, as PNGs
+mdeck theme list                           # every theme visible from here, themes then variants
 mdeck export talk.md --theme acme          # any deck in any theme
 ```
+
+`mdeck theme new` writes every key, commented, generated from the theme
+format itself. `mdeck theme check` reports errors and fallbacks, contrast
+below WCAG AA for every text colour the theme draws (body text, headings,
+bold, links, muted captions and eyebrows, code, each slide design's roles at
+the size and opacity they are drawn), and keys that do nothing: an engine
+setting the theme's engine does not read, or `fonts.lead` when no design in the
+theme's design set uses the lead face.
 
 Section 9.4 of the spec (`mdeck spec`) documents every key and the mapping
 from design-system roles to slide roles, so an AI agent can do the conversion
 too. `samples/themes/` has a converted design system and a hand-written theme.
+
+## Designs and arrangements
+
+A theme decides how each of the thirteen [designs](writing-slides.md#slides-and-designs)
+looks, with data only.
+
+**Design sets.** `designs: standard` (the default) is the classic slide:
+content centred, the heading on top, no ornament, no entry motion.
+`designs: editorial` is the magazine spread of Ember: a copy column on the
+left, an eyebrow with the slide's numeral and the deck title, display type,
+a soft pillow behind the copy, a staggered entry and a stage on the right
+where the engine draws the slide's picture. Both sets arrange every design,
+image, code, table and chart slides included, and a slide is the same design
+in both. The set does not depend on the engine: `designs: editorial` with
+`engine: plain` is Ember on a still screen.
+
+**Arrangements.** Override anything about a design under `arrangements:`,
+naming only what differs; `all:` applies to every design. Overrides merge
+key by key through `extends`, like colours.
+
+```yaml
+designs: editorial
+arrangements:
+  all:
+    ornaments: { bullet: "◆" }
+  quote:
+    copy: { region: [0.12, 0.25, 0.76, 0.5], align: center }
+    roles:
+      attribution: { color: accent }
+    ornaments: { quote-bar: none, quote-marks: true }
+  title:
+    entry: { kind: fade, duration-ms: 900 }
+```
+
+What an arrangement sets: where the copy goes (`copy.region`, in fractions
+of the slide, with `align` and `valign`), where the plate goes (the image,
+code, table, chart or columns: `plate`), where the engine may draw a picture
+(`stage`), the eyebrow, the entry motion (`entry`), every role's type
+(`roles.title`, `roles.list`, `roles.quote`, ... with font, size, colour,
+opacity, case, tracking, line height and gap) and the ornaments (bullet
+glyph and colour, numbering, quote marks and bar, title rule, emphasis,
+pillow). The full key list is in the
+[format specification](../crates/mdeck/doc/mdeck-spec.md) section 9.9, and
+every value of the two built-in sets is in
+[`standard.yaml`](../crates/mdeck/designs/standard.yaml) and
+[`editorial.yaml`](../crates/mdeck/designs/editorial.yaml).
+
+**Spacing and radius.** `spacing: { xs, sm, md, lg, xl }` (px at
+1920x1080; defaults 8, 16, 24, 40, 64) are the gaps arrangements name, and
+`radius` (default 8) rounds code blocks, tables and callouts: change them to
+make a whole theme airier or tighter in one place.
+
+`samples/features/designs.md` shows every design; its `themes/` folder holds
+a deck-local theme that overrides a few arrangements.
+
