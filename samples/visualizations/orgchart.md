@@ -3,7 +3,7 @@ title: "Org Chart Tests"
 theme: dark
 ---
 
-# Org Chart — Basic
+# Org Chart: Basic
 
 ```@orgchart
 - CEO
@@ -17,7 +17,7 @@ theme: dark
 
 ---
 
-# Org Chart — Deep Hierarchy
+# Org Chart: Deep Hierarchy
 
 ```@orgchart
 - CEO
@@ -37,7 +37,7 @@ theme: dark
 
 ---
 
-# Org Chart — Progressive Reveal
+# Org Chart: Progressive Reveal
 
 ```@orgchart
 - Director

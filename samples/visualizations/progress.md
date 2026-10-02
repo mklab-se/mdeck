@@ -3,7 +3,7 @@ title: "Progress Bar Tests"
 theme: dark
 ---
 
-# Progress Bars — Basic
+# Progress Bars: Basic
 
 ```@progress
 - Backend API: 92%
@@ -14,7 +14,7 @@ theme: dark
 
 ---
 
-# Progress Bars — Many Items
+# Progress Bars: Many Items
 
 ```@progress
 - Authentication: 100%
@@ -29,7 +29,7 @@ theme: dark
 
 ---
 
-# Progress Bars — Progressive Reveal
+# Progress Bars: Progressive Reveal
 
 ```@progress
 - Sprint 1: 100%
@@ -42,7 +42,7 @@ theme: dark
 
 ---
 
-# Progress Bars — Long Labels
+# Progress Bars: Long Labels
 
 ```@progress
 - Platform Migration to Kubernetes: 82%

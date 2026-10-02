@@ -3,7 +3,7 @@ title: "Scatter Plot Tests"
 theme: dark
 ---
 
-# Scatter Plot — Basic
+# Scatter Plot: Basic
 
 ```@scatter
 x-label: Hours Studied
@@ -16,7 +16,7 @@ y-label: Test Score
 ```
 
 
-# Scatter Plot — With Sizes
+# Scatter Plot: With Sizes
 
 ```@scatter
 x-label: Revenue ($M)
@@ -29,7 +29,7 @@ y-label: Growth (%)
 ```
 
 
-# Scatter Plot — No Labels
+# Scatter Plot: No Labels
 
 ```@scatter
 - Point 1: 10, 20
@@ -40,7 +40,7 @@ y-label: Growth (%)
 ```
 
 
-# Scatter Plot — Progressive Reveal
+# Scatter Plot: Progressive Reveal
 
 ```@scatter
 x-label: X Axis

@@ -3,7 +3,7 @@ title: "Stacked Bar Chart Tests"
 theme: dark
 ---
 
-# Stacked Bar — Basic
+# Stacked Bar: Basic
 
 ```@stackedbar
 categories: Q1, Q2, Q3, Q4
@@ -12,7 +12,7 @@ categories: Q1, Q2, Q3, Q4
 ```
 
 
-# Stacked Bar — With Axis Labels
+# Stacked Bar: With Axis Labels
 
 ```@stackedbar
 categories: Q1, Q2, Q3, Q4
@@ -24,7 +24,7 @@ y-label: Revenue ($M)
 ```
 
 
-# Stacked Bar — Progressive Reveal
+# Stacked Bar: Progressive Reveal
 
 ```@stackedbar
 categories: 2022, 2023, 2024
@@ -36,7 +36,7 @@ y-label: Headcount
 ```
 
 
-# Stacked Bar — Many Series
+# Stacked Bar: Many Series
 
 ```@stackedbar
 categories: US, EU, APAC, LATAM
@@ -49,7 +49,7 @@ y-label: Revenue ($M)
 ```
 
 
-# Stacked Bar — No Categories Directive
+# Stacked Bar: No Categories Directive
 
 ```@stackedbar
 - Product A: 1,200, 1,450, 1,500, 1,550
@@ -57,7 +57,7 @@ y-label: Revenue ($M)
 ```
 
 
-# Stacked Bar — Long Category Labels
+# Stacked Bar: Long Category Labels
 
 ```@stackedbar
 categories: North America Region, Europe Middle East and Africa, Asia Pacific Region, Latin America

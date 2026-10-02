@@ -3,7 +3,7 @@ title: "Funnel Chart Tests"
 theme: dark
 ---
 
-# Funnel — Basic Sales Pipeline
+# Funnel: Basic Sales Pipeline
 
 ```@funnel
 - Website Visitors: 12000
@@ -14,7 +14,7 @@ theme: dark
 
 ---
 
-# Funnel — Detailed Recruitment
+# Funnel: Detailed Recruitment
 
 ```@funnel
 - Applications Received: 2400
@@ -28,7 +28,7 @@ theme: dark
 
 ---
 
-# Funnel — Progressive Reveal
+# Funnel: Progressive Reveal
 
 ```@funnel
 - Awareness: 50000
@@ -42,7 +42,7 @@ theme: dark
 
 ---
 
-# Funnel — Long Labels and Formatted Values
+# Funnel: Long Labels and Formatted Values
 
 ```@funnel
 - Website Visitors from Organic Search: 120,000

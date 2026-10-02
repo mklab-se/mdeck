@@ -42,7 +42,7 @@ into, warm and breathing, beside the copy.
 
 > "The particles hint at the thing. They never impersonate it."
 
-— The design principle
+-- The design principle
 
 ---
 

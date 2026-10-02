@@ -3,7 +3,7 @@ title: "Venn Diagram Tests"
 theme: dark
 ---
 
-# Venn — Two Sets
+# Venn: Two Sets
 
 ```@venn
 - Frontend (size: 45)
@@ -13,7 +13,7 @@ theme: dark
 
 ---
 
-# Venn — Three Sets
+# Venn: Three Sets
 
 ```@venn
 - Design (size: 30)
@@ -27,7 +27,7 @@ theme: dark
 
 ---
 
-# Venn — Progressive Reveal
+# Venn: Progressive Reveal
 
 ```@venn
 - Python (size: 50)

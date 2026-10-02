@@ -3,7 +3,7 @@ title: "Donut Chart Tests"
 theme: dark
 ---
 
-# Donut Chart — With Center Text
+# Donut Chart: With Center Text
 
 ```@donut
 center: $4.2M Total
@@ -15,7 +15,7 @@ center: $4.2M Total
 
 ---
 
-# Donut Chart — Without Center Text
+# Donut Chart: Without Center Text
 
 ```@donut
 - Completed: 68
@@ -26,7 +26,7 @@ center: $4.2M Total
 
 ---
 
-# Donut Chart — Progressive Reveal
+# Donut Chart: Progressive Reveal
 
 ```@donut
 center: Q4 Revenue
@@ -40,7 +40,7 @@ center: Q4 Revenue
 
 ---
 
-# Donut Chart — Long Center Text
+# Donut Chart: Long Center Text
 
 ```@donut
 center: $4,250,000 Annual Recurring Revenue

@@ -10,7 +10,7 @@ pub fn block_on<F: Future>(fut: F) -> anyhow::Result<F::Output> {
 }
 
 /// Truncate `s` to at most `max_chars` characters (not bytes), appending
-/// `...` when something was cut. Safe for multi-byte text (å, ä, ö, —, emoji).
+/// `...` when something was cut. Safe for multi-byte text (å, ä, ö, →, emoji).
 pub fn truncate_chars(s: &str, max_chars: usize) -> String {
     if s.chars().count() <= max_chars {
         return s.to_string();
@@ -87,9 +87,9 @@ mod tests {
 
     #[test]
     fn truncate_chars_em_dash_and_emoji() {
-        let s = "Plan — build — ship 🚀🚀🚀 and celebrate";
+        let s = "Plan → build → ship 🚀🚀🚀 and celebrate";
         let t = truncate_chars(s, 12);
-        assert_eq!(t, "Plan — bu...");
+        assert_eq!(t, "Plan → bu...");
         assert_eq!(t.chars().count(), 12);
         let e = "🚀🚀🚀🚀🚀🚀";
         assert_eq!(truncate_chars(e, 5), "🚀🚀...");
@@ -108,15 +108,15 @@ mod tests {
         assert_eq!(truncate_bytes(s, 2), "R");
         assert_eq!(truncate_bytes(s, 3), "Rä");
         assert_eq!(truncate_bytes(s, 100), s);
-        assert_eq!(truncate_bytes("—emoji🚀", 3), "—");
-        assert_eq!(truncate_bytes("—emoji🚀", 4), "—e");
+        assert_eq!(truncate_bytes("→emoji🚀", 3), "→");
+        assert_eq!(truncate_bytes("→emoji🚀", 4), "→e");
         assert_eq!(truncate_bytes("🚀", 3), "");
         assert_eq!(truncate_bytes("", 5), "");
     }
 
     #[test]
     fn truncate_bytes_never_exceeds_limit() {
-        let s = "åäö—🚀 mixed text åäö";
+        let s = "åäö→🚀 mixed text åäö";
         for max in 0..=s.len() {
             let t = truncate_bytes(s, max);
             assert!(t.len() <= max);

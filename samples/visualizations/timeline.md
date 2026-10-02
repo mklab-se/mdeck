@@ -3,7 +3,7 @@ title: "Timeline Tests"
 theme: dark
 ---
 
-# Timeline — Basic
+# Timeline: Basic
 
 ```@timeline
 - 2019: Company founded in Stockholm
@@ -15,7 +15,7 @@ theme: dark
 
 ---
 
-# Timeline — Long History
+# Timeline: Long History
 
 ```@timeline
 - 1969: ARPANET sends first message
@@ -32,7 +32,7 @@ theme: dark
 
 ---
 
-# Timeline — Progressive Reveal
+# Timeline: Progressive Reveal
 
 ```@timeline
 - Jan: Kickoff and planning

@@ -28,9 +28,9 @@ Lessons from a frontier saloon
 
 # The Three-Act Structure
 
-- **Act I** — Set the stage. What problem are we solving?
-- **Act II** — The journey. Show the work, the struggle, the insight.
-- **Act III** — The payoff. What changed? What's next?
+- **Act I**: Set the stage. What problem are we solving?
+- **Act II**: The journey. Show the work, the struggle, the insight.
+- **Act III**: The payoff. What changed? What's next?
 
 ***
 
@@ -43,7 +43,7 @@ Every great presentation tells a story.
 + If you need a wall of text, write a document instead
 + Slides are *scaffolding* for your words, not a transcript
 
-> Your slides should make the audience want to hear what you say next — not read ahead.
+> Your slides should make the audience want to hear what you say next, not read ahead.
 
 
 # The Opening
@@ -70,7 +70,7 @@ Here's what happened.
 
 ![A crowd learns @width:80%](images/saloon-vertical.png)
 
-A good presenter commands the room — not the screen.
+A good presenter commands the room, not the screen.
 
 
 # Typography
@@ -151,7 +151,7 @@ A good presenter commands the room — not the screen.
 
 # Handling Nerves
 
-+ Preparation kills anxiety — rehearse out loud at least twice
++ Preparation kills anxiety, rehearse out loud at least twice
 + Arrive early and own the space
 + Remember: the audience wants you to succeed
 

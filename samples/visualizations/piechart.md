@@ -3,7 +3,7 @@ title: "Pie Chart Tests"
 theme: dark
 ---
 
-# Pie Chart — Basic
+# Pie Chart: Basic
 
 ```@pie
 - React: 35%
@@ -15,7 +15,7 @@ theme: dark
 
 ---
 
-# Pie Chart — Many Slices
+# Pie Chart: Many Slices
 
 ```@pie
 - Chrome: 33%
@@ -32,7 +32,7 @@ theme: dark
 
 ---
 
-# Pie Chart — Progressive Reveal
+# Pie Chart: Progressive Reveal
 
 ```@pie
 - Salaries: 45%
@@ -45,7 +45,7 @@ theme: dark
 
 ---
 
-# Pie Chart — Many Long Legend Entries
+# Pie Chart: Many Long Legend Entries
 
 ```@pie
 - Enterprise Software Licensing Revenue: 1,250

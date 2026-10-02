@@ -18,7 +18,7 @@ A smoke-filled saloon. Two players. One has a secret.
 
 # Why Poker?
 
-+ Incomplete information — you never see all the cards
++ Incomplete information, you never see all the cards
 + Deception is a core mechanic, not a bug
 + Optimal play requires modeling your opponent
 + Machines had to learn to *lie* before they could win
@@ -44,7 +44,7 @@ The cowboy studies his hand. His opponent's cards glow with something... unnatur
 # The Human Advantage
 
 - Intuition built from thousands of hands
-- Reading physical tells — micro-expressions, breathing, posture
+- Reading physical tells, micro-expressions, breathing, posture
 - Adapting strategy mid-session based on "feel"
 
 + But machines don't flinch.
@@ -138,14 +138,14 @@ Sometimes you just get lucky. The AI knows exactly how often.
 
 # What Poker Teaches Us About AI
 
-+ AI doesn't need to be "smart" — it needs to be *strategic*
++ AI doesn't need to be "smart", it needs to be *strategic*
 + Deception isn't uniquely human
 + The best AI systems handle uncertainty, not just facts
 + Collaboration might beat competition
 
 ---
 
-> In poker, as in life, the goal isn't to play the cards — it's to play the player.
+> In poker, as in life, the goal isn't to play the cards, it's to play the player.
 
 -- Old saloon wisdom
 

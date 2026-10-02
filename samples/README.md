@@ -58,4 +58,6 @@ overrides arrangements.
 [continents.md](continents.md) are complete talks. `continents.md` and
 `layouts/image-generation.md` use image placeholders, so `mdeck --check` reports them as not
 generated until `mdeck ai images` has run; `features/math.md` and `features/thermal.md` contain
-deliberate mistakes that `--check` reports.
+deliberate mistakes that `--check` reports. The art engine decks (`engines/blueprint.md`,
+`chalkboard.md`, `sketch.md`, `watercolour.md`, `darkroom.md`) keep one slide without artwork, to
+show the point cloud fallback, and `--check` notes that slide.

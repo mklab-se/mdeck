@@ -3,7 +3,7 @@ title: "KPI Card Tests"
 theme: dark
 ---
 
-# KPI Cards — Basic
+# KPI Cards: Basic
 
 ```@kpi
 - Revenue: $3.2M (trend: +12%)
@@ -13,7 +13,7 @@ theme: dark
 
 ---
 
-# KPI Cards — Many Metrics
+# KPI Cards: Many Metrics
 
 ```@kpi
 - MRR: $267K (trend: +15%)
@@ -26,7 +26,7 @@ theme: dark
 
 ---
 
-# KPI Cards — Progressive Reveal
+# KPI Cards: Progressive Reveal
 
 ```@kpi
 - Deployments: 342 (trend: +28%)
@@ -38,7 +38,7 @@ theme: dark
 
 ---
 
-# KPI Cards — Long Values and Labels
+# KPI Cards: Long Values and Labels
 
 ```@kpi
 - Total Contract Value Signed This Quarter: $1,234,567,890.00 (trend: +12%)

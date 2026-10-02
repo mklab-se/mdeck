@@ -3,7 +3,7 @@ title: "Word Cloud Tests"
 theme: dark
 ---
 
-# Word Cloud — Large
+# Word Cloud: Large
 
 ```@wordcloud
 - AI (size: 100)
@@ -87,7 +87,7 @@ theme: dark
 ```
 
 
-# Word Cloud — Small
+# Word Cloud: Small
 
 ```@wordcloud
 - Rust (size: 50)
@@ -102,7 +102,7 @@ theme: dark
 ```
 
 
-# Word Cloud — Progressive Reveal
+# Word Cloud: Progressive Reveal
 
 ```@wordcloud
 - Core (size: 50)

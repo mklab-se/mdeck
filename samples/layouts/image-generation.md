@@ -46,7 +46,7 @@ generate("slides.md", style="cinematic")
 
 > "The best way to predict the future is to invent it."
 >
-> — Alan Kay
+> -- Alan Kay
 
 ![](generate:)
 

@@ -3,7 +3,7 @@ title: Gantt Chart Tests
 theme: dark
 ---
 
-# Gantt Chart — Short Timeline (Weekend Shading)
+# Gantt Chart: Short Timeline (Weekend Shading)
 
 ```@gantt
 - Setup: 2024-01-15, 3d
@@ -13,7 +13,7 @@ theme: dark
 ```
 
 
-# Gantt Chart — Basic
+# Gantt Chart: Basic
 
 ```@gantt
 - Research: 2024-01-15, 10d
@@ -24,7 +24,7 @@ theme: dark
 ```
 
 
-# Gantt Chart — Dependencies
+# Gantt Chart: Dependencies
 
 ```@gantt
 - Planning: 2024-03-01, 5d
@@ -37,7 +37,7 @@ theme: dark
 ```
 
 
-# Gantt Chart — With Delays
+# Gantt Chart: With Delays
 
 ```@gantt
 - Requirements: 2024-06-01, 10d
@@ -49,7 +49,7 @@ theme: dark
 ```
 
 
-# Gantt Chart — Long Timeline
+# Gantt Chart: Long Timeline
 
 ```@gantt
 title: Product Roadmap 2024
@@ -62,7 +62,7 @@ title: Product Roadmap 2024
 ```
 
 
-# Gantt Chart — Many Tasks
+# Gantt Chart: Many Tasks
 
 ```@gantt
 - Kickoff: 2024-04-01, 2d
@@ -80,7 +80,7 @@ title: Product Roadmap 2024
 ```
 
 
-# Gantt Chart — Labels Inside
+# Gantt Chart: Labels Inside
 
 ```@gantt
 labels: inside
@@ -94,7 +94,7 @@ labels: inside
 ```
 
 
-# Gantt Chart — Labels Inside (Many Tasks)
+# Gantt Chart: Labels Inside (Many Tasks)
 
 ```@gantt
 labels: inside
@@ -113,7 +113,7 @@ labels: inside
 ```
 
 
-# Gantt Chart — Incremental Reveal
+# Gantt Chart: Incremental Reveal
 
 ```@gantt
 - Phase 1: 2024-01-01, 15d

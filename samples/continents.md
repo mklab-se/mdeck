@@ -15,7 +15,7 @@ A tour of our planet's landmasses
 
 ### The Cradle of Humanity
 
-- Home to 54 countries — more than any other continent
+- Home to 54 countries, more than any other continent
 - The Sahara Desert is roughly the size of the United States
 - Lake Victoria is the world's second-largest freshwater lake
 - Africa has more languages than any other continent (~2,000)
@@ -35,7 +35,7 @@ An untouched frozen world at the bottom of the Earth.
 ### The Frozen Frontier
 
 - Contains about 70% of Earth's fresh water (locked in ice)
-- Has no permanent human residents — only research stations
+- Has no permanent human residents, only research stations
 - Technically the driest continent (it's a polar desert)
 - Winds can reach over 320 km/h (200 mph)
 
@@ -106,4 +106,4 @@ An untouched frozen world at the bottom of the Earth.
 
 > "The Earth is what we all have in common."
 >
-> — Wendell Berry
+> -- Wendell Berry

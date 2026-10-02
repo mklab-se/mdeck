@@ -3,7 +3,7 @@ title: "Bar Chart Tests"
 theme: dark
 ---
 
-# Bar Chart — Vertical
+# Bar Chart: Vertical
 
 ```@bar
 - JavaScript: 65
@@ -14,7 +14,7 @@ theme: dark
 ```
 
 
-# Bar Chart — Vertical with Axis Labels
+# Bar Chart: Vertical with Axis Labels
 
 ```@bar
 x-label: Programming Language
@@ -28,7 +28,7 @@ y-label: Popularity Index
 ```
 
 
-# Bar Chart — Horizontal
+# Bar Chart: Horizontal
 
 ```@bar
 orientation: horizontal
@@ -39,7 +39,7 @@ orientation: horizontal
 ```
 
 
-# Bar Chart — Horizontal with Axis Labels
+# Bar Chart: Horizontal with Axis Labels
 
 ```@bar
 orientation: horizontal
@@ -53,7 +53,7 @@ y-label: Category
 ```
 
 
-# Bar Chart — Progressive Reveal
+# Bar Chart: Progressive Reveal
 
 ```@bar
 y-label: Performance Score
@@ -65,7 +65,7 @@ y-label: Performance Score
 ```
 
 
-# Bar Chart — Many Items
+# Bar Chart: Many Items
 
 ```@bar
 x-label: Country
@@ -83,7 +83,7 @@ y-label: GDP ($T)
 ```
 
 
-# Bar Chart — Long Labels and Decorated Values
+# Bar Chart: Long Labels and Decorated Values
 
 ```@bar
 y-label: Revenue
@@ -98,7 +98,7 @@ y-label: Revenue
 ```
 
 
-# Bar Chart — Horizontal with Long Labels
+# Bar Chart: Horizontal with Long Labels
 
 ```@bar
 orientation: horizontal

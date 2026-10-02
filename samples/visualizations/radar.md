@@ -3,7 +3,7 @@ title: "Radar Chart Tests"
 theme: dark
 ---
 
-# Radar Chart — Two Series
+# Radar Chart: Two Series
 
 ```@radar
 axes: Speed, Reliability, Usability, Security, Scalability
@@ -13,7 +13,7 @@ axes: Speed, Reliability, Usability, Security, Scalability
 
 ---
 
-# Radar Chart — Single Series
+# Radar Chart: Single Series
 
 ```@radar
 axes: Frontend, Backend, DevOps, Testing, Architecture, Communication
@@ -22,7 +22,7 @@ axes: Frontend, Backend, DevOps, Testing, Architecture, Communication
 
 ---
 
-# Radar Chart — Progressive Reveal
+# Radar Chart: Progressive Reveal
 
 ```@radar
 axes: Strength, Endurance, Flexibility, Balance, Coordination
@@ -33,7 +33,7 @@ axes: Strength, Endurance, Flexibility, Balance, Coordination
 
 ---
 
-# Radar Chart — Star Shape (Concave Fill)
+# Radar Chart: Star Shape (Concave Fill)
 
 ```@radar
 axes: A, B, C, D, E, F

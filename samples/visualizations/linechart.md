@@ -3,7 +3,7 @@ title: "Line Chart Tests"
 theme: dark
 ---
 
-# Line Chart — Single Series
+# Line Chart: Single Series
 
 ```@line
 x-labels: Q1, Q2, Q3, Q4
@@ -11,7 +11,7 @@ x-labels: Q1, Q2, Q3, Q4
 ```
 
 
-# Line Chart — With Axis Labels
+# Line Chart: With Axis Labels
 
 ```@line
 x-labels: Jan, Feb, Mar, Apr, May, Jun
@@ -22,7 +22,7 @@ y-label: Temperature (°C)
 ```
 
 
-# Line Chart — Multiple Series
+# Line Chart: Multiple Series
 
 ```@line
 x-labels: 2020, 2021, 2022, 2023, 2024
@@ -34,7 +34,7 @@ y-label: Users (millions)
 ```
 
 
-# Line Chart — Progressive Reveal
+# Line Chart: Progressive Reveal
 
 ```@line
 x-labels: Mon, Tue, Wed, Thu, Fri
@@ -47,7 +47,7 @@ y-label: Requests (k)
 
 ---
 
-# Line Chart — Many Points (Label Thinning) and Thousands
+# Line Chart: Many Points (Label Thinning) and Thousands
 
 ```@line
 x-labels: Jan 2023, Feb 2023, Mar 2023, Apr 2023, May 2023, Jun 2023, Jul 2023, Aug 2023, Sep 2023, Oct 2023, Nov 2023, Dec 2023, Jan 2024, Feb 2024, Mar 2024, Apr 2024, May 2024, Jun 2024, Jul 2024, Aug 2024, Sep 2024, Oct 2024, Nov 2024, Dec 2024

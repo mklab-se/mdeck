@@ -4,7 +4,7 @@ theme: dark
 transition: slide
 ---
 
-# Git Graph — Basic
+# Git Graph: Basic
 
 ```@gitgraph
 - lane main
@@ -21,7 +21,7 @@ transition: slide
 
 ---
 
-# Git Graph — Progressive Reveal
+# Git Graph: Progressive Reveal
 
 ```@gitgraph
 - lane main
