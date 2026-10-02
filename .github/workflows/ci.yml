@@ -78,6 +78,24 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
+  # Both crates as crates.io would get them. Packaged together, mdeck is
+  # verified against the packaged SDK through a temporary local registry, so
+  # this works before the SDK version is published.
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo package -p mdeck-sdk -p mdeck
+      # rust-cache would mistake the unpacked sources' tests/ folders for
+      # build output (see release.yml).
+      - if: always()
+        run: rm -rf target/package
+
   format:
     name: Format
     runs-on: ubuntu-latest

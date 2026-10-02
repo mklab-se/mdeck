@@ -24,12 +24,18 @@ $ARGUMENTS must be one of: `major`, `minor`, `patch`. If empty or invalid, stop 
 ### 2. Pre-flight checks
 
 - Run `cargo update` to update dependencies to the latest compatible versions
-- Run `cargo fmt --all -- --check` — abort if formatting issues. If you fix formatting with
+- Run `cargo fmt --all -- --check`: abort if formatting issues. If you fix formatting with
   `cargo fmt --all`, re-run clippy afterwards: reformatting can change what clippy flags
-- Run `cargo clippy --workspace --all-targets -- -D warnings` — abort if warnings
+- Run `cargo clippy --workspace --all-targets -- -D warnings`: abort if warnings
   (`--all-targets` matches CI: it also lints tests and benches)
-- Run `cargo test --workspace` — abort if any test fails
-- Run `git status` — abort if there are uncommitted changes that are NOT documentation, version,
+- Run `cargo test --workspace`: abort if any test fails
+- Run `cargo package -p mdeck-sdk -p mdeck --allow-dirty`: abort if it fails. Packaging both
+  crates in one call verifies mdeck against the packaged SDK through a temporary local registry,
+  so it works before the new SDK version is on crates.io. It catches data files the published
+  crates would miss (anything `include_str!`/`include_bytes!` reads must live inside its own
+  crate directory; a `Cargo.toml` below a crate root is dropped, which is why the SDK templates
+  store theirs as `Cargo.toml.tmpl`)
+- Run `git status`: abort if there are uncommitted changes that are NOT documentation, version,
   or dependency files
 
 ### 3. Verify documentation and spec are up to date
@@ -46,7 +52,7 @@ $ARGUMENTS must be one of: `major`, `minor`, `patch`. If empty or invalid, stop 
 ### 4. Bump version numbers
 
 - Update `version` in the root `Cargo.toml` `[workspace.package]` section
-- Update the pinned `mdeck-sdk = { ..., version = "=X.Y.Z" }` in the root `[workspace.dependencies]` to the same version (mdeck and mdeck-sdk release in lockstep)
+- Update the pinned `mdeck-sdk = { ..., version = "=X.Y.Z" }` in the root `[workspace.dependencies]` to the same version. mdeck and mdeck-sdk release in lockstep, and both take `version.workspace = true`; the pin is the only second place the number lives. Forgetting it is caught at once: cargo cannot resolve `=OLD` against the path crate's new version, so step 6 fails
 
 ### 5. Update CHANGELOG
 
@@ -69,19 +75,20 @@ $ARGUMENTS must be one of: `major`, `minor`, `patch`. If empty or invalid, stop 
 
 ### 8. Watch and verify
 
-- The tag push triggers the Release workflow. Do NOT declare success yet — watch it:
+- The tag push triggers the Release workflow. Do NOT declare success yet; watch it:
   `gh run list --repo mklab-se/mdeck --workflow release.yml --limit 1`, then
   `gh run watch <id> --repo mklab-se/mdeck --exit-status` until it completes
 - If it fails, inspect with `gh run view <id> --log-failed`, fix the cause, and re-release as a patch
 - When it is green, confirm the outputs:
   - `gh release view v{NEW_VERSION} --repo mklab-se/mdeck` lists 4 archives
     (3 × `.tar.gz`, 1 × `.zip`) plus 4 matching `.cdx.json` SBOMs
-  - `cargo search mdeck --limit 1` shows the new version on crates.io
+  - `cargo search mdeck --limit 1` and `cargo info mdeck-sdk` show the new version on crates.io
+    (the workflow publishes `mdeck-sdk` first, then `mdeck`, which pins it exactly)
   - `Formula/mdeck.rb` in `mklab-se/homebrew-tap` carries the new version
 
 ### 9. Confirm
 
-- Tell the user the release is tagged, pushed, and the workflow is green — auditable binaries and
-  SBOMs are attached to the GitHub Release, crates.io is published, and the Homebrew tap is updated
+- Tell the user the release is tagged, pushed, and the workflow is green: auditable binaries and
+  SBOMs are attached to the GitHub Release, crates.io is published (mdeck-sdk and mdeck), and the Homebrew tap is updated
 - The publish jobs require the `CARGO_REGISTRY_TOKEN` (in the `crates-io` environment) and
   `HOMEBREW_TAP_TOKEN` (repo secret, a GitHub PAT with repo scope for `mklab-se/homebrew-tap`) to be configured (see docs/development.md)

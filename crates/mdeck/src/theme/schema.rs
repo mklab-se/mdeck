@@ -478,7 +478,10 @@ mod tests {
         assert_eq!(f.name.as_deref(), Some("acme"));
         assert!(f.engine.is_none() && f.designs.is_none());
         assert!(s.contains("# designs: standard"));
-        assert!(s.contains("#   palette: iron"));
+        // engine settings come from the engines built in
+        if cfg!(feature = "thermal") {
+            assert!(s.contains("#   palette: iron"));
+        }
         assert!(!s.contains('\u{2014}'));
     }
 }

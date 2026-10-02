@@ -5,7 +5,9 @@
 macro_rules! template {
     ($kind:literal) => {
         &[
-            template!(@file $kind, "Cargo.toml"),
+            // Stored as `Cargo.toml.tmpl`: `cargo package` drops any
+            // `Cargo.toml` below the crate root, taking it for a nested crate.
+            template!(@file $kind, "Cargo.toml", "Cargo.toml.tmpl"),
             template!(@file $kind, "README.md"),
             template!(@file $kind, "deck.md"),
             template!(@file $kind, "theme.yaml"),
@@ -14,6 +16,9 @@ macro_rules! template {
         ]
     };
     (@file $kind:literal, $file:literal) => {
+        template!(@file $kind, $file, $file)
+    };
+    (@file $kind:literal, $file:literal, $source:literal) => {
         (
             $file,
             include_str!(concat!(
@@ -21,7 +26,7 @@ macro_rules! template {
                 "/templates/",
                 $kind,
                 "/",
-                $file
+                $source
             )),
         )
     };

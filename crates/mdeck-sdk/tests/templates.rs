@@ -23,6 +23,17 @@ fn templates() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("templates")
 }
 
+/// Where `file` of the template for `kind` is stored. `Cargo.toml` is kept
+/// as `Cargo.toml.tmpl`, since `cargo package` leaves out nested manifests.
+fn source(kind: &str, file: &str) -> PathBuf {
+    let stored = if file == "Cargo.toml" {
+        "Cargo.toml.tmpl"
+    } else {
+        file
+    };
+    templates().join(kind).join(stored)
+}
+
 /// What `mdeck sdk new` writes for `name`.
 fn instantiate(text: &str, name: &str) -> String {
     text.replace("{{name}}", name)
@@ -34,7 +45,7 @@ fn instantiate(text: &str, name: &str) -> String {
 fn every_template_has_the_promised_files() {
     for kind in KINDS {
         for file in FILES {
-            let path = templates().join(kind).join(file);
+            let path = source(kind, file);
             assert!(path.is_file(), "missing {}", path.display());
         }
     }
@@ -44,7 +55,7 @@ fn every_template_has_the_promised_files() {
 fn templates_use_only_known_placeholders() {
     for kind in KINDS {
         for file in FILES {
-            let text = std::fs::read_to_string(templates().join(kind).join(file)).unwrap();
+            let text = std::fs::read_to_string(source(kind, file)).unwrap();
             let mut rest = text.as_str();
             while let Some(i) = rest.find("{{") {
                 let end = rest[i..].find("}}").map_or(rest.len(), |j| i + j + 2);
@@ -67,9 +78,33 @@ fn templates_use_only_known_placeholders() {
 fn templates_avoid_em_dashes() {
     for kind in KINDS {
         for file in FILES {
-            let text = std::fs::read_to_string(templates().join(kind).join(file)).unwrap();
+            let text = std::fs::read_to_string(source(kind, file)).unwrap();
             assert!(!text.contains('\u{2014}'), "{kind}/{file} has an em-dash");
         }
+    }
+}
+
+#[test]
+fn files_match_the_template_folders() {
+    for kind in KINDS {
+        let files = mdeck_sdk::templates::files(kind).unwrap();
+        let paths: Vec<&str> = files.iter().map(|(path, _)| *path).collect();
+        assert_eq!(paths, FILES, "{kind}");
+        for (path, text) in files {
+            let stored = std::fs::read_to_string(source(kind, path)).unwrap();
+            assert_eq!(*text, stored, "{kind}/{path}");
+        }
+    }
+}
+
+#[test]
+fn no_template_stores_a_cargo_toml() {
+    // `cargo package` would leave it out of the published SDK.
+    for kind in KINDS {
+        assert!(
+            !templates().join(kind).join("Cargo.toml").exists(),
+            "{kind}"
+        );
     }
 }
 
