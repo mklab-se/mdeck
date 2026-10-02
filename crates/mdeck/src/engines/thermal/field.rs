@@ -3,7 +3,7 @@
 //! neighbours. It is drawn through a palette in contour bands, transparent
 //! where it is cold.
 
-use eframe::egui::{Color32, ColorImage};
+use mdeck_sdk::paint::{Color, ImageData};
 
 /// How much larger the picture is than the grid (see [`Field::image`]).
 pub const UPSAMPLE: usize = 3;
@@ -164,7 +164,7 @@ impl Field {
     /// smooth), transparent where it is cold. The field is interpolated to
     /// [`UPSAMPLE`] times its size before it is cut into bands, so contour
     /// edges are smooth curves, not the grid's steps.
-    pub fn image(&self, lut: &[Color32; 256], bands: usize) -> ColorImage {
+    pub fn image(&self, lut: &[Color; 256], bands: usize) -> ImageData {
         let (w, h) = (self.w * UPSAMPLE, self.h * UPSAMPLE);
         let mut pixels = Vec::with_capacity(w * h);
         for y in 0..h {
@@ -186,7 +186,7 @@ impl Field {
                 };
                 let c = lut[(tq * 255.0) as usize];
                 let a = smooth(0.03, 0.3, t);
-                pixels.push(Color32::from_rgba_unmultiplied(
+                pixels.push(Color::from_rgba_unmultiplied(
                     c.r(),
                     c.g(),
                     c.b(),
@@ -194,7 +194,10 @@ impl Field {
                 ));
             }
         }
-        ColorImage::new([w, h], pixels)
+        ImageData {
+            size: [w, h],
+            pixels,
+        }
     }
 
     /// The hottest cell.
@@ -258,7 +261,7 @@ mod tests {
         let mut f = Field::new(1.0);
         f.heat.iter_mut().for_each(|v| *v = 0.55);
         f.heat[0] = 0.0;
-        let lut = crate::render::thermal::Palette::WhiteHot.lut();
+        let lut = crate::engines::heat_palette::Palette::WhiteHot.lut();
         let img = f.image(&lut, 4);
         assert_eq!(img.size, [f.w * UPSAMPLE, f.h * UPSAMPLE]);
         assert_eq!(img.pixels[0].a(), 0, "the cold corner");

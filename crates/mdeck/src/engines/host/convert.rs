@@ -230,8 +230,7 @@ pub fn font_families(theme: &Theme) -> h::FontFamilyNames {
     }
 }
 
-/// A published hint as the SDK's. A heading's galley becomes its text,
-/// its face's role and size, and its colour.
+/// A published hint as the SDK's (see [`hints`]).
 pub fn hint(hint: &Hint, theme: &Theme) -> SdkHint {
     match hint {
         Hint::Bar(r) => SdkHint::Bar(h::rect(*r)),
@@ -243,26 +242,87 @@ pub fn hint(hint: &Hint, theme: &Theme) -> SdkHint {
         Hint::Point(p) => SdkHint::Point(h::pos(*p)),
         Hint::Frame(r) => SdkHint::Frame(h::rect(*r)),
         Hint::Text { galley, pos, slide } => {
-            let format = galley.job.sections.first().map(|s| &s.format);
-            let size = format.map_or(theme.h1_size, |f| f.font_id.size);
-            let family = format.map(|f| &f.font_id.family);
-            let role = if family == Some(&theme.fonts.display) {
-                FontRole::Display
-            } else if family == Some(&theme.fonts.mono) {
-                FontRole::Mono
-            } else {
-                FontRole::Body
-            };
-            let color = format.map_or(theme.heading_color, |f| f.color);
+            let (font, color) = heading_font(galley, theme);
             SdkHint::Text {
                 text: galley.text().to_string(),
-                font: Font::new(role, size),
+                font,
                 pos: h::pos(*pos),
-                color: h::color(color),
+                color,
                 slide: *slide,
             }
         }
     }
+}
+
+/// The published hints as the SDK's. A heading becomes one
+/// [`SdkHint::Text`] per glyph, each placed where the galley put that
+/// glyph: [`SdkHint::Text`] carries text and a font but not the layout
+/// (wrapping, the display face's tight letter spacing, line height), so a
+/// whole heading laid out again on one line would drift from the type the
+/// slide draws. Glyph by glyph, an engine that rasterises the heading
+/// (thermal's cold opening, [`mdeck_sdk::paint::Painter::glyph_ink`]) lands
+/// on the drawn letters exactly.
+pub fn hints(ctx: &egui::Context, hint: &Hint, theme: &Theme) -> Vec<SdkHint> {
+    let Hint::Text { galley, pos, slide } = hint else {
+        return vec![self::hint(hint, theme)];
+    };
+    let Some(format) = galley.job.sections.first().map(|s| &s.format) else {
+        return vec![self::hint(hint, theme)];
+    };
+    let (font, color) = heading_font(galley, theme);
+    let font_id = format.font_id.clone();
+    let mut out = Vec::new();
+    ctx.fonts_mut(|f| {
+        for row in &galley.rows {
+            for g in &row.glyphs {
+                if g.uv_rect.is_nothing() || g.chr.is_whitespace() {
+                    continue;
+                }
+                // where a glyph laid out alone sits in its own galley
+                let alone =
+                    f.layout_no_wrap(g.chr.to_string(), font_id.clone(), egui::Color32::WHITE);
+                let Some((arow, ag)) = alone
+                    .rows
+                    .first()
+                    .and_then(|r| r.glyphs.first().map(|g| (r, g)))
+                else {
+                    continue;
+                };
+                let at = *pos + row.pos.to_vec2() + g.pos.to_vec2()
+                    - arow.pos.to_vec2()
+                    - ag.pos.to_vec2();
+                out.push(SdkHint::Text {
+                    text: g.chr.to_string(),
+                    font,
+                    pos: h::pos(at),
+                    color,
+                    slide: *slide,
+                });
+            }
+        }
+    });
+    out
+}
+
+/// A heading galley's face (as a role), size and colour, from its first
+/// section.
+fn heading_font(galley: &egui::Galley, theme: &Theme) -> (Font, mdeck_sdk::paint::Color) {
+    let format = galley.job.sections.first().map(|s| &s.format);
+    let size = format.map_or(theme.h1_size, |f| f.font_id.size);
+    let family = format.map(|f| &f.font_id.family);
+    let role = if family == Some(&theme.fonts.display) {
+        FontRole::Display
+    } else if family == Some(&theme.fonts.mono) {
+        FontRole::Mono
+    } else if family == Some(&theme.fonts.strong) {
+        FontRole::Strong
+    } else if family == Some(&theme.fonts.lead) {
+        FontRole::Lead
+    } else {
+        FontRole::Body
+    };
+    let color = format.map_or(theme.heading_color, |f| f.color);
+    (Font::new(role, size), h::color(color))
 }
 
 #[cfg(test)]

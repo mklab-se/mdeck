@@ -367,7 +367,7 @@ impl Host {
         hints::set_enabled(ui.ctx(), true);
         let fresh: Vec<SdkHint> = hints::take(ui.ctx())
             .iter()
-            .map(|h| convert::hint(h, theme))
+            .flat_map(|h| convert::hints(ui.ctx(), h, theme))
             .collect();
         let changed = self.last_index.is_some_and(|i| i != index);
         adopt_hints(&mut self.hints, &mut self.hints_key, fresh, changed);
