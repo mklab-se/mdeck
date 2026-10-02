@@ -133,7 +133,7 @@ fn remove_style(name: &str, icon: bool) -> Result<()> {
 }
 
 fn list_styles() {
-    let config = Config::load_or_default();
+    let config = Config::load_or_default().with_packs(Some(std::path::Path::new(".")));
     let styles = config.list_styles();
     let icon_styles = config.list_icon_styles();
 
@@ -149,7 +149,9 @@ fn list_styles() {
     let defaults = config.defaults.as_ref();
     if !styles.is_empty() {
         let default_name = defaults.and_then(|d| d.image_style.as_deref());
-        print_style_group("Image Styles", &styles, default_name);
+        print_style_group("Image Styles", &styles, default_name, |n| {
+            config.is_pack_style(n, false)
+        });
     }
 
     if !icon_styles.is_empty() {
@@ -157,19 +159,29 @@ fn list_styles() {
             println!();
         }
         let default_name = defaults.and_then(|d| d.icon_style.as_deref());
-        print_style_group("Icon Styles", &icon_styles, default_name);
+        print_style_group("Icon Styles", &icon_styles, default_name, |n| {
+            config.is_pack_style(n, true)
+        });
     }
 }
 
-/// One titled list of styles, marking the default one.
-fn print_style_group(title: &str, styles: &[(&str, &str)], default_name: Option<&str>) {
+/// One titled list of styles, marking the default one and those from packs.
+fn print_style_group(
+    title: &str,
+    styles: &[(&str, &str)],
+    default_name: Option<&str>,
+    from_pack: impl Fn(&str) -> bool,
+) {
     println!("{}", title.bold().underline());
     for (name, desc) in styles {
-        let marker = if default_name == Some(*name) {
+        let mut marker = if default_name == Some(*name) {
             " (default)".green().to_string()
         } else {
             String::new()
         };
+        if from_pack(name) {
+            marker.push_str(&" (pack)".dimmed().to_string());
+        }
         println!("  {}{marker}", name.cyan().bold());
         println!("    {desc}");
     }
@@ -177,7 +189,7 @@ fn print_style_group(title: &str, styles: &[(&str, &str)], default_name: Option<
 
 /// `style set-default` (image) or `style set-icon-default` (icon).
 fn set_default(name: &str, icon: bool) -> Result<()> {
-    let mut config = Config::load_or_default();
+    let mut config = Config::load_or_default().with_packs(Some(std::path::Path::new(".")));
     let known = if icon {
         config.get_icon_style(name).is_some()
     } else {
@@ -212,7 +224,7 @@ fn set_default(name: &str, icon: bool) -> Result<()> {
 }
 
 fn show_defaults() {
-    let config = Config::load_or_default();
+    let config = Config::load_or_default().with_packs(Some(std::path::Path::new(".")));
     let defaults = config.defaults.as_ref();
 
     println!("{}", "Default Image Style".bold().underline());

@@ -117,6 +117,10 @@ mdeck ai style set-default Cinematic
 mdeck ai style list
 ```
 
+Installed [packs](commands.md#extending-mdeck) add named styles of their own
+(a `styles/` folder, one YAML file per style); `mdeck ai style list` marks
+them `(pack)`, and a style of yours with the same name wins.
+
 For images and icons the order is `--style`, then the deck, then the config
 default, then the built-in default. Every asset records the style it was made
 in, so changing the style makes it stale.
@@ -151,7 +155,7 @@ mdeck ai point-cloud --name kettle --description "A kettle on a stove"   # into 
 ```
 
 Generated clouds for a deck go in `talk.assets/point-clouds/`; the deck finds
-them there first. `mdeck illustration list | show | import | contribute`
+them there first. `mdeck point-cloud list | show | import | contribute`
 manage the libraries.
 
 ## Themes

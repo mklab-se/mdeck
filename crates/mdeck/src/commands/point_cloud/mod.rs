@@ -1,5 +1,5 @@
-//! `mdeck illustration`: import, list and preview point cloud
-//! illustrations for the particle field. Generating one is `mdeck ai
+//! `mdeck point-cloud`: import, list, preview and contribute point
+//! clouds. Generating one is `mdeck ai
 //! point-cloud` ([`generate`] here for a library cloud,
 //! `commands::assets::point_clouds` for a deck's).
 
@@ -8,26 +8,26 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use colored::Colorize;
 
-use crate::cli::IllustrationCommands;
+use crate::cli::PointCloudCommands;
 use crate::commands::ai;
 use crate::render::illustration::{self, Cloud, EXTENSION, Source, convert};
 
 mod contribute;
 
-pub fn run(command: IllustrationCommands, quiet: bool) -> Result<()> {
+pub fn run(command: PointCloudCommands, quiet: bool) -> Result<()> {
     match command {
-        IllustrationCommands::Import {
+        PointCloudCommands::Import {
             image,
             name,
             user,
             force,
         } => import(&image, &name, user, force, quiet),
-        IllustrationCommands::List => {
+        PointCloudCommands::List => {
             list();
             Ok(())
         }
-        IllustrationCommands::Show { name, output } => show(&name, output, quiet),
-        IllustrationCommands::Contribute { name, no_open } => {
+        PointCloudCommands::Show { name, output } => show(&name, output, quiet),
+        PointCloudCommands::Contribute { name, no_open } => {
             contribute::contribute(&name, no_open, quiet)
         }
     }
@@ -153,7 +153,7 @@ fn import(image_path: &Path, name: &str, user: bool, force: bool, quiet: bool) -
 fn list() {
     let entries = illustration::catalogue(Some(Path::new(".")));
     if entries.is_empty() {
-        println!("No illustrations found.");
+        println!("No point clouds found.");
         return;
     }
     let width = entries.iter().map(|(n, _, _)| n.len()).max().unwrap_or(4);
@@ -175,7 +175,7 @@ fn list() {
 
 fn show(name: &str, output: Option<PathBuf>, quiet: bool) -> Result<()> {
     let Some((src, cloud)) = illustration::resolve(name, Some(Path::new(".")))? else {
-        bail!("no illustration named `{name}` (run `mdeck illustration list`)");
+        bail!("no point cloud named `{name}` (run `mdeck point-cloud list`)");
     };
     if !quiet {
         println!(

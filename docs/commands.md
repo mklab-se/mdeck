@@ -9,10 +9,10 @@ mdeck theme list                   # Every theme visible from here (deck, user, 
 mdeck theme new <n>                # Starter theme in ./themes (--user, --force)
 mdeck theme check <n>              # Errors, fallbacks and weak contrast in a theme
 mdeck theme preview <n> -o <dir>   # Sampler deck in a theme, as PNGs
-mdeck illustration import <image> --name <n>                # Convert an image of light strokes on dark
-mdeck illustration list            # Every illustration visible from here (deck, user, built-in)
-mdeck illustration show <n>        # Preview an illustration
-mdeck illustration contribute <n>  # Offer one to the built-in set (prefilled GitHub issue, --no-open)
+mdeck point-cloud import <image> --name <n>   # Convert an image of light strokes on dark into a point cloud
+mdeck point-cloud list             # Every point cloud visible from here (deck, user, pack, built-in)
+mdeck point-cloud show <n>         # Preview a point cloud
+mdeck point-cloud contribute <n>   # Offer one to the built-in set (prefilled GitHub issue, --no-open)
 mdeck spec                         # full format specification
 mdeck spec --short                 # quick reference card
 mdeck config show                  # show configuration
@@ -25,7 +25,7 @@ mdeck ai <file.md>                 # every asset the deck is missing: pictures, 
 mdeck ai images <file.md>          # images for ![prompt](generate:) (--style); or --prompt "..." [--output]
 mdeck ai icons <file.md>           # diagram icons for icon: generate: (--style); or --prompt "..." [--output]
 mdeck ai pictures <file.md>        # a picture per slide for an art engine (--engine, --node)
-mdeck ai point-cloud <file.md>     # the deck's missing @illustration names (--description)
+mdeck ai point-cloud <file.md>     # the deck's missing `picture` point clouds (--description)
 mdeck ai point-cloud --name <n> --description "..."   # one library cloud in ./illustrations (--user, --force)
 mdeck ai theme <n> --from <dir>    # a theme from a design system (--user, --force)
 mdeck ai deck ...                  # a deck from a file, prompt, or stdin
@@ -71,10 +71,30 @@ description: Acme's themes and point clouds
 min-mdeck: "2.0"          # optional: older mdecks refuse the pack
 ```
 
-`mdeck pack install` copies a pack into the user folder (`~/.config/mdeck/packs/<name>/`,
-replacing an installed pack of the same name) or, with `--deck`, into `./packs/<name>/` next to
-the deck, so the deck carries it. Themes and point clouds are looked up in the deck's own
-folder, then the user's, then packs (the deck's packs first), then the built-ins.
+What each folder provides:
+
+- `themes/`: themes, chosen by name like your own (`theme: acme`).
+- `designs/`: design sets a theme names with `designs:` (see
+  [Themes](themes.md#designs-and-arrangements)).
+- `point-clouds/`: `.mdpc` point clouds, used by name (`<!-- picture: name -->`).
+- `styles/`: named AI styles, one `<name>.yaml` each, usable wherever a style name is
+  (`--style`, `image-style`, `icon-style`, `defaults.image_style`) and listed by
+  `mdeck ai style list`. Your own styles of the same name win.
+
+  ```yaml
+  prompt: Flat shapes in Acme orange and navy, soft grain, no text
+  kind: image               # image (default) or icon
+  references: [refs/look.png]   # optional, relative to styles/
+  ```
+- `fonts/`: font files the pack's own themes name. A pack theme writes
+  `fonts: { body: AcmeSans-Regular.ttf }` and mdeck finds it in the theme's folder or,
+  failing that, in the pack's `fonts/`.
+
+`mdeck pack install` copies a pack into the `packs/<name>/` folder of your user config folder
+(`mdeck config show` prints where that is; an installed pack of the same name is replaced) or,
+with `--deck`, into `./packs/<name>/` next to the deck, so the deck carries it. Themes, design
+sets and point clouds are looked up in the deck's own folder, then the user's, then packs (the
+deck's packs first), then the built-ins.
 
 A deck names what it expects with `requires: [acme-brand, glow]` in its frontmatter; `--check`
 (category `extensions`) warns about each pack or extension this mdeck does not have.

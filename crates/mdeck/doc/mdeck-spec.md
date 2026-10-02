@@ -782,7 +782,7 @@ eyebrow, display type and a staggered entry.
 A wall of RGB LEDs in a dark room, on the **LED engine** (section 9.6):
 near-black with the faint grid of unlit lenses, hot pink and cyan light,
 warm amber bulbs chasing around the title slide, and Hanken Grotesk for the
-copy. Illustrations, the countdown digits and the end words appear by
+copy. Point clouds, the countdown digits and the end words appear by
 lighting LEDs.
 
 | Property        | Value           |
@@ -903,10 +903,10 @@ cancels it, starting on a chosen slide (`--slide`, `--overview`) skips it, and
 `countdown: off` in the frontmatter turns it off for a deck (`on` turns it
 on in a theme without one).
 
-#### Illustrations
+#### Point clouds
 
-The field can draw a thing: a **point cloud illustration**, a named file of
-points the particles settle into. Ask for one on a slide with the `picture`
+The field can draw a thing: a **point cloud**, a named file of points the
+particles settle into. Ask for one on a slide with the `picture`
 setting:
 
 ```markdown
@@ -923,14 +923,17 @@ the right, beside the copy, warm and lit from the first step. Title slides
 put it behind the centred copy, large, dim and slow: a backdrop rather than
 a picture. Split, media, gallery, code, visual, columns and table slides
 never show one, and the standard set leaves no stage at all, and `mdeck --check` warns when a slide asks
-for an illustration it cannot show, or one that does not exist.
+for a point cloud it cannot show, or one that does not exist (category
+`point-cloud`).
 Engines that cannot draw a picture ignore the setting, and `--check` says so.
 
-A name resolves through three places, first match wins: the deck's
-`illustrations/<name>.mdpc` next to the deck, the user library at
-`~/.config/mdeck/illustrations/`, and the set built into MDeck. So a deck can
-carry its own clouds, a user can keep favourites across decks, and either can
-shadow a built-in by using the same name. Names are lowercase letters, digits
+A name resolves through four places, first match wins: the deck's
+`illustrations/<name>.mdpc` next to the deck, the user library (the
+`illustrations/` folder in the user config folder: `~/.config/mdeck/` on
+Linux, `~/Library/Application Support/mdeck/` on macOS, `%APPDATA%\mdeck\` on
+Windows), the `point-clouds/` folders of installed packs, and the set built
+into MDeck. So a deck can carry its own clouds, a user can keep favourites
+across decks, and either can shadow a built-in by using the same name. Names are lowercase letters, digits
 and hyphens. The built-in set: `person`, `hooded`, `man`, `woman`,
 `thermographer`, `presenter-up`, `presenter-down`, `box`, `orb`, `doc`,
 `docs`, `inbox`, `db`, `cloud`, `laptop`, `folder`, `mail`, `gate`,
@@ -945,9 +948,9 @@ dark ground:
 ```bash
 mdeck ai point-cloud talk.md     # every picture name the deck uses that resolves nowhere
 mdeck ai point-cloud --name server --description "A server rack in a datacenter"
-mdeck illustration import sketch.png --name sketch
-mdeck illustration list          # every name visible from here, and what shadows what
-mdeck illustration show server   # a preview image
+mdeck point-cloud import sketch.png --name sketch
+mdeck point-cloud list          # every name visible from here, and what shadows what
+mdeck point-cloud show server   # a preview image
 ```
 
 `generate` asks the configured image provider for a sparse constellation of
@@ -959,11 +962,11 @@ and up to 1500 points in the unit square, stored in **importance order** so
 that the first sixty points already sketch the whole subject and the first
 six hundred fill it in. The field takes as many as it has particles to
 spend, which is why the same file serves a small stage picture and a
-full-frame backdrop, and why an illustration hints at its subject rather than
+full-frame backdrop, and why a point cloud hints at its subject rather than
 copying it.
 
 A cloud worth sharing can be offered to the built-in set without installing
-anything: `mdeck illustration contribute <name>` writes a `.json` copy GitHub
+anything: `mdeck point-cloud contribute <name>` writes a `.json` copy GitHub
 accepts as an attachment and opens a new issue on the MDeck repository with
 the name, description, prompt and a braille sketch filled in. Drag the file
 onto the issue and submit; if it is accepted it ships as a built-in in the
@@ -1046,7 +1049,7 @@ engine:                    # the engine and its settings (section 9.6); `engine:
   kind: line               # art engines: line | tonal (section 9.7)
   style: "graphite and ink, cross-hatching"   # art engines: the style prompt
   references: [refs/teacup.jpg]               # art engines: style swatches in the theme folder
-designs: standard          # standard | editorial: how the slide designs look (section 6)
+designs: standard          # standard | editorial | a set in designs/: how the slide designs look (section 6)
 arrangements: {}           # per-design overrides of the design set (section 6)
 countdown: off             # on | off: the 3-2-1 opener (the engine decides its look)
 transition: fade           # slide | fade | spatial | none (a deck's `transition` wins)
@@ -1080,7 +1083,7 @@ annotations:               # the presenter's pen (drag) and arrow (Shift+drag) t
   pen-outline: "#1e82b4"
   arrow: "#ffc832"
   arrow-outline: "#c88c00"
-fonts:                     # a bundled face, or a .ttf/.otf file in the theme folder
+fonts:                     # a bundled face, or a .ttf/.otf file in the theme folder (or a pack's fonts/)
   display: fonts/Acme-Display.ttf   # headings
   body: hanken-regular     # body text and list items
   lead: hanken-light       # lead paragraphs where the design set uses it (editorial; default: body)
@@ -1292,7 +1295,7 @@ it paints under the slides, how text slides are laid out, and what it plays
 for the countdown and the end. Colours, fonts, sizes and the logo always come
 from the theme, so every theme looks like itself on every engine.
 
-| Engine | What it shows | Illustrations | Stories | Countdown and end act |
+| Engine | What it shows | Point clouds | Stories | Countdown and end act |
 |---|---|---|---|---|
 | `plain` | slides on a flat background | no | no | plain numerals |
 | `particles` | a living field of glowing particles that morphs from slide to slide and follows the content, editorial copy layouts (section 9.1, Ember) | yes | yes | particle digits that burst; the words, a swirl and a bang |
@@ -1312,8 +1315,8 @@ flickering as it strikes, and then shimmers slowly between the theme's
 `accent`, `accent-soft` and `engine.cool`; the hottest cores whiten toward
 `engine.light`. Brightness follows the point cloud's density, so strokes
 stay brighter than fills and the picture keeps its structure. Title slides get
-a marquee border of chasing bulbs in `secondary`; slides without an
-illustration get a slow, faint aurora on the side away from the copy. A reveal
+a marquee border of chasing bulbs in `secondary`; slides without a
+picture get a slow, faint aurora on the side away from the copy. A reveal
 sends one band of light across the wall. On charts and diagrams the wall
 serves the content: a peak marker floats over each bar like a level meter's,
 lines and routed edges leave a soft trail, pies and donuts get a halo ring,
@@ -1360,8 +1363,8 @@ grouped into pieces of two to four, and the pieces drop from above the slide,
 bottom row first, land with a small bounce and settle into the picture. The
 blocks are bevelled, in `accent`, `secondary`, `engine.cool`,
 `accent-soft` and the fifth `series` colour. Leaving a slide, the stack
-flashes and clears row by row, like a completed line. Slides without an
-illustration stay calm. Exports show the settled stack.
+flashes and clears row by row, like a completed line. Slides without a
+picture stay calm. Exports show the settled stack.
 
 **The line engine.** Line art drawn on a surface the theme chooses with
 `surface:` (`sheet`, the default, or `slate`). Line art is the same on both,
@@ -1467,7 +1470,7 @@ stops with the list of engines. The countdown switch stays the theme's; an
 engine without a countdown of its own shows plain numerals.
 
 **Content an engine does not show.** Engines differ in what they can show:
-the plain engine draws no illustrations, and the
+the plain engine draws no point clouds, and the
 split-flap board shows text only. `mdeck --check`
 lists every such slide under the `engine` category (for example
 `slide 4 (line 31): [engine] picture: server is not shown by the plain engine`),
@@ -1479,7 +1482,7 @@ the themes that run on them: `ember`, `autumn` and `winter` on particles,
 `marquee` on led, `departures` on splitflap, `stack` on blocks, `blueprint`
 and `chalkboard` on line, `sketchbook` on sketch, `watercolour` on
 watercolour, `darkroom` on darkroom, `thermal` on thermal, and the built-in
-illustrations); themes and
+point clouds); themes and
 decks that ask for one then use `plain`, with a warning.
 
 ### 9.7 Generated art
@@ -1664,6 +1667,12 @@ and recognise slides the same way. The set is independent of the engine:
 `designs: editorial` with `engine: plain` is Ember's look on a still
 screen; `designs: standard` with `engine: particles` puts centred slides
 over the particle field.
+
+`designs:` may also name a set file, `designs/<name>.yaml`, found in the
+deck's `designs/` folder, then the `designs/` folder of the user config
+folder, then installed packs' `designs/`, then the built-ins. A set file has
+`base` (keys for every design) and `designs` (keys per design), merged over
+the set it `extends` (default `standard`).
 
 **Arrangements.** `arrangements:` overrides any key of any design's
 arrangement; `all:` applies to every design. Overrides are partial and

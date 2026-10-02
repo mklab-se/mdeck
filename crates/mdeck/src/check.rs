@@ -6,7 +6,7 @@ use std::fmt;
 pub enum CheckCategory {
     DiagramRouting,
     /// `picture` names that do not resolve or layouts that cannot show one.
-    Illustration,
+    PointCloud,
     /// Text the available fonts cannot draw (CJK without a system CJK face).
     Fonts,
     /// `$...$` / `$$...$$` formulas that do not parse.
@@ -41,7 +41,7 @@ impl fmt::Display for CheckCategory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CheckCategory::DiagramRouting => write!(f, "architecture"),
-            CheckCategory::Illustration => write!(f, "illustration"),
+            CheckCategory::PointCloud => write!(f, "point-cloud"),
             CheckCategory::Fonts => write!(f, "fonts"),
             CheckCategory::Math => write!(f, "math"),
             CheckCategory::Theme => write!(f, "theme"),

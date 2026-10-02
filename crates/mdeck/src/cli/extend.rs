@@ -37,6 +37,20 @@ pub enum ExtendCommands {
     },
 
     /// Packs of themes, designs, point clouds, styles and fonts: install, list, remove
+    ///
+    /// A pack is a folder (or a .zip of one, or a git repository) with an
+    /// mdeck-pack.yaml manifest (name, version, description, min-mdeck) and
+    /// any of these folders:
+    ///
+    ///   themes/        themes, chosen by name (`theme: acme`)
+    ///   designs/       design sets a theme names with `designs:`
+    ///   point-clouds/  .mdpc point clouds, used by name
+    ///   styles/        named AI styles (<name>.yaml: prompt, kind, references)
+    ///   fonts/         font files the pack's own themes name
+    ///
+    /// Packs come after the deck's and your own folders and before the
+    /// built-ins; the deck's packs (./packs) come before yours.
+    #[command(verbatim_doc_comment)]
     Pack {
         #[command(subcommand)]
         command: PackCommands,

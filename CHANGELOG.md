@@ -68,7 +68,13 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
 - **Packs**: themes, designs, point clouds, styles and fonts with an `mdeck-pack.yaml` manifest.
   `mdeck pack install <folder|zip|git-url>` (user folder, or `--deck` for the deck's `packs/`),
   `mdeck pack list` and `mdeck pack remove`. Point clouds in packs resolve after the deck's and
-  the user's and before the built-ins.
+  the user's and before the built-ins. A pack's `designs/` holds design sets a theme names with
+  `designs:`, its `styles/` named AI styles (`<name>.yaml`: prompt, kind, reference images) that
+  `mdeck ai`, `image-style`, `icon-style` and `mdeck ai style list` see, and its `fonts/` font
+  files its themes name.
+- **Your own design sets.** `designs:` can name a set file in the deck's `designs/`, the user
+  `designs/` folder or a pack's: `base` and `designs` keys merged over the set it `extends`
+  (default `standard`).
 - **`requires:`** in the frontmatter names the packs and extensions a deck expects; `--check`
   warns about each one that is not installed (category `extensions`). Frontmatter lists
   (`[a, b]`) now read as `a, b` instead of being dropped.
@@ -98,6 +104,10 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
 
 ### Changed
 
+- **`mdeck point-cloud`** replaces `mdeck illustration` (import, list, show, contribute; the old
+  name still works), and the `--check` category for `picture` names is `point-cloud`.
+- `mdeck config set` help lists `defaults.reduced_motion`, `defaults.image_style` and
+  `defaults.icon_style`; `-v` reads as a general verbosity flag on every command.
 - **The editorial look covers every slide.** On Ember and the other editorial themes, image,
   code, table, chart and column slides get the eyebrow, display heading and staggered entry too,
   instead of falling back to the plain layouts.
@@ -203,6 +213,7 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   pictures on art engines.
 - The laser engine and its `etch` theme. Their settled stills were a faint outline, and the line,
   sketch and particle engines cover drawn pictures.
+- The `defaults.aspect` config key, which nothing read.
 - Image options `@fit` (what every image does), `@left`, `@right` and `@center` (an image's place
   is up to the slide's design); `--check` reports them.
 

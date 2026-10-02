@@ -45,7 +45,7 @@ to `robot`, `rocket`, `lightbulb` and `account`; `mdeck ai point-cloud talk.md` 
 image model for every name the deck uses that does not exist yet and reduces
 each to a point cloud file in `talk.assets/` (or `mdeck ai point-cloud --name
 server --description "A server rack"` for one you keep in a library).
-Made one worth sharing? `mdeck illustration contribute <name>`
+Made one worth sharing? `mdeck point-cloud contribute <name>`
 opens a prefilled issue; drag the file in and it can become a built-in.
 
 **It opens and closes.** A 3-2-1 countdown counted in particles (any key

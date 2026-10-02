@@ -65,7 +65,7 @@ pub async fn run(args: AiArgs, quiet: bool) -> Result<()> {
             }
             (None, Some(name)) => {
                 let description = a.description.unwrap_or_default();
-                crate::commands::illustration::generate(
+                crate::commands::point_cloud::generate(
                     &name,
                     &description,
                     a.user,

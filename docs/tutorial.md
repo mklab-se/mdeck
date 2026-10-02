@@ -190,7 +190,7 @@ Put a `picture` setting, in an HTML comment, under a slide's heading:
 
 On Ember the particles settle into a rocket beside your copy. Thirty-eight
 illustrations are built in, `person`, `laptop`, `server`, `lightbulb`, `globe`
-and more; `mdeck illustration list` shows them all.
+and more; `mdeck point-cloud list` shows them all.
 
 ## 9. Try another engine
 

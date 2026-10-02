@@ -203,6 +203,7 @@ fn written_in(dir: &Path) -> Lookup {
         deck: None,
         user: Some(dir.to_path_buf()),
         packs: Vec::new(),
+        designs: Vec::new(),
     }
 }
 

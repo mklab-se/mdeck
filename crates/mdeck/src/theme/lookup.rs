@@ -102,6 +102,9 @@ pub struct Lookup {
     pub user: Option<PathBuf>,
     /// The `themes/` folders of installed packs, in lookup order (THM-04).
     pub packs: Vec<PathBuf>,
+    /// Design set folders, highest priority first: the deck's `designs/`,
+    /// the user's, then each installed pack's (built-in sets come last).
+    pub designs: Vec<PathBuf>,
 }
 
 /// Which kind of folder a theme folder is.
@@ -117,13 +120,26 @@ pub fn user_dir() -> Option<PathBuf> {
     dirs::config_dir().map(|d| d.join("mdeck").join("themes"))
 }
 
+/// The user design set folder.
+pub fn user_designs_dir() -> Option<PathBuf> {
+    dirs::config_dir().map(|d| d.join("mdeck").join("designs"))
+}
+
 impl Lookup {
     /// Lookup for a deck in `deck_dir` (its folder), with the user folder.
     pub fn for_deck(deck_dir: Option<&Path>) -> Self {
+        use crate::extensions::packs;
+        let mut designs: Vec<PathBuf> = deck_dir
+            .map(|d| d.join("designs"))
+            .into_iter()
+            .chain(user_designs_dir())
+            .collect();
+        designs.extend(packs::dirs_for(deck_dir, packs::Folder::Designs));
         Lookup {
             deck: deck_dir.map(|d| d.join("themes")),
             user: user_dir(),
-            packs: crate::extensions::packs::theme_dirs(deck_dir),
+            packs: packs::theme_dirs(deck_dir),
+            designs,
         }
     }
 
@@ -275,7 +291,7 @@ impl Lookup {
     pub fn load_found(&self, found: &Found) -> Result<Built, ThemeError> {
         let mut warnings = Vec::new();
         let file = self.resolve(found, 0, &mut warnings)?;
-        let mut built = Theme::build(&found.name, &file)?;
+        let mut built = Theme::build_in(&found.name, &file, &self.designs)?;
         built.theme.source = found.origin.path().map(Path::to_path_buf);
         warnings.append(&mut built.warnings);
         built.warnings = warnings;
@@ -303,7 +319,14 @@ impl Lookup {
                 let mut file =
                     ThemeFile::parse(&text).map_err(|e| ThemeError::file(p.display(), e))?;
                 let base = p.parent().unwrap_or(Path::new("."));
-                absolutize(&mut file, base, warnings);
+                // A pack's themes may name font files in the pack's `fonts/`.
+                let pack_fonts = match &found.origin {
+                    Origin::Pack(_) => crate::extensions::packs::pack_of(p)
+                        .map(|root| root.join(crate::extensions::packs::Folder::Fonts.dir()))
+                        .filter(|d| d.is_dir()),
+                    _ => None,
+                };
+                absolutize(&mut file, base, pack_fonts.as_deref(), warnings);
                 file
             }
         };
@@ -343,8 +366,14 @@ fn names_file(v: &str) -> bool {
 /// Make every file path in `file` absolute against `base`, the folder of
 /// the file that names it. A path that leaves the folder or does not exist
 /// is dropped with a warning, so the value falls back to what the theme
-/// extends.
-fn absolutize(file: &mut ThemeFile, base: &Path, warnings: &mut Vec<String>) {
+/// extends. A font file not found there is looked up in `fonts_dir` (the
+/// `fonts/` folder of the pack the theme comes from), by its path inside it.
+fn absolutize(
+    file: &mut ThemeFile,
+    base: &Path,
+    fonts_dir: Option<&Path>,
+    warnings: &mut Vec<String>,
+) {
     let f = &mut file.fonts;
     let slots: [(&str, &mut Option<String>); 7] = [
         ("fonts.display", &mut f.display),
@@ -359,7 +388,13 @@ fn absolutize(file: &mut ThemeFile, base: &Path, warnings: &mut Vec<String>) {
         let Some(v) = slot.as_ref().filter(|v| names_file(v)) else {
             continue;
         };
-        match super::confined_path(base, v) {
+        let found = super::confined_path(base, v).or_else(|e| {
+            match fonts_dir.filter(|_| key.starts_with("fonts.")) {
+                Some(dir) => super::confined_path(dir, v).map_err(|_| e),
+                None => Err(e),
+            }
+        });
+        match found {
             Ok(p) => *slot = Some(p.to_string_lossy().to_string()),
             Err(e) => {
                 warnings.push(format!("{key}: {e}; using the default"));
@@ -501,7 +536,78 @@ mod tests {
             deck: Some(t.0.join("deck").join("themes")),
             user: Some(t.0.join("user")),
             packs: vec![t.0.join("pack").join("themes")],
+            designs: vec![
+                t.0.join("deck").join("designs"),
+                t.0.join("pack").join("designs"),
+            ],
         }
+    }
+
+    #[test]
+    fn a_theme_names_a_design_set_from_a_folder() {
+        // EXT-09: a pack's (or the deck's) designs/ folder adds design sets
+        let t = Tmp::new("designs");
+        t.write(
+            "pack/designs/roomy.yaml",
+            "extends: editorial\nbase: { roles: { body: { color: accent } } }\n",
+        );
+        t.write(
+            "deck/designs/plain.yaml",
+            "designs: { quote: { byline: true } }\n",
+        );
+        t.write("user/a.yaml", "designs: roomy\n");
+        t.write("user/b.yaml", "designs: plain\n");
+        t.write("user/c.yaml", "designs: nowhere\n");
+        let l = lookup(&t);
+        let a = l.load("a").unwrap().theme;
+        assert_eq!(a.arrangements.set, "roomy");
+        assert!(a.arrangements.is_editorial(), "extends editorial");
+        assert_eq!(
+            a.arrangements
+                .get(crate::parser::Design::Points)
+                .roles
+                .body
+                .color,
+            crate::theme::arrangement::Ink::Accent
+        );
+        let b = l.load("b").unwrap().theme;
+        assert!(
+            !b.arrangements.is_editorial(),
+            "extends standard by default"
+        );
+        assert!(b.arrangements.get(crate::parser::Design::Quote).byline);
+        let err = l.load("c").unwrap_err().to_string();
+        assert!(err.contains("roomy") && err.contains("plain"), "{err}");
+        assert!(
+            super::super::arrangement::all_set_names(&l.designs).contains(&"roomy".to_string())
+        );
+        // without the folders the sets are unknown
+        assert!(Lookup::default().load_found(&l.find_all("a")[0]).is_err());
+    }
+
+    #[test]
+    fn a_pack_theme_finds_its_fonts_in_the_pack_fonts_folder() {
+        // EXT-09: fonts/ holds font files a pack's themes reference
+        let t = Tmp::new("packfonts");
+        t.write("pack/mdeck-pack.yaml", "name: acme\nversion: 1.0.0\n");
+        t.write("pack/fonts/Acme.ttf", "not really a font");
+        t.write("pack/themes/acme.yaml", "fonts: { body: Acme.ttf }\n");
+        let l = lookup(&t);
+        let found = &l.find_all("acme")[0];
+        let mut warnings = Vec::new();
+        let file = l.resolve(found, 0, &mut warnings).unwrap();
+        let body = file.fonts.body.unwrap();
+        assert!(body.ends_with("fonts/Acme.ttf"), "{body}");
+        // a user theme gets no such folder
+        t.write("user/u.yaml", "fonts: { body: Acme.ttf }\n");
+        let mut warnings = Vec::new();
+        let file = l.resolve(&l.find_all("u")[0], 0, &mut warnings).unwrap();
+        let body = file.fonts.body.unwrap_or_default();
+        assert!(!body.ends_with("Acme.ttf"), "{body}");
+        assert!(
+            warnings.iter().any(|w| w.contains("fonts.body")),
+            "{warnings:?}"
+        );
     }
 
     #[test]

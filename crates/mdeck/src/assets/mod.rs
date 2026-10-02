@@ -29,7 +29,7 @@ pub fn resolve_placeholders(pres: &mut Presentation, deck: &Path) -> Option<Stri
         Err(e) => (None, Some(e.to_string())),
     };
     if manifest.is_some() {
-        let config = crate::config::Config::load_or_default();
+        let config = crate::config::Config::load_or_default().with_packs(deck.parent());
         let styles = style::resolve(&config, &pres.meta, None);
         placeholders::apply(pres, deck, manifest.as_ref(), &styles);
     }

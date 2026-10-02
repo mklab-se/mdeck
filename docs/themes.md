@@ -247,6 +247,25 @@ image, code, table and chart slides included, and a slide is the same design
 in both. The set does not depend on the engine: `designs: editorial` with
 `engine: plain` is Ember on a still screen.
 
+**Your own design sets.** `designs:` can also name a set in a `designs/`
+folder: the deck's, the `designs/` folder in your user config folder, or an
+installed [pack](commands.md#extending-mdeck)'s, looked up in that order
+before the built-ins. A set file, `designs/<name>.yaml`, has the same keys as
+`arrangements:` split in two: `base` (every design) and `designs` (per
+design), merged over the set it `extends` (`standard` when it names none),
+so it only says what differs:
+
+```yaml
+# designs/roomy.yaml
+extends: editorial
+base:
+  roles:
+    body: { color: accent }
+designs:
+  quote:
+    ornaments: { quote-marks: true }
+```
+
 **Arrangements.** Override anything about a design under `arrangements:`,
 naming only what differs; `all:` applies to every design. Overrides merge
 key by key through `extends`, like colours.
