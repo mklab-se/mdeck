@@ -180,8 +180,9 @@ What each design shows:
   in rows of three), each with its alt text as a caption.
 - **quote**: the quotation large; the paragraph after it, or the quote's own short last
   paragraph, is the attribution (a leading `--` or `---` is dropped).
-- **code**: the code block with its heading and short lead. Code shrinks to fit (down to 40% of
-  its size) before the slide scrolls; long lines shrink instead of wrapping.
+- **code**: the code block with its heading and short lead. Short code grows toward the body
+  size and its box hugs its lines; code that does not fit shrinks (down to 40% of its size)
+  before the slide scrolls; long lines shrink instead of wrapping.
 - **visual**: the chart or diagram fills the space under its heading and lead; text written
   after it stays after it.
 - **columns**: a leading H1 or H2 spans the columns; every `+++` starts the next column.
@@ -373,7 +374,7 @@ fn main() {
 
 The `{...}` is parsed as comma-separated line numbers and ranges (e.g., `3`, `5-7`). Highlighted lines receive a distinct background. Code blocks without a language identifier render as plain monospace text with no highlighting.
 
-Code shrinks to fit. When a slide's code blocks are taller than the slide, or a line is wider than the column, the code font is reduced until everything fits, down to 40% of the theme's code size (about 65 lines on a 16:9 slide). Only past that does the slide scroll. Long lines therefore shrink rather than wrap, and a PNG export shows the whole block. Prose is never shrunk.
+Code shrinks to fit. When a slide's code blocks are taller than the slide, or a line is wider than the column, the code font is reduced until everything fits, down to 40% of the theme's code size (about 65 lines on a 16:9 slide). Only past that does the slide scroll. Long lines therefore shrink rather than wrap, and a PNG export shows the whole block. Short code grows instead, toward 90% of the body size, while its lines and the slide have room. Code shows its characters as written: the monospace font's ligatures are off, so `---`, `->` and `<!--` stay literal.
 
 ### 5.6 Blockquotes
 

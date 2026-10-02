@@ -81,7 +81,13 @@ pub fn settle(galley: Arc<egui::Galley>) -> Arc<egui::Galley> {
         else {
             continue;
         };
-        let Some(code_y) = row.glyphs.iter().filter(|g| inside(g)).map(|g| g.pos.y).next() else {
+        let Some(code_y) = row
+            .glyphs
+            .iter()
+            .filter(|g| inside(g))
+            .map(|g| g.pos.y)
+            .next()
+        else {
             continue;
         };
         let dy = ((baseline - code_y) * ppp).round() / ppp;
@@ -90,7 +96,9 @@ pub fn settle(galley: Arc<egui::Galley>) -> Arc<egui::Galley> {
         }
         let row = Arc::make_mut(&mut placed.row);
         let chip_end = row.visuals.glyph_vertex_range.start;
-        let mut shift: Vec<std::ops::Range<usize>> = vec![0..chip_end];
+        // the chips (backgrounds come first in a row's mesh), then their glyphs
+        let mut shift: Vec<std::ops::Range<usize>> = Vec::new();
+        shift.push(0..chip_end);
         for g in row.glyphs.iter_mut().filter(|g| inside(g)) {
             g.pos.y += dy;
             if !g.uv_rect.is_nothing() {
@@ -122,8 +130,10 @@ pub fn settle(galley: Arc<egui::Galley>) -> Arc<egui::Galley> {
 fn chip_rects(row: &egui::epaint::text::Row) -> Vec<Rect> {
     let v = &row.visuals;
     v.mesh.vertices[..v.glyph_vertex_range.start.min(v.mesh.vertices.len())]
-        .chunks_exact(4)
-        .map(|q| Rect::from_points(&q.iter().map(|v| v.pos).collect::<Vec<_>>()))
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|q| Rect::from_points(&q.map(|v| v.pos)))
         .collect()
 }
 

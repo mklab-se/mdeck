@@ -102,18 +102,52 @@ pub fn place<'s>(lay: &Lay, blocks: &[&'s Block], rect: Rect, gap: f32) -> Vec<P
         natural.iter().flatten().sum::<f32>() + gap * blocks.len().saturating_sub(1) as f32;
     let fillers = natural.iter().filter(|n| n.is_none()).count().max(1) as f32;
     let fill_h = ((rect.height() - fixed) / fillers).max(160.0 * s);
+    let code_w = code_width(lay, blocks, rect.width());
     let mut y = rect.top();
     let mut out = Vec::new();
     for (b, n) in blocks.iter().zip(natural) {
         let h = n.unwrap_or(fill_h);
+        let w = if matches!(b, Block::CodeBlock { .. }) {
+            code_w
+        } else {
+            rect.width()
+        };
         out.push(Placed {
             block: b,
-            rect: Rect::from_min_size(Pos2::new(rect.left(), y), egui::vec2(rect.width(), h)),
+            rect: Rect::from_min_size(Pos2::new(rect.left(), y), egui::vec2(w, h)),
             caption: None,
         });
         y += h + gap;
     }
     out
+}
+
+/// Narrowest code box share of the plate: short code hugs its lines, but
+/// never in a sliver.
+const CODE_MIN_SHARE: f32 = 0.6;
+
+/// Width of the code boxes on a plate `width` wide: the widest line plus
+/// padding, at least [`CODE_MIN_SHARE`] of the plate. Every code block on
+/// the plate shares it. Lines never wrap at this width that would not wrap
+/// at the plate's, so heights are unchanged.
+fn code_width(lay: &Lay, blocks: &[&Block], width: f32) -> f32 {
+    let widest = blocks
+        .iter()
+        .filter_map(|b| match b {
+            Block::CodeBlock { code, .. } => Some(crate::render::text::widest_code_line(
+                lay.ui, code, lay.theme, lay.scale,
+            )),
+            _ => None,
+        })
+        .fold(0.0, f32::max);
+    hug(widest, width, lay.scale)
+}
+
+/// The box for code `widest` wide on a plate `width` wide.
+fn hug(widest: f32, width: f32, scale: f32) -> f32 {
+    // a little slack: glyph advances round differently at another width
+    let natural = widest + 2.0 * crate::render::text::CODE_PADDING * scale + 4.0 * scale;
+    natural.clamp(width * CODE_MIN_SHARE, width)
 }
 
 /// Images in a grid, each with its alt text as a caption.
@@ -240,6 +274,14 @@ pub fn grid(count: usize, width: f32, height: f32, gap: f32) -> Vec<Cell> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn short_code_hugs_its_lines_and_long_code_takes_the_plate() {
+        let pad = 2.0 * crate::render::text::CODE_PADDING + 4.0;
+        assert_eq!(hug(1200.0, 1600.0, 1.0), 1200.0 + pad);
+        assert!((hug(100.0, 1600.0, 1.0) - 960.0).abs() < 0.01);
+        assert_eq!(hug(1700.0, 1600.0, 1.0), 1600.0);
+    }
 
     #[test]
     fn grids_tile_the_area() {
