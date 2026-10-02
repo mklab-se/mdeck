@@ -48,16 +48,15 @@ fn mask(h: &mut Headless, text: &str) -> Mask {
 #[test]
 fn picture_beside_the_copy() {
     let mut stage = Stage::new(Moment::Slide);
-    stage.picture = Some(Picture {
-        source: PictureSource::Cloud(heart()),
-        backdrop: false,
-        place: Place {
+    stage.picture = Some(Picture::new(
+        PictureSource::Cloud(heart()),
+        Place {
             u: 0.55,
             v: 0.1,
             w: 0.4,
             h: 0.8,
         },
-    });
+    ));
     let img = still(&mut Headless::new(320, 180), &stage);
     assert_golden(golden("picture"), &img, GOLDEN_TOLERANCE);
 }
@@ -66,11 +65,7 @@ fn picture_beside_the_copy() {
 fn countdown_digit() {
     let mut h = Headless::new(320, 180);
     let mask = mask(&mut h, "3");
-    let stage = Stage::new(Moment::Countdown {
-        digit: 3,
-        mask,
-        progress: 0.5,
-    });
+    let stage = Stage::new(Moment::countdown(3, mask, 0.5));
     assert_golden(
         golden("countdown"),
         &still(&mut h, &stage),
@@ -82,9 +77,6 @@ fn countdown_digit() {
 fn end_words() {
     let mut h = Headless::new(320, 180);
     let words = mask(&mut h, "THE END");
-    let stage = Stage::new(Moment::End {
-        elapsed: 1.0,
-        words,
-    });
+    let stage = Stage::new(Moment::end(1.0, words));
     assert_golden(golden("end"), &still(&mut h, &stage), GOLDEN_TOLERANCE);
 }

@@ -1,0 +1,7 @@
+# A theme that moves between slides with the template-transition transition.
+# Registered by `register()`, so a deck selects it with `theme: template-transition`.
+name: template-transition
+extends: dark
+transition: template-transition
+colors:
+  accent: "#7bdff2"

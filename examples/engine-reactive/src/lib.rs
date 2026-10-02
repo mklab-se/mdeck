@@ -15,7 +15,7 @@
 //!
 //! The walkthrough is `docs/sdk/tutorial-3-reactive.md`.
 
-use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Needs, SettingKind, SettingSpec};
+use mdeck_sdk::engine::{Engine, EngineDef, Needs, SettingKind, SettingSpec};
 use mdeck_sdk::geometry::Hint;
 use mdeck_sdk::paint::{Color, Painter, Pos2, Rect, Sprite, SpriteBlend, SpriteLayer, smoothstep};
 use mdeck_sdk::registry::{Registry, RegistryError};
@@ -25,41 +25,40 @@ use mdeck_sdk::tokens::{EngineSettings, Tokens};
 /// The settings this engine reads, with their types: mdeck checks a theme
 /// against them (`EngineDef::check_settings`) without running the engine.
 pub const SETTINGS: &[SettingSpec] = &[
-    SettingSpec {
-        key: "glow",
-        kind: SettingKind::Number,
-        summary: "How bright the lights are, from 0 to 2 (default 1).",
-    },
-    SettingSpec {
-        key: "runners",
-        kind: SettingKind::Bool,
-        summary: "Send runners along line series and edges (default true).",
-    },
-    SettingSpec {
-        key: "palette",
-        kind: SettingKind::OneOf(&["accent", "warm", "cool"]),
-        summary: "Which theme colours the lights take (default accent).",
-    },
-    SettingSpec {
-        key: "tint",
-        kind: SettingKind::Color,
-        summary: "One colour for every light, overriding the palette.",
-    },
+    SettingSpec::new(
+        "glow",
+        SettingKind::Number,
+        "How bright the lights are, from 0 to 2 (default 1).",
+    ),
+    SettingSpec::new(
+        "runners",
+        SettingKind::Bool,
+        "Send runners along line series and edges (default true).",
+    ),
+    SettingSpec::new(
+        "palette",
+        SettingKind::OneOf(&["accent", "warm", "cool"]),
+        "Which theme colours the lights take (default accent).",
+    ),
+    SettingSpec::new(
+        "tint",
+        SettingKind::Color,
+        "One colour for every light, overriding the palette.",
+    ),
 ];
 
 /// The engine as mdeck registers it: `engine: reactive` in a theme.
-pub static DEF: EngineDef = EngineDef {
-    name: "reactive",
-    summary: "Embers rise from bars and runners trace lines; dark behind images.",
-    capabilities: Capabilities::NONE,
-    settings: SETTINGS,
-    // Light on dark: no page needed. An ink engine would ask for one here
-    // (`page: true`) and `mdeck theme check` would report a theme without it.
-    needs: Needs { page: false },
-    ending_caption_delay: 1.0,
+pub static DEF: EngineDef = EngineDef::new(
+    "reactive",
+    "Embers rise from bars and runners trace lines; dark behind images.",
     create,
-    board: None,
-};
+)
+.with_settings(SETTINGS)
+// Light on dark: no page needed. An ink engine would ask for one here
+// (`Needs::NONE.with_page()`) and `mdeck theme check` would report a theme
+// without it.
+.with_needs(Needs::NONE)
+.with_ending_caption_delay(1.0);
 
 /// The showcase theme.
 pub const THEME: &str = include_str!("../themes/signal.yaml");

@@ -7,7 +7,7 @@
 //! countdown and the end words are drawn the same way. Exports show the
 //! finished drawing.
 
-use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Medium, MediumKind, Needs};
+use mdeck_sdk::engine::{Engine, EngineDef, Medium, MediumKind, Needs};
 use mdeck_sdk::paint::{Color, Painter, premul};
 use mdeck_sdk::stage::{Frame, Stage, Strategy};
 
@@ -19,25 +19,16 @@ mod pencil;
 
 /// A sketchbook asks for finished graphite drawings and draws them in with
 /// outlines first, then hatching.
-pub const MEDIUM: Medium = Medium {
-    name: "sketch",
-    kind: MediumKind::Tonal,
-    strategy: Strategy::Hatch,
-};
+pub const MEDIUM: Medium = Medium::new("sketch", MediumKind::Tonal, Strategy::Hatch);
 
-pub static DEF: EngineDef = EngineDef {
-    name: "sketch",
-    summary: "Generated graphite drawings drawn in with a pencil on a sketchbook page.",
-    capabilities: Capabilities {
-        medium: Some(MEDIUM),
-        ..super::art::CAPABILITIES
-    },
-    settings: &[],
-    needs: Needs { page: true },
-    ending_caption_delay: 5.2,
-    create: |_| Box::new(Sketch::new()),
-    board: None,
-};
+pub static DEF: EngineDef = EngineDef::new(
+    "sketch",
+    "Generated graphite drawings drawn in with a pencil on a sketchbook page.",
+    |_| Box::new(Sketch::new()),
+)
+.with_capabilities(super::art::CAPABILITIES.with_medium(MEDIUM))
+.with_needs(Needs::NONE.with_page())
+.with_ending_caption_delay(5.2);
 
 /// The end words hold this long, then fade.
 const END_WORDS: f32 = 3.6;

@@ -13,11 +13,15 @@ use crate::visual::Visual;
 /// Two registrations under one name.
 ///
 /// ```
-/// use mdeck_sdk::registry::RegistryError;
-/// let e = RegistryError { kind: "engine", name: "led".into(), first: "mdeck".into(), second: "my-pack".into() };
-/// assert_eq!(e.to_string(), "engine `led` is registered twice: by mdeck and by my-pack");
+/// use mdeck_sdk::registry::Registry;
+/// let mut r = Registry::new();
+/// r.theme("led", "name: led\n").unwrap();
+/// r.set_origin("my-pack");
+/// let e = r.theme("led", "name: led\n").unwrap_err();
+/// assert_eq!(e.to_string(), "theme `led` is registered twice: by mdeck and by my-pack");
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct RegistryError {
     /// What was registered (`engine`, `visual`, `design set`, `transition`,
     /// `theme`, `point cloud`).
@@ -46,6 +50,7 @@ impl std::error::Error for RegistryError {}
 ///
 /// See [`Registry::registrations`] for an example.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct Registration<'a> {
     /// `engine`, `visual`, `design set`, `transition`, `theme`, `point cloud`
     /// or `font`.
@@ -395,7 +400,7 @@ mod tests {
     use super::*;
     use crate::content::Slide;
     use crate::design::DesignCx;
-    use crate::engine::{Capabilities, Engine, Needs};
+    use crate::engine::Engine;
     use crate::paint::{Painter, Rect};
     use crate::stage::{Frame, Stage};
     use crate::transition::SideLook;
@@ -406,16 +411,7 @@ mod tests {
         fn update(&mut self, _: &Frame, _: &Stage) {}
         fn paint(&mut self, _: &mut Painter, _: &Frame, _: &Stage) {}
     }
-    static NOP: EngineDef = EngineDef {
-        name: "nop",
-        summary: "",
-        capabilities: Capabilities::NONE,
-        settings: &[],
-        needs: Needs { page: false },
-        ending_caption_delay: 0.0,
-        create: |_| Box::new(Nop),
-        board: None,
-    };
+    static NOP: EngineDef = EngineDef::new("nop", "", |_| Box::new(Nop));
 
     struct V;
     impl Visual for V {

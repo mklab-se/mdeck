@@ -28,10 +28,7 @@ pub use trace::Fill;
 
 /// What an art engine can do: show the slide's picture (its generated
 /// artwork, else its point cloud as pen strokes).
-pub const CAPABILITIES: Capabilities = Capabilities {
-    picture: true,
-    ..Capabilities::NONE
-};
+pub const CAPABILITIES: Capabilities = Capabilities::NONE.with_picture();
 
 /// The shared sprite sheet ([`sprite_sheet`]) as a texture, uploaded on
 /// first use.
@@ -245,7 +242,7 @@ impl Canvas {
             }
             self.key = Some(key);
         }
-        if let Moment::Burst { progress } = stage.moment {
+        if let Moment::Burst { progress, .. } = stage.moment {
             self.burst = Some(progress);
         }
         if frame.settled() {
@@ -477,7 +474,7 @@ pub fn fallback_strokes(frame: &Frame, stage: &Stage, now: f32, fill: Fill) -> O
             }
             (vec![toured(&cloud.points, pic.place, aspect)], 2.4, weight)
         }
-        Moment::Burst { .. } => return None,
+        _ => return None,
     };
     Some(plan(strokes, duration, weight, aspect, now))
 }
@@ -550,16 +547,15 @@ mod tests {
             1.0,
         );
         let mut stage = Stage::new(Moment::Slide);
-        stage.picture = Some(Picture {
-            source: PictureSource::Cloud(Arc::new(cloud)),
-            backdrop: false,
-            place: Place {
+        stage.picture = Some(Picture::new(
+            PictureSource::Cloud(Arc::new(cloud)),
+            Place {
                 u: 0.5,
                 v: 0.1,
                 w: 0.4,
                 h: 0.8,
             },
-        });
+        ));
         let mut canvas = Canvas::new(3.0, 0.0, 3.0, 0.5);
         canvas.update(&frame, &stage);
         assert!(canvas.strokes.is_some() && canvas.drawing.is_none());

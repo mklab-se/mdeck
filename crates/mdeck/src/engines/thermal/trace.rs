@@ -78,12 +78,7 @@ mod tests {
 
     #[test]
     fn the_stroke_being_drawn_cools_along_its_length() {
-        let mut s = Annotation {
-            points: vec![Pos2::ZERO; 61],
-            color: Color::WHITE,
-            width: 6.0,
-            age: 0.0,
-        };
+        let mut s = Annotation::new(vec![Pos2::ZERO; 61], Color::WHITE, 6.0);
         assert_eq!(point_age(&s, 60), 0.0, "the newest point is white-hot");
         assert!((point_age(&s, 0) - 1.0).abs() < 1e-6);
         s.age = 2.0;

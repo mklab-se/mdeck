@@ -288,18 +288,16 @@ impl Host {
             .is_some_and(|s| crate::render::ember::is_title(s, shot.index));
         let picture = self.picture(shot, lib, title);
         let slide = shot.slide.map(|s| self.sdk_slide(shot.index, s));
-        let stage = Stage {
-            moment,
-            index: shot.index,
-            step: shot.reveal,
-            slide: slide.as_deref(),
-            title,
-            picture,
-            geometry: &self.hints,
-            geometry_key: self.hints_key,
-            deck_title: shot.deck_title,
-            count: shot.count,
-        };
+        let mut stage = Stage::new(moment);
+        stage.index = shot.index;
+        stage.step = shot.reveal;
+        stage.slide = slide.as_deref();
+        stage.title = title;
+        stage.picture = picture;
+        stage.geometry = &self.hints;
+        stage.geometry_key = self.hints_key;
+        stage.deck_title = shot.deck_title;
+        stage.count = shot.count;
         h::set_font_families(ui.ctx(), convert::font_families(shot.theme));
         let tokens = convert::tokens(shot.theme);
         let mut frame = Frame::new(h::rect(shot.rect), &tokens, &self.settings);
@@ -342,10 +340,10 @@ impl Host {
         }
         let slide = shot.slide?;
         let rect_aspect = shot.rect.width() / shot.rect.height();
-        let placed = |source: PictureSource, aspect: f32| Picture {
-            source,
-            backdrop: title,
-            place: figure_box(aspect, slide.design, rect_aspect, title),
+        let placed = |source: PictureSource, aspect: f32| {
+            let mut p = Picture::new(source, figure_box(aspect, slide.design, rect_aspect, title));
+            p.backdrop = title;
+            p
         };
         if caps.medium.is_some()
             && let Some(art) = shot.art
@@ -423,22 +421,17 @@ impl Host {
         }
         if let Some((phase, progress)) = shot.countdown {
             match phase {
-                CountPhase::Digit(digit) => Moment::Countdown {
-                    digit,
-                    mask: self.digit_mask(ui, shot.theme, digit),
-                    progress,
-                },
-                CountPhase::Burst => Moment::Burst { progress },
+                CountPhase::Digit(digit) => {
+                    Moment::countdown(digit, self.digit_mask(ui, shot.theme, digit), progress)
+                }
+                CountPhase::Burst => Moment::burst(progress),
             }
         } else if shot.end {
             let words = self
                 .end_words
                 .get_or_insert_with(|| text_mask(ui, shot.theme, "THE END"))
                 .clone();
-            Moment::End {
-                elapsed: end_elapsed,
-                words,
-            }
+            Moment::end(end_elapsed, words)
         } else {
             Moment::Slide
         }

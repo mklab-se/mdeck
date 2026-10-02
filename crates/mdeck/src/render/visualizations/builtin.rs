@@ -147,7 +147,7 @@ fn egui_hint(hint: mdeck_sdk::geometry::Hint) -> Option<crate::render::hints::Hi
         },
         S::Point(p) => Hint::Point(h::egui_pos(p)),
         // the copy is the design's to publish, not a visual's
-        S::Text { .. } | S::Copy(_) => return None,
+        _ => return None,
     })
 }
 

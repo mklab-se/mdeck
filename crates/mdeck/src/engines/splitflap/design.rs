@@ -60,6 +60,7 @@ impl DesignSet for Board {
                 tag,
                 content,
                 step_base,
+                ..
             }) if tag == THERMAL => {
                 let panel = panel_rect(&geo).shrink(8.0 * scale);
                 let step = cx.step().saturating_sub(*step_base);

@@ -17,184 +17,152 @@ use crate::theme::Theme;
 
 /// The slide as the SDK's content model.
 pub fn slide(s: &parser::Slide) -> sdk::Slide {
-    sdk::Slide {
-        directives: s
-            .settings
-            .iter()
-            .map(|d| sdk::Directive {
-                name: d.name.clone(),
-                value: d.value.clone(),
-                line: d.line,
-            })
-            .collect(),
-        blocks: blocks(&s.blocks),
-        design: s.design.name().to_string(),
-        raw_source: s.raw_source.clone(),
-        line: s.line,
-        source_lines: s.source_lines.clone(),
-        notes: s.notes.clone(),
-        illustration: s.illustration.clone(),
-        logo: s.logo.clone(),
-        art: s.art.clone(),
-    }
+    let mut out = sdk::Slide::new(s.design.name());
+    out.directives = s
+        .settings
+        .iter()
+        .map(|d| sdk::Directive::new(d.name.clone(), d.value.clone(), d.line))
+        .collect();
+    out.blocks = blocks(&s.blocks);
+    out.raw_source = s.raw_source.clone();
+    out.line = s.line;
+    out.source_lines = s.source_lines.clone();
+    out.notes = s.notes.clone();
+    out.picture = s.illustration.clone();
+    out.logo = s.logo.clone();
+    out.art = s.art.clone();
+    out
 }
 
 fn blocks(bs: &[parser::Block]) -> Vec<sdk::Block> {
     bs.iter().map(block).collect()
 }
 
-/// The inlines of quoted blocks, joined by line breaks: the SDK's quote is
-/// one run of text.
-fn quoted(bs: &[parser::Block]) -> Vec<sdk::Inline> {
-    let mut out = Vec::new();
-    for b in bs {
-        let part = match b {
-            parser::Block::Paragraph { inlines } | parser::Block::Heading { inlines, .. } => {
-                inlines.iter().map(inline).collect()
-            }
-            parser::Block::BlockQuote { blocks } | parser::Block::Callout { blocks, .. } => {
-                quoted(blocks)
-            }
-            parser::Block::List { items, .. } => items
-                .iter()
-                .flat_map(|i| i.inlines.iter().map(inline))
-                .collect(),
-            _ => Vec::new(),
-        };
-        if part.is_empty() {
-            continue;
-        }
-        if !out.is_empty() {
-            out.push(sdk::Inline::Text("\n".into()));
-        }
-        out.extend(part);
-    }
-    out
+fn inlines(v: &[parser::Inline]) -> Vec<sdk::Inline> {
+    v.iter().map(inline).collect()
 }
 
 fn block(b: &parser::Block) -> sdk::Block {
     use parser::Block as B;
     match b {
-        B::Heading { level, inlines } => sdk::Block::Heading {
-            level: *level,
-            inlines: inlines.iter().map(inline).collect(),
-        },
-        B::Paragraph { inlines } => sdk::Block::Paragraph {
-            inlines: inlines.iter().map(inline).collect(),
-        },
-        B::List { ordered, items, .. } => sdk::Block::List {
-            ordered: *ordered,
-            items: items.iter().map(item).collect(),
-        },
+        B::Heading { level, inlines: i } => sdk::Block::heading(*level, inlines(i)),
+        B::Paragraph { inlines: i } => sdk::Block::paragraph(inlines(i)),
+        B::List {
+            ordered,
+            start,
+            items,
+        } => h::list(*ordered, *start, items.iter().map(item).collect()),
         B::Image {
             alt,
             path,
             directives,
-        } => sdk::Block::Image {
-            alt: alt.clone(),
-            path: path.clone(),
-            directives: sdk::ImageDirectives {
-                width: directives.width.clone(),
-                height: directives.height.clone(),
-                fill: directives.fill,
-                fit: false,
-                align: None,
-            },
-        },
+        } => h::image(
+            alt.clone(),
+            path.clone(),
+            directives.width.clone(),
+            directives.height.clone(),
+            directives.fill,
+        ),
         B::CodeBlock {
             language,
             code,
             highlight_lines,
-        } => sdk::Block::CodeBlock {
-            language: language.clone(),
-            code: code.clone(),
-            highlight_lines: highlight_lines.clone(),
-        },
-        B::BlockQuote { blocks } | B::Callout { blocks, .. } => sdk::Block::BlockQuote {
-            inlines: quoted(blocks),
-        },
-        B::Table { headers, rows, .. } => sdk::Block::Table {
-            headers: headers
-                .iter()
-                .map(|c| c.iter().map(inline).collect())
+        } => h::code_block(language.clone(), code.clone(), highlight_lines.clone()),
+        B::BlockQuote { blocks: inner } => sdk::Block::quote(blocks(inner)),
+        B::Callout {
+            kind,
+            blocks: inner,
+        } => sdk::Block::callout(callout(*kind), blocks(inner)),
+        B::Table {
+            headers,
+            align,
+            rows,
+        } => h::table(
+            headers.iter().map(|c| inlines(c)).collect(),
+            align.iter().map(|a| self::align(*a)).collect(),
+            rows.iter()
+                .map(|r| r.iter().map(|c| inlines(c)).collect())
                 .collect(),
-            rows: rows
-                .iter()
-                .map(|r| r.iter().map(|c| c.iter().map(inline).collect()).collect())
-                .collect(),
-        },
+        ),
         B::HorizontalRule => sdk::Block::HorizontalRule,
-        B::Diagram { content, step_base } => sdk::Block::Visual {
-            tag: "architecture".into(),
-            content: content.clone(),
-            step_base: *step_base,
-        },
+        B::Diagram { content, step_base } => {
+            h::visual("architecture".into(), content.clone(), *step_base)
+        }
         B::Chart {
             kind,
             content,
             step_base,
-        } => sdk::Block::Visual {
-            tag: kind.tag().to_string(),
-            content: content.clone(),
-            step_base: *step_base,
-        },
+        } => h::visual(kind.tag().to_string(), content.clone(), *step_base),
         B::ColumnSeparator => sdk::Block::ColumnSeparator,
     }
 }
 
-fn item(i: &parser::ListItem) -> sdk::ListItem {
-    sdk::ListItem {
-        marker: match i.marker {
-            parser::ListMarker::Static => sdk::ListMarker::Static,
-            parser::ListMarker::NextStep => sdk::ListMarker::NextStep,
-            parser::ListMarker::Ordered => sdk::ListMarker::Ordered,
-        },
-        inlines: i.inlines.iter().map(inline).collect(),
-        children: i.children.iter().map(item).collect(),
-        step: i.step,
+fn callout(a: parser::Alert) -> sdk::CalloutKind {
+    use parser::Alert as A;
+    match a {
+        A::Note => sdk::CalloutKind::Note,
+        A::Tip => sdk::CalloutKind::Tip,
+        A::Important => sdk::CalloutKind::Important,
+        A::Warning => sdk::CalloutKind::Warning,
+        A::Caution => sdk::CalloutKind::Caution,
     }
+}
+
+fn align(a: parser::Align) -> sdk::Align {
+    match a {
+        parser::Align::Left => sdk::Align::Left,
+        parser::Align::Center => sdk::Align::Center,
+        parser::Align::Right => sdk::Align::Right,
+    }
+}
+
+fn item(i: &parser::ListItem) -> sdk::ListItem {
+    let marker = match i.marker {
+        parser::ListMarker::Static => sdk::ListMarker::Static,
+        parser::ListMarker::NextStep => sdk::ListMarker::NextStep,
+        parser::ListMarker::Ordered => sdk::ListMarker::Ordered,
+    };
+    let mut out = sdk::ListItem::new(marker, inlines(&i.inlines));
+    out.children = i.children.iter().map(item).collect();
+    out.step = i.step;
+    out.checked = i.checked;
+    out
 }
 
 fn inline(i: &parser::Inline) -> sdk::Inline {
     use parser::Inline as I;
     match i {
         I::Text(s) => sdk::Inline::Text(s.clone()),
-        I::Bold(v) => sdk::Inline::Bold(v.iter().map(inline).collect()),
-        I::Italic(v) => sdk::Inline::Italic(v.iter().map(inline).collect()),
-        I::Strikethrough(v) => sdk::Inline::Strikethrough(v.iter().map(inline).collect()),
+        I::Bold(v) => sdk::Inline::Bold(inlines(v)),
+        I::Italic(v) => sdk::Inline::Italic(inlines(v)),
+        I::Strikethrough(v) => sdk::Inline::Strikethrough(inlines(v)),
         I::Code(s) => sdk::Inline::Code(s.clone()),
-        I::Math { tex, display } => sdk::Inline::Math {
-            tex: tex.clone(),
-            display: *display,
-        },
-        I::Link { text, url } => sdk::Inline::Link {
-            text: text.iter().map(inline).collect(),
-            url: url.clone(),
-        },
+        I::Math { tex, display } => sdk::Inline::math(tex.clone(), *display),
+        I::Link { text, url } => sdk::Inline::link(inlines(text), url.clone()),
     }
 }
 
 /// The theme's colours as tokens.
 pub fn tokens(theme: &Theme) -> Tokens {
     let c = h::color;
-    Tokens {
-        background: c(theme.background),
-        text: c(theme.foreground),
-        heading: c(theme.heading_color),
-        accent: c(theme.accent),
-        accent_soft: c(theme.accent_soft),
-        secondary: c(theme.secondary),
-        muted: c(theme.muted),
-        rule: c(theme.rule),
-        code_background: c(theme.code_background),
-        code_text: c(theme.code_foreground),
-        positive: c(theme.positive),
-        negative: c(theme.negative),
-        series: theme.series.map(c),
-        light: theme.is_light(),
-        particle_light: c(theme.particle_light),
-        particle_cool: c(theme.particle_cool),
-    }
+    let mut t = Tokens::default();
+    t.background = c(theme.background);
+    t.text = c(theme.foreground);
+    t.heading = c(theme.heading_color);
+    t.accent = c(theme.accent);
+    t.accent_soft = c(theme.accent_soft);
+    t.secondary = c(theme.secondary);
+    t.muted = c(theme.muted);
+    t.rule = c(theme.rule);
+    t.code_background = c(theme.code_background);
+    t.code_text = c(theme.code_foreground);
+    t.positive = c(theme.positive);
+    t.negative = c(theme.negative);
+    t.series = theme.series.map(c);
+    t.light = theme.is_light();
+    t.particle_light = c(theme.particle_light);
+    t.particle_cool = c(theme.particle_cool);
+    t
 }
 
 /// The egui family names of the theme's faces, for the SDK's font roles.
@@ -226,13 +194,7 @@ pub fn hint(hint: &Hint, theme: &Theme) -> SdkHint {
         Hint::Copy(r) => SdkHint::Copy(h::rect(*r)),
         Hint::Text { galley, pos, slide } => {
             let (font, color) = heading_font(galley, theme);
-            SdkHint::Text {
-                text: galley.text().to_string(),
-                font,
-                pos: h::pos(*pos),
-                color,
-                slide: *slide,
-            }
+            SdkHint::text(galley.text(), font, h::pos(*pos), color, *slide)
         }
     }
 }
@@ -274,13 +236,13 @@ pub fn hints(ctx: &egui::Context, hint: &Hint, theme: &Theme) -> Vec<SdkHint> {
                 let at = *pos + row.pos.to_vec2() + g.pos.to_vec2()
                     - arow.pos.to_vec2()
                     - ag.pos.to_vec2();
-                out.push(SdkHint::Text {
-                    text: g.chr.to_string(),
+                out.push(SdkHint::text(
+                    g.chr.to_string(),
                     font,
-                    pos: h::pos(at),
+                    h::pos(at),
                     color,
-                    slide: *slide,
-                });
+                    *slide,
+                ));
             }
         }
     });

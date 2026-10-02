@@ -13,6 +13,7 @@ pub(super) fn trim_flag(
     Mask {
         points: pts,
         aspect,
+        ..
     }: Mask,
 ) -> Mask {
     // The flag is the part left of the stem in the top third of the glyph;
@@ -122,6 +123,7 @@ mod tests {
             let Mask {
                 points: pts,
                 aspect,
+                ..
             } = text_mask(ui, &theme, "THE END");
             assert!(pts.len() > 1500, "only {} points", pts.len());
             assert!(aspect > 4.0 && aspect < 9.0, "aspect {aspect}");
@@ -165,6 +167,7 @@ mod tests {
                     let Mask {
                         points: pts,
                         aspect,
+                        ..
                     } = mask;
                     assert!(pts.len() > 300, "{ch}: only {} points", pts.len());
                     assert!(aspect > 0.35 && aspect < 0.9, "{ch}: aspect {aspect}");

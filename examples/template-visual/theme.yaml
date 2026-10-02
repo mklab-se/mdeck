@@ -1,0 +1,16 @@
+# A theme to show the @template-visual visual in. Registered by `register()`, so a
+# deck selects it with `theme: template-visual`. A visual works with every theme:
+# it takes its colours from the theme's tokens.
+name: template-visual
+extends: dark
+colors:
+  accent: "#4cc9f0"
+  series:
+    - "#4cc9f0"
+    - "#f72585"
+    - "#b5e48c"
+    - "#ffb703"
+    - "#9d4edd"
+    - "#ff8fab"
+    - "#90e0ef"
+    - "#e9c46a"

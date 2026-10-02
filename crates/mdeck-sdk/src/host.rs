@@ -192,3 +192,70 @@ pub fn pos(p: egui::Pos2) -> Pos2 {
 pub fn vec2(v: egui::Vec2) -> Vec2 {
     v.sdk()
 }
+
+/// A list block with every field (the host's parser conversion).
+pub fn list(
+    ordered: bool,
+    start: u32,
+    items: Vec<crate::content::ListItem>,
+) -> crate::content::Block {
+    crate::content::Block::List {
+        ordered,
+        start,
+        items,
+    }
+}
+
+/// An image block with its size options.
+pub fn image(
+    alt: String,
+    path: String,
+    width: Option<String>,
+    height: Option<String>,
+    fill: bool,
+) -> crate::content::Block {
+    crate::content::Block::Image {
+        alt,
+        path,
+        directives: crate::content::ImageDirectives {
+            width,
+            height,
+            fill,
+        },
+    }
+}
+
+/// A code block with its highlighted lines.
+pub fn code_block(
+    language: Option<String>,
+    code: String,
+    highlight_lines: Vec<usize>,
+) -> crate::content::Block {
+    crate::content::Block::CodeBlock {
+        language,
+        code,
+        highlight_lines,
+    }
+}
+
+/// A table with its column alignment.
+pub fn table(
+    headers: Vec<Vec<crate::content::Inline>>,
+    align: Vec<crate::content::Align>,
+    rows: Vec<Vec<Vec<crate::content::Inline>>>,
+) -> crate::content::Block {
+    crate::content::Block::Table {
+        headers,
+        align,
+        rows,
+    }
+}
+
+/// A visual block after `step_base` reveal steps.
+pub fn visual(tag: String, content: String, step_base: usize) -> crate::content::Block {
+    crate::content::Block::Visual {
+        tag,
+        content,
+        step_base,
+    }
+}

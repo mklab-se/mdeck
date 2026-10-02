@@ -31,18 +31,23 @@ pub struct Line {
     pub step: usize,
 }
 
-/// The body lines of `slide`: paragraphs, then list items (with `+` items
-/// revealed one step at a time).
+/// The body lines of `slide`: paragraphs, quotes and list items (with `+`
+/// items revealed one step at a time), in reading order.
 pub fn lines(slide: &Slide) -> Vec<Line> {
     let mut out = Vec::new();
     let mut step = 0;
-    let mut items = |list: &[ListItem], out: &mut Vec<Line>| {
-        for item in list {
+    let mut items = |list: &[ListItem], first: Option<u32>, out: &mut Vec<Line>| {
+        for (k, item) in list.iter().enumerate() {
             if item.marker == ListMarker::NextStep {
                 step += 1;
             }
+            // a numbered list counts from its first number (`3.`)
+            let marker = match first {
+                Some(n) => format!("{}.", n as usize + k),
+                None => "·".to_string(),
+            };
             out.push(Line {
-                text: format!("· {}", plain_text(&item.inlines)),
+                text: format!("{marker} {}", plain_text(&item.inlines)),
                 step,
             });
         }
@@ -51,13 +56,30 @@ pub fn lines(slide: &Slide) -> Vec<Line> {
     for block in &slide.blocks {
         match block {
             Block::Heading { .. } if first_heading => first_heading = false,
-            Block::Heading { inlines, .. }
-            | Block::Paragraph { inlines }
-            | Block::BlockQuote { inlines } => out.push(Line {
+            Block::Heading { inlines, .. } | Block::Paragraph { inlines, .. } => out.push(Line {
                 text: plain_text(inlines),
                 step: 0,
             }),
-            Block::List { items: list, .. } => items(list, &mut out),
+            Block::BlockQuote { blocks, .. } => out.push(Line {
+                text: format!("“{}”", plain_text(&Block::quote_text(blocks))),
+                step: 0,
+            }),
+            Block::Callout { kind, blocks, .. } => out.push(Line {
+                text: format!(
+                    "{}: {}",
+                    kind.label(),
+                    plain_text(&Block::quote_text(blocks))
+                ),
+                step: 0,
+            }),
+            Block::List {
+                ordered,
+                start,
+                items: list,
+                ..
+            } => items(list, ordered.then_some(*start), &mut out),
+            // Blocks this set does not show (see `unsupported`), and kinds
+            // added in a later SDK.
             _ => {}
         }
     }
@@ -149,43 +171,38 @@ mod tests {
 
     #[test]
     fn lists_reveal_step_by_step() {
-        let item = |marker, s: &str| ListItem {
-            marker,
-            inlines: text(s),
-            children: vec![],
-            step: usize::from(marker == ListMarker::NextStep),
+        let item = |marker, s: &str| {
+            let mut item = ListItem::new(marker, text(s));
+            item.step = usize::from(marker == ListMarker::NextStep);
+            item
         };
-        let slide = Slide {
-            blocks: vec![
-                Block::Heading {
-                    level: 2,
-                    inlines: text("Title"),
-                },
-                Block::List {
-                    ordered: false,
-                    items: vec![
-                        item(ListMarker::Static, "a"),
-                        item(ListMarker::NextStep, "b"),
-                    ],
-                },
-            ],
-            ..Default::default()
-        };
+        let mut slide = Slide::new("bullet");
+        slide.blocks = vec![
+            Block::heading(2, text("Title")),
+            Block::list(vec![
+                item(ListMarker::Static, "a"),
+                item(ListMarker::NextStep, "b"),
+            ]),
+        ];
         let l = lines(&slide);
         assert_eq!((l[0].step, l[1].step), (0, 1));
     }
 
     #[test]
+    fn numbered_lists_count_from_their_start() {
+        let mut slide = Slide::new("bullet");
+        slide.blocks = vec![Block::ordered_list(
+            3,
+            vec![ListItem::new(ListMarker::Ordered, text("c"))],
+        )];
+        assert_eq!(lines(&slide)[0].text, "3. c");
+    }
+
+    #[test]
     fn reports_what_it_cannot_show() {
-        let slide = Slide {
-            line: 12,
-            blocks: vec![Block::Visual {
-                tag: "bar".into(),
-                content: String::new(),
-                step_base: 0,
-            }],
-            ..Default::default()
-        };
+        let mut slide = Slide::new("visual");
+        slide.line = 12;
+        slide.blocks = vec![Block::visual("bar", "")];
         let p = Poster.unsupported(&slide);
         assert_eq!(p.len(), 1);
         assert_eq!(p[0].line, Some(12));

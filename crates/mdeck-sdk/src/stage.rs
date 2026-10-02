@@ -12,17 +12,23 @@ use crate::tokens::{EngineSettings, Tokens};
 
 /// What the engine is showing.
 ///
+/// New moments may be added in a 2.x release: match with a wildcard arm.
+/// Build the moments that carry data with [`Moment::countdown`],
+/// [`Moment::burst`] and [`Moment::end`].
+///
 /// ```
 /// use mdeck_sdk::stage::{Look, Moment};
 /// assert_eq!(Moment::Slide.look(2.0), Look::Slide);
-/// assert_eq!(Moment::Burst { progress: 0.5 }.look(2.0), Look::Burst);
+/// assert_eq!(Moment::burst(0.5).look(2.0), Look::Burst);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum Moment {
     /// A slide (see [`Stage::slide`]).
     Slide,
     /// The opening countdown shows `digit` (3, 2 or 1), with its glyph mask
     /// and progress through its hold (0..1).
+    #[non_exhaustive]
     Countdown {
         /// 3, 2 or 1.
         digit: u8,
@@ -32,12 +38,14 @@ pub enum Moment {
         progress: f32,
     },
     /// The last digit leaves and the first slide arrives (0..1).
+    #[non_exhaustive]
     Burst {
         /// 0..1 through the burst.
         progress: f32,
     },
     /// The end slide, `elapsed` seconds after it was entered, with the
     /// words "THE END" as a mask.
+    #[non_exhaustive]
     End {
         /// Seconds since the end slide was entered.
         elapsed: f32,
@@ -54,6 +62,7 @@ pub enum Moment {
 /// assert_ne!(Look::Digit(3), Look::Digit(2));
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Look {
     /// A slide.
     Slide,
@@ -68,13 +77,43 @@ pub enum Look {
 }
 
 impl Moment {
+    /// The countdown showing `digit` (3, 2 or 1) as `mask`, `progress`
+    /// (0..1) through its hold.
+    ///
+    /// ```
+    /// use mdeck_sdk::{cloud::Mask, stage::{Look, Moment}};
+    /// let m = Moment::countdown(3, Mask::new(vec![], 0.6), 0.5);
+    /// assert_eq!(m.look(2.0), Look::Digit(3));
+    /// ```
+    pub fn countdown(digit: u8, mask: Mask, progress: f32) -> Self {
+        Moment::Countdown {
+            digit,
+            mask,
+            progress,
+        }
+    }
+
+    /// The burst after the last digit, `progress` (0..1) through it.
+    ///
+    /// See [`Moment`] for an example.
+    pub fn burst(progress: f32) -> Self {
+        Moment::Burst { progress }
+    }
+
+    /// The end slide, `elapsed` seconds in, with the end `words` as a mask.
+    ///
+    /// See [`Moment::look`] for an example.
+    pub fn end(elapsed: f32, words: Mask) -> Self {
+        Moment::End { elapsed, words }
+    }
+
     /// What this moment shows. The end shows its words for `end_words`
     /// seconds, then clears.
     ///
     /// ```
     /// use mdeck_sdk::cloud::Mask;
     /// use mdeck_sdk::stage::{Look, Moment};
-    /// let end = |t| Moment::End { elapsed: t, words: Mask::new(vec![], 5.0) };
+    /// let end = |t| Moment::end(t, Mask::new(vec![], 5.0));
     /// assert_eq!(end(1.0).look(3.0), Look::EndWords);
     /// assert_eq!(end(4.0).look(3.0), Look::EndOut);
     /// ```
@@ -148,13 +187,7 @@ pub enum Strategy {
 ///
 /// ```
 /// use mdeck_sdk::stage::{Artwork, Strategy};
-/// let art = Artwork {
-///     width: 2, height: 1,
-///     rgba: vec![[255, 255, 255, 255]; 2],
-///     when: vec![0, 65535],
-///     path: vec![],
-///     strategy: Strategy::Draw,
-/// };
+/// let art = Artwork::new(2, 1, vec![[255, 255, 255, 255]; 2], vec![0, 65535], Strategy::Draw);
 /// assert_eq!(art.aspect(), 0.5);
 /// assert_eq!(art.coverage(0.5, 0.0), [1.0, 0.0]);
 /// ```
@@ -177,6 +210,28 @@ pub struct Artwork {
 }
 
 impl Artwork {
+    /// A `width` by `height` picture of straight RGBA pixels, row by row,
+    /// each appearing at `when` (0..=65535 over the reveal), revealed with
+    /// `strategy`, with no drawing-hand path (set [`Artwork::path`] for one).
+    ///
+    /// See [`Artwork`] for an example.
+    pub fn new(
+        width: usize,
+        height: usize,
+        rgba: Vec<[u8; 4]>,
+        when: Vec<u16>,
+        strategy: Strategy,
+    ) -> Self {
+        Self {
+            width,
+            height,
+            rgba,
+            when,
+            path: Vec::new(),
+            strategy,
+        }
+    }
+
     /// Height over width.
     ///
     /// See [`Artwork`] for an example.
@@ -206,6 +261,8 @@ impl Artwork {
 
 /// Where a slide's picture comes from.
 ///
+/// New sources may be added in a 2.x release: match with a wildcard arm.
+///
 /// ```
 /// use std::sync::Arc;
 /// use mdeck_sdk::{cloud::Cloud, stage::PictureSource};
@@ -213,6 +270,7 @@ impl Artwork {
 /// assert!(matches!(s, PictureSource::Cloud(_)));
 /// ```
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub enum PictureSource {
     /// A point cloud (`<!-- picture: name -->`).
     Cloud(Arc<Cloud>),
@@ -227,14 +285,14 @@ pub enum PictureSource {
 /// ```
 /// use std::sync::Arc;
 /// use mdeck_sdk::{cloud::Cloud, stage::{Picture, PictureSource, Place}};
-/// let p = Picture {
-///     source: PictureSource::Cloud(Arc::new(Cloud::new("owl", vec![], 1.0))),
-///     backdrop: false,
-///     place: Place { u: 0.55, v: 0.1, w: 0.4, h: 0.8 },
-/// };
+/// let p = Picture::new(
+///     PictureSource::Cloud(Arc::new(Cloud::new("owl", vec![], 1.0))),
+///     Place { u: 0.55, v: 0.1, w: 0.4, h: 0.8 },
+/// );
 /// assert!(!p.backdrop);
 /// ```
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct Picture {
     /// What to show.
     pub source: PictureSource,
@@ -243,6 +301,19 @@ pub struct Picture {
     pub backdrop: bool,
     /// Where it goes.
     pub place: Place,
+}
+
+impl Picture {
+    /// `source` standing at `place` (not a backdrop).
+    ///
+    /// See [`Picture`] for an example.
+    pub fn new(source: PictureSource, place: Place) -> Self {
+        Self {
+            source,
+            backdrop: false,
+            place,
+        }
+    }
 }
 
 /// Everything about what is shown that an engine may use.
@@ -254,6 +325,7 @@ pub struct Picture {
 /// assert!(s.slide.is_none());
 /// ```
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct Stage<'a> {
     /// The moment.
     pub moment: Moment,
@@ -310,6 +382,7 @@ impl<'a> Stage<'a> {
 /// assert_eq!(f.scale, 0.5);
 /// ```
 #[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
 pub struct Frame<'a> {
     /// The slide's rect on screen (or on the export canvas).
     pub rect: Rect,
@@ -367,14 +440,7 @@ mod tests {
 
     #[test]
     fn develop_coverage_is_eased() {
-        let mut art = Artwork {
-            width: 1,
-            height: 1,
-            rgba: vec![[0; 4]],
-            when: vec![0],
-            path: vec![],
-            strategy: Strategy::Draw,
-        };
+        let mut art = Artwork::new(1, 1, vec![[0; 4]], vec![0], Strategy::Draw);
         let linear = art.coverage(0.25, 0.5)[0];
         art.strategy = Strategy::Develop;
         let eased = art.coverage(0.25, 0.5)[0];

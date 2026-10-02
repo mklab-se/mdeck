@@ -13,24 +13,24 @@ use mdeck_sdk::stage::{Frame, Stage};
 use mdeck_sdk::tokens::EngineSettings;
 
 /// The engine as mdeck sees it. A theme selects it with `engine: template-engine`.
-pub static DEF: EngineDef = EngineDef {
-    name: "template-engine",
-    summary: "A few slow glows breathing under every slide.",
-    // What the core must do for this engine. NONE: it only decorates.
-    // Set `picture`, `countdown` or `ending` to receive the slide's picture,
-    // draw the countdown, or play the end act (see the SDK tutorial).
-    capabilities: Capabilities::NONE,
-    // The settings this engine reads from the theme's `engine:` block.
-    settings: &[],
-    // What the engine needs from the theme (`page: true` for a sheet).
-    needs: Needs { page: false },
-    // Seconds into the end slide before the "made with mdeck" caption.
-    ending_caption_delay: 1.0,
+pub static DEF: EngineDef = EngineDef::new(
+    "template-engine",
+    "A few slow glows breathing under every slide.",
     // Makes a running engine; it may read its settings here.
-    create: |_settings: &EngineSettings| Box::new(Glow::default()),
-    // Only board engines (which draw whole slides) set a design set here.
-    board: None,
-};
+    |_settings: &EngineSettings| Box::new(Glow::default()),
+)
+// What the core must do for this engine. NONE: it only decorates. Use
+// `Capabilities::NONE.with_picture()` (and `with_countdown`, `with_ending`)
+// to receive the slide's picture, draw the countdown, or play the end act
+// (see the SDK tutorial).
+.with_capabilities(Capabilities::NONE)
+// The settings this engine reads from the theme's `engine:` block.
+.with_settings(&[])
+// What the engine needs from the theme (`Needs::NONE.with_page()` for a sheet).
+.with_needs(Needs::NONE)
+// Seconds into the end slide before the "made with mdeck" caption.
+.with_ending_caption_delay(1.0);
+// Only board engines (which draw whole slides) add `.with_board(&SET)`.
 
 /// The entry point `mdeck build --with` calls: register what this crate brings.
 pub fn register(r: &mut Registry) -> Result<(), RegistryError> {

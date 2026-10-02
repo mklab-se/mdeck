@@ -15,16 +15,16 @@ use mdeck_sdk::tokens::EngineSettings;
 /// The settings this engine reads from the theme's `engine:` block. mdeck
 /// uses this list to check themes and to show the settings to authors.
 pub const SETTINGS: &[SettingSpec] = &[
-    SettingSpec {
-        key: "speed",
-        kind: SettingKind::Number,
-        summary: "How fast the curtain moves, from 0 to 3 (default 1).",
-    },
-    SettingSpec {
-        key: "height",
-        kind: SettingKind::Number,
-        summary: "How tall the curtain is, from 0.5 to 2 (default 1).",
-    },
+    SettingSpec::new(
+        "speed",
+        SettingKind::Number,
+        "How fast the curtain moves, from 0 to 3 (default 1).",
+    ),
+    SettingSpec::new(
+        "height",
+        SettingKind::Number,
+        "How tall the curtain is, from 0.5 to 2 (default 1).",
+    ),
 ];
 
 /// The settings, read once when the engine starts.
@@ -66,29 +66,29 @@ impl Settings {
 }
 
 /// The engine as mdeck sees it. A theme selects it with `engine: aurora`.
-pub static DEF: EngineDef = EngineDef {
-    name: "aurora",
-    summary: "Northern lights ripple across the top of every slide.",
-    // What the core must do for this engine. NONE: it only decorates.
-    // Set `picture`, `countdown` or `ending` to receive the slide's picture,
-    // draw the countdown, or play the end act (see the SDK tutorial).
-    capabilities: Capabilities::NONE,
-    // The settings this engine reads from the theme's `engine:` block.
-    settings: SETTINGS,
-    // What the engine needs from the theme (`page: true` for a sheet).
-    needs: Needs { page: false },
-    // Seconds into the end slide before the "made with mdeck" caption.
-    ending_caption_delay: 1.0,
+pub static DEF: EngineDef = EngineDef::new(
+    "aurora",
+    "Northern lights ripple across the top of every slide.",
     // Makes a running engine; it may read its settings here.
-    create: |settings: &EngineSettings| {
+    |settings: &EngineSettings| {
         Box::new(Aurora {
             settings: Settings::read(settings),
             ..Aurora::default()
         })
     },
-    // Only board engines (which draw whole slides) set a design set here.
-    board: None,
-};
+)
+// What the core must do for this engine. NONE: it only decorates. Use
+// `Capabilities::NONE.with_picture()` (and `with_countdown`, `with_ending`)
+// to receive the slide's picture, draw the countdown, or play the end act
+// (see the SDK tutorial).
+.with_capabilities(Capabilities::NONE)
+// The settings this engine reads from the theme's `engine:` block.
+.with_settings(SETTINGS)
+// What the engine needs from the theme (`Needs::NONE.with_page()` for a sheet).
+.with_needs(Needs::NONE)
+// Seconds into the end slide before the "made with mdeck" caption.
+.with_ending_caption_delay(1.0);
+// Only board engines (which draw whole slides) add `.with_board(&SET)`.
 
 /// The entry point `mdeck build --with` calls: register what this crate brings.
 pub fn register(r: &mut Registry) -> Result<(), RegistryError> {

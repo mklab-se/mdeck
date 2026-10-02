@@ -14,25 +14,22 @@
 //!
 //! The walkthrough is `docs/sdk/tutorial-1-ambience.md`.
 
-use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Needs};
+use mdeck_sdk::engine::{Engine, EngineDef};
 use mdeck_sdk::paint::{Color, Painter, Sprite, SpriteBlend, SpriteLayer, smoothstep};
 use mdeck_sdk::registry::{Registry, RegistryError};
 use mdeck_sdk::stage::{Frame, Stage};
 use mdeck_sdk::tokens::{EngineSettings, Tokens};
 
 /// The engine as mdeck registers it: `engine: ambience` in a theme.
-pub static DEF: EngineDef = EngineDef {
-    name: "ambience",
-    summary: "Soft lights drift slowly under every slide.",
-    // It only decorates: no pictures, no countdown, no end act.
-    capabilities: Capabilities::NONE,
-    // It reads no settings from the theme's `engine:` block.
-    settings: &[],
-    needs: Needs { page: false },
-    ending_caption_delay: 1.0,
+// It only decorates: no pictures, no countdown, no end act, and it reads
+// no settings from the theme's `engine:` block, so the defaults of
+// `EngineDef::new` are all it needs.
+pub static DEF: EngineDef = EngineDef::new(
+    "ambience",
+    "Soft lights drift slowly under every slide.",
     create,
-    board: None,
-};
+)
+.with_ending_caption_delay(1.0);
 
 /// The showcase theme: a deep blue night for the soft lights.
 pub const THEME: &str = include_str!("../themes/dusk.yaml");

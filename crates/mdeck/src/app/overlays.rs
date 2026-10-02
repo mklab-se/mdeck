@@ -159,29 +159,30 @@ impl PresentationApp {
             .strokes
             .iter()
             .filter(|s| s.slide_index == idx && s.points.len() >= 2)
-            .map(|s| mdeck_sdk::engine::Annotation {
-                points: s
-                    .points
-                    .iter()
-                    .map(|p| pos(self.local_to_screen(*p)))
-                    .collect(),
-                color,
-                width,
-                age: s.start.elapsed().as_secs_f32().max(1e-3),
+            .map(|s| {
+                let mut a = mdeck_sdk::engine::Annotation::new(
+                    s.points
+                        .iter()
+                        .map(|p| pos(self.local_to_screen(*p)))
+                        .collect(),
+                    color,
+                    width,
+                );
+                a.age = s.start.elapsed().as_secs_f32().max(1e-3);
+                a
             })
             .collect();
         if let ActiveDraw::PenDrawing { points } = &self.ink.active
             && points.len() >= 2
         {
-            strokes.push(mdeck_sdk::engine::Annotation {
-                points: points
+            strokes.push(mdeck_sdk::engine::Annotation::new(
+                points
                     .iter()
                     .map(|p| pos(self.local_to_screen(*p)))
                     .collect(),
                 color,
                 width,
-                age: 0.0,
-            });
+            ));
         }
         if strokes.is_empty() {
             return false;

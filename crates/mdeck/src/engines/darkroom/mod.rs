@@ -7,7 +7,7 @@
 //! a black print. The countdown and the end words glow the same way.
 //! Exports show the finished print.
 
-use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Medium, MediumKind, Needs};
+use mdeck_sdk::engine::{Engine, EngineDef, Medium, MediumKind};
 use mdeck_sdk::paint::{
     Color, Mesh, Painter, Pos2, Rect, SPRITE_GLOW, Stroke, Vec2, additive, mix, premul, smoothstep,
 };
@@ -17,25 +17,15 @@ use super::art::strokes::{Strokes, to_screen};
 use super::art::{Canvas, Drawing, Hand, Reveal, Sprites};
 
 /// A darkroom asks for photographs and develops them.
-pub const MEDIUM: Medium = Medium {
-    name: "darkroom",
-    kind: MediumKind::Tonal,
-    strategy: Strategy::Develop,
-};
+pub const MEDIUM: Medium = Medium::new("darkroom", MediumKind::Tonal, Strategy::Develop);
 
-pub static DEF: EngineDef = EngineDef {
-    name: "darkroom",
-    summary: "Generated photographs that develop under a red safelight.",
-    capabilities: Capabilities {
-        medium: Some(MEDIUM),
-        ..super::art::CAPABILITIES
-    },
-    settings: &[],
-    needs: Needs { page: false },
-    ending_caption_delay: 5.4,
-    create: |_| Box::new(Darkroom::new()),
-    board: None,
-};
+pub static DEF: EngineDef = EngineDef::new(
+    "darkroom",
+    "Generated photographs that develop under a red safelight.",
+    |_| Box::new(Darkroom::new()),
+)
+.with_capabilities(super::art::CAPABILITIES.with_medium(MEDIUM))
+.with_ending_caption_delay(5.4);
 
 /// The end words hold this long, then fade.
 const END_WORDS: f32 = 3.8;

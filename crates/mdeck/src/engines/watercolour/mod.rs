@@ -6,7 +6,7 @@
 //! drawn in ink with a loose wash beside it; the countdown and the end
 //! words are painted the same way. Exports show the dry painting.
 
-use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Medium, MediumKind, Needs};
+use mdeck_sdk::engine::{Engine, EngineDef, Medium, MediumKind, Needs};
 use mdeck_sdk::paint::{Color, Painter, Rect, Stroke, Vec2, mix, premul};
 use mdeck_sdk::stage::{Frame, Stage, Strategy};
 use mdeck_sdk::tokens::Tokens;
@@ -16,25 +16,16 @@ use super::art::{Canvas, Drawing, Hand, Reveal};
 use super::hash01;
 
 /// Watercolour asks for finished paintings and lets them bloom.
-pub const MEDIUM: Medium = Medium {
-    name: "watercolour",
-    kind: MediumKind::Tonal,
-    strategy: Strategy::Bloom,
-};
+pub const MEDIUM: Medium = Medium::new("watercolour", MediumKind::Tonal, Strategy::Bloom);
 
-pub static DEF: EngineDef = EngineDef {
-    name: "watercolour",
-    summary: "Generated paintings that bloom onto cold-press paper.",
-    capabilities: Capabilities {
-        medium: Some(MEDIUM),
-        ..super::art::CAPABILITIES
-    },
-    settings: &[],
-    needs: Needs { page: true },
-    ending_caption_delay: 5.4,
-    create: |_| Box::new(Watercolour::new()),
-    board: None,
-};
+pub static DEF: EngineDef = EngineDef::new(
+    "watercolour",
+    "Generated paintings that bloom onto cold-press paper.",
+    |_| Box::new(Watercolour::new()),
+)
+.with_capabilities(super::art::CAPABILITIES.with_medium(MEDIUM))
+.with_needs(Needs::NONE.with_page())
+.with_ending_caption_delay(5.4);
 
 /// The end words hold this long, then fade.
 const END_WORDS: f32 = 3.8;

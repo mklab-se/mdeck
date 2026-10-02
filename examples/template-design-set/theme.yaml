@@ -1,0 +1,8 @@
+# A theme that arranges every slide with the template-design-set design set.
+# Registered by `register()`, so a deck selects it with `theme: template-design-set`.
+name: template-design-set
+extends: dark
+designs: template-design-set
+colors:
+  background: "#101014"
+  accent: "#ffd166"
