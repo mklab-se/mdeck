@@ -36,6 +36,26 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
   line in the file: lines that are neither a setting nor an item, settings after the first item,
   unknown settings and attributes, and values that do not parse (a bar without a number, a Gantt
   duration such as `2 weeks`, a link to a name that is not in the diagram).
+- **`mdeck sdk new <engine|visual|design-set|transition> <name>`** creates an extension crate
+  that builds and tests as it is, from the SDK's scaffold templates (`--dir` picks the folder; it
+  never writes into a folder that is not empty).
+- **`mdeck build --with <path|crate[@version]>...`** builds an mdeck with extension crates in
+  it: a generated cargo project in the cache folder registers the built-ins and each extension,
+  compiles in release mode and copies the binary to `./target/release/mdeck` (`--out`, `--name`,
+  `--mdeck-path`).
+- **Packs**: themes, designs, point clouds, styles and fonts with an `mdeck-pack.yaml` manifest.
+  `mdeck pack install <folder|zip|git-url>` (user folder, or `--deck` for the deck's `packs/`),
+  `mdeck pack list` and `mdeck pack remove`. Point clouds in packs resolve after the deck's and
+  the user's and before the built-ins.
+- **`requires:`** in the frontmatter names the packs and extensions a deck expects; `--check`
+  warns about each one that is not installed (category `extensions`). Frontmatter lists
+  (`[a, b]`) now read as `a, b` instead of being dropped.
+- **`mdeck extensions list`** shows installed packs, the engines, visuals, transitions and themes
+  this mdeck provides with their origin, and the configured external visual programs.
+- **Visuals in any language**: `visuals: { <tag>: <command> }` in the config maps a fence tag to a
+  program that reads the fence, theme colours and size as JSON on stdin and writes a PNG; its
+  output is cached in `<deck>.assets/visuals/`, so presenting never runs it (see
+  [Writing a visual kind](docs/sdk/visuals.md#visuals-in-any-language)).
 
 ### Changed
 

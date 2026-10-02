@@ -22,7 +22,7 @@ pub(super) fn contribute(name: &str, no_open: bool, quiet: bool) -> Result<()> {
         bail!("no illustration named `{name}` (run `mdeck illustration list`)");
     };
     let path = match &src {
-        Source::Deck(p) | Source::User(p) => p.clone(),
+        Source::Deck(p) | Source::User(p) | Source::Pack(p) => p.clone(),
         Source::Builtin => bail!("`{name}` is already a built-in illustration"),
     };
     // GitHub attaches .json, not .mdpc

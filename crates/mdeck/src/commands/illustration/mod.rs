@@ -159,7 +159,7 @@ fn list() {
     let width = entries.iter().map(|(n, _, _)| n.len()).max().unwrap_or(4);
     for (name, src, shadowed) in entries {
         let mut line = format!("{:width$}  {}", name.bold(), src.label());
-        if let Source::Deck(p) | Source::User(p) = &src {
+        if let Source::Deck(p) | Source::User(p) | Source::Pack(p) = &src {
             line.push_str(&format!("  {}", p.display().to_string().dimmed()));
         }
         if !shadowed.is_empty() {

@@ -33,6 +33,13 @@ mdeck ai skill [--emit | --reference]
 mdeck ai enable | disable | test   # provider setup and check
 mdeck ai config                    # interactive provider and model wizard
 mdeck ai style list | add | remove | clear | set-default | set-icon-default | show-defaults   # add --reference <image>
+
+mdeck sdk new <kind> <name>        # an extension crate: engine, visual, design-set or transition (--dir)
+mdeck build --with <path|crate[@version]>...   # an mdeck with extensions built in (--out, --name, --mdeck-path)
+mdeck pack install <path|zip|git-url>          # install a pack for the user (--deck: into ./packs)
+mdeck pack list                    # packs installed for the user and in ./packs
+mdeck pack remove <name>           # remove a pack (--deck)
+mdeck extensions list              # packs, engines, visuals, transitions, themes and external visual programs, with origins
 ```
 
 The deck forms of `mdeck ai` (bare, `images`, `icons`, `pictures`, `point-cloud`) take
@@ -40,6 +47,37 @@ The deck forms of `mdeck ai` (bare, `images`, `icons`, `pictures`, `point-cloud`
 recorded in `<deck>.assets/manifest.yaml` (see [AI](ai.md#generated-assets)).
 
 Global flags: `-q/--quiet`, `-v/--verbose`, `--no-color`.
+
+## Extending mdeck
+
+**Code extensions** are Rust crates written against `mdeck-sdk` ([SDK](sdk/README.md)).
+`mdeck sdk new engine glow` creates one in `./glow` that builds and tests as it is; it refuses to
+write into a folder that is not empty. `mdeck build --with ./glow` generates a cargo project in
+the cache folder (`~/Library/Caches/mdeck/build/` on macOS, `~/.cache/mdeck/build/` on Linux)
+that registers mdeck's built-ins and then each extension, compiles it in release mode, copies the
+binary to `./target/release/mdeck` (or `--out`, a file or a folder; `--name` names the binary)
+and prints its path. Extensions are crate folders or crates.io names (`acme-engines@1.2`). mdeck
+itself comes from the checkout the running mdeck was built from (or `--mdeck-path`, or the
+`MDECK_SOURCE` environment variable), else from crates.io at the running version. It needs a
+Rust toolchain ([rustup.rs](https://rustup.rs)); the people you give the binary to do not.
+
+**Packs** are data extensions: a folder (or a `.zip` of one, or a repository URL) with an
+`mdeck-pack.yaml` and any of `themes/`, `designs/`, `point-clouds/`, `styles/` and `fonts/`:
+
+```yaml
+name: acme-brand          # lowercase letters, digits, hyphens; the install folder's name
+version: 1.2.0
+description: Acme's themes and point clouds
+min-mdeck: "2.0"          # optional: older mdecks refuse the pack
+```
+
+`mdeck pack install` copies a pack into the user folder (`~/.config/mdeck/packs/<name>/`,
+replacing an installed pack of the same name) or, with `--deck`, into `./packs/<name>/` next to
+the deck, so the deck carries it. Themes and point clouds are looked up in the deck's own
+folder, then the user's, then packs (the deck's packs first), then the built-ins.
+
+A deck names what it expects with `requires: [acme-brand, glow]` in its frontmatter; `--check`
+(category `extensions`) warns about each pack or extension this mdeck does not have.
 
 Shell completions:
 
