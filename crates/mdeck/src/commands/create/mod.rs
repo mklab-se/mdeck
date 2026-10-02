@@ -81,8 +81,15 @@ pub async fn run(args: DeckArgs, quiet: bool) -> Result<()> {
     }
 
     // Step 5: Generate the presentation
-    let (presentation_md, opportunities) =
-        pipeline::run_pipeline(&client, &content, &context, &args.style, quiet).await?;
+    let (presentation_md, opportunities) = pipeline::run_pipeline(
+        &client,
+        &content,
+        &context,
+        &args.style,
+        &output_file,
+        quiet,
+    )
+    .await?;
 
     // Step 6: Write output
     write_presentation(&output_dir, &output_file, &presentation_md, quiet)?;
