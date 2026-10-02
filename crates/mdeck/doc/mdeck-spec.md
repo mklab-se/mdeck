@@ -63,7 +63,8 @@ transition comes from its `transition` setting, then the theme's
 `transition:` (section 9.4), then the user config (`defaults.transition`),
 then the built-in `fade`; a blank or unknown value passes to the next in
 line. Reduced motion shows no transitions, and a board engine (section 9.6)
-draws its own.
+draws its own: `mdeck --check` reports a slide's `transition` or `zoom-to` there,
+since it has no effect.
 
 **Parser rule:** If the document starts with a line that is exactly `---`, begin parsing YAML until a closing `---` line. If no closing `---` is found, there is no frontmatter and the whole file is slides. If the YAML is invalid, each `key: value` line is still read on its own.
 
