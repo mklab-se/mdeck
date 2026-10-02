@@ -58,8 +58,6 @@ release notes (`CHANGELOG.md`, "Deferred to 2.x") carry the same list.
 
 **Pictures and visuals**
 
-- `picture:` naming an image file: the host resolves it, but no engine draws an image picture and
-  `--check` reports the path as an invalid point cloud name (PIC-02, step 3).
 - A generated artwork shows on any slide the art pipeline has one for, also where the design has
   no stage; point clouds follow the design (ENG-14).
 - Diagram icons and point clouds have separate name vocabularies (`database` against `db`)
@@ -69,15 +67,12 @@ release notes (`CHANGELOG.md`, "Deferred to 2.x") carry the same list.
 
 - `--check -v` does not say that a theme's engine settings are ignored when the deck or
   `--engine` runs another engine (THM-11, ENG-11).
-- `--check` does not warn that a slide's `transition` has no effect on a board engine (RUN-10).
 - `--check --json` (RUN-22).
 - Editor completion generated from the language table (LANG-04).
 
 **Presenting, export and AI**
 
 - Video or animated export (RUN-18, decision Q13).
-- `mdeck ai deck` does not check the deck it writes and ask again with the problems, and a
-  malformed scene reply in `mdeck ai pictures` fails without a second request (GEN-07).
 - The split-flap board shows the empty panel colour while a panel image is still loading.
 - Inline images in a copy column sit in a fixed box (60% of the column width, at most 400 px), so
   a portrait image is letterboxed.
@@ -85,8 +80,6 @@ release notes (`CHANGELOG.md`, "Deferred to 2.x") carry the same list.
 
 **Code**
 
-- Two internal modules keep v1 names: `render::ember` (the editorial chrome, and the
-  `ember-hints` store id) and `render::illustration` (point clouds) (CON-02, CON-03).
 - mdeck's tests that read `docs/`, `samples/` or `examples/` run from the repository only, not
   from the published crate.
 

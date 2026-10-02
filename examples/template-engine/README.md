@@ -40,8 +40,9 @@ The first test run records `tests/golden/template-engine.png`. Commit it.
 
 ## Version control and sharing
 
+The generated `.gitignore` keeps `target/`, `*.actual.png` and `out/` out of the repository.
+
 ```bash
-printf 'target/\n*.actual.png\nout/\n' > .gitignore
 git init -b main && git add . && git commit -m "The template-engine engine"
 git tag v0.1.0
 ```

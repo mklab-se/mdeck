@@ -57,8 +57,10 @@ image, code, a chart, a table or columns have no stage, and neither does the sta
 for a picture it cannot show, or one that does not exist.
 
 `picture` resolves in this order: the slide's generated artwork on an art engine (below), then a
-point cloud of that name, then an image file at that path (`<!-- picture: art/bridge.png -->`),
-which the engine draws in its own way.
+point cloud of that name, then an image file at that path, relative to the deck
+(`<!-- picture: art/bridge.png -->`). mdeck draws an image itself, framed on the stage (or dim
+behind a title), so it shows on every engine, `plain` included; only the split-flap board, which
+draws the whole slide, leaves it out.
 
 Thirty-eight pictures are built in: people (`person`, `man`, `woman`, `hooded`,
 `thermographer`, `presenter-up`, `presenter-down`), things (`laptop`, `server`, `phone`, `globe`,

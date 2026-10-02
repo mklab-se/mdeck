@@ -4,14 +4,15 @@ pub mod board;
 pub mod context;
 pub mod designs;
 pub mod diagram;
-pub mod ember;
+pub mod editorial;
 pub mod fonts;
 pub mod hints;
-pub mod illustration;
 pub mod image_cache;
 pub mod logo;
 pub mod math;
 pub mod page;
+pub mod picture;
+pub mod point_cloud;
 pub mod syntax;
 pub mod text;
 pub mod thermal;
@@ -90,6 +91,7 @@ pub fn render_slide(cx: &BlockCx, slide: &Slide, rect: egui::Rect, slide_cx: &Sl
         board::render(set, cx, slide, rect, slide_cx, false);
         return;
     }
+    picture::draw_image(cx, slide, rect);
     designs::render(cx, slide, rect, slide_cx);
 }
 

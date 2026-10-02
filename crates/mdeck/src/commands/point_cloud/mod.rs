@@ -10,7 +10,7 @@ use colored::Colorize;
 
 use crate::cli::PointCloudCommands;
 use crate::commands::ai;
-use crate::render::illustration::{self, Cloud, EXTENSION, Source, convert};
+use crate::render::point_cloud::{self, Cloud, EXTENSION, Source, convert};
 
 mod contribute;
 
@@ -49,9 +49,9 @@ pub fn image_prompt(description: &str) -> String {
 /// directory, or the user library.
 fn target_dir(user: bool) -> Result<PathBuf> {
     if user {
-        illustration::user_dir().context("no config directory for the user library")
+        point_cloud::user_dir().context("no config directory for the user library")
     } else {
-        Ok(illustration::deck_dir(Path::new(".")))
+        Ok(point_cloud::deck_dir(Path::new(".")))
     }
 }
 
@@ -79,7 +79,7 @@ pub async fn generate(
     force: bool,
     quiet: bool,
 ) -> Result<()> {
-    illustration::validate_name(name)?;
+    point_cloud::validate_name(name)?;
     if !ai::has_capability("image") {
         bail!(
             "Image generation not configured. Run `mdeck ai config` to set up an image provider."
@@ -128,7 +128,7 @@ pub async fn generate(
 }
 
 fn import(image_path: &Path, name: &str, user: bool, force: bool, quiet: bool) -> Result<()> {
-    illustration::validate_name(name)?;
+    point_cloud::validate_name(name)?;
     let img =
         image::open(image_path).with_context(|| format!("opening {}", image_path.display()))?;
     let description = image_path
@@ -151,7 +151,7 @@ fn import(image_path: &Path, name: &str, user: bool, force: bool, quiet: bool) -
 }
 
 fn list() {
-    let entries = illustration::catalogue(Some(Path::new(".")));
+    let entries = point_cloud::catalogue(Some(Path::new(".")));
     if entries.is_empty() {
         println!("No point clouds found.");
         return;
@@ -174,7 +174,7 @@ fn list() {
 }
 
 fn show(name: &str, output: Option<PathBuf>, quiet: bool) -> Result<()> {
-    let Some((src, cloud)) = illustration::resolve(name, Some(Path::new(".")))? else {
+    let Some((src, cloud)) = point_cloud::resolve(name, Some(Path::new(".")))? else {
         bail!("no point cloud named `{name}` (run `mdeck point-cloud list`)");
     };
     if !quiet {
@@ -252,7 +252,7 @@ mod tests {
     #[test]
     fn preview_keeps_the_aspect_and_lights_the_points() {
         let cloud = Cloud {
-            version: illustration::VERSION,
+            version: point_cloud::VERSION,
             name: "t".into(),
             description: String::new(),
             prompt: None,

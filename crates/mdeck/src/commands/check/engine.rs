@@ -30,36 +30,6 @@ fn message_line(slide: &parser::Slide, message: &str) -> usize {
         .map_or(slide.line, |(name, _)| slide.setting_line(name))
 }
 
-/// Pictures set on slides whose design has no stage for one (ENG-14): the
-/// engine shows pictures, but this slide's design gives it nowhere to stand.
-pub fn picture_stage_warnings(
-    presentation: &parser::Presentation,
-    theme: &crate::theme::Theme,
-) -> Vec<CheckWarning> {
-    if !theme.engine.capabilities().picture {
-        return Vec::new();
-    }
-    presentation
-        .slides
-        .iter()
-        .enumerate()
-        .filter_map(|(i, slide)| {
-            let name = slide.illustration.as_deref()?;
-            if crate::render::design_has_stage(slide, theme) {
-                return None;
-            }
-            Some(CheckWarning {
-                slide: i + 1,
-                line: slide.setting_line("picture"),
-                category: CheckCategory::Engine,
-                message: format!(
-                    "picture: {name} is not shown: this slide's design has no stage for a picture"
-                ),
-            })
-        })
-        .collect()
-}
-
 /// What the code design set the theme names (EXT-05) does not show, one
 /// warning per slide and thing, as the set's `unsupported` reports it.
 pub fn design_set_warnings(
@@ -82,6 +52,7 @@ pub fn design_set_warnings(
                 line: p.line.unwrap_or(slide.line),
                 category: CheckCategory::Theme,
                 message: format!("design set {}: {}", set.name(), p.message),
+                place: None,
             });
         }
     }
@@ -101,6 +72,7 @@ pub fn engine_warnings(
                 line: message_line(slide, &message),
                 category: CheckCategory::Engine,
                 message,
+                place: None,
             });
         }
     }
@@ -137,19 +109,5 @@ mod tests {
         assert_eq!(message_line(slide, "picture: cup is not shown"), 10);
         assert_eq!(message_line(slide, "picture-prompt: x is not drawn"), 7);
         assert_eq!(message_line(slide, "code blocks are not shown"), 7);
-    }
-
-    #[cfg(feature = "particles")]
-    #[test]
-    fn a_picture_on_a_design_without_a_stage_is_reported() {
-        let p = parser::parse(
-            "# A\n<!-- picture: cup -->\n\n- one\n\n# B\n<!-- picture: cup -->\n\n```rust\nfn x() {}\n```\n",
-        );
-        let ember = crate::theme::Theme::ember();
-        let w = picture_stage_warnings(&p, &ember);
-        assert_eq!(w.len(), 1, "{w:?}");
-        assert_eq!(w[0].slide, 2);
-        assert!(w[0].message.contains("no stage"));
-        assert!(picture_stage_warnings(&p, &crate::theme::Theme::dark()).is_empty());
     }
 }

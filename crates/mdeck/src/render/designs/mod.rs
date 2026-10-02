@@ -4,8 +4,9 @@
 //! A slide is laid out once into a [`Plan`] (copy pieces, plate items,
 //! pillow and band); measuring for overflow reads the plan's height and
 //! drawing paints the same plan, so the two can never disagree (DES-17).
-//! Before a slide scrolls, code shrinks to [`CODE_FIT_FLOOR`] and then
-//! prose to [`PROSE_FIT_FLOOR`] (DES-16).
+//! Before a slide scrolls, visuals in the copy shrink to their share (down
+//! to [`VISUAL_FIT_FLOOR`]), code to [`CODE_FIT_FLOOR`] and then prose to
+//! [`PROSE_FIT_FLOOR`] (DES-16, VIS-09).
 
 pub mod copy;
 pub mod motion;
@@ -28,6 +29,10 @@ use plate::Placed;
 /// Code never shrinks below this fraction of the theme's code size; past it
 /// the slide scrolls.
 pub const CODE_FIT_FLOOR: f32 = 0.4;
+
+/// Visuals and images in the copy (two charts on one content slide) never
+/// shrink below this fraction of their height; past it the slide scrolls.
+pub const VISUAL_FIT_FLOOR: f32 = 0.35;
 
 /// Prose and lists never shrink below this fraction of their size; past it
 /// the slide scrolls.
@@ -339,7 +344,7 @@ pub fn layout<'s>(
     scale: f32,
     deck: &SlideContext,
 ) -> (Theme, Plan<'s>) {
-    let build = |t: &Theme| {
+    let build = |t: &Theme, visual_fit: f32| {
         let lay = Lay {
             ui,
             theme: t,
@@ -347,11 +352,13 @@ pub fn layout<'s>(
             scale,
             deck,
             rect,
+            visual_fit,
         };
         plan(&lay, slide, rect)
     };
     let mut t = theme.clone();
-    let mut p = build(&t);
+    let mut fv = 1.0_f32;
+    let mut p = build(&t, fv);
     let codes: Vec<&str> = slide
         .blocks
         .iter()
@@ -375,7 +382,7 @@ pub fn layout<'s>(
             fc = grow_factor(theme, widest, inner);
             if (fc - 1.0).abs() > 1e-3 {
                 t.code_size = theme.code_size * fc;
-                p = build(&t);
+                p = build(&t, fv);
             }
         }
     }
@@ -384,7 +391,12 @@ pub fn layout<'s>(
             break;
         }
         let ratio = p.available / p.content * 0.99;
-        if !codes.is_empty() && fc > CODE_FIT_FLOOR + 1e-3 {
+        let visuals = copy_visual_height(&p);
+        if visuals > 0.0 && fv > VISUAL_FIT_FLOOR + 1e-3 {
+            // the visuals give up what does not fit, shared by height
+            let over = (p.content - p.available) * 1.01;
+            fv = (fv * (visuals - over) / visuals).max(VISUAL_FIT_FLOOR);
+        } else if !codes.is_empty() && fc > CODE_FIT_FLOOR + 1e-3 {
             fc = (fc * ratio).max(CODE_FIT_FLOOR);
             t.code_size = theme.code_size * fc;
         } else if ft > PROSE_FIT_FLOOR + 1e-3 {
@@ -396,9 +408,20 @@ pub fn layout<'s>(
         } else {
             break;
         }
-        p = build(&t);
+        p = build(&t, fv);
     }
     (t, p)
+}
+
+/// The height of the visuals and images laid out in the copy.
+fn copy_visual_height(p: &Plan) -> f32 {
+    p.pieces
+        .iter()
+        .filter_map(|piece| match &piece.kind {
+            Kind::Block { block, rect } if copy::is_inline_visual(block) => Some(rect.height()),
+            _ => None,
+        })
+        .sum()
 }
 
 /// How much code whose widest line is `widest` (at the theme's code size)

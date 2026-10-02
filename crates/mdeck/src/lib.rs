@@ -49,7 +49,7 @@ pub fn builtins(registry: &mut Registry) -> Result<(), RegistryError> {
     for (name, yaml) in theme::lookup::BUILTIN {
         registry.theme(name, yaml)?;
     }
-    for (name, text) in render::illustration::BUILTIN {
+    for (name, text) in render::point_cloud::BUILTIN {
         registry.point_cloud(name, text.as_bytes())?;
     }
     Ok(())

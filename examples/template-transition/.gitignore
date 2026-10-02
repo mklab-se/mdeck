@@ -1,0 +1,8 @@
+# Build output: cargo test and mdeck build write here. Never commit it.
+target/
+
+# Written by a failing golden test, for you to look at. Not the golden image.
+*.actual.png
+
+# Stills you exported while trying things out.
+out/

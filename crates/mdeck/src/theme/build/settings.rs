@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use super::super::file::{Sizes, ThemeFile};
-use super::super::{EngineId, Surface, ThemeError};
+use super::super::{EngineId, ThemeError};
 use super::range;
 use crate::render::syntax;
 
@@ -59,16 +59,6 @@ pub(super) fn engine_and_countdown(
 
 /// The transitions a theme may name.
 pub(crate) const TRANSITIONS: [&str; 4] = ["slide", "fade", "spatial", "none"];
-
-/// `engine.surface` (the line engine's ground), `sheet` when unset.
-pub(super) fn surface(f: &ThemeFile) -> Result<Surface, ThemeError> {
-    match f.surface()? {
-        None => Ok(Surface::default()),
-        Some(s) => Surface::from_name(s.trim()).ok_or_else(|| {
-            ThemeError::invalid("engine.surface", format!("'{s}' is not sheet or slate"))
-        }),
-    }
-}
 
 /// Heading, body and code sizes in px, in the order `h1, h2, h3, body,
 /// code`. Every one must be set and in (0, 1000].
@@ -182,21 +172,6 @@ mod tests {
         assert_eq!(
             fill_opacity(&file("charts: { fill-opacity: 0.3 }")).unwrap(),
             0.3
-        );
-    }
-
-    #[test]
-    fn surfaces_are_sheet_by_default_and_checked() {
-        assert_eq!(surface(&file("{}")).unwrap(), Surface::Sheet);
-        assert_eq!(
-            surface(&file("engine: { name: line, surface: slate }")).unwrap(),
-            Surface::Slate
-        );
-        assert_eq!(
-            surface(&file("engine: { name: line, surface: glass }"))
-                .unwrap_err()
-                .to_string(),
-            "engine.surface: 'glass' is not sheet or slate"
         );
     }
 

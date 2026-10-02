@@ -123,7 +123,14 @@ fn parse_slide(raw: String, source_lines: Vec<usize>, deck_reveal: bool) -> Slid
     // `picture` names the fallback (a point cloud or an image) behind a
     // generated artwork (D13); `picture: none` opts out of both.
     let picture = setting(&settings, "picture");
-    let illustration = picture.filter(|p| *p != "none").map(|p| p.to_lowercase());
+    // a point cloud name is matched lowercase; an image path keeps its case
+    let illustration = picture.filter(|p| *p != "none").map(|p| {
+        if crate::render::picture::is_image_path(p) {
+            p.to_string()
+        } else {
+            p.to_lowercase()
+        }
+    });
     let art = match picture {
         Some("none") => Some("none".to_string()),
         _ => setting(&settings, "picture-prompt").map(str::to_string),

@@ -26,31 +26,6 @@ pub use paths::confined_path;
 
 pub use crate::engines::EngineId;
 
-/// What the line engine draws on (`surface:`): a draughtsman's `sheet` or a
-/// chalk `slate`.
-///
-/// Interim: a top-level theme key until the v2 theme schema gives engines an
-/// `engine:` settings block (THM-11); then it moves there.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Surface {
-    /// A Prussian-blue drawing sheet: grid, construction lines, crosshair,
-    /// dimension lines and a title block that numbers its sheets.
-    #[default]
-    Sheet,
-    /// A slate: chalk grain and falling dust.
-    Slate,
-}
-
-impl Surface {
-    pub fn from_name(name: &str) -> Option<Self> {
-        match name {
-            "sheet" => Some(Surface::Sheet),
-            "slate" => Some(Surface::Slate),
-            _ => None,
-        }
-    }
-}
-
 /// The slide as a sheet on a surface: paper on a desk, a board on a wall.
 /// The sheet is the theme's background; sizes are px on a 1920x1080 slide.
 /// The thermal engine's heat field: the palette it glows in and whether
@@ -419,8 +394,9 @@ mod tests {
 
     #[test]
     fn engine_settings_come_from_the_engine_block() {
+        // `plain`, which every build has: a missing engine's settings are dropped.
         let f = file::ThemeFile::parse(
-            "engine: { name: thermal, palette: lava, drift: true, extra: [1, x] }",
+            "engine: { name: plain, palette: lava, drift: true, extra: [1, x] }",
         )
         .unwrap()
         .over(&lookup::builtin_file("dark").unwrap());

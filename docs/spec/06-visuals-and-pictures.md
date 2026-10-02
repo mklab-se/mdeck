@@ -100,7 +100,7 @@ Every kind is a `Visual` registered under its tag in the same registry extension
 - **PIC-01** MUST `implemented`: A slide has at most one **picture**, set with one slide setting
   (`<!-- picture: rocket -->`). It replaces v1's `@illustration` and `@art`, which `--check`
   reports with their v2 form.
-- **PIC-02** MUST `deferred to 2.x`: A picture name resolves, in order, to:
+- **PIC-02** MUST `implemented`: A picture name resolves, in order, to:
   1. a current generated artwork for this slide, on an art engine;
   2. a point cloud of that name: the deck's generated point clouds
      (`<deck>.assets/point-clouds/`), `point-clouds/` next to the deck, the user's
@@ -108,11 +108,11 @@ Every kind is a `Visual` registered under its tag in the same registry extension
      extensions;
   3. an image file path, relative to the deck.
 
-  The engine draws whichever source it receives in its medium. An engine that cannot draw
-  pictures ignores it, and `--check` (category `engine`) reports that.
-  Steps 1 and 2 are implemented. *Deferred to 2.x:* step 3. The host resolves an image path and
-  hands it to the engine, but no built-in engine draws an image picture yet, and `--check`
-  reports an image path as an invalid point cloud name.
+  The engine draws an artwork or a point cloud in its medium. An engine that cannot draw
+  pictures ignores it, and `--check` (category `engine`) reports that. An image file is content:
+  mdeck draws it on the design's stage itself, on every engine but a board (which draws the whole
+  slide, and `--check` says so), and engines see it as a `Frame` hint. `--check` reports an image
+  path that names no file.
 - **PIC-03** MUST `implemented`: `picture: none` keeps a slide's stage empty, including on art
   engines that would draw a generated artwork.
 - **PIC-04** MUST `implemented`: The picture appears on the slide's stage: beside the copy, or

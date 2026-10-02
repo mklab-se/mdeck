@@ -38,11 +38,11 @@ pub enum Hint {
 }
 
 fn store_id() -> egui::Id {
-    egui::Id::new("ember-hints")
+    egui::Id::new("engine-hints")
 }
 
 fn enabled_id() -> egui::Id {
-    egui::Id::new("ember-hints-enabled")
+    egui::Id::new("engine-hints-enabled")
 }
 
 /// Turn collection on or off for the current frame. An engine turns it

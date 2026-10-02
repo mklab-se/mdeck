@@ -96,7 +96,8 @@ pub fn read_png(path: impl AsRef<Path>) -> std::io::Result<ImageData> {
 /// [`GOLDEN_TOLERANCE`]).
 ///
 /// - With [`UPDATE_GOLDEN_ENV`] set to anything but `0`, the golden image
-///   is (re)written and the comparison passes.
+///   is (re)written, a `<name>.actual.png` left by an earlier failure is
+///   deleted, and the comparison passes.
 /// - When the golden image does not exist yet it is written and the test
 ///   passes, so a new test records its first image. Under CI (the `CI`
 ///   environment variable is set) a missing golden image fails instead.
@@ -113,11 +114,17 @@ pub fn read_png(path: impl AsRef<Path>) -> std::io::Result<ImageData> {
 /// ```
 #[track_caller]
 pub fn assert_golden(path: impl AsRef<Path>, actual: &ImageData, tolerance: f32) {
-    let path = path.as_ref();
-    let update = updating();
+    compare(path.as_ref(), actual, tolerance, updating());
+}
+
+/// [`assert_golden`], with whether to update the golden image given.
+#[track_caller]
+fn compare(path: &Path, actual: &ImageData, tolerance: f32, update: bool) {
     if update || (!path.exists() && std::env::var_os("CI").is_none()) {
         write_png(path, actual)
             .unwrap_or_else(|e| panic!("cannot write golden image {}: {e}", path.display()));
+        // The frame a failure left is stale once the golden is rewritten.
+        let _ = std::fs::remove_file(actual_path(path));
         if !update {
             eprintln!("recorded new golden image {}", path.display());
         }
@@ -200,5 +207,17 @@ mod tests {
         assert!(std::panic::catch_unwind(|| assert_golden(&path, &small, 1.0)).is_err());
         let close = ImageData::filled([4, 4], Color::from_gray(1));
         assert_golden(&path, &close, 1.0);
+    }
+
+    #[test]
+    fn updating_rewrites_the_golden_and_deletes_the_stale_actual() {
+        let path = temp("update.png");
+        write_png(&path, &ImageData::filled([4, 4], Color::BLACK)).unwrap();
+        let white = ImageData::filled([4, 4], Color::WHITE);
+        assert!(std::panic::catch_unwind(|| compare(&path, &white, 1.0, false)).is_err());
+        assert!(actual_path(&path).exists());
+        compare(&path, &white, 1.0, true);
+        assert!(!actual_path(&path).exists());
+        assert_eq!(read_png(&path).unwrap(), white);
     }
 }

@@ -18,7 +18,8 @@ checked on the deck that exercises it.
 [`layouts/`](layouts) has one deck per slide design: `title`, `section`, `statement`, `points`,
 `split`, `media`, `gallery`, `quote`, `code`, `visual`, `columns`, `table` and `content`, plus
 [all-designs.md](layouts/all-designs.md) with every design in one deck and
-[image-generation.md](layouts/image-generation.md) for `![prompt](generate:)` placeholders.
+[image-generation.md](layouts/image-generation.md) for `![prompt](generate:)` placeholders and
+[two-visuals.md](layouts/two-visuals.md) for two charts sharing one content slide.
 [features/designs.md](features/designs.md) shows every design with a deck-local theme that
 overrides arrangements.
 
@@ -36,6 +37,7 @@ overrides arrangements.
 | [features/notes.md](features/notes.md) | Speaker notes in ```` ```@notes ```` blocks |
 | [features/math.md](features/math.md) | LaTeX math, inline and display |
 | [features/backgrounds.md](features/backgrounds.md) | Background images |
+| [features/image-pictures.md](features/image-pictures.md) | Image files as the slide's picture, on the stage |
 | [features/symbols.md](features/symbols.md) and [features/cjk.md](features/cjk.md) | Symbols and Chinese, Japanese and Korean text |
 | [`transitions/`](transitions) | One deck per transition: `fade`, `slide`, `spatial`, `none` |
 

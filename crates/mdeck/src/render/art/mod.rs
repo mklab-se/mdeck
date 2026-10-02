@@ -82,7 +82,7 @@ impl Medium {
 /// image with `picture:` still takes art: the picture is one source (D13), a
 /// current artwork first, then the point cloud, then the image.
 pub fn wants_art(slide: &Slide) -> bool {
-    slide.art.as_deref().map(str::trim) != Some("none") && crate::render::ember::handles(slide)
+    slide.art.as_deref().map(str::trim) != Some("none") && crate::render::editorial::handles(slide)
 }
 
 /// The scene a slide's own `picture-prompt` describes, if it does.

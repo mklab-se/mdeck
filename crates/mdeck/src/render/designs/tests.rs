@@ -353,3 +353,45 @@ fn a_plain_quote_keeps_its_single_passage() {
         );
     });
 }
+
+/// Two visuals on one content slide were each sized as if alone, so the
+/// second ran off the slide and was cut without a cue (VIS-09). They now
+/// share the height and the slide fits, at any size.
+#[test]
+fn two_visuals_on_a_content_slide_share_the_height() {
+    let pres = parse(
+        "## Revenue and mix\n\nTwo visuals share one slide.\n\n```@bar\n- Q1: 120\n- Q2: 180\n```\n\n```@pie\n- Cloud: 55\n- Edge: 45\n```\n",
+    );
+    let slide = &pres.slides[0];
+    assert_eq!(slide.design, Design::Content);
+    with_ui(|ui| {
+        for set in ["standard", "editorial"] {
+            let theme = themed(set);
+            for (w, h) in [(960.0_f32, 540.0_f32), (1920.0, 1080.0)] {
+                let r = Rect::from_min_size(Pos2::ZERO, egui::vec2(w, h));
+                let scale = (w / 1920.0).min(h / 1080.0);
+                let deck = SlideContext::default();
+                let (_, plan) = layout(ui, slide, &theme, r, scale, &deck);
+                assert!(
+                    plan.content <= plan.available + 0.5,
+                    "{set} {w}x{h}: {} > {}",
+                    plan.content,
+                    plan.available
+                );
+                let visuals: Vec<Rect> = plan
+                    .pieces
+                    .iter()
+                    .filter_map(|p| match &p.kind {
+                        Kind::Block { block, rect } if copy::is_inline_visual(block) => Some(*rect),
+                        _ => None,
+                    })
+                    .collect();
+                assert_eq!(visuals.len(), 2, "{set}");
+                for v in visuals {
+                    assert!(r.expand(1.0).contains_rect(v), "{set} {w}x{h}: {v:?}");
+                    assert!(v.height() > 0.15 * h, "{set} {w}x{h}: {v:?} too small");
+                }
+            }
+        }
+    });
+}

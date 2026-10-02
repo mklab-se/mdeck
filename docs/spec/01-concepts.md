@@ -59,15 +59,13 @@ Theme ─┬─ Look: tokens (colours, type, sizes, spacing)
 - **CON-01** MUST `implemented`: The glossary above is the vocabulary of the docs, the CLI, the
   settings, the `--check` categories and error messages. A term not in the glossary is not
   user-facing.
-- **CON-02** MUST `deferred to 2.x`: Code module and type names follow the glossary. Internal names
+- **CON-02** MUST `implemented`: Code module and type names follow the glossary. Internal names
   may be more specific, but never reuse a glossary term for something else. The SDK and the
-  user-facing surface do (`Picture`, design names, fence tags as the visual registry key).
-  *Deferred:* two internal modules keep v1 names: `render::ember` (the editorial chrome) and
-  `render::illustration` (point clouds).
-- **CON-03** MUST `deferred to 2.x`: No product name doubles as a concept. A theme called "ember"
+  user-facing surface do (`Picture`, design names, fence tags as the visual registry key), and so
+  do the modules: `render::editorial` (the editorial chrome) and `render::point_cloud`.
+- **CON-03** MUST `implemented`: No product name doubles as a concept. A theme called "ember"
   is fine; a module, setting or capability called "ember" that is not the theme is not. No setting,
-  capability or CLI name does. *Deferred:* the internal `render::ember` module and the
-  `ember-hints` store id remain.
+  capability or CLI name does (the renderers' hint store is `engine-hints`).
 - **CON-04** MUST `implemented`: Content and decoration are separate. Content is what the author
   writes and is shown by every theme and engine (or reported by `--check` when it cannot be).
   Decoration is what an engine adds and may differ freely between engines.

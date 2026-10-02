@@ -157,6 +157,7 @@ arrangements:
 
 - **DES-15** MUST `implemented`: Content that does not fit scrolls smoothly, with fade cues.
 - **DES-16** MUST `implemented`: Before scrolling, every design tries to fit:
+  - visuals and images in the copy share the height, down to 35% of their usual height;
   - code shrinks, down to 40% of its size;
   - then prose and lists shrink, down to 80%;
   - visuals scale to their role.

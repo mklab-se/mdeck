@@ -287,6 +287,26 @@ pub(super) async fn draw_one(
     )
 }
 
+/// The scene list in a chat reply: a JSON object with a `scenes` array, or
+/// what is wrong with it.
+fn parse_scenes(reply: &str) -> Result<Vec<serde_json::Value>, String> {
+    let json = crate::commands::ai_reply::json_object(reply);
+    let parsed: serde_json::Value =
+        serde_json::from_str(json).map_err(|e| format!("the answer is not a JSON object ({e})"))?;
+    parsed["scenes"]
+        .as_array()
+        .cloned()
+        .ok_or_else(|| "the JSON has no `scenes` array".to_string())
+}
+
+/// The follow-up request when the scene list is malformed.
+fn fix_scenes_message(error: &str) -> String {
+    format!(
+        "That answer could not be read: {error}. Reply with only the JSON object \
+         {{\"scenes\": [{{\"slide\": <number>, \"scene\": \"...\"}}]}}."
+    )
+}
+
 /// Scenes for `slides`: a slide's own `picture-prompt`, or written by the chat model.
 pub(super) async fn scenes(
     pres: &Presentation,
@@ -310,17 +330,19 @@ pub(super) async fn scenes(
             );
         }
         let client = ailloy::Client::for_capability("chat")?;
-        let messages = [
+        let messages = vec![
             ailloy::Message::system(SCENE_PROMPT),
             ailloy::Message::user(scene_request(pres, &ask)),
         ];
-        let response = client.chat(&messages).await.context("AI request failed")?;
-        let json = crate::commands::ai_reply::json_object(&response.content);
-        let parsed: serde_json::Value =
-            serde_json::from_str(json).context("the chat model did not answer with JSON")?;
-        let list = parsed["scenes"]
-            .as_array()
-            .context("no scenes in the answer")?;
+        // a malformed answer is sent back once with what is wrong (GEN-07)
+        let list = crate::commands::ai_reply::chat_client_validated(
+            &client,
+            messages,
+            parse_scenes,
+            fix_scenes_message,
+            "the chat model's scenes",
+        )
+        .await?;
         for &i in &ask {
             let scene = list
                 .iter()
@@ -349,6 +371,41 @@ mod tests {
         crate::parser::parse(
             "---\ntitle: Harbour\nart-world: a Victorian harbour town that builds software\n---\n# Launch\n\nWe ship today\n\n# Why\n<!-- picture-prompt: a lighthouse keeper with a laptop -->\n\n- one\n\n```@notes\nTell the story of the storm.\n```\n",
         )
+    }
+
+    #[test]
+    fn a_malformed_scene_list_is_asked_for_again_with_the_error() {
+        assert!(parse_scenes("Sure! Here are some ideas.").is_err());
+        let e = parse_scenes("{\"slides\": []}").unwrap_err();
+        assert!(e.contains("`scenes`"), "{e}");
+        let ok =
+            parse_scenes("```json\n{\"scenes\": [{\"slide\": 1, \"scene\": \"a ship\"}]}\n```")
+                .unwrap();
+        assert_eq!(ok[0]["scene"], "a ship");
+        assert!(fix_scenes_message(&e).contains("`scenes`"));
+        // the loop: a bad answer, then the error, then a good answer
+        let mut replies = vec![
+            "{\"scenes\": [{\"slide\": 1, \"scene\": \"a lighthouse\"}]}".to_string(),
+            "not json".to_string(),
+        ];
+        let mut seen = Vec::new();
+        let list = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap()
+            .block_on(crate::commands::ai_reply::chat_validated(
+                async |h: &[ailloy::Message]| {
+                    seen.push(h.len());
+                    Ok(replies.pop().unwrap())
+                },
+                vec![ailloy::Message::user("scenes please")],
+                parse_scenes,
+                fix_scenes_message,
+                "scenes",
+            ))
+            .unwrap();
+        assert_eq!(list[0]["scene"], "a lighthouse");
+        // the second request carries the bad answer and the fix
+        assert_eq!(seen, [1, 3]);
     }
 
     #[test]
