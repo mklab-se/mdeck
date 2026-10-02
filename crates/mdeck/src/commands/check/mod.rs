@@ -7,11 +7,13 @@ use crate::check::{CheckCategory, CheckReport, CheckWarning};
 use crate::parser;
 use crate::render;
 
+mod background;
 mod content;
 mod directives;
 mod engine;
 mod stories;
 mod theme;
+pub use background::background_warnings;
 pub use content::{cjk_font_warning, math_warnings, warn_missing_cjk_font};
 pub use directives::directive_warnings;
 pub use engine::{art_warnings, deck_theme, engine_warnings};
@@ -45,7 +47,7 @@ pub fn run(file: PathBuf, verbose: u8, quiet: bool, engine: Option<String>) -> a
         eprintln!();
     }
 
-    let report = collect(&file, &presentation, base_path, engine.as_deref())?;
+    let report = collect(&file, &content, &presentation, base_path, engine.as_deref())?;
 
     if report.has_warnings() {
         if !quiet {
@@ -63,6 +65,7 @@ pub fn run(file: PathBuf, verbose: u8, quiet: bool, engine: Option<String>) -> a
 /// Every check, in report order.
 fn collect(
     file: &Path,
+    content: &str,
     presentation: &parser::Presentation,
     base_path: &Path,
     engine: Option<&str>,
@@ -96,6 +99,7 @@ fn collect(
         defaults.theme.as_deref(),
         base_path,
     ));
+    add(background_warnings(presentation, base_path, content));
     let (theme, problems) = deck_theme(presentation, defaults.theme.as_deref(), base_path, engine)?;
     add(problems
         .into_iter()

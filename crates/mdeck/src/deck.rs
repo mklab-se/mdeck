@@ -1,9 +1,9 @@
 //! A deck as the presenting window and export both hold it: the parsed
 //! presentation and everything resolved for it (stories, reveal steps,
-//! illustrations, generated art, logos, images), and the engine that draws
-//! under its slides. Both draw through [`Deck::engine_layer`],
-//! [`Deck::draw_slide`] and [`Deck::draw_logo`], so an export shows what the
-//! window shows.
+//! illustrations, generated art, logos, background images, images), and the
+//! engine that draws under its slides. Both draw through
+//! [`Deck::draw_background`], [`Deck::engine_layer`], [`Deck::draw_slide`]
+//! and [`Deck::draw_logo`], so an export shows what the window shows.
 
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -13,8 +13,10 @@ use eframe::egui;
 use crate::engines::{self, CountPhase, EngineKind, Host};
 use crate::parser::{self, Presentation};
 use crate::render::art::gallery::DeckArt;
+use crate::render::background::{Backgrounds, FadeIn};
 use crate::render::illustration::Library;
 use crate::render::image_cache::ImageCache;
+use crate::render::image_cache::ImageState;
 use crate::render::logo::Logos;
 use crate::render::story::Script;
 use crate::render::story::sidecar::{self as story_sidecar, Resolved};
@@ -38,6 +40,10 @@ pub struct Deck {
     pub art: DeckArt,
     /// The logo on each slide (theme `logo:`, the deck's `@logo`, the slide's `@logo`).
     pub logos: Logos,
+    /// The background image on each slide (the deck's `@background`, the slide's).
+    pub backgrounds: Backgrounds,
+    /// When each background image appeared, so it fades in once loaded.
+    background_fade: FadeIn,
     /// The theme's engine: its layer under the slides, countdown and end act.
     pub engine: Host,
 }
@@ -92,9 +98,12 @@ impl Deck {
             max_steps,
             art,
             logos: Logos::default(),
+            backgrounds: Backgrounds::default(),
+            background_fade: FadeIn::default(),
             engine: Host::new(EngineKind::Plain),
         };
         deck.refresh_logos(theme);
+        deck.refresh_backgrounds(quiet);
         deck
     }
 
@@ -136,7 +145,9 @@ impl Deck {
         self.art.invalidate();
         self.reload_stories(theme);
         self.refresh_logos(theme);
+        self.refresh_backgrounds(false);
         self.image_cache.clear();
+        self.background_fade.clear();
     }
 
     fn recount_steps(&mut self, theme: &Theme) {
@@ -152,6 +163,57 @@ impl Deck {
             render::logo::resolve_slides(theme, &self.presentation, deck_dir(&self.file));
         report_theme_problems(&problems);
         self.logos = logos;
+    }
+
+    fn refresh_backgrounds(&mut self, quiet: bool) {
+        let (backgrounds, problems) =
+            render::background::resolve(&self.presentation, deck_dir(&self.file));
+        if !quiet {
+            for p in problems {
+                eprintln!("warning: {p}");
+            }
+        }
+        self.backgrounds = backgrounds;
+    }
+
+    /// Start loading the background images of slides `indices`.
+    pub fn preload_backgrounds(&self, ctx: &egui::Context, indices: std::ops::Range<usize>) {
+        for i in indices {
+            if let Some(bg) = self.backgrounds.get(i) {
+                self.image_cache.preload(ctx, &bg.path);
+            }
+        }
+    }
+
+    /// Paint slide `index`'s background image over `rect` (clipped by the
+    /// painter), at `fade` times its opacity, with corners of `radius`. With
+    /// `ease_in` an image fades in when its decode lands instead of popping
+    /// up (the window; export waits for the image).
+    pub fn draw_background(
+        &self,
+        painter: &egui::Painter,
+        rect: egui::Rect,
+        index: usize,
+        fade: f32,
+        radius: f32,
+        ease_in: bool,
+    ) {
+        let Some(bg) = self.backgrounds.get(index) else {
+            return;
+        };
+        let ImageState::Ready(texture) = self.image_cache.state(painter.ctx(), &bg.path) else {
+            return;
+        };
+        let appear = if ease_in {
+            let a = self.background_fade.amount(&bg.path, Instant::now());
+            if a < 1.0 {
+                painter.ctx().request_repaint();
+            }
+            a
+        } else {
+            1.0
+        };
+        render::background::draw(painter, rect, &texture, bg.opacity * fade * appear, radius);
     }
 
     /// Paint the engine's layer for `frame`: from where it is on screen, or,

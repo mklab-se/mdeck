@@ -35,12 +35,16 @@ FRONTMATTER (YAML at top of file)
   @transition: slide|fade|spatial|none
   @aspect: 16:9|4:3|16:10
   @footer: "text"         Footer on every slide
+  @background: file       Image behind every slide (png, jpg, webp, svg)
+  @background-opacity: 30%  How strongly it shows (0-1 or %, default 30%)
 
 SLIDE DIRECTIVES (on their own line, under the slide's heading)
   @layout: name         Override the inferred layout
   @illustration: name   Point cloud illustration (particles engine)
   @logo: file|none      This slide's logo, or none to hide it
   @art: "..."|none      This slide's picture on an art engine, or none
+  @background: file|none  This slide's background image, or none
+  @background-opacity: 50%  This slide's background opacity
 
 LAYOUTS (auto-inferred, override with @layout: name)
   title        H1 + optional subtitle

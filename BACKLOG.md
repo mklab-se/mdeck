@@ -25,11 +25,11 @@ or the presenter window is the "main" one.
 A small timer in the HUD (start on first slide change, `Shift+R` to reset).
 Could ship before 1.1 and be reused by it.
 
-### 1.3 Per-slide directives (`@theme`, `@transition`, `@background`, `@footer`) — M
-The spec and `samples/introducing-mdeck.md` promise per-slide `@theme`,
-`@background` and `@transition`, and `@footer`/`@class`/`@code-theme`/`@aspect`
-globally. Only `@layout` is read today; the rest are parsed and silently
-dropped (`Slide.directives` is unused). The spec now marks them as reserved.
+### 1.3 Per-slide directives (`@theme`, `@transition`, `@footer`) (M)
+The spec and `samples/introducing-mdeck.md` promise per-slide `@theme` and
+`@transition`, and `@footer`/`@class`/`@code-theme`/`@aspect` globally. They
+are parsed and silently dropped; the spec marks them as reserved.
+(`@background` shipped with #19.)
 Decision: implement per-slide theme + transition + footer (M), or remove them
 from the spec for good. `@aspect` (letterboxing 4:3) is a separate decision.
 

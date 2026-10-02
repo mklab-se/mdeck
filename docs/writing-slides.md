@@ -34,7 +34,7 @@ Each slide gets a layout from its content:
 | Anything else | Content |
 
 Override with `@layout: name` on its own line under the slide's heading when
-you want a specific one. Slide directives (`@layout`, `@illustration`, `@logo`)
+you want a specific one. Slide directives (`@layout`, `@illustration`, `@logo`, `@background`)
 work wherever they stand at the top level of the slide, and `mdeck --check`
 flags typos and directives that were not applied.
 

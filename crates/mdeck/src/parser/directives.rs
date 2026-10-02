@@ -10,6 +10,7 @@ pub const SLIDE_DIRECTIVES: &[&str] = &[
     "logo",
     "art",
     "background",
+    "background-opacity",
     "class",
 ];
 

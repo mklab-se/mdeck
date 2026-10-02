@@ -274,6 +274,15 @@ impl ExportApp {
             return;
         }
         let reveal = self.cursor.reveal(self.max_step());
+        let radius = self.theme.page.as_ref().map_or(0.0, |p| p.radius * scale);
+        self.deck.draw_background(
+            &ui.painter().with_clip_rect(rect),
+            rect,
+            idx,
+            1.0,
+            radius,
+            false,
+        );
         // Developer stills of an engine's motion (see doc/engines.md):
         // MDECK_EXPORT_AT=<seconds> rehearses the engine from a cold start,
         // MDECK_EXPORT_MOMENT=3|2|1|burst|end shows the countdown or the end.

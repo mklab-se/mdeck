@@ -119,6 +119,8 @@ fn parse_frontmatter(yaml_str: &str) -> PresentationMeta {
             "@logo-position" => meta.logo_position = text,
             "@logo-opacity" => meta.logo_opacity = text,
             "@logo-height" => meta.logo_height = text,
+            "@background" => meta.background = text,
+            "@background-opacity" => meta.background_opacity = text,
             "@art" => meta.art = text,
             _ => {}
         }

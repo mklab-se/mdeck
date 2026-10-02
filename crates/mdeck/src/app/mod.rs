@@ -264,6 +264,8 @@ impl PresentationApp {
     /// Start decoding images on the upcoming slides so they're ready to draw
     /// by the time the presenter reaches them.
     fn preload_upcoming_images(&self, ctx: &egui::Context) {
+        self.deck
+            .preload_backgrounds(ctx, self.current_slide..self.current_slide + 3);
         for offset in 1..=2 {
             let Some(slide) = self
                 .deck

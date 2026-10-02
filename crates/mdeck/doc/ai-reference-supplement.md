@@ -49,7 +49,11 @@ roles with the table in spec section 9.4, write the file, run `mdeck theme
 check`, then `mdeck theme preview` and look at the PNGs; repeat until it looks
 like the brand. Logos (spec section 9.5): a theme's `logo:` block, or
 `@logo: file.svg` (plus `@logo-position`, `@logo-opacity`, `@logo-height`) in
-any deck's frontmatter; PNG with transparency or SVG.
+any deck's frontmatter; PNG with transparency or SVG. Background images (spec
+section 9.8): `@background: file.jpg` and `@background-opacity: 30%` in the
+frontmatter put an image behind every slide; the same keys under a slide's
+heading override it there, and `@background: none` turns it off. Keep the
+opacity low (the default 0.3) behind text.
 
 ### Configuration
 

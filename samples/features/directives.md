@@ -11,7 +11,7 @@ Slides split by headings, no `---` anywhere
 @illustration: server
 
 - Directly under the slide's heading
-- `@illustration`, `@layout` and `@logo`
+- `@illustration`, `@layout`, `@logo` and `@background`
 - They never show on the slide
 
 # Anywhere at the top level

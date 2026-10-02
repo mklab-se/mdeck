@@ -22,6 +22,8 @@ pub enum CheckCategory {
     Engine,
     /// Generated art for the art engines: missing, stale, unreadable.
     Art,
+    /// `@background` images that are missing or unreadable, bad opacities.
+    Background,
 }
 
 impl fmt::Display for CheckCategory {
@@ -36,6 +38,7 @@ impl fmt::Display for CheckCategory {
             CheckCategory::Directive => write!(f, "directive"),
             CheckCategory::Engine => write!(f, "engine"),
             CheckCategory::Art => write!(f, "art"),
+            CheckCategory::Background => write!(f, "background"),
         }
     }
 }

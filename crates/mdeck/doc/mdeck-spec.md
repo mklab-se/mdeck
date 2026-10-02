@@ -66,6 +66,8 @@ date: 2026-02-28
 | `@logo-opacity` | number | `0.6` | 0 to 1, or a percentage (`40%`) |
 | `@logo-height` | number | `56` | Height in px on a 1920x1080 slide (8 to 400) |
 | `@art`         | string | none       | The deck's world for generated art on an art engine: setting, era, recurring characters. A slide's own `@art` is its scene (section 9.7) |
+| `@background`  | string | none       | An image behind every slide (PNG, JPEG, WebP or SVG), relative to the deck. A slide's own `@background` replaces it there, `none` turns it off (section 9.8) |
+| `@background-opacity` | number | `0.3` | 0 to 1, or a percentage (`30%`) |
 
 Reserved fields that are parsed but not yet applied: `@aspect`, `@code-theme`,
 `@footer`. They are accepted so that files stay forward compatible; see
@@ -592,7 +594,7 @@ Right side
 **Syntax:** `@name: value`
 
 In the frontmatter, directives apply to the whole deck. Inside a slide, a
-**slide directive** (`@layout`, `@illustration`, `@logo`) applies to the slide
+**slide directive** (`@layout`, `@illustration`, `@logo`, `@background`) applies to the slide
 it is written in, wherever it stands at the top level of that slide: under the
 heading, at the start of the slide, or further down. It is removed from the
 slide's content. It is not recognised inside a list item, a blockquote, an
@@ -639,9 +641,11 @@ For complex content, the fenced code block syntax with `@` on the language tag:
 | `@logo`        | global, slide  | PNG or SVG path, or `none` (section 9.5)  | the theme's    |
 | `@logo-position` / `@logo-opacity` / `@logo-height` | global | see section 9.5 | the theme's |
 | `@art`         | global, slide  | global: the deck's world; slide: this slide's scene, or `none` for no picture (section 9.7) | none |
+| `@background`  | global, slide  | PNG, JPEG, WebP or SVG path, or `none` (section 9.8) | none |
+| `@background-opacity` | global, slide | 0 to 1, or a percentage (section 9.8) | `0.3` |
 
 **Reserved directives** are parsed and accepted but not applied yet:
-`@background`, `@footer`, `@class`, `@code-theme`, `@aspect`, and per-slide
+`@footer`, `@class`, `@code-theme`, `@aspect`, and per-slide
 `@theme` / `@transition`. Using them is harmless; they are listed in
 `BACKLOG.md` as candidates for a future release.
 
@@ -1092,9 +1096,10 @@ exactly the format of section 9.4, which lists every key.
 
 ### 9.3 Per-slide theme override (reserved)
 
-Per-slide `@theme:` and `@background:` overrides are reserved syntax: the
-directives are accepted and ignored today, and are tracked in `BACKLOG.md`.
-Use the global `@theme` in frontmatter, or `Shift+T` while presenting.
+A per-slide `@theme:` override is reserved syntax: the directive is accepted
+and ignored today, and is tracked in `BACKLOG.md`. Use the global `@theme` in
+frontmatter, or `Shift+T` while presenting. To change a slide's look, give it
+its own background image (section 9.8).
 
 ### 9.4 Custom themes
 
@@ -1613,6 +1618,59 @@ typography. `mdeck --check` and the line printed when presenting name the
 slides without a picture and the command that draws them.
 
 ---
+
+### 9.8 Background images
+
+A background image sits behind a slide's content: a brand texture or a photo
+behind every slide, or one striking picture behind a key slide. Set it once
+in the frontmatter for the whole deck:
+
+```markdown
+---
+@background: images/texture.jpg   # relative to the deck
+@background-opacity: 25%          # 0 to 1, or a percentage (default 0.3)
+---
+```
+
+A **slide** can change it under its heading:
+
+```markdown
+# Welcome
+@background: images/stage.jpg     # this slide shows its own image
+@background-opacity: 60%          # and its own opacity
+
+# The code
+@background: none                 # no background on this slide
+
+# The quiet one
+@background-opacity: 10%          # the deck's image, fainter
+```
+
+- One image per slide. A slide's `@background` replaces the deck's (or adds
+  one to a deck without a default); nothing stacks.
+- `@background-opacity` works the same at both levels. A slide's own image
+  keeps the deck's opacity unless the slide sets one; a slide that sets only
+  the opacity shows the deck's image with it.
+- The image **covers** the slide: scaled to fill, centred, cropped on the
+  long side, never stretched.
+- It is painted on the theme's background colour and under everything else
+  (the engine's layer, the content, the logo), so a low opacity blends it
+  toward the theme's own colour and text stays readable on light and dark
+  themes alike. The default of 0.3 suits photos behind text; raise it for a
+  slide where the picture leads.
+- On a theme with a page (section 9.4) it goes on the sheet. Engines draw
+  above it as usual; a board engine (`splitflap`) covers most of it with its
+  board.
+- It moves with its slide in transitions and fades in when its image has
+  loaded. It is not shown during the opening countdown or on the end slide.
+- PNG and PDF export show exactly what the window shows.
+- PNG, JPEG, WebP and SVG files work. `--check` reports a file that is
+  missing, is not an image or cannot be read, an opacity that does not
+  parse, and a slide `@background-opacity` with no image to apply to, each
+  with its line.
+
+An image with `@fill` (section 3) is different: it is content and takes the
+slide over. A background stays behind the heading and the text.
 
 ## 10. Two-Column Layout
 

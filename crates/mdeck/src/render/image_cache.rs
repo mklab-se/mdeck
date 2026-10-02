@@ -30,8 +30,11 @@ fn downscale_if_needed(img: image::DynamicImage) -> image::DynamicImage {
     }
 }
 
+/// SVGs are rasterised this large on their longest side: sharp on a 4K slide.
+const SVG_SIDE: u32 = 3840;
+
 /// A decoded RGBA image produced on a background thread.
-struct DecodedImage {
+pub struct DecodedImage {
     size: [usize; 2],
     rgba: Vec<u8>,
 }
@@ -156,11 +159,36 @@ impl ImageCache {
 }
 
 fn decode_image(path: &Path) -> Option<DecodedImage> {
-    let bytes = std::fs::read(path).ok()?;
-    let img = image::load_from_memory(&bytes).ok()?;
+    decode(path).ok()
+}
+
+/// Read and decode an image file (PNG, JPEG, WebP, or SVG rasterised at 4K),
+/// downscaled to fit a texture. `--check` uses it to say why a file fails.
+pub fn decode(path: &Path) -> anyhow::Result<DecodedImage> {
+    use anyhow::anyhow;
+    let bytes = std::fs::read(path).map_err(|e| anyhow!("{}: {e}", path.display()))?;
+    let svg = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("svg"));
+    if svg {
+        let img = super::logo::rasterize_svg(&bytes, super::logo::SvgSize::Longest(SVG_SIDE))
+            .map_err(|e| anyhow!("{}: {e}", path.display()))?;
+        // egui keeps premultiplied pixels; hand them back unmultiplied.
+        let rgba = img
+            .pixels
+            .iter()
+            .flat_map(|c| c.to_srgba_unmultiplied())
+            .collect();
+        return Ok(DecodedImage {
+            size: img.size,
+            rgba,
+        });
+    }
+    let img = image::load_from_memory(&bytes).map_err(|e| anyhow!("{}: {e}", path.display()))?;
     let rgba = downscale_if_needed(img).to_rgba8();
     let size = [rgba.width() as usize, rgba.height() as usize];
-    Some(DecodedImage {
+    Ok(DecodedImage {
         size,
         rgba: rgba.into_raw(),
     })
@@ -186,6 +214,27 @@ mod tests {
         assert_eq!(decoded.size, [4, 3]);
         assert_eq!(decoded.rgba.len(), 4 * 3 * 4);
         assert_eq!(&decoded.rgba[..4], &[10, 20, 30, 255]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn svg_images_are_rasterised_large_and_unmultiplied() {
+        let dir = std::env::temp_dir().join(format!("mdeck-imgcache-svg-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("half.svg");
+        std::fs::write(
+            &path,
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><rect width="100" height="100" fill="#ff0000" fill-opacity="0.5"/></svg>"##,
+        )
+        .unwrap();
+        let decoded = decode(&path).expect("svg decodes");
+        assert_eq!(decoded.size, [SVG_SIDE as usize, SVG_SIDE as usize / 2]);
+        // left half: red at half alpha, unmultiplied; right half: transparent
+        let left = &decoded.rgba[..4];
+        assert!(left[0] > 250 && left[3] > 120 && left[3] < 135, "{left:?}");
+        let right = decoded.size[0] * 4 - 4;
+        assert_eq!(decoded.rgba[right + 3], 0);
+        assert!(decode(&dir.join("missing.svg")).is_err());
         let _ = std::fs::remove_dir_all(&dir);
     }
 

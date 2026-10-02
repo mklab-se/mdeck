@@ -228,7 +228,8 @@ pub fn load_image(path: &Path) -> anyhow::Result<egui::ColorImage> {
         .and_then(|e| e.to_str())
         .is_some_and(|e| e.eq_ignore_ascii_case("svg"));
     if svg {
-        rasterize_svg(&bytes).map_err(|e| anyhow!("{}: {e}", path.display()))
+        rasterize_svg(&bytes, SvgSize::Height(RASTER_HEIGHT))
+            .map_err(|e| anyhow!("{}: {e}", path.display()))
     } else {
         let img = image::load_from_memory(&bytes)
             .map_err(|e| anyhow!("{}: {e}", path.display()))?
@@ -238,17 +239,30 @@ pub fn load_image(path: &Path) -> anyhow::Result<egui::ColorImage> {
     }
 }
 
-fn rasterize_svg(bytes: &[u8]) -> anyhow::Result<egui::ColorImage> {
+/// How large to rasterise an SVG.
+#[derive(Debug, Clone, Copy)]
+pub enum SvgSize {
+    /// This many pixels tall (a logo).
+    Height(u32),
+    /// This many pixels on the longest side (a picture).
+    Longest(u32),
+}
+
+/// Rasterise an SVG at `size`, keeping its aspect.
+pub fn rasterize_svg(bytes: &[u8], size: SvgSize) -> anyhow::Result<egui::ColorImage> {
     use resvg::{tiny_skia, usvg};
     let tree = usvg::Tree::from_data(bytes, &usvg::Options::default())
         .map_err(|e| anyhow!("not a readable SVG ({e})"))?;
-    let size = tree.size();
-    if size.width() <= 0.0 || size.height() <= 0.0 {
+    let natural = tree.size();
+    if natural.width() <= 0.0 || natural.height() <= 0.0 {
         anyhow::bail!("the SVG has no size");
     }
-    let scale = RASTER_HEIGHT as f32 / size.height();
-    let w = ((size.width() * scale).round() as u32).clamp(1, 4096);
-    let h = RASTER_HEIGHT;
+    let scale = match size {
+        SvgSize::Height(h) => h as f32 / natural.height(),
+        SvgSize::Longest(l) => l as f32 / natural.width().max(natural.height()),
+    };
+    let w = ((natural.width() * scale).round() as u32).clamp(1, 4096);
+    let h = ((natural.height() * scale).round() as u32).clamp(1, 4096);
     let mut pixmap = tiny_skia::Pixmap::new(w, h).context("the SVG is too large")?;
     resvg::render(
         &tree,
@@ -332,12 +346,14 @@ mod tests {
 
     #[test]
     fn svg_is_rasterised_at_its_aspect_with_transparency() {
-        let img = rasterize_svg(SVG.as_bytes()).unwrap();
+        let img = rasterize_svg(SVG.as_bytes(), SvgSize::Height(RASTER_HEIGHT)).unwrap();
         assert_eq!(img.size, [1024, 512]);
+        let big = rasterize_svg(SVG.as_bytes(), SvgSize::Longest(3000)).unwrap();
+        assert_eq!(big.size, [3000, 1500]);
         // left half red, right half transparent
         assert_eq!(img.pixels[512 * 1024 / 2 + 10].a(), 255);
         assert_eq!(img.pixels[512 * 1024 / 2 + 1000].a(), 0);
-        assert!(rasterize_svg(b"<nope").is_err());
+        assert!(rasterize_svg(b"<nope", SvgSize::Height(RASTER_HEIGHT)).is_err());
     }
 
     #[test]

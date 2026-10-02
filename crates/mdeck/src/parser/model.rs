@@ -36,6 +36,10 @@ pub struct PresentationMeta {
     pub logo_opacity: Option<String>,
     /// `@logo-height`: height in px on a 1920x1080 slide.
     pub logo_height: Option<String>,
+    /// `@background`: an image behind every slide (`none` for no image).
+    pub background: Option<String>,
+    /// `@background-opacity`: 0 to 1, or a percentage.
+    pub background_opacity: Option<String>,
     /// `@art` in the frontmatter: the deck's world for generated art
     /// (setting, era, recurring characters).
     pub art: Option<String>,

@@ -1,4 +1,5 @@
 pub mod art;
+pub mod background;
 pub mod context;
 pub mod diagram;
 pub mod ember;

@@ -109,6 +109,32 @@ one without a custom theme:
 slide's heading, `@logo: none` hides it on that slide and `@logo: partner.svg`
 shows another logo there.
 
+## Background images
+
+An image behind the slides, on any theme, without a custom theme. Set it once
+in the frontmatter, and override it on a slide under its heading:
+
+```markdown
+---
+@background: images/texture.jpg   # relative to the deck
+@background-opacity: 25%          # default 30%
+---
+
+# Welcome
+@background: images/stage.jpg     # this slide's own image
+@background-opacity: 60%
+
+# The code
+@background: none                 # a clean slide
+```
+
+The image covers the slide (scaled, centred, cropped, never stretched) and
+sits on the theme's background colour under everything else, so a low
+opacity keeps text readable on light and dark themes. A slide that sets only
+`@background-opacity` shows the deck's image with that opacity. PNG, JPEG,
+WebP and SVG work; `mdeck --check` reports files that are missing or
+unreadable. See `samples/features/backgrounds.md` and spec section 9.8.
+
 ## From a design system
 
 **From a design system.** If your brand already lives in a design system (a

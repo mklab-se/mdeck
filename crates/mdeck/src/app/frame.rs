@@ -277,6 +277,11 @@ impl PresentationApp {
         };
         let scale = Self::compute_scale(rect);
 
+        // Background images on the theme's colour, under everything else.
+        if matches!(self.mode, AppMode::Presentation { end: false }) && !self.countdown_running() {
+            self.draw_backgrounds(ui, rect, scale);
+        }
+
         // The engine's layer goes under everything.
         if self.theme.engine.paints() && matches!(self.mode, AppMode::Presentation { .. }) {
             self.paint_engine_layer(ui, ctx, rect, scale);

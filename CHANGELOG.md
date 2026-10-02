@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Background images ([#19](https://github.com/mklab-se/mdeck/issues/19)). `@background: file`
+  in the frontmatter puts an image behind every slide; the same directive under a slide's heading
+  replaces it there, and `@background: none` turns it off. `@background-opacity` (0 to 1, or a
+  percentage, default 30%) tones it down at either level; a slide that sets only the opacity
+  reuses the deck's image. The image covers the slide on the theme's background colour, under
+  the engine layer and the content, sits on the sheet on page themes, moves with its slide in
+  transitions, fades in once loaded, and is identical in PNG and PDF export. PNG, JPEG, WebP and
+  SVG work. `mdeck --check` reports missing or unreadable files and bad opacities with their
+  line. Sample: `samples/features/backgrounds.md`; spec section 9.8.
+
+### Fixed
+
+- SVG images in slides (`![Diagram](diagram.svg)`) are drawn; they showed only a placeholder.
+
 ## [1.17.0] - 2026-09-28
 
 ### Added
