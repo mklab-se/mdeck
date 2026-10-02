@@ -1192,8 +1192,10 @@ OTF from the type foundry or Google Fonts). The bundled faces:
 | `hanken-medium` | Hanken Grotesk Medium |
 | `jetbrains-mono` | JetBrains Mono Regular |
 
-A font file that is missing, unreadable or outside the theme folder falls back
-to the inherited face with a warning.
+A font file that is missing or outside the theme folder falls back to the
+inherited face with a warning. A file that is there but is not a usable
+TTF/OTF font falls back to the role's default with a warning: the `body` face
+for `display`, `lead` and `strong`, `sans` for `body`, `mono` for `mono`.
 
 **Syntax themes.** `code.syntax` names one of the bundled syntax themes
 (`base16-ocean.dark`, `base16-eighties.dark`, `base16-mocha.dark`,
