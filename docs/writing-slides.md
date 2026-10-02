@@ -63,8 +63,9 @@ Some consequences worth knowing:
 
 How each design looks comes from the theme's design set: the classic centred `standard` set or
 the magazine-style `editorial` set ([Themes](themes.md#designs-and-arrangements)). A slide is the
-same design in every theme. Content that does not fit first shrinks (code down to 40% of its
-size, then prose and lists down to 80%), then scrolls with Up and Down, with a fade at the edge.
+same design in every theme. Content that does not fit first shrinks (charts and images that
+share a slide down to 35% of their height, code down to 40% of its size, then prose and lists
+down to 80%), then scrolls with Up and Down, with a fade at the edge.
 
 ## Settings
 

@@ -213,8 +213,9 @@ recognised design and is reported too.
 
 ### 4.3 Overflow
 
-Content that does not fit first shrinks: code down to 40% of its size, then prose and lists down
-to 80%. Past that the slide scrolls smoothly (Up and Down), with fade cues at the edges. The
+Content that does not fit first shrinks: visuals and images in the copy (two charts on one
+slide) share the height, down to 35% of their usual height, then code down to 40% of its size,
+then prose and lists down to 80%. Past that the slide scrolls smoothly (Up and Down), with fade cues at the edges. The
 height that decides scrolling is measured with the same layout that draws the slide.
 
 ---
@@ -1794,7 +1795,7 @@ The `+++` separator was chosen because it is visually distinct from `---` (slide
 ## 11. Edge Cases
 
 ### Content overflow
-Text is never truncated silently. Content that does not fit first shrinks (code to 40% of its size, then prose and lists to 80%), then scrolls with fade cues at the edges (section 4.3).
+Text is never truncated silently. Content that does not fit first shrinks (visuals in the copy to 35% of their height, code to 40% of its size, then prose and lists to 80%), then scrolls with fade cues at the edges (section 4.3).
 
 ### Empty slides
 A slide with no content renders as a blank slide with the theme's background. This is intentional, not an error.

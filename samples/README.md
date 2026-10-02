@@ -18,7 +18,8 @@ checked on the deck that exercises it.
 [`layouts/`](layouts) has one deck per slide design: `title`, `section`, `statement`, `points`,
 `split`, `media`, `gallery`, `quote`, `code`, `visual`, `columns`, `table` and `content`, plus
 [all-designs.md](layouts/all-designs.md) with every design in one deck and
-[image-generation.md](layouts/image-generation.md) for `![prompt](generate:)` placeholders.
+[image-generation.md](layouts/image-generation.md) for `![prompt](generate:)` placeholders and
+[two-visuals.md](layouts/two-visuals.md) for two charts sharing one content slide.
 [features/designs.md](features/designs.md) shows every design with a deck-local theme that
 overrides arrangements.
 
