@@ -3,8 +3,9 @@
 use super::backdrop::backdrop;
 use super::formation::{formation_for, formation_points};
 use super::{bokeh, dust};
-use crate::parser::{Block, Layout, Slide};
-use crate::render::particles::{Drift, Group, Home, Palette, Rng, Scene, Tint};
+use mdeck_sdk::content::{Block, ListItem, Slide};
+
+use crate::engines::particles::{Drift, Group, Home, Palette, Rng, Scene, Tint};
 
 /// The site's homepage: clusters hugging the flanks, copy in the dark middle.
 pub fn constellation(seed: u64) -> Scene {
@@ -180,7 +181,7 @@ fn quiet(seed: u64) -> Scene {
 }
 
 /// Reveal step of each top-level list item, in order.
-fn item_steps(items: &[crate::parser::ListItem]) -> Vec<usize> {
+fn item_steps(items: &[ListItem]) -> Vec<usize> {
     items.iter().map(|item| item.step).collect()
 }
 
@@ -222,36 +223,56 @@ fn clusters(slide: &Slide, seed: u64) -> Scene {
     Scene::new(groups)
 }
 
-pub fn for_slide(slide: &Slide, seed: u64) -> Scene {
-    if seed == 1 && crate::render::ember::is_title(slide, 0) {
+/// The scene for a slide by its design. `title` is the stage's title flag
+/// (a title design, or an opening slide that reads as one).
+pub fn for_slide(slide: &Slide, seed: u64, title: bool) -> Scene {
+    if title {
         return constellation(seed);
     }
-    match slide.layout {
-        Layout::Title => constellation(seed),
-        Layout::Section => section(seed),
-        Layout::Quote => candle(seed),
-        Layout::Code => rain(seed),
-        Layout::Bullet | Layout::Content | Layout::TwoColumn => clusters(slide, seed),
-        Layout::Image | Layout::Gallery | Layout::Diagram | Layout::Visualization => quiet(seed),
+    match slide.design.as_str() {
+        "title" => constellation(seed),
+        "section" => section(seed),
+        "quote" => candle(seed),
+        "code" => rain(seed),
+        "bullet" | "content" | "two-column" => clusters(slide, seed),
+        // Images, galleries, diagrams, visualizations and any design this
+        // engine does not know: keep the field quiet so the content reads.
+        _ => quiet(seed),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::{Inline, ListItem, ListMarker};
-    use crate::render::particles::scenes::backdrop::backdrop_for;
+    use crate::engines::particles::scenes::backdrop::backdrop_for;
+    use mdeck_sdk::content::{Inline, ListMarker};
 
-    fn item(marker: ListMarker) -> ListItem {
-        ListItem::new(marker, vec![Inline::Text("x".into())], vec![])
+    fn item(marker: ListMarker, step: usize) -> ListItem {
+        ListItem {
+            marker,
+            inlines: vec![Inline::Text("x".into())],
+            children: vec![],
+            step,
+        }
     }
 
     #[test]
     fn bullet_scene_has_one_cluster_per_item_with_its_step() {
-        let slide = crate::parser::parse("# A\n\n- a\n+ b\n  - b1\n+ c\n- d")
-            .slides
-            .remove(0);
-        let scene = for_slide(&slide, 3);
+        // What the parser makes of "- a, + b (- b1), + c, - d".
+        let slide = Slide {
+            blocks: vec![Block::List {
+                ordered: false,
+                items: vec![
+                    item(ListMarker::Static, 0),
+                    item(ListMarker::NextStep, 1),
+                    item(ListMarker::NextStep, 2),
+                    item(ListMarker::Static, 0),
+                ],
+            }],
+            design: "bullet".into(),
+            ..Default::default()
+        };
+        let scene = for_slide(&slide, 3, false);
         let steps: Vec<Option<usize>> = scene
             .groups
             .iter()
@@ -266,12 +287,9 @@ mod tests {
         Slide {
             blocks: vec![Block::List {
                 ordered: false,
-                start: 1,
-                items: (0..n).map(|_| item(ListMarker::Static)).collect(),
+                items: (0..n).map(|_| item(ListMarker::Static, 0)).collect(),
             }],
-            layout: Layout::Bullet,
-            raw_source: String::new(),
-            notes: None,
+            design: "bullet".into(),
             ..Default::default()
         }
     }
@@ -294,8 +312,8 @@ mod tests {
             assert_ne!(formation_for(i), formation_for(i + 1));
             assert_ne!(backdrop_for(i), backdrop_for(i + 1));
         }
-        let a = cluster_centres(&for_slide(&bullets(3), 1));
-        let b = cluster_centres(&for_slide(&bullets(3), 2));
+        let a = cluster_centres(&for_slide(&bullets(3), 1, false));
+        let b = cluster_centres(&for_slide(&bullets(3), 2, false));
         let moved: f32 = a
             .iter()
             .zip(&b)
@@ -310,26 +328,23 @@ mod tests {
     #[test]
     fn every_layout_yields_a_scene_with_dust() {
         for layout in [
-            Layout::Title,
-            Layout::Section,
-            Layout::Quote,
-            Layout::Code,
-            Layout::Bullet,
-            Layout::Content,
-            Layout::TwoColumn,
-            Layout::Image,
-            Layout::Gallery,
-            Layout::Diagram,
-            Layout::Visualization,
+            "title",
+            "section",
+            "quote",
+            "code",
+            "bullet",
+            "content",
+            "two-column",
+            "image",
+            "gallery",
+            "diagram",
+            "visualization",
         ] {
             let slide = Slide {
-                blocks: vec![],
-                layout,
-                raw_source: String::new(),
-                notes: None,
+                design: layout.into(),
                 ..Default::default()
             };
-            let scene = for_slide(&slide, 1);
+            let scene = for_slide(&slide, 1, false);
             assert!(scene.groups.len() >= 2, "{layout:?} has too few groups");
             let total: f32 = scene.groups.iter().map(|g| g.share).sum();
             assert!(

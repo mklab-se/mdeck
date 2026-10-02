@@ -1,11 +1,11 @@
 //! The simulation step: groups ease toward their reveal brightness, each
 //! particle's drift moves its target, and the particle eases after it.
 
-use eframe::egui::{Pos2, Rect};
+use mdeck_sdk::paint::{Pos2, Rect};
 
 use super::{Field, Particle};
-use crate::render::particles::scene::LIFE_RATE;
-use crate::render::particles::{Drift, Group, Home};
+use crate::engines::particles::scene::LIFE_RATE;
+use crate::engines::particles::{Drift, Group, Home};
 
 /// What every drift needs to know about the frame being simulated.
 struct Clock {
@@ -248,15 +248,15 @@ fn field_v_range(home: &Home) -> (f32, f32) {
 
 #[cfg(test)]
 mod tests {
-    use eframe::egui;
+    use mdeck_sdk::paint::Vec2;
 
     use super::*;
-    use crate::render::particles::Scene;
+    use crate::engines::particles::Scene;
 
     #[test]
     fn forward_drift_moves_outward_and_is_reborn_near_the_centre() {
         let mut field = Field::new(50, 5);
-        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1600.0, 900.0));
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(1600.0, 900.0));
         field.scatter(rect);
         let scene = Scene::new(vec![
             Group::new(

@@ -1,6 +1,6 @@
 //! Formations: how a bullet slide's item clusters are arranged.
 
-use crate::render::particles::Rng;
+use crate::engines::particles::Rng;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Formation {

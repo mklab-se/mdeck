@@ -18,6 +18,8 @@ pub mod blocks;
 pub mod host;
 #[cfg(feature = "led")]
 pub mod led;
+#[cfg(feature = "particles")]
+pub mod particles;
 pub mod plain;
 pub mod rng;
 
@@ -37,6 +39,8 @@ pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
     r.engine(&led::DEF)?;
     #[cfg(feature = "blocks")]
     r.engine(&blocks::DEF)?;
+    #[cfg(feature = "particles")]
+    r.engine(&particles::DEF)?;
     Ok(())
 }
 
