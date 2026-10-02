@@ -32,7 +32,7 @@ impl Drawer<'_> {
             ),
         );
         // the gradient, cold at the bottom
-        let lut = self.palette.lut();
+        let lut = super::palette::lut(self.palette);
         let mut mesh = egui::Mesh::default();
         let n = 64;
         for i in 0..=n {

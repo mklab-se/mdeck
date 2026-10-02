@@ -3,7 +3,7 @@
 //! [`super::file::ThemeFile`] field by field, so the starter cannot drift
 //! from the format.
 
-use super::EngineKind;
+use super::EngineId;
 
 /// One key of the starter: its path (`colors.accent`), an example value as
 /// YAML, what it does, and whether the starter writes it uncommented.
@@ -210,19 +210,25 @@ pub fn engine_setting(key: &str) -> (&'static str, &'static str) {
     }
 }
 
-/// Engines in the order the starter lists their settings.
-const ENGINES: [EngineKind; 10] = [
-    EngineKind::Plain,
-    EngineKind::Particles,
-    EngineKind::Led,
-    EngineKind::SplitFlap,
-    EngineKind::Blocks,
-    EngineKind::Thermal,
-    EngineKind::Line,
-    EngineKind::Sketch,
-    EngineKind::Watercolour,
-    EngineKind::Darkroom,
-];
+/// Engines in the order the starter lists their settings (the built-ins
+/// this build has).
+fn engines() -> Vec<EngineId> {
+    [
+        "plain",
+        "particles",
+        "led",
+        "splitflap",
+        "blocks",
+        "thermal",
+        "line",
+        "sketch",
+        "watercolour",
+        "darkroom",
+    ]
+    .into_iter()
+    .filter_map(EngineId::find)
+    .collect()
+}
 
 /// The starter `mdeck theme new` writes: every key, commented except the
 /// few a theme always sets. `all` writes every key uncommented (tests).
@@ -290,17 +296,17 @@ fn engine_block(all: bool) -> String {
     );
     // every setting once, grouped by the engines that read it
     let mut keys: Vec<&str> = Vec::new();
-    for engine in ENGINES {
+    for engine in engines() {
         for k in super::validate::engine_keys(engine) {
-            if !keys.contains(k) {
+            if !keys.contains(&k) {
                 keys.push(k);
             }
         }
     }
     let readers = |k: &str| -> Vec<&'static str> {
-        ENGINES
-            .iter()
-            .filter(|e| super::validate::engine_keys(**e).contains(&k))
+        engines()
+            .into_iter()
+            .filter(|e| super::validate::engine_keys(*e).contains(&k))
             .map(|e| e.name())
             .collect()
     };
@@ -457,7 +463,7 @@ mod tests {
         assert_eq!(unset(&full), Vec::<&str>::new());
         // and every setting of every engine
         let block = full.engine_block();
-        for engine in ENGINES {
+        for engine in engines() {
             for k in super::super::validate::engine_keys(engine) {
                 assert!(block.get(k).is_some(), "engine.{k} ({})", engine.name());
                 assert!(!engine_setting(k).0.is_empty(), "{k}");

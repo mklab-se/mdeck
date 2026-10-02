@@ -13,7 +13,7 @@ use anyhow::{Context, Result};
 use image::{DynamicImage, GenericImageView};
 
 use super::{Cloud, MAX_POINTS, VERSION};
-use crate::render::particles::Rng;
+use crate::engines::rng::Rng;
 
 /// Long side the image is reduced to before sampling.
 const WORK_SIZE: u32 = 512;

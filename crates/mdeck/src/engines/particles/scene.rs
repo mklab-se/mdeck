@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use eframe::egui::Color32;
+use mdeck_sdk::paint::Color;
 
 use super::Rng;
 
@@ -32,12 +32,12 @@ impl Tint {
 /// The colour of each [`Tint`], in `Tint::index` order. The theme sets them
 /// (accent, soft accent, particle light, secondary, particle cool); these are
 /// Ember's.
-pub const DEFAULT_TINTS: [Color32; 5] = [
-    Color32::from_rgb(0xFF, 0x4D, 0x1C),
-    Color32::from_rgb(0xFF, 0x8A, 0x66),
-    Color32::from_rgb(0xD7, 0xD7, 0xE1),
-    Color32::from_rgb(0xF5, 0xA6, 0x23),
-    Color32::from_rgb(0xAF, 0xC3, 0xF0),
+pub const DEFAULT_TINTS: [Color; 5] = [
+    Color::from_rgb(0xFF, 0x4D, 0x1C),
+    Color::from_rgb(0xFF, 0x8A, 0x66),
+    Color::from_rgb(0xD7, 0xD7, 0xE1),
+    Color::from_rgb(0xF5, 0xA6, 0x23),
+    Color::from_rgb(0xAF, 0xC3, 0xF0),
 ];
 
 /// Colour mix of a group.

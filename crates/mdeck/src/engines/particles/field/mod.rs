@@ -1,9 +1,8 @@
 //! The field: a fixed pool of particles, the scene they are acting out, and
 //! the paint pass that draws them.
 
-use eframe::egui::{self, Color32, Pos2, Rect};
+use mdeck_sdk::paint::{Color, Painter, Pos2, Rect, Sprite, SpriteBlend, SpriteLayer, Stroke};
 
-use super::gl::{self, Sprite};
 use super::{DEFAULT_TINTS, Rng, Scene, Tint};
 
 mod assign;
@@ -57,14 +56,15 @@ pub struct Field {
     /// 0 right after a scene change, easing to 1: fades links in.
     scene_fade: f32,
     time: f32,
-    renderer: gl::GlowRenderer,
+    /// GPU state of the glow sprites (wake buffers on GL).
+    layer: SpriteLayer,
     /// Linear-ish RGB per tint, from the theme.
     tints: [[f32; 3]; 5],
     /// Drawing on a light page: ink instead of light.
     light: bool,
 }
 
-fn rgb(c: Color32) -> [f32; 3] {
+fn rgb(c: Color) -> [f32; 3] {
     [
         c.r() as f32 / 255.0,
         c.g() as f32 / 255.0,
@@ -74,7 +74,7 @@ fn rgb(c: Color32) -> [f32; 3] {
 
 impl Field {
     /// Set the particle colours, in [`Tint`] order (see [`DEFAULT_TINTS`]).
-    pub fn set_tints(&mut self, tints: [Color32; 5]) {
+    pub fn set_tints(&mut self, tints: [Color; 5]) {
         self.tints = tints.map(rgb);
     }
 
@@ -110,13 +110,13 @@ impl Field {
             particles,
             rng,
             scene: Scene::default(),
-            rect: Rect::NOTHING,
+            rect: Rect::ZERO,
             life: Vec::new(),
             heat: Vec::new(),
             links: Vec::new(),
             scene_fade: 1.0,
             time: 0.0,
-            renderer: gl::GlowRenderer::default(),
+            layer: SpriteLayer::new(),
             tints: DEFAULT_TINTS.map(rgb),
             light: false,
         }
@@ -175,17 +175,25 @@ impl Field {
         }
     }
 
-    /// Draw the field: hairlines through the egui painter, glow through GL.
-    /// Live frames get wakes; stills (`wakes == false`) are drawn crisp.
-    pub fn paint(&self, painter: &egui::Painter, rect: Rect, opacity: f32, wakes: bool) {
+    /// Draw the field: hairlines, then the glow sprites. Live frames get
+    /// wakes; stills (`wakes == false`) are drawn crisp; a light page blends
+    /// like ink.
+    pub fn paint(&self, painter: &Painter, rect: Rect, opacity: f32, wakes: bool) {
         self.paint_links(painter, opacity);
         let sprites = self.sprites(rect.width() / REF_WIDTH, opacity);
-        self.renderer
-            .paint(painter, rect, sprites, wakes && !self.light, self.light);
+        let blend = if self.light {
+            SpriteBlend::Normal
+        } else if wakes {
+            SpriteBlend::AdditiveWakes
+        } else {
+            SpriteBlend::Additive
+        };
+        // The sprites map onto `rect` (the GL viewport), as before the SDK.
+        painter.with_clip(rect).sprites(&self.layer, sprites, blend);
     }
 
     /// The hairlines between linked neighbours, faded in after a scene change.
-    fn paint_links(&self, painter: &egui::Painter, opacity: f32) {
+    fn paint_links(&self, painter: &Painter, opacity: f32) {
         if self.links.is_empty() || self.scene.link_alpha <= 0.0 {
             return;
         }
@@ -197,10 +205,10 @@ impl Field {
                 continue;
             }
             let ink = if self.light { 40 } else { 255 };
-            let color = Color32::from_rgba_unmultiplied(ink, ink, ink, (la * 255.0) as u8);
+            let color = Color::from_rgba_unmultiplied(ink, ink, ink, (la * 255.0) as u8);
             painter.line_segment(
                 [Pos2::new(p.x, p.y), Pos2::new(q.x, q.y)],
-                egui::Stroke::new(1.0, color),
+                Stroke::new(1.0, color),
             );
         }
     }
@@ -216,8 +224,7 @@ impl Field {
                 let heat = self.heat.get(p.group).copied().unwrap_or(0.0) * 0.75;
                 let [er, eg, eb] = self.tints[Tint::Ember.index()];
                 Sprite {
-                    x: p.x,
-                    y: p.y,
+                    center: Pos2::new(p.x, p.y),
                     size: p.base_size * p.size_mul * scale * SIZE_GAIN * (1.0 + heat * 0.4),
                     rgba: [
                         r + (er - r) * heat,
@@ -234,12 +241,13 @@ impl Field {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::render::particles::{Group, Home};
+    use crate::engines::particles::{Group, Home};
+    use mdeck_sdk::paint::Vec2;
 
     #[test]
     fn shares_cover_every_particle_and_groups_light_by_step() {
         let mut field = Field::new(200, 7);
-        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1920.0, 1080.0));
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(1920.0, 1080.0));
         field.scatter(rect);
         let scene = Scene::new(vec![
             Group::new(

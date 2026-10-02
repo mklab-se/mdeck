@@ -7,17 +7,17 @@
 
 use std::collections::HashMap;
 
-use eframe::egui::{self, Color32, Pos2, Rect, Vec2, epaint};
+use mdeck_sdk::paint::{Align2, Color, Font, Mesh, Painter, Pos2, Rect, Vec2};
+use mdeck_sdk::tokens::Tokens;
 
 use super::flaps::Flaps;
 use super::layout::{COLS, Cell, ROWS, Style};
 use super::wheel::SOLID;
-use crate::theme::Theme;
 
 /// The atlas's white texel, for quads without a texture.
 pub(super) const WHITE: Rect = Rect {
-    min: epaint::WHITE_UV,
-    max: epaint::WHITE_UV,
+    min: Pos2::ZERO,
+    max: Pos2::ZERO,
 };
 
 /// A flap is this wide for its height.
@@ -44,13 +44,13 @@ pub struct Geometry {
 impl Geometry {
     pub fn new(rect: Rect, scale: f32) -> Self {
         let (side, top, bottom) = (70.0 * scale, 64.0 * scale, 104.0 * scale);
-        let avail = egui::vec2(rect.width() - 2.0 * side, rect.height() - top - bottom);
+        let avail = Vec2::new(rect.width() - 2.0 * side, rect.height() - top - bottom);
         let by_width = avail.x / (COLS as f32 * (1.0 + GAP_X) - GAP_X);
         let by_height = avail.y / (ROWS as f32 * (1.0 + GAP_Y) - GAP_Y) * ASPECT;
         let w = by_width.min(by_height).max(1.0);
         let h = w / ASPECT;
-        let pitch = egui::vec2(w * (1.0 + GAP_X), h * (1.0 + GAP_Y));
-        let size = egui::vec2(
+        let pitch = Vec2::new(w * (1.0 + GAP_X), h * (1.0 + GAP_Y));
+        let size = Vec2::new(
             pitch.x * COLS as f32 - w * GAP_X,
             pitch.y * ROWS as f32 - h * GAP_Y,
         );
@@ -61,14 +61,14 @@ impl Geometry {
         Geometry {
             housing: Rect::from_min_size(origin, size).expand(w * 0.42),
             origin,
-            cell: egui::vec2(w, h),
+            cell: Vec2::new(w, h),
             pitch,
         }
     }
 
     pub fn cell_rect(&self, col: usize, row: usize) -> Rect {
         Rect::from_min_size(
-            self.origin + egui::vec2(col as f32 * self.pitch.x, row as f32 * self.pitch.y),
+            self.origin + Vec2::new(col as f32 * self.pitch.x, row as f32 * self.pitch.y),
             self.cell,
         )
     }
@@ -82,47 +82,47 @@ impl Geometry {
 
 /// The board's colours, from the theme.
 pub struct Palette {
-    flap_top: Color32,
-    flap_bottom: Color32,
-    housing: Color32,
-    housing_edge: Color32,
-    pub(super) gap: Color32,
-    pub(super) pin: Color32,
-    glyph: [Color32; 6],
-    solid_on: Color32,
-    solid_off: Color32,
+    flap_top: Color,
+    flap_bottom: Color,
+    housing: Color,
+    housing_edge: Color,
+    pub(super) gap: Color,
+    pub(super) pin: Color,
+    glyph: [Color; 6],
+    solid_on: Color,
+    solid_off: Color,
 }
 
 impl Palette {
-    pub fn of(theme: &Theme) -> Self {
-        let flap = theme.code_background;
-        let light = theme.is_light();
+    pub fn of(t: &Tokens) -> Self {
+        let flap = t.code_background;
+        let light = t.light;
         let housing = if light {
-            mix(theme.background, Color32::BLACK, 0.08)
+            mix(t.background, Color::BLACK, 0.08)
         } else {
-            mix(theme.background, Color32::BLACK, 0.35)
+            mix(t.background, Color::BLACK, 0.35)
         };
         Palette {
-            flap_top: mix(flap, Color32::WHITE, if light { 0.25 } else { 0.045 }),
-            flap_bottom: mix(flap, Color32::BLACK, if light { 0.02 } else { 0.10 }),
+            flap_top: mix(flap, Color::WHITE, if light { 0.25 } else { 0.045 }),
+            flap_bottom: mix(flap, Color::BLACK, if light { 0.02 } else { 0.10 }),
             housing,
-            housing_edge: mix(housing, theme.rule, 0.8),
-            gap: mix(housing, Color32::BLACK, 0.55),
-            pin: mix(flap, theme.muted, 0.45),
+            housing_edge: mix(housing, t.rule, 0.8),
+            gap: mix(housing, Color::BLACK, 0.55),
+            pin: mix(flap, t.muted, 0.45),
             glyph: [
-                theme.heading_color,
-                theme.accent,
-                theme.accent_soft,
-                theme.secondary,
-                theme.muted,
-                theme.accent,
+                t.heading,
+                t.accent,
+                t.accent_soft,
+                t.secondary,
+                t.muted,
+                t.accent,
             ],
-            solid_on: theme.accent,
-            solid_off: mix(flap, theme.muted, 0.28),
+            solid_on: t.accent,
+            solid_off: mix(flap, t.muted, 0.28),
         }
     }
 
-    pub(super) fn glyph_color(&self, style: Style) -> Color32 {
+    pub(super) fn glyph_color(&self, style: Style) -> Color {
         self.glyph[match style {
             Style::Normal => 0,
             Style::Heading => 1,
@@ -134,65 +134,58 @@ impl Palette {
     }
 
     /// The flap's own colour: a solid flap is coloured through.
-    pub(super) fn face(&self, cell: Cell, top: bool) -> Color32 {
+    pub(super) fn face(&self, cell: Cell, top: bool) -> Color {
         if cell.ch == SOLID {
             let c = if cell.style == Style::Dim {
                 self.solid_off
             } else {
                 self.solid_on
             };
-            return if top { mix(c, Color32::WHITE, 0.08) } else { c };
+            return if top { mix(c, Color::WHITE, 0.08) } else { c };
         }
         if top { self.flap_top } else { self.flap_bottom }
     }
 }
 
-/// Characters as quads cut from egui's font atlas, relative to a cell's
+/// Characters as quads cut from the font atlas, relative to a cell's
 /// centre, looked up once per frame (the atlas may be rebuilt between).
 pub struct Glyphs {
-    font: egui::FontId,
+    font: Font,
     map: HashMap<char, Option<(Rect, Rect)>>,
 }
 
 impl Glyphs {
-    pub fn new(theme: &Theme, cell: Vec2) -> Self {
+    pub fn new(cell: Vec2) -> Self {
         Glyphs {
-            font: egui::FontId::new(cell.y * GLYPH, theme.display_family()),
+            font: Font::display(cell.y * GLYPH),
             map: HashMap::new(),
         }
     }
 
+    /// A mesh on the font atlas to draw the board into.
+    pub(super) fn mesh(&self, painter: &Painter) -> Mesh {
+        painter.glyph_mesh(Pos2::ZERO, "", self.font, Color::WHITE)
+    }
+
     /// The character's quad (relative to the cell centre) and its uv rect.
-    pub(super) fn get(&mut self, ui: &egui::Ui, ch: char) -> Option<(Rect, Rect)> {
+    pub(super) fn get(&mut self, painter: &Painter, ch: char) -> Option<(Rect, Rect)> {
         if ch == ' ' || ch == SOLID {
             return None;
         }
         if let Some(hit) = self.map.get(&ch) {
             return *hit;
         }
-        let font = self.font.clone();
-        let (galley, atlas) = ui.fonts_mut(|f| {
+        let text = ch.to_string();
+        let size = painter.text_size(&text, self.font);
+        // optical centring: capitals sit a touch low in the line box
+        let origin = Pos2::new(-size.x / 2.0, -size.y / 2.0 - self.font.size * 0.04);
+        let mesh = painter.glyph_mesh(origin, &text, self.font, Color::WHITE);
+        let quad = (mesh.vertices.len() >= 4).then(|| {
+            let v = &mesh.vertices;
             (
-                f.layout_no_wrap(ch.to_string(), font, Color32::WHITE),
-                f.font_image_size(),
+                Rect::from_min_max(v[0].pos, v[2].pos),
+                Rect::from_min_max(v[0].uv, v[2].uv),
             )
-        });
-        let quad = galley.rows.first().and_then(|row| {
-            let g = row.row.glyphs.first()?;
-            if g.uv_rect.max[0] <= g.uv_rect.min[0] {
-                return None;
-            }
-            let min = row.pos + g.pos.to_vec2() + g.uv_rect.offset;
-            let rect = Rect::from_min_size(min, g.uv_rect.size)
-                .translate(-galley.size() / 2.0)
-                // optical centring: capitals sit a touch low in the line box
-                .translate(egui::vec2(0.0, -self.font.size * 0.04));
-            let (aw, ah) = (atlas[0] as f32, atlas[1] as f32);
-            let uv = Rect::from_min_max(
-                Pos2::new(g.uv_rect.min[0] as f32 / aw, g.uv_rect.min[1] as f32 / ah),
-                Pos2::new(g.uv_rect.max[0] as f32 / aw, g.uv_rect.max[1] as f32 / ah),
-            );
-            Some((rect, uv))
         });
         self.map.insert(ch, quad);
         quad
@@ -224,24 +217,27 @@ pub struct Scene<'a> {
 }
 
 /// Paint the board: housing, every cell (turning ones mid-fold), and the
-/// labels under it.
+/// labels under it. `opacity` fades what is drawn (on top of the painter's
+/// own opacity).
 pub fn paint(
-    ui: &egui::Ui,
+    painter: &Painter,
     geo: &Geometry,
-    theme: &Theme,
+    tokens: &Tokens,
     scene: &Scene,
     opacity: f32,
     scale: f32,
 ) {
-    let pal = Palette::of(theme);
-    housing(ui.painter(), geo, &pal, opacity, scale);
+    let pal = Palette::of(tokens);
+    housing(painter, geo, &pal, opacity, scale);
 
+    let glyphs = Glyphs::new(geo.cell);
+    let mesh = glyphs.mesh(painter);
     let mut flaps = Flaps {
-        ui,
+        painter,
         cell_h: geo.cell.y,
         pal: &pal,
-        glyphs: Glyphs::new(theme, geo.cell),
-        mesh: egui::Mesh::with_texture(egui::TextureId::default()),
+        glyphs,
+        mesh,
         opacity,
         r: geo.cell.x * 0.10,
         hinge: (geo.cell.y * 0.035).max(1.2),
@@ -254,16 +250,16 @@ pub fn paint(
         }
         flaps.cell(cell, view);
     }
-    ui.painter().add(egui::Shape::mesh(flaps.mesh));
+    painter.mesh(flaps.mesh);
 
     if let Some(labels) = &scene.labels {
-        draw_labels(ui.painter(), geo, theme, labels, opacity, scale);
+        draw_labels(painter, geo, tokens, labels, opacity, scale);
     }
 }
 
 /// The housing: a dark frame with a hairline edge and a soft top light.
-fn housing(painter: &egui::Painter, geo: &Geometry, pal: &Palette, opacity: f32, scale: f32) {
-    let fade = |c: Color32| c.gamma_multiply(opacity);
+fn housing(painter: &Painter, geo: &Geometry, pal: &Palette, opacity: f32, scale: f32) {
+    let fade = |c: Color| c.gamma_multiply(opacity);
     let round = geo.cell.x * 0.22;
     painter.rect_filled(
         geo.housing.expand(2.0 * scale),
@@ -271,61 +267,65 @@ fn housing(painter: &egui::Painter, geo: &Geometry, pal: &Palette, opacity: f32,
         fade(pal.housing_edge),
     );
     painter.rect_filled(geo.housing, round, fade(pal.housing));
-    let sheen = Rect::from_min_max(
-        geo.housing.left_top(),
-        Pos2::new(geo.housing.right(), geo.housing.top() + geo.cell.y * 0.35),
-    );
-    let mut m = egui::Mesh::default();
-    m.colored_vertex(sheen.left_top(), fade(Color32::from_white_alpha(10)));
-    m.colored_vertex(sheen.right_top(), fade(Color32::from_white_alpha(10)));
-    m.colored_vertex(sheen.left_bottom(), Color32::TRANSPARENT);
-    m.colored_vertex(sheen.right_bottom(), Color32::TRANSPARENT);
-    m.add_triangle(0, 1, 2);
-    m.add_triangle(1, 3, 2);
-    painter.add(egui::Shape::mesh(m));
+    let h = geo.housing;
+    let bottom = h.top() + geo.cell.y * 0.35;
+    let sheen = fade(Color::from_rgba_premultiplied(10, 10, 10, 10));
+    let mut m = Mesh::default();
+    let a = m.vertex(h.min, Pos2::ZERO, sheen);
+    let b = m.vertex(Pos2::new(h.right(), h.top()), Pos2::ZERO, sheen);
+    let c = m.vertex(Pos2::new(h.left(), bottom), Pos2::ZERO, Color::TRANSPARENT);
+    let d = m.vertex(Pos2::new(h.right(), bottom), Pos2::ZERO, Color::TRANSPARENT);
+    m.triangle(a, b, c);
+    m.triangle(b, d, c);
+    painter.mesh(m);
 }
 
 /// The deck's title and the slide counter, spaced out on the frame.
 fn draw_labels(
-    painter: &egui::Painter,
+    painter: &Painter,
     geo: &Geometry,
-    theme: &Theme,
+    tokens: &Tokens,
     labels: &Labels,
     opacity: f32,
     scale: f32,
 ) {
     let size = 15.0 * scale;
     let y = geo.housing.bottom() + 22.0 * scale;
-    let font = egui::FontId::new(size, theme.mono_family());
+    let font = Font::mono(size);
+    let spacing = size * 0.22;
+    let color = tokens.muted.gamma_multiply(opacity);
     for (text, right) in [(labels.left, false), (labels.right, true)] {
         if text.is_empty() {
             continue;
         }
-        let mut job = egui::text::LayoutJob::default();
-        job.append(
-            &text.to_uppercase(),
-            0.0,
-            egui::text::TextFormat {
-                font_id: font.clone(),
-                color: theme.muted.gamma_multiply(opacity),
-                extra_letter_spacing: size * 0.22,
-                ..Default::default()
-            },
-        );
-        let galley = painter.layout_job(job);
-        let x = if right {
-            geo.housing.right() - galley.size().x
+        // spaced out: each character set on its own, the spacing between
+        let chars: Vec<(String, f32)> = text
+            .to_uppercase()
+            .chars()
+            .map(|c| {
+                let s = c.to_string();
+                let w = painter.text_size(&s, font).x;
+                (s, w)
+            })
+            .collect();
+        let width: f32 = chars.iter().map(|(_, w)| w + spacing).sum::<f32>() - spacing;
+        let mut x = if right {
+            geo.housing.right() - width
         } else {
             geo.housing.left()
         };
-        painter.galley(Pos2::new(x, y), galley, theme.muted);
+        for (s, w) in chars {
+            painter.text(Pos2::new(x, y), Align2::LEFT_TOP, &s, font, color);
+            x += w + spacing;
+        }
     }
 }
 
-pub fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
+/// `a` toward `b` by `t` (0..1), alpha included.
+pub fn mix(a: Color, b: Color, t: f32) -> Color {
     let t = t.clamp(0.0, 1.0);
     let l = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
-    Color32::from_rgba_premultiplied(
+    Color::from_rgba_premultiplied(
         l(a.r(), b.r()),
         l(a.g(), b.g()),
         l(a.b(), b.b()),
@@ -339,9 +339,13 @@ mod tests {
 
     #[test]
     fn the_board_fits_the_slide_with_room_for_labels() {
-        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1920.0, 1080.0));
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(1920.0, 1080.0));
         let g = Geometry::new(rect, 1.0);
-        assert!(rect.contains_rect(g.housing), "{:?}", g.housing);
+        assert!(
+            rect.contains(g.housing.min) && rect.contains(g.housing.max),
+            "{:?}",
+            g.housing
+        );
         assert!(
             g.housing.bottom() < 1080.0 - 60.0,
             "labels fit under the board"

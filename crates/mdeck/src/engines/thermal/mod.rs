@@ -1,36 +1,48 @@
 //! The thermal engine: the deck seen through a thermal instrument. A heat
-//! field lies under the slides, drawn in the theme's heat palette in
+//! field lies under the slides, drawn in the `palette` setting's colours in
 //! contour bands and transparent where it is cold.
 //!
 //! - **The cold opening.** On title and section slides the heading forms in
 //!   heat: points glow inside the letters, spread and join into contours,
 //!   and the words are readable within a second. Then the crisp type rises
-//!   into it (the copy waits [`COLD_OPEN_HOLD`]) and the heat settles into a
-//!   faint contour halo that stays.
-//! - **Heat signatures.** An `picture` glows like a warm body; the
-//!   countdown digits heat up and cool off; the end words glow and fade.
+//!   into it (the core holds the copy back [`COLD_OPEN_HOLD`], see
+//!   [`Engine::copy_hold`]) and the heat settles into a faint contour halo
+//!   that stays. The heading comes from the slide's
+//!   [`Hint::Text`] geometry, rasterised with [`Painter::glyph_ink`].
+//! - **Heat signatures.** A picture glows like a warm body; the countdown
+//!   digits heat up and cool off; the end words glow and fade.
 //! - **Calm evidence.** Where a slide shows charts, images or diagrams the
-//!   field stays dark. With `heat: { drift: true }` a few embers drift
-//!   through the dark on ordinary slides, cooling as they rise.
+//!   field stays dark. With `drift: true` a few embers drift through the
+//!   dark on ordinary slides, cooling as they rise.
 //! - **Cooling between slides.** Nothing is cleared on a slide change: the
 //!   old heat cools while the new heat builds.
+//! - **The heat trace.** The presenter's pen strokes arrive white-hot and
+//!   cool through the palette ([`Engine::annotate`], `trace.rs`).
 //!
 //! Exports and reduced motion show the settled field.
 
 mod field;
+mod trace;
 
-use eframe::egui::{self, Pos2, Rect};
+use mdeck_sdk::cloud::Mask;
+use mdeck_sdk::engine::{
+    Annotation, Capabilities, Engine, EngineDef, Needs, SettingKind, SettingSpec,
+};
+use mdeck_sdk::geometry::Hint;
+use mdeck_sdk::paint::{Color, Painter, Pos2, Rect, Texture, TextureFilter};
+use mdeck_sdk::stage::{Frame, Look, Moment, PictureSource, Stage};
+use mdeck_sdk::tokens::EngineSettings;
 
-use super::stage::{FrameCx, Look, Moment, Stage};
-use super::{Capabilities, Engine, EngineDef, hash01};
-use crate::render::ember::COLD_OPEN_HOLD;
-use crate::render::hints::Hint;
-use crate::render::illustration::Library;
+use crate::engines::hash01;
+use crate::engines::heat_palette::Palette;
 use field::{Field, smooth};
 
 /// Seconds into the end slide when the caption fades in: the words have
 /// glowed and cooled.
 pub const END_CAPTION_DELAY: f32 = 4.4;
+/// Seconds the core holds the copy of a title or section slide back while
+/// the heading forms in heat.
+pub const COLD_OPEN_HOLD: f32 = 1.5;
 /// The end words glow this long, then cool.
 const END_WORDS: f32 = 3.0;
 /// The heading reaches full heat this long after the slide is entered:
@@ -49,18 +61,49 @@ const SPREAD_FIGURE: f32 = 90.0;
 /// Contour bands the field is drawn in.
 const BANDS: usize = 9;
 const EMBERS: usize = 120;
+/// Atlas coverage a glyph pixel needs to heat its cell.
+const INK_ALPHA: u8 = 100;
+/// The simulation step a late heading is replayed at (see
+/// [`Thermal::replay`]).
+const REPLAY_DT: f32 = 1.0 / 60.0;
+/// A heading that arrives later than this into its moment is not replayed
+/// (the replay's cost is bounded); the next frames heat it as they go.
+const REPLAY_MAX: f32 = 10.0;
+
+const PALETTES: &[&str] = &[
+    "iron",
+    "white-hot",
+    "black-hot",
+    "rainbow",
+    "arctic",
+    "lava",
+];
 
 pub static DEF: EngineDef = EngineDef {
+    name: "thermal",
+    summary: "A heat field under the slides: headings form in heat, pictures glow like warm bodies.",
     capabilities: Capabilities {
-        cold_open: true,
-        heat_trace: true,
-        ..Capabilities::PICTURES
+        picture: true,
+        countdown: true,
+        ending: true,
+        ..Capabilities::NONE
     },
-    create: || Box::new(Thermal::new()),
-    end_caption_delay: END_CAPTION_DELAY,
-    medium: None,
-    render_slide: None,
-    problems: None,
+    settings: &[
+        SettingSpec {
+            key: "palette",
+            kind: SettingKind::OneOf(PALETTES),
+            summary: "The palette the heat glows in (default iron).",
+        },
+        SettingSpec {
+            key: "drift",
+            kind: SettingKind::Bool,
+            summary: "Embers drift through the dark on ordinary slides (default false).",
+        },
+    ],
+    needs: Needs { page: false },
+    ending_caption_delay: END_CAPTION_DELAY,
+    create: |s| Box::new(Thermal::new(s)),
+    board: None,
 };
 
 /// A heading's glyphs in field cells, with a rank per cell that decides
@@ -80,37 +123,56 @@ struct Ember {
 }
 
 pub struct Thermal {
+    palette: Palette,
+    drift: bool,
     field: Option<Field>,
     key: Option<(usize, Look)>,
     /// Seconds since the current moment began.
     age: f32,
+    /// The field and embers as the current moment began, so a heading that
+    /// arrives late (its glyphs are sampled in `paint`) can be replayed
+    /// from the start.
+    start: Option<(Vec<f32>, Vec<Ember>)>,
+    /// The moment has not had its heading sampled yet.
+    fresh: bool,
     heading: Option<HeadingMask>,
     embers: Vec<Ember>,
-    texture: Option<egui::TextureHandle>,
+    texture: Option<Texture>,
     /// The field changed since the texture was last uploaded.
     dirty: bool,
+    /// The heat still moves: ask for another frame.
+    moving: bool,
 }
 
 impl Thermal {
-    pub fn new() -> Self {
+    pub fn new(settings: &EngineSettings) -> Self {
+        let palette = settings
+            .one_of("palette", PALETTES)
+            .and_then(Palette::from_name)
+            .unwrap_or(Palette::DEFAULT);
         Self {
+            palette,
+            drift: settings.bool_or("drift", false),
             field: None,
             key: None,
             age: 0.0,
+            start: None,
+            fresh: false,
             heading: None,
             embers: (0..EMBERS).map(|i| ember(i as u32, 0)).collect(),
             texture: None,
             dirty: true,
+            moving: true,
         }
     }
 
     /// Set the sources for this moment, `age` seconds into it.
-    fn sources(&mut self, cx: &FrameCx, stage: &Stage) {
+    fn sources(&mut self, frame: &Frame, stage: &Stage) {
         let Some(field) = self.field.as_mut() else {
             return;
         };
         field.clear_sources();
-        let rect = cx.rect;
+        let rect = frame.rect;
         let (fw, fh) = (field.w as f32, field.h as f32);
         let to_cell = |p: Pos2| {
             (
@@ -119,7 +181,7 @@ impl Thermal {
             )
         };
         // charts, images and diagrams stay dark
-        for hint in stage.hints {
+        for hint in stage.geometry {
             if let Hint::Frame(r) = hint {
                 let (x0, y0) = to_cell(r.min);
                 let (x1, y1) = to_cell(r.max);
@@ -128,24 +190,24 @@ impl Thermal {
         }
         let age = self.age;
         // a mask in the unit square, `height` of the slide tall, centred
-        let stamp_mask = |field: &mut Field, pts: &[[f32; 2]], aspect: f32, height: f32, v: f32| {
+        let stamp_mask = |field: &mut Field, mask: &Mask, height: f32, v: f32| {
             let h = height * fh;
-            let w = h * aspect * rect.height() / rect.width() * fw / fh;
+            let w = h * mask.aspect * rect.height() / rect.width() * fw / fh;
             let (x0, y0) = ((fw - w) / 2.0, (fh - h) / 2.0);
-            for p in pts {
+            for p in mask.points.iter() {
                 field.disc(x0 + p[0] * w, y0 + p[1] * h, 1.1, v);
             }
         };
         match &stage.moment {
             Moment::Countdown { mask, progress, .. } => {
                 let v = smooth(0.0, 0.3, *progress) * (1.0 - 0.85 * smooth(0.75, 1.0, *progress));
-                stamp_mask(field, &mask.0, mask.1, 0.5, v);
+                stamp_mask(field, mask, 0.5, v);
             }
             Moment::Burst { .. } => {}
             Moment::End { words, elapsed } => {
-                let v = end_heat(*elapsed, cx.still);
+                let v = end_heat(*elapsed, frame.settled());
                 if v > 0.0 {
-                    stamp_mask(field, &words.0, words.1, 0.16, v);
+                    stamp_mask(field, words, 0.16, v);
                 }
             }
             Moment::Slide => {
@@ -168,17 +230,19 @@ impl Thermal {
                         }
                     }
                 }
-                if let Some(fig) = &stage.figure {
-                    let p = fig.place;
-                    let v = if fig.backdrop { 0.32 } else { 0.72 };
-                    let n = fig.cloud.points.len().min(1400);
-                    for pt in &fig.cloud.points[..n] {
+                if let Some(pic) = &stage.picture
+                    && let PictureSource::Cloud(cloud) = &pic.source
+                {
+                    let p = pic.place;
+                    let v = if pic.backdrop { 0.32 } else { 0.72 };
+                    let n = cloud.points.len().min(1400);
+                    for pt in &cloud.points[..n] {
                         let x = (p.u + pt[0] * p.w) * fw;
                         let y = (p.v + pt[1] * p.h) * fh;
                         field.disc(x, y, 0.9, v);
                     }
                 }
-                if cx.theme.heat.drift {
+                if self.drift {
                     for e in &self.embers {
                         field.disc(e.x * fw, e.y * fh, 1.3, e.heat * 0.55);
                     }
@@ -187,67 +251,47 @@ impl Thermal {
         }
     }
 
-    /// Build the heading's cells from the renderer's hint, sampling the
-    /// glyphs' coverage out of the font atlas.
-    fn heading_mask(&mut self, ui: &egui::Ui, cx: &FrameCx, stage: &Stage) -> bool {
-        let text: Vec<(&std::sync::Arc<egui::Galley>, Pos2)> = stage
-            .hints
+    /// Build the heading's cells from the slide's text geometry, sampling
+    /// the glyphs' ink. Returns whether the mask changed.
+    fn heading_mask(&mut self, painter: &Painter, frame: &Frame, stage: &Stage) -> bool {
+        let text: Vec<_> = stage
+            .geometry
             .iter()
             .filter_map(|h| match h {
-                Hint::Text { galley, pos, slide } if *slide == stage.index => Some((galley, *pos)),
+                Hint::Text {
+                    text,
+                    font,
+                    pos,
+                    slide,
+                    ..
+                } if *slide == stage.index => Some((text, *font, *pos)),
                 _ => None,
             })
             .collect();
         if text.is_empty() {
-            let had = self.heading.take().is_some();
-            return had;
+            return self.heading.take().is_some();
         }
-        let key = stage.hints_key ^ (stage.index as u64).wrapping_mul(0x9E37_79B9);
+        let key = stage.geometry_key ^ (stage.index as u64).wrapping_mul(0x9E37_79B9);
         if self.heading.as_ref().is_some_and(|h| h.key == key) {
             return false;
         }
         let Some(field) = self.field.as_ref() else {
             return false;
         };
-        let rect = cx.rect;
+        let rect = frame.rect;
         let (fw, fh) = (field.w, field.h);
         let mut on = vec![false; fw * fh];
-        ui.fonts_mut(|f| {
-            let atlas = f.image();
-            for (galley, pos) in &text {
-                for row in &galley.rows {
-                    for g in &row.glyphs {
-                        let (min, max) = (g.uv_rect.min, g.uv_rect.max);
-                        if max[0] <= min[0] || max[1] <= min[1] {
-                            continue;
-                        }
-                        let origin = *pos + row.pos.to_vec2() + g.pos.to_vec2() + g.uv_rect.offset;
-                        let size = g.uv_rect.size;
-                        // every atlas pixel of the glyph, into its field cell
-                        for ay in min[1]..max[1] {
-                            for ax in min[0]..max[0] {
-                                if atlas[(ax as usize, ay as usize)].a() < 100 {
-                                    continue;
-                                }
-                                let px = origin.x
-                                    + (ax - min[0]) as f32 / (max[0] - min[0]) as f32 * size.x;
-                                let py = origin.y
-                                    + (ay - min[1]) as f32 / (max[1] - min[1]) as f32 * size.y;
-                                let cx_ = ((px - rect.left()) / rect.width() * fw as f32) as isize;
-                                let cy_ = ((py - rect.top()) / rect.height() * fh as f32) as isize;
-                                if cx_ >= 0
-                                    && cy_ >= 0
-                                    && (cx_ as usize) < fw
-                                    && (cy_ as usize) < fh
-                                {
-                                    on[cy_ as usize * fw + cx_ as usize] = true;
-                                }
-                            }
-                        }
-                    }
+        for (text, font, pos) in text {
+            // every pixel of the glyphs' ink, into its field cell
+            for p in painter.glyph_ink(text, font, INK_ALPHA) {
+                let (px, py) = (pos.x + p.x, pos.y + p.y);
+                let cx = ((px - rect.left()) / rect.width() * fw as f32) as isize;
+                let cy = ((py - rect.top()) / rect.height() * fh as f32) as isize;
+                if cx >= 0 && cy >= 0 && (cx as usize) < fw && (cy as usize) < fh {
+                    on[cy as usize * fw + cx as usize] = true;
                 }
             }
-        });
+        }
         let cells = on
             .iter()
             .enumerate()
@@ -263,8 +307,8 @@ impl Thermal {
     }
 
     /// A field over the slide's aspect (a new one when the aspect changes).
-    fn ensure_field(&mut self, cx: &FrameCx) {
-        let aspect = cx.rect.width() / cx.rect.height().max(1.0);
+    fn ensure_field(&mut self, rect: Rect) {
+        let aspect = rect.width() / rect.height().max(1.0);
         if self
             .field
             .as_ref()
@@ -272,6 +316,7 @@ impl Thermal {
         {
             self.field = Some(Field::new(aspect));
             self.heading = None;
+            self.start = None;
             self.dirty = true;
         }
     }
@@ -286,11 +331,74 @@ impl Thermal {
             }
         }
     }
-}
 
-impl Default for Thermal {
-    fn default() -> Self {
-        Self::new()
+    /// How fast heat spreads now.
+    fn spread(&self, stage: &Stage) -> f32 {
+        let forming = self.heading.is_some()
+            && matches!(stage.moment, Moment::Slide)
+            && self.age < COLD_OPEN_HOLD + 1.2;
+        if forming {
+            let t = smooth(COLD_OPEN_HOLD - 0.2, COLD_OPEN_HOLD + 1.2, self.age);
+            SPREAD_FORMING + (SPREAD_SETTLED - SPREAD_FORMING) * t
+        } else if self.heading.is_some() {
+            SPREAD_SETTLED
+        } else if stage
+            .picture
+            .as_ref()
+            .is_some_and(|p| matches!(p.source, PictureSource::Cloud(_)))
+        {
+            // a body reads as one warm shape, its detail glowing through
+            SPREAD_FIGURE
+        } else {
+            field::SPREAD
+        }
+    }
+
+    /// Heat the field from this moment's sources and let it move by `dt`
+    /// (settle it at once for a still).
+    fn advance(&mut self, frame: &Frame, stage: &Stage, dt: f32) {
+        self.sources(frame, stage);
+        let spread = self.spread(stage);
+        if let Some(f) = self.field.as_mut() {
+            f.spread = spread;
+            if frame.settled() {
+                f.settle();
+                self.dirty = true;
+            } else if f.step(dt) > 1e-4 {
+                self.dirty = true;
+            }
+        }
+    }
+
+    /// The heading's glyphs are sampled in `paint` (they need the painter),
+    /// a frame after the slide arrived, or after the whole run of an
+    /// `export --at` rehearsal: run the moment again from its start with
+    /// the heading, so the cold opening is where it would have been.
+    fn replay(&mut self, frame: &Frame, stage: &Stage) {
+        let Some((heat, embers)) = self.start.clone() else {
+            return;
+        };
+        let elapsed = self.age;
+        if let Some(f) = self.field.as_mut() {
+            f.heat.copy_from_slice(&heat);
+        }
+        self.embers = embers;
+        let steps = (elapsed / REPLAY_DT).round() as usize;
+        let dt = if steps > 0 {
+            elapsed / steps as f32
+        } else {
+            0.0
+        };
+        self.age = 0.0;
+        for _ in 0..steps {
+            self.age += dt;
+            if self.drift {
+                self.drift(dt, stage.index as u32);
+            }
+            self.advance(frame, stage, dt);
+        }
+        self.age = elapsed;
+        self.dirty = true;
     }
 }
 
@@ -320,167 +428,94 @@ fn end_heat(elapsed: f32, still: bool) -> f32 {
 }
 
 impl Engine for Thermal {
-    fn prepare(&mut self, ui: &egui::Ui, cx: &FrameCx, stage: &Stage) {
-        self.ensure_field(cx);
-        if self.heading_mask(ui, cx, stage) {
-            self.dirty = true;
-        }
-    }
-
-    fn update(&mut self, cx: &FrameCx, stage: &Stage, _lib: &mut Library) {
-        self.ensure_field(cx);
+    fn update(&mut self, frame: &Frame, stage: &Stage) {
+        self.ensure_field(frame.rect);
         let key = (stage.index, stage.moment.look(END_WORDS));
         if self.key != Some(key) {
             self.key = Some(key);
             self.age = 0.0;
+            self.start = self
+                .field
+                .as_ref()
+                .map(|f| (f.heat.clone(), self.embers.clone()));
+            self.fresh = true;
         }
-        if cx.still {
+        if frame.settled() {
             // the settled look: the opening long over
             self.age = 60.0;
         } else {
-            self.age += cx.dt;
-            if cx.theme.heat.drift {
-                self.drift(cx.dt, stage.index as u32);
+            self.age += frame.dt;
+            if self.drift {
+                self.drift(frame.dt, stage.index as u32);
             }
         }
-        self.sources(cx, stage);
-        let forming = self.heading.is_some()
-            && matches!(stage.moment, Moment::Slide)
-            && self.age < COLD_OPEN_HOLD + 1.2;
-        let spread = if forming {
-            let t = smooth(COLD_OPEN_HOLD - 0.2, COLD_OPEN_HOLD + 1.2, self.age);
-            SPREAD_FORMING + (SPREAD_SETTLED - SPREAD_FORMING) * t
-        } else if self.heading.is_some() {
-            SPREAD_SETTLED
-        } else if stage.figure.is_some() {
-            // a body reads as one warm shape, its detail glowing through
-            SPREAD_FIGURE
-        } else {
-            field::SPREAD
-        };
-        if let Some(f) = self.field.as_mut() {
-            f.spread = spread;
-            if cx.still {
-                f.settle();
-                self.dirty = true;
-            } else if f.step(cx.dt) > 1e-4 {
-                self.dirty = true;
-            }
-        }
+        self.advance(frame, stage, frame.dt);
     }
 
-    fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, _stage: &Stage) {
+    fn paint(&mut self, painter: &mut Painter, frame: &Frame, stage: &Stage) {
+        self.ensure_field(frame.rect);
+        if self.heading_mask(painter, frame, stage) {
+            if frame.settled() {
+                self.advance(frame, stage, 0.0);
+            } else if self.fresh && self.age <= REPLAY_MAX {
+                self.replay(frame, stage);
+            }
+        }
+        if self.heading.is_some() {
+            self.fresh = false;
+        }
         let Some(field) = self.field.as_ref() else {
             return;
         };
-        let lut = cx.theme.heat.palette.lut();
         let changed = self.dirty;
         if self.dirty || self.texture.is_none() {
-            let image = field.image(&lut, BANDS);
-            let options = egui::TextureOptions::LINEAR;
+            let image = field.image(&self.palette.lut(), BANDS);
             match &mut self.texture {
-                Some(t) => t.set(image, options),
+                Some(t) => painter.update_texture(t, &image, TextureFilter::Linear),
                 None => {
-                    self.texture =
-                        Some(ui.ctx().load_texture("mdeck-thermal-field", image, options))
+                    self.texture = Some(painter.load_texture(
+                        "mdeck-thermal-field",
+                        &image,
+                        TextureFilter::Linear,
+                    ))
                 }
             }
             self.dirty = false;
         }
         if let Some(t) = &self.texture {
-            let tint = egui::Color32::from_white_alpha((cx.opacity.clamp(0.0, 1.0) * 255.0) as u8);
-            ui.painter().with_clip_rect(cx.rect).image(
-                t.id(),
-                cx.rect,
+            let a = (frame.opacity.clamp(0.0, 1.0) * 255.0) as u8;
+            painter.with_clip(frame.rect).image(
+                t,
+                frame.rect,
                 Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
-                tint,
+                Color::from_rgba_premultiplied(a, a, a, a),
             );
         }
         // ask for frames while the heat moves; a settled field stays put
-        let moving = !cx.still && (changed || cx.theme.heat.drift || self.age < FORMED);
-        if moving {
-            ui.ctx().request_repaint();
-        }
+        self.moving = !frame.settled() && (changed || self.drift || self.age < FORMED);
+    }
+
+    fn annotate(&mut self, painter: &mut Painter, _frame: &Frame, strokes: &[Annotation]) -> bool {
+        trace::draw(painter, strokes, &self.palette.lut());
+        true
+    }
+
+    fn copy_hold(&self) -> f32 {
+        COLD_OPEN_HOLD
+    }
+
+    fn animating(&self) -> bool {
+        self.moving
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mdeck_sdk::tokens::{Tokens, Value};
 
-    /// Not a check: writes the cold opening's field at a few moments to
-    /// `$MDECK_THERMAL_DUMP` (a folder) as PNGs, for tuning by eye.
-    /// `MDECK_THERMAL_DUMP=/tmp/x cargo test dump_cold_opening -- --ignored`
-    #[test]
-    #[ignore]
-    fn dump_cold_opening() {
-        let Some(dir) = std::env::var_os("MDECK_THERMAL_DUMP") else {
-            return;
-        };
-        let ctx = egui::Context::default();
-        crate::render::fonts::install(&ctx);
-        let theme = crate::theme::lookup::load_builtin("thermal").expect("thermal theme");
-        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1920.0, 1080.0));
-        // two frames so the font atlas holds the glyphs
-        for frame in 0..2 {
-            let mut output = ctx.run_ui(Default::default(), |ui| {
-                let galley = ui.painter().layout_no_wrap(
-                    "What your eyes can't see".into(),
-                    egui::FontId::new(104.0, theme.display_family()),
-                    egui::Color32::WHITE,
-                );
-                let pos = Pos2::new(960.0 - galley.size().x / 2.0, 470.0);
-                let hints = vec![Hint::Text {
-                    galley,
-                    pos,
-                    slide: 0,
-                }];
-                if frame == 0 {
-                    return;
-                }
-                let stage = Stage {
-                    moment: Moment::Slide,
-                    index: 0,
-                    reveal: 0,
-                    slide: None,
-                    title: true,
-                    figure: None,
-                    art: None,
-                    hints: &hints,
-                    hints_key: 1,
-                    deck_title: None,
-                    count: 1,
-                };
-                let mut lib = Library::default();
-                let mut t = Thermal::new();
-                let dt = 1.0 / 60.0;
-                let mut now = 0.0;
-                for at in [0.2f32, 0.5, 0.8, 1.2, 1.8, 2.6, 4.0] {
-                    while now < at {
-                        let cx = FrameCx {
-                            rect,
-                            scale: 1.0,
-                            opacity: 1.0,
-                            dt,
-                            still: false,
-                            theme: &theme,
-                        };
-                        t.prepare(ui, &cx, &stage);
-                        t.update(&cx, &stage, &mut lib);
-                        now += dt;
-                    }
-                    let f = t.field.as_ref().unwrap();
-                    let img = f.image(&theme.heat.palette.lut(), BANDS);
-                    let rgba: Vec<u8> = img.pixels.iter().flat_map(|c| c.to_array()).collect();
-                    let path = std::path::Path::new(&dir).join(format!("field-{at:.1}.png"));
-                    image::RgbaImage::from_raw(f.w as u32, f.h as u32, rgba)
-                        .unwrap()
-                        .save(path)
-                        .unwrap();
-                }
-            });
-            output.textures_delta.clear();
-        }
+    fn thermal() -> Thermal {
+        Thermal::new(&EngineSettings::new())
     }
 
     #[test]
@@ -498,7 +533,7 @@ mod tests {
         let b = ember(3, 7);
         assert_eq!((a.x, a.y, a.heat), (b.x, b.y, b.heat));
         assert!(a.y >= 0.55 && a.heat > 0.2 && a.vy < 0.0);
-        let mut t = Thermal::new();
+        let mut t = thermal();
         let before = t.embers[0].y;
         t.drift(1.0, 0);
         assert!(
@@ -508,8 +543,70 @@ mod tests {
     }
 
     #[test]
-    fn the_engine_forms_headings_and_traces_heat() {
-        assert!(DEF.capabilities.cold_open && DEF.capabilities.heat_trace);
-        assert!(DEF.capabilities.editorial && DEF.capabilities.countdown);
+    fn the_engine_forms_headings_and_shows_pictures() {
+        assert!(DEF.capabilities.picture && DEF.capabilities.countdown);
+        assert!(DEF.capabilities.ending && !DEF.capabilities.board);
+        assert_eq!(thermal().copy_hold(), COLD_OPEN_HOLD);
+    }
+
+    #[test]
+    fn settings_pick_the_palette_and_the_drift() {
+        let s = EngineSettings::from_pairs([
+            ("palette", Value::String("Lava".into())),
+            ("drift", Value::Bool(true)),
+        ]);
+        let t = Thermal::new(&s);
+        assert_eq!(t.palette, Palette::Lava);
+        assert!(t.drift);
+        assert!(s.problems().is_empty());
+        let t = thermal();
+        assert_eq!((t.palette, t.drift), (Palette::Iron, false));
+        let bad = EngineSettings::from_pairs([("palette", Value::String("plasma".into()))]);
+        assert!(DEF.check_settings(&bad).len() == 1);
+    }
+
+    #[test]
+    fn a_still_settles_and_stops_asking_for_frames() {
+        let tokens = Tokens::default();
+        let settings = EngineSettings::new();
+        let rect = Rect::from_min_size(Pos2::ZERO, mdeck_sdk::paint::Vec2::new(1920.0, 1080.0));
+        let mut f = Frame::new(rect, &tokens, &settings);
+        f.still = true;
+        let mut t = thermal();
+        let points = (0..400)
+            .map(|k| [(k % 20) as f32 / 19.0, (k / 20) as f32 / 19.0])
+            .collect();
+        let words = Mask::new(points, 4.0);
+        let stage = Stage::new(Moment::End {
+            elapsed: 0.0,
+            words,
+        });
+        t.update(&f, &stage);
+        assert!(t.field.as_ref().unwrap().peak() > 0.5, "the end words glow");
+        assert_eq!(t.age, 60.0);
+    }
+
+    #[test]
+    fn a_late_heading_is_replayed_from_the_moment_start() {
+        let tokens = Tokens::default();
+        let settings = EngineSettings::new();
+        let rect = Rect::from_min_size(Pos2::ZERO, mdeck_sdk::paint::Vec2::new(1920.0, 1080.0));
+        let f = Frame::new(rect, &tokens, &settings);
+        let stage = Stage::new(Moment::Slide);
+        let mut t = thermal();
+        for _ in 0..30 {
+            t.update(&f, &stage);
+        }
+        assert!(t.field.as_ref().unwrap().peak() < 1e-6, "no heading yet");
+        // the heading arrives half a second in
+        t.heading = Some(HeadingMask {
+            key: 1,
+            cells: (100..140)
+                .flat_map(|x| (80..90).map(move |y| (x, y, 0.5)))
+                .collect(),
+        });
+        t.replay(&f, &stage);
+        assert!((t.age - 0.5).abs() < 1e-3, "the clock is kept");
+        assert!(t.field.as_ref().unwrap().peak() > 0.3, "the letters glow");
     }
 }

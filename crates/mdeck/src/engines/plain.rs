@@ -1,25 +1,30 @@
 //! The plain engine: slides on a flat background. It paints nothing; the
-//! slide's own layouts do all the drawing.
+//! slide's own design does all the drawing. Every engine name that resolves
+//! to nothing falls back to it (EXT-07).
 
-use eframe::egui;
-
-use super::stage::{FrameCx, Stage};
-use super::{Capabilities, Engine, EngineDef};
-use crate::render::illustration::Library;
+use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Needs};
+use mdeck_sdk::paint::Painter;
+use mdeck_sdk::stage::{Frame, Stage};
 
 pub static DEF: EngineDef = EngineDef {
+    name: "plain",
+    summary: "Slides on the theme's background; nothing moves.",
     capabilities: Capabilities::NONE,
-    create: || Box::new(Plain),
-    end_caption_delay: 0.0,
-    medium: None,
-    render_slide: None,
-    problems: None,
+    settings: &[],
+    needs: Needs { page: false },
+    ending_caption_delay: 0.0,
+    create: |_| Box::new(Plain),
+    board: None,
 };
 
 pub struct Plain;
 
 impl Engine for Plain {
-    fn update(&mut self, _cx: &FrameCx, _stage: &Stage, _lib: &mut Library) {}
+    fn update(&mut self, _frame: &Frame, _stage: &Stage) {}
 
-    fn paint(&mut self, _ui: &egui::Ui, _cx: &FrameCx, _stage: &Stage) {}
+    fn paint(&mut self, _painter: &mut Painter, _frame: &Frame, _stage: &Stage) {}
+
+    fn animating(&self) -> bool {
+        false
+    }
 }

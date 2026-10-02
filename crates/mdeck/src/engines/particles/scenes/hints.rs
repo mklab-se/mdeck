@@ -1,11 +1,11 @@
 //! Content-aware scenes: the geometry a slide's renderers published, turned
 //! into particles that serve it.
 
-use eframe::egui::{Pos2, Rect};
+use mdeck_sdk::paint::{Pos2, Rect};
 
 use super::dust;
-use crate::render::hints::Hint;
-use crate::render::particles::{Drift, Group, Home, Palette, Rng, Scene, Tint};
+use crate::engines::particles::{Drift, Group, Home, Palette, Rng, Scene, Tint};
+use mdeck_sdk::geometry::Hint;
 
 /// Turn the geometry a slide's renderers published into a scene that serves
 /// it: embers off bar tops, runners along paths, sparks circling rings,
@@ -327,10 +327,11 @@ fn margin_bands(frame: Rect, f: &Frac, share: f32) -> Vec<Group> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mdeck_sdk::paint::Vec2;
 
     #[test]
     fn bars_paths_circles_and_frames_each_get_groups() {
-        let rect = Rect::from_min_size(Pos2::ZERO, eframe::egui::vec2(1920.0, 1080.0));
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(1920.0, 1080.0));
         let hints = vec![
             Hint::Frame(Rect::from_min_max(
                 Pos2::new(100.0, 200.0),

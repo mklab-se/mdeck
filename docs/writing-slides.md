@@ -106,7 +106,7 @@ Emphasise that this was about letting teams ship independently, not scale.
 ## Images
 
 Standard markdown images work, with options in the alt text:
-`@fill`, `@fit`, `@width:80%`, `@left`, `@right`. A slide with one image
+`@fill`, `@width: 80%` and `@height: 400px`. A slide with one image
 is a `media` slide (`@fill` covers the whole slide), two or more are a
 `gallery` (alt texts become captions), and text plus one image is a `split`
 (a `@fill` image there is cut at its panel's edge). Images decode in the background, so big

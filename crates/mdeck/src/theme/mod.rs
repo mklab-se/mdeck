@@ -1,8 +1,8 @@
 //! Themes are data. Each one is a `theme.yaml` (see [`file`]); the four
 //! built-in themes are embedded files in the same format. What a theme
 //! *does* beyond colours and type (a particle field, editorial layouts,
-//! illustrations) comes from its engine ([`EngineKind`], see `crate::engines`),
-//! which MDeck provides.
+//! pictures) comes from its engine ([`EngineId`], see `crate::engines`),
+//! looked up by name in the registry.
 
 use std::path::PathBuf;
 
@@ -24,7 +24,7 @@ pub use color::{contrast, luminance};
 pub use error::ThemeError;
 pub use paths::confined_path;
 
-pub use crate::engines::EngineKind;
+pub use crate::engines::EngineId;
 
 /// What the line engine draws on (`surface:`): a draughtsman's `sheet` or a
 /// chalk `slate`.
@@ -108,7 +108,14 @@ pub struct ThemeFonts {
 #[derive(Debug, Clone)]
 pub struct Theme {
     pub name: String,
-    pub engine: EngineKind,
+    /// The engine; change it with [`Theme::set_engine`].
+    pub engine: EngineId,
+    /// Seconds the copy of title and section slides holds back while the
+    /// engine forms the heading ([`mdeck_sdk::engine::Engine::copy_hold`]).
+    pub copy_hold: f32,
+    /// The engine prints the slide number itself
+    /// ([`mdeck_sdk::engine::Engine::numbers_slides`]).
+    engine_numbers_slides: bool,
     /// Whether decks in this theme open with the 3-2-1 countdown (`countdown:
     /// on|off`; a deck's own `countdown` wins). The engine decides its look.
     pub countdown: bool,
@@ -116,8 +123,6 @@ pub struct Theme {
     /// it names one. A deck's own `transition` wins; the user config and the
     /// built-in `fade` come after.
     pub transition: Option<String>,
-    /// The line engine's surface (`engine.surface`).
-    pub surface: Surface,
     /// The engine block's settings as written (every key but `name`), for
     /// [`engine_settings`].
     pub engine_block: Vec<(String, serde_norway::Value)>,
@@ -183,8 +188,6 @@ pub struct Theme {
     /// What generated artwork looks like (`engine.kind`, `engine.style`,
     /// `engine.references`), over the engine's own style.
     pub art: ThemeArt,
-    /// The thermal engine's heat field (`engine.palette`, `engine.drift`).
-    pub heat: Heat,
     /// The file this theme was read from (`None` for built-ins).
     pub source: Option<PathBuf>,
 }
@@ -229,16 +232,21 @@ pub struct Built {
         reason = "the engines read it once they run on the SDK (phase 2b)"
     )
 )]
+/// Keys of the `engine:` block the core reads itself (the particle tints
+/// become tokens, the art keys steer generated art); the engine never sees
+/// them.
+pub const CORE_ENGINE_KEYS: [&str; 5] = ["light", "cool", "kind", "style", "references"];
+
 pub fn engine_settings(theme: &Theme) -> mdeck_sdk::tokens::EngineSettings {
     mdeck_sdk::tokens::EngineSettings::from_pairs(
         theme
             .engine_block
             .iter()
+            .filter(|(k, _)| !CORE_ENGINE_KEYS.contains(&k.as_str()))
             .map(|(k, v)| (k.clone(), sdk_value(v))),
     )
 }
 
-#[cfg_attr(not(test), allow(dead_code, reason = "see engine_settings"))]
 /// A YAML value as the SDK's library-free [`mdeck_sdk::tokens::Value`].
 fn sdk_value(v: &serde_norway::Value) -> mdeck_sdk::tokens::Value {
     use mdeck_sdk::tokens::Value as V;
@@ -274,7 +282,18 @@ impl Theme {
     /// in its title block), so the editorial counter is left out. A slate
     /// is a board, not a numbered sheet.
     pub fn numbers_slides(&self) -> bool {
-        self.engine.capabilities().numbers_slides && self.surface == Surface::Sheet
+        self.engine_numbers_slides
+    }
+
+    /// Run on `engine`, and learn from a runtime made with this theme's
+    /// engine settings what the core must do around it: hold the copy of
+    /// title slides back, leave out the counter.
+    pub fn set_engine(&mut self, engine: EngineId) {
+        self.engine = engine;
+        let settings = engine_settings(self);
+        let runtime = (engine.def().create)(&settings);
+        self.copy_hold = runtime.copy_hold();
+        self.engine_numbers_slides = runtime.numbers_slides();
     }
 
     /// A built-in theme by name. Panics only if an embedded file is broken,
@@ -437,7 +456,7 @@ mod tests {
         assert_eq!(d.positive, Color32::from_rgb(0x5C, 0xDB, 0x95));
         assert_eq!(d.syntax, "base16-ocean.dark");
         assert_eq!(d.fill_opacity, 0.85);
-        assert_eq!(d.engine, EngineKind::Plain);
+        assert_eq!(d.engine, EngineId::plain());
         assert!(!d.countdown);
         assert_eq!(d.transition, None);
         assert_eq!(d.fonts.display, egui::FontFamily::Proportional);
@@ -476,7 +495,7 @@ mod tests {
         assert_eq!(e.fonts.mono, egui::FontFamily::Name(FONT_MONO.into()));
         assert_eq!(e.strong, e.heading_color);
         if cfg!(feature = "particles") {
-            assert_eq!(e.engine, EngineKind::Particles);
+            assert_eq!(Some(e.engine), EngineId::find("particles"));
             assert!(e.countdown);
         }
     }

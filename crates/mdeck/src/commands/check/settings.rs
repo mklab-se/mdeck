@@ -246,7 +246,7 @@ pub fn fence_warnings(presentation: &parser::Presentation) -> Vec<CheckWarning> 
             else {
                 continue;
             };
-            if language::fence(tag).is_some() {
+            if language::fence(tag).is_some() || crate::render::visualizations::is_visual_tag(tag) {
                 continue;
             }
             let message = match language::v1_fence(tag) {

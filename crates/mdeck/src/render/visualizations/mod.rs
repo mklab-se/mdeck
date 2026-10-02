@@ -15,6 +15,7 @@ mod reveal;
 mod ring;
 mod values;
 
+mod builtin;
 pub mod grammar;
 
 pub mod artifact_flow;
@@ -104,7 +105,7 @@ impl VizCtx<'_> {
 }
 
 /// Draw `kind` at `pos` within `max_width` by `max_height` (`0.0`: as tall as
-/// it needs). Returns the height used.
+/// it needs), through the registry. Returns the height used.
 pub fn draw(
     kind: Chart,
     content: &str,
@@ -113,85 +114,38 @@ pub fn draw(
     max_width: f32,
     max_height: f32,
 ) -> f32 {
-    match kind {
-        Chart::WordCloud => word_cloud::draw_word_cloud(cx, content, pos, max_width, max_height),
-        Chart::Timeline => timeline::draw_timeline(cx, content, pos, max_width, max_height),
-        Chart::Pie => pie_chart::draw_pie_chart(cx, content, pos, max_width, max_height),
-        Chart::Bar => bar_chart::draw_bar_chart(cx, content, pos, max_width, max_height),
-        Chart::Line => line_chart::draw_line_chart(cx, content, pos, max_width, max_height),
-        Chart::Donut => donut_chart::draw_donut_chart(cx, content, pos, max_width, max_height),
-        Chart::KpiCards => kpi_cards::draw_kpi_cards(cx, content, pos, max_width, max_height),
-        Chart::Funnel => funnel_chart::draw_funnel_chart(cx, content, pos, max_width, max_height),
-        Chart::Radar => radar_chart::draw_radar_chart(cx, content, pos, max_width, max_height),
-        Chart::StackedBar => stacked_bar::draw_stacked_bar(cx, content, pos, max_width, max_height),
-        Chart::VennDiagram => {
-            venn_diagram::draw_venn_diagram(cx, content, pos, max_width, max_height)
-        }
-        Chart::ProgressBars => {
-            progress_bars::draw_progress_bars(cx, content, pos, max_width, max_height)
-        }
-        Chart::ScatterPlot => {
-            scatter_plot::draw_scatter_plot(cx, content, pos, max_width, max_height)
-        }
-        Chart::Org => org_chart::draw_org_chart(cx, content, pos, max_width, max_height),
-        Chart::Gantt => gantt_chart::draw_gantt_chart(cx, content, pos, max_width, max_height),
-        Chart::GitGraph => git_graph::draw_gitgraph(cx, content, pos, max_width, max_height),
-        Chart::Flower => flower::draw_flower(cx, content, pos, max_width, max_height),
-        Chart::ArtifactFlow => {
-            artifact_flow::draw_artifact_flow(cx, content, pos, max_width, max_height)
-        }
-        // drawn by `render::thermal`, which needs the deck's images
-        Chart::Thermal => 0.0,
-    }
+    builtin::draw_tag(kind.tag(), content, cx, pos, max_width, max_height)
 }
 
 pub use grammar::Problem;
 
-/// The problems in a `kind` block's source, each on its 0-based line within
-/// the block (VIZ-04): lines that are neither a setting nor an item, unknown
-/// settings and attributes, values that do not parse.
-pub fn check(kind: Chart, content: &str) -> Vec<Problem> {
-    match kind {
-        Chart::WordCloud => word_cloud::check(content),
-        Chart::Timeline => timeline::check(content),
-        Chart::Pie => pie_chart::check(content),
-        Chart::Bar => bar_chart::check(content),
-        Chart::Line => line_chart::check(content),
-        Chart::Donut => donut_chart::check(content),
-        Chart::KpiCards => kpi_cards::check(content),
-        Chart::Funnel => funnel_chart::check(content),
-        Chart::Radar => radar_chart::check(content),
-        Chart::StackedBar => stacked_bar::check(content),
-        Chart::VennDiagram => venn_diagram::check(content),
-        Chart::ProgressBars => progress_bars::check(content),
-        Chart::ScatterPlot => scatter_plot::check(content),
-        Chart::Org => org_chart::check(content),
-        Chart::Gantt => gantt_chart::check(content),
-        Chart::GitGraph => git_graph::check(content),
-        Chart::Flower => flower::check(content),
-        Chart::ArtifactFlow => artifact_flow::check(content),
-        Chart::Thermal => crate::render::thermal::Spec::parse(content).problems,
-    }
-}
-
-/// What a visual fence's tag names: a [`Chart`], or the architecture
-/// diagram (`None` inside `Some`), by exact v2 tag ([`Chart::TAGS`]). `None`
-/// for a tag that is not a visual.
-pub fn kind_for_tag(tag: &str) -> Option<Option<Chart>> {
-    if tag == "@architecture" {
-        return Some(None);
-    }
-    Chart::from_info(tag).map(Some)
-}
-
-/// The problems in a block under fence `tag` (see [`kind_for_tag`]); `None`
-/// when the tag is not a visual.
+/// The problems in the source of a visual with fence tag `tag` (with its
+/// `@`), each on its 0-based line within the block (VIZ-04): lines that are
+/// neither a setting nor an item, unknown settings and attributes, values
+/// that do not parse. `None` when no registered visual has the tag.
 pub fn check_tag(tag: &str, content: &str) -> Option<Vec<Problem>> {
-    Some(match kind_for_tag(tag)? {
-        Some(kind) => check(kind, content),
-        None => crate::render::diagram::check(content),
+    let visual = crate::registry::get().visual_for(tag.strip_prefix('@')?)?;
+    Some(
+        visual
+            .check(content)
+            .into_iter()
+            .map(|p| Problem {
+                offset: p.line.unwrap_or(1).saturating_sub(1),
+                message: p.message,
+            })
+            .collect(),
+    )
+}
+
+/// Whether a registered visual has the fence tag `tag` (with its `@`).
+pub fn is_visual_tag(tag: &str) -> bool {
+    tag.strip_prefix('@').is_some_and(|t| {
+        crate::registry::get().visual_for(t).is_some()
+            || crate::extensions::external::configured_tag(t).is_some()
     })
 }
+
+pub use builtin::{draw_tag, register};
 
 // ─── Standardized visualization design tokens ──────────────────────────────
 // All visualizations use these constants for visual consistency within a theme.
@@ -340,7 +294,7 @@ mod tests {
             .map(|i| format!("- Team {i}: does things\n"))
             .collect();
         let heights = draw_headless(
-            Chart::Flower,
+            Chart::from_info("@flower").unwrap(),
             &[
                 "",
                 "- center Only the centre",
@@ -360,7 +314,7 @@ mod tests {
             .map(|i| format!("- producer P{i}\n- consumer C{i}\n"))
             .collect();
         let heights = draw_headless(
-            Chart::ArtifactFlow,
+            Chart::from_info("@artifactflow").unwrap(),
             &[
                 "",
                 "- service Only a service\n  - item",
@@ -392,7 +346,7 @@ mod tests {
                 && !info.starts_with('`')
             {
                 let tag = info.split_whitespace().next().unwrap_or("");
-                if kind_for_tag(tag).is_some() {
+                if is_visual_tag(tag) {
                     open = Some((tag.to_string(), i + 1, String::new()));
                 }
             }

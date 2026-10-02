@@ -46,6 +46,33 @@ pub fn parse(content: &str) -> Presentation {
     Presentation { meta, slides }
 }
 
+/// Image options that were not understood, each on the line that holds it.
+fn image_problems(
+    blocks: &[Block],
+    raw: &str,
+    file_line: &dyn Fn(usize) -> usize,
+    problems: &mut Vec<Problem>,
+) {
+    for b in blocks {
+        if let Block::Image {
+            path, directives, ..
+        } = b
+        {
+            let offset = raw
+                .lines()
+                .position(|l| l.contains("![") && l.contains(path.as_str()))
+                .unwrap_or(0);
+            for message in &directives.problems {
+                problems.push(Problem {
+                    kind: ProblemKind::Content,
+                    line: file_line(offset),
+                    message: message.clone(),
+                });
+            }
+        }
+    }
+}
+
 /// Parse one raw slide from the splitter: notes, settings, blocks, steps,
 /// layout. `source_lines` holds the deck file line of each line of `raw`;
 /// `deck_reveal` is the deck's `reveal` (a slide's own overrides it).
@@ -69,6 +96,7 @@ fn parse_slide(raw: String, source_lines: Vec<usize>, deck_reveal: bool) -> Slid
             message: format!("footnote [^{id}] has no definition (`[^{id}]: text`)"),
         });
     }
+    image_problems(&blocks, &raw, &file_line, &mut problems);
     let notes = match (notes, footnotes) {
         (Some(n), Some(f)) => Some(format!("{n}\n\n{f}")),
         (n, f) => n.or(f),

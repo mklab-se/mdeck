@@ -1,59 +1,84 @@
 //! The line engine: the slide's generated line art (`mdeck ai pictures`) drawn
-//! stroke by stroke on a surface the theme chooses with `surface:`.
+//! stroke by stroke on a surface the theme chooses with the engine setting
+//! `surface`.
 //!
-//! - **`sheet`** (the `blueprint` theme): a draughtsman's sheet. Every slide
-//!   is a Prussian blue drawing sheet with a fine grid, a ruled border and a
-//!   title block that numbers the sheets; faint construction lines run
-//!   ahead, the ink follows under a drafting machine's crosshair, and
-//!   dimension lines are ruled around the finished drawing.
+//! - **`sheet`** (the default, the `blueprint` theme): a draughtsman's
+//!   sheet. Every slide is a Prussian blue drawing sheet with a fine grid, a
+//!   ruled border and a title block that numbers the sheets; faint
+//!   construction lines run ahead, the ink follows under a drafting
+//!   machine's crosshair, and dimension lines are ruled around the finished
+//!   drawing.
 //! - **`slate`** (the `chalkboard` theme): a slate in a wooden frame (the
 //!   theme's `page:`) with the ghosts of earlier drawings wiped off it; the
 //!   chalk breaks up on the slate and sheds dust as it goes.
 //!
-//! Without art, the slide's `picture` is drawn in the same hand; the
-//! countdown and the end words are drawn the same way. Exports show the
+//! Without art, the slide's point cloud picture is drawn in the same hand;
+//! the countdown and the end words are drawn the same way. Exports show the
 //! finished drawing.
 
-use eframe::egui::{self, Pos2, Rect};
+use mdeck_sdk::engine::{
+    Capabilities, Engine, EngineDef, Medium, MediumKind, Needs, SettingKind, SettingSpec,
+};
+use mdeck_sdk::paint::Painter;
+use mdeck_sdk::stage::{Frame, Moment, Stage, Strategy};
+use mdeck_sdk::tokens::EngineSettings;
 
-use super::art::{Canvas, Tip};
-use super::paint::Sprites;
-use super::stage::{FrameCx, Moment, Stage};
-use super::{Capabilities, Engine, EngineDef};
-use crate::render::art::prepare::Strategy;
-use crate::render::art::{ArtKind, Medium, style};
-use crate::render::illustration::Library;
-use crate::render::strokes::{Picture, to_screen};
-use crate::theme::Surface;
+use super::art::{Canvas, Sprites, Tip};
 
 mod sheet;
 mod slate;
 
-/// The line engine asks for line art and draws it itself.
-pub static MEDIUM: Medium = Medium {
+/// The line engine asks for line art and draws it itself; tonal pictures
+/// (a theme's `art:` choosing them) are hatched in like a sketch.
+pub const MEDIUM: Medium = Medium {
     name: "line",
-    kind: ArtKind::Line,
-    tonal: &style::SKETCH,
-    tonal_strategy: Strategy::Hatch,
+    kind: MediumKind::Line,
+    strategy: Strategy::Hatch,
 };
 
-/// Seconds into the end slide when the caption fades in.
-pub const END_CAPTION_DELAY: f32 = 5.2;
+/// The surfaces the line engine draws on.
+const SURFACES: &[&str] = &["sheet", "slate"];
 
 pub static DEF: EngineDef = EngineDef {
+    name: "line",
+    summary: "Generated line art inked onto a blueprint sheet or drawn in chalk on a slate.",
     capabilities: Capabilities {
-        // the sheet's title block numbers it (Theme::numbers_slides)
-        numbers_slides: true,
+        medium: Some(MEDIUM),
         ..super::art::CAPABILITIES
     },
-    create: || Box::new(Line::new()),
-    end_caption_delay: END_CAPTION_DELAY,
-    medium: Some(&MEDIUM),
-    render_slide: None,
-    problems: None,
+    settings: &[SettingSpec {
+        key: "surface",
+        kind: SettingKind::OneOf(SURFACES),
+        summary: "What the lines are drawn on: a blueprint `sheet` (the default) or a chalk `slate`.",
+    }],
+    needs: Needs { page: true },
+    ending_caption_delay: 5.2,
+    create: |settings| Box::new(Line::new(Surface::of(settings))),
+    board: None,
 };
+
 /// The end words hold this long, then fade.
 const END_WORDS: f32 = 3.6;
+
+/// What the line engine draws on.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Surface {
+    /// A blueprint: ink on a blue drawing sheet.
+    #[default]
+    Sheet,
+    /// A chalkboard: chalk on a slate.
+    Slate,
+}
+
+impl Surface {
+    /// The surface the settings choose (the sheet unless they say `slate`).
+    pub fn of(settings: &EngineSettings) -> Self {
+        match settings.one_of("surface", SURFACES) {
+            Some("slate") => Surface::Slate,
+            _ => Surface::Sheet,
+        }
+    }
+}
 
 /// How a surface paces its drawing: seconds to draw a picture, to finish
 /// around it after (the sheet's dimension lines), and for the old picture to
@@ -72,8 +97,6 @@ fn pace(surface: Surface) -> Pace {
 }
 
 pub struct Line {
-    /// The surface the canvas was paced for; a theme switch to the other
-    /// surface starts a fresh canvas.
     surface: Surface,
     canvas: Canvas,
     /// Chalk dust (the slate only).
@@ -83,10 +106,11 @@ pub struct Line {
 }
 
 impl Line {
-    pub fn new() -> Self {
+    pub fn new(surface: Surface) -> Self {
+        let p = pace(surface);
         Self {
-            surface: Surface::default(),
-            canvas: canvas(Surface::default()),
+            surface,
+            canvas: Canvas::new(p.draw, p.after, END_WORDS, p.fade),
             motes: Vec::new(),
             seed: 0x1234_5679,
             sprites: Sprites::new("mdeck-line-sprites"),
@@ -94,92 +118,91 @@ impl Line {
     }
 }
 
-fn canvas(surface: Surface) -> Canvas {
-    let p = pace(surface);
-    Canvas::new(p.draw, p.after, END_WORDS, p.fade)
-}
-
-impl Default for Line {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Engine for Line {
-    fn update(&mut self, cx: &FrameCx, stage: &Stage, lib: &mut Library) {
-        if cx.theme.surface != self.surface {
-            self.surface = cx.theme.surface;
-            self.canvas = canvas(self.surface);
-            self.motes.clear();
-        }
-        self.canvas.update(cx, stage, lib);
+    fn update(&mut self, frame: &Frame, stage: &Stage) {
+        self.canvas.update(frame, stage);
         if self.surface != Surface::Slate {
             return;
         }
-        if cx.still {
+        if frame.settled() {
             self.motes.clear();
             return;
         }
         if let Some(tip) = self.canvas.tip.and_then(Tip::in_front) {
-            slate::emit(&mut self.motes, tip, cx.scale, cx.dt, &mut self.seed);
+            slate::emit(&mut self.motes, tip, frame.scale, frame.dt, &mut self.seed);
         }
-        slate::step(&mut self.motes, cx.dt, cx.scale);
+        slate::step(&mut self.motes, frame.dt, frame.scale);
     }
 
-    fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, stage: &Stage) {
-        let texture = self.sprites.id(ui.ctx());
-        let painter = ui.painter();
+    fn paint(&mut self, painter: &mut Painter, frame: &Frame, stage: &Stage) {
+        let texture = self.sprites.get(painter);
         match self.surface {
             Surface::Sheet => {
-                let ink = sheet::Ink::of(cx.theme);
-                sheet::sheet(painter, texture, cx.rect, cx.scale, &ink, cx.opacity);
+                let ink = sheet::Ink::of(frame.tokens);
+                sheet::sheet(
+                    painter,
+                    &texture,
+                    frame.rect,
+                    frame.scale,
+                    &ink,
+                    frame.opacity,
+                );
                 if matches!(stage.moment, Moment::Slide) {
                     sheet::title_block(
-                        painter, cx.theme, cx.rect, cx.scale, &ink, stage, cx.opacity,
+                        painter,
+                        frame.rect,
+                        frame.scale,
+                        &ink,
+                        stage,
+                        frame.opacity,
                     );
                 }
-                self.canvas.paint(ui, cx, &sheet::Pen { ink, texture });
+                self.canvas
+                    .paint(painter, frame, &sheet::Pen { ink, texture });
             }
             Surface::Slate => {
-                let chalk = slate::Chalk::of(cx.theme);
-                slate::slate(painter, texture, cx.rect, cx.scale, &chalk, cx.opacity);
+                let chalk = slate::Chalk::of(frame.tokens);
+                slate::slate(
+                    painter,
+                    &texture,
+                    frame.rect,
+                    frame.scale,
+                    &chalk,
+                    frame.opacity,
+                );
                 let hand = slate::Stick {
                     chalk,
                     motes: &self.motes,
                 };
-                self.canvas.paint(ui, cx, &hand);
+                self.canvas.paint(painter, frame, &hand);
             }
         }
     }
-}
 
-/// Segment `i` of `pic` (from point `i - 1` to point `i`) on screen, as far
-/// as the hand has come `t` seconds into the picture: `None` while the pen
-/// is lifted or has not reached it, cut short while it is being drawn.
-fn drawn_segment(pic: &Picture, i: usize, t: f32, rect: Rect) -> Option<(Pos2, Pos2)> {
-    if !pic.pen[i] || pic.at[i - 1] > t {
-        return None;
+    /// The sheet's title block prints the sheet number.
+    fn numbers_slides(&self) -> bool {
+        self.surface == Surface::Sheet
     }
-    let a = to_screen(pic.points[i - 1], rect);
-    let mut b = to_screen(pic.points[i], rect);
-    if pic.at[i] > t {
-        let f = (t - pic.at[i - 1]) / (pic.at[i] - pic.at[i - 1]).max(1e-4);
-        b = a + (b - a) * f.clamp(0.0, 1.0);
+
+    fn animating(&self) -> bool {
+        self.canvas.moving
     }
-    Some((a, b))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mdeck_sdk::tokens::Value;
+
+    fn settings(surface: &str) -> EngineSettings {
+        EngineSettings::from_pairs([("surface", Value::String(surface.into()))])
+    }
 
     #[test]
     fn the_line_engine_asks_for_line_art() {
-        assert_eq!(MEDIUM.kind, ArtKind::Line);
-        assert_eq!(
-            super::super::EngineKind::Line.medium().map(|m| m.name),
-            Some("line")
-        );
+        assert_eq!(MEDIUM.kind, MediumKind::Line);
+        assert_eq!(DEF.capabilities.medium.map(|m| m.name), Some("line"));
+        assert!(DEF.capabilities.picture);
     }
 
     #[test]
@@ -190,35 +213,13 @@ mod tests {
     }
 
     #[test]
-    fn the_blueprint_and_chalkboard_themes_choose_their_surface() {
-        for (name, surface) in [
-            ("blueprint", Surface::Sheet),
-            ("chalkboard", Surface::Slate),
-        ] {
-            let theme = crate::theme::lookup::load_builtin(name).expect(name);
-            assert_eq!(theme.engine, super::super::EngineKind::Line, "{name}");
-            assert_eq!(theme.surface, surface, "{name}");
-        }
-    }
-
-    #[test]
-    fn a_segment_is_cut_where_the_hand_is() {
-        let pic = Picture {
-            points: vec![
-                Pos2::new(0.0, 0.0),
-                Pos2::new(1.0, 0.0),
-                Pos2::new(1.0, 1.0),
-            ],
-            pen: vec![true, true, false],
-            at: vec![0.0, 1.0, 2.0],
-            duration: 2.0,
-            born: 0.0,
-            weight: 1.0,
-        };
-        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(100.0, 100.0));
-        let (a, b) = drawn_segment(&pic, 1, 0.5, rect).expect("drawing");
-        assert_eq!(a, to_screen(pic.points[0], rect));
-        assert!((b.x - (a.x + to_screen(pic.points[1], rect).x) / 2.0).abs() < 1e-3);
-        assert!(drawn_segment(&pic, 2, 5.0, rect).is_none(), "pen lifted");
+    fn the_surface_is_a_setting_and_the_sheet_numbers_its_slides() {
+        assert_eq!(Surface::of(&EngineSettings::new()), Surface::Sheet);
+        assert_eq!(Surface::of(&settings("slate")), Surface::Slate);
+        assert_eq!(Surface::of(&settings("Sheet")), Surface::Sheet);
+        assert!((DEF.create)(&EngineSettings::new()).numbers_slides());
+        assert!(!(DEF.create)(&settings("slate")).numbers_slides());
+        assert!(DEF.check_settings(&settings("slate")).is_empty());
+        assert_eq!(DEF.check_settings(&settings("paper")).len(), 1);
     }
 }

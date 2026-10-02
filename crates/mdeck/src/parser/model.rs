@@ -318,11 +318,14 @@ pub enum Align {
 
 #[derive(Debug, Clone, Default)]
 pub struct ImageDirectives {
+    /// `@width: 60%`: a share of the space, or pixels at 1920x1080.
     pub width: Option<String>,
+    /// `@height: 400px`: likewise.
     pub height: Option<String>,
+    /// `@fill`: cover the space, cropping.
     pub fill: bool,
-    pub fit: bool,
-    pub align: Option<String>,
+    /// Options that were not understood, for `--check`.
+    pub problems: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -340,76 +343,40 @@ pub enum Inline {
     },
     Link {
         text: Vec<Inline>,
-        #[cfg_attr(
-            not(test),
-            expect(
-                dead_code,
-                reason = "slides draw link text only; the target is kept in the document model"
-            )
-        )]
         url: String,
     },
 }
 
-/// The visualizations a fenced block can hold, named by the fence's tag.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Chart {
-    WordCloud,
-    Timeline,
-    Pie,
-    Bar,
-    Line,
-    Donut,
-    KpiCards,
-    Funnel,
-    Radar,
-    StackedBar,
-    VennDiagram,
-    ProgressBars,
-    ScatterPlot,
-    Org,
-    Gantt,
-    GitGraph,
-    /// A platform in the middle and the teams around it (`@flower`).
-    Flower,
-    /// Artifacts from producers through services to consumers (`@artifactflow`).
-    ArtifactFlow,
-    /// A thermal image with its lens, reveals and spots (`@thermal`).
-    Thermal,
-}
+/// The visual a fenced block holds, named by its fence's tag (without
+/// `@`). Visual kinds are looked up in the registry (D7, D11): a tag no
+/// registered visual has is not a visual, and its fence stays a code block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Chart(&'static str);
 
+#[allow(non_upper_case_globals, reason = "built-in kinds read like variants")]
 impl Chart {
-    /// Fence tags and their charts. A fence's tag is the first word of its
-    /// info string and matches exactly (see [`crate::language::FENCES`]).
-    pub const TAGS: &[(&str, Chart)] = &[
-        ("@wordcloud", Chart::WordCloud),
-        ("@timeline", Chart::Timeline),
-        ("@pie", Chart::Pie),
-        ("@bar", Chart::Bar),
-        ("@line", Chart::Line),
-        ("@donut", Chart::Donut),
-        ("@kpi", Chart::KpiCards),
-        ("@funnel", Chart::Funnel),
-        ("@radar", Chart::Radar),
-        ("@stackedbar", Chart::StackedBar),
-        ("@venn", Chart::VennDiagram),
-        ("@progress", Chart::ProgressBars),
-        ("@scatter", Chart::ScatterPlot),
-        ("@orgchart", Chart::Org),
-        ("@gantt", Chart::Gantt),
-        ("@gitgraph", Chart::GitGraph),
-        ("@flower", Chart::Flower),
-        ("@artifactflow", Chart::ArtifactFlow),
-        ("@thermal", Chart::Thermal),
-    ];
+    /// A thermal image with its lens, reveals and spots (`@thermal`).
+    pub const Thermal: Chart = Chart("thermal");
 
-    /// The chart a fence info string (```` ```@bar ````) names.
+    /// The visual a fence info string (```` ```@bar ````) names, when one is
+    /// registered under that tag.
     pub fn from_info(info: &str) -> Option<Chart> {
-        let tag = info.split_whitespace().next()?;
-        Self::TAGS
-            .iter()
-            .find(|(t, _)| *t == tag)
-            .map(|&(_, chart)| chart)
+        let tag = info.split_whitespace().next()?.strip_prefix('@')?;
+        if let Some(visual) = crate::registry::get().visual_for(tag) {
+            return Some(Chart(visual.tag()));
+        }
+        crate::extensions::external::configured_tag(tag).map(Chart)
+    }
+
+    /// Whether this is an external visual program's tag (EXT-18) rather
+    /// than a registered visual.
+    pub fn is_external(self) -> bool {
+        crate::registry::get().visual_for(self.0).is_none()
+    }
+
+    /// The fence tag without `@` (`bar`).
+    pub fn tag(self) -> &'static str {
+        self.0
     }
 }
 

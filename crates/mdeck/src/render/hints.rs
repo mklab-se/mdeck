@@ -8,8 +8,6 @@
 //! the next frame. Publishing is a no-op unless the Ember field switched it
 //! on, so every other theme pays nothing.
 
-use std::hash::{Hash, Hasher};
-
 use eframe::egui::{self, Pos2, Rect};
 
 /// One piece of drawn geometry, in points.
@@ -70,42 +68,6 @@ pub fn take(ctx: &egui::Context) -> Vec<Hint> {
     ctx.data_mut(|d| std::mem::take(d.get_temp_mut_or_default::<Vec<Hint>>(store_id())))
 }
 
-/// A stable fingerprint of a hint set, quantised to whole points so animation
-/// jitter and reveal easing do not read as new geometry every frame.
-pub fn fingerprint(hints: &[Hint]) -> u64 {
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    let q = |v: f32| (v / 4.0).round() as i32;
-    for hint in hints {
-        match hint {
-            Hint::Bar(r) | Hint::Frame(r) => {
-                (matches!(hint, Hint::Bar(_)) as u8).hash(&mut h);
-                (q(r.left()), q(r.top()), q(r.right()), q(r.bottom())).hash(&mut h);
-            }
-            Hint::Path(pts) => {
-                2u8.hash(&mut h);
-                for p in pts {
-                    (q(p.x), q(p.y)).hash(&mut h);
-                }
-            }
-            Hint::Circle { center, radius } => {
-                3u8.hash(&mut h);
-                (q(center.x), q(center.y), q(*radius)).hash(&mut h);
-            }
-            Hint::Point(p) => {
-                4u8.hash(&mut h);
-                (q(p.x), q(p.y)).hash(&mut h);
-            }
-            Hint::Text { galley, pos, slide } => {
-                5u8.hash(&mut h);
-                slide.hash(&mut h);
-                galley.text().hash(&mut h);
-                (q(pos.x), q(pos.y)).hash(&mut h);
-            }
-        }
-    }
-    h.finish()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -123,23 +85,5 @@ mod tests {
         );
         assert_eq!(take(&ctx).len(), 2);
         assert!(take(&ctx).is_empty(), "taken once");
-    }
-
-    #[test]
-    fn fingerprint_ignores_sub_point_jitter() {
-        let a = vec![Hint::Bar(Rect::from_min_size(
-            Pos2::new(10.0, 10.0),
-            egui::vec2(50.0, 100.0),
-        ))];
-        let b = vec![Hint::Bar(Rect::from_min_size(
-            Pos2::new(10.4, 10.2),
-            egui::vec2(50.0, 100.0),
-        ))];
-        let c = vec![Hint::Bar(Rect::from_min_size(
-            Pos2::new(10.0, 60.0),
-            egui::vec2(50.0, 100.0),
-        ))];
-        assert_eq!(fingerprint(&a), fingerprint(&b));
-        assert_ne!(fingerprint(&a), fingerprint(&c));
     }
 }

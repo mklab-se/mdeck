@@ -1,6 +1,6 @@
 //! `mdeck sdk new <kind> <name>` (EXT-28): a new extension crate from the
-//! scaffold templates in `crates/mdeck-sdk/templates/`, embedded here so the
-//! command works from any installed mdeck.
+//! scaffold templates in `crates/mdeck-sdk/templates/`, embedded in the SDK
+//! so the command works from any installed mdeck.
 
 use std::path::{Path, PathBuf};
 
@@ -31,46 +31,12 @@ impl TemplateKind {
         }
     }
 
-    /// The template's files: path in the crate and text.
+    /// The template's files: path in the crate and text (embedded in the
+    /// SDK, see `mdeck_sdk::templates`).
     pub fn files(self) -> &'static [(&'static str, &'static str)] {
-        match self {
-            TemplateKind::Engine => ENGINE,
-            TemplateKind::Visual => VISUAL,
-            TemplateKind::DesignSet => DESIGN_SET,
-            TemplateKind::Transition => TRANSITION,
-        }
+        mdeck_sdk::templates::files(self.name()).expect("every kind has a template")
     }
 }
-
-macro_rules! template {
-    ($kind:literal) => {
-        &[
-            template!(@file $kind, "Cargo.toml"),
-            template!(@file $kind, "README.md"),
-            template!(@file $kind, "deck.md"),
-            template!(@file $kind, "theme.yaml"),
-            template!(@file $kind, "src/lib.rs"),
-            template!(@file $kind, "tests/golden.rs"),
-        ]
-    };
-    (@file $kind:literal, $file:literal) => {
-        (
-            $file,
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../mdeck-sdk/templates/",
-                $kind,
-                "/",
-                $file
-            )),
-        )
-    };
-}
-
-const ENGINE: &[(&str, &str)] = template!("engine");
-const VISUAL: &[(&str, &str)] = template!("visual");
-const DESIGN_SET: &[(&str, &str)] = template!("design-set");
-const TRANSITION: &[(&str, &str)] = template!("transition");
 
 /// A template's text for the extension `name`.
 pub fn instantiate(text: &str, name: &str) -> String {

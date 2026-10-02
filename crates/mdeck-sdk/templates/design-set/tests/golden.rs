@@ -17,6 +17,7 @@ fn a_poster_slide() {
         marker: ListMarker::Static,
         inlines: text(s),
         children: vec![],
+        step: 0,
     };
     let slide = Slide {
         blocks: vec![

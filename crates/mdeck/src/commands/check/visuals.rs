@@ -40,7 +40,7 @@ fn visual_fences(slide: &parser::Slide) -> Vec<(String, usize, String)> {
             (false, true) => {
                 let info = line.trim().trim_start_matches(['`', '~']).trim_start();
                 let tag = info.split_whitespace().next().unwrap_or("");
-                current = (tag != "@thermal" && visualizations::kind_for_tag(tag).is_some())
+                current = (tag != "@thermal" && visualizations::is_visual_tag(tag))
                     .then(|| (tag.to_string(), offset, String::new()));
             }
             (true, false) => out.extend(current.take()),

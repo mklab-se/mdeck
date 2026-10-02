@@ -40,14 +40,40 @@ impl ArtKind {
     }
 }
 
-/// An art engine's medium: the kind of picture it asks for by default,
-/// its own card for tonal pictures, and how it draws those in (line art is
-/// always drawn along the ink).
+/// An art engine's medium as the art pipeline sees it: the kind of picture
+/// it asks for by default, the card for its tonal pictures, and how it
+/// draws those in (line art is always drawn along the ink).
 pub struct Medium {
     pub name: &'static str,
     pub kind: ArtKind,
     pub tonal: &'static style::Card,
     pub tonal_strategy: prepare::Strategy,
+}
+
+impl Medium {
+    /// The pipeline's view of an engine's medium (its
+    /// [`mdeck_sdk::engine::Medium`]): the tonal card is the medium's own
+    /// when mdeck has one by that name, else the graphite sketch card.
+    pub fn of(m: mdeck_sdk::engine::Medium) -> Medium {
+        Medium {
+            name: m.name,
+            kind: match m.kind {
+                mdeck_sdk::engine::MediumKind::Line => ArtKind::Line,
+                mdeck_sdk::engine::MediumKind::Tonal => ArtKind::Tonal,
+            },
+            tonal: match m.name {
+                #[cfg(feature = "watercolour")]
+                "watercolour" => &style::WATERCOLOUR,
+                #[cfg(feature = "darkroom")]
+                "darkroom" => &style::DARKROOM,
+                #[cfg(any(feature = "sketch", feature = "line"))]
+                _ => &style::SKETCH,
+                #[cfg(not(any(feature = "sketch", feature = "line")))]
+                _ => &style::LINE,
+            },
+            tonal_strategy: m.strategy,
+        }
+    }
 }
 
 /// Whether a slide gets a generated picture: its layout has a stage for one

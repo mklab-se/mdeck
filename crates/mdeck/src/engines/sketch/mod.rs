@@ -3,44 +3,42 @@
 //! (`mdeck ai pictures`), graphite and ink in the MKLab house style by default,
 //! is drawn in with a pencil: the outlines first, along the lines, then the
 //! shading laid in stroke by stroke in bands that sweep across the picture.
-//! Without art, the slide's `picture` is drawn in pencil; the
+//! Without art, the slide's point cloud picture is drawn in pencil; the
 //! countdown and the end words are drawn the same way. Exports show the
 //! finished drawing.
 
-use eframe::egui;
+use mdeck_sdk::engine::{Capabilities, Engine, EngineDef, Medium, MediumKind, Needs};
+use mdeck_sdk::paint::{Color, Painter, premul};
+use mdeck_sdk::stage::{Frame, Stage, Strategy};
 
+use super::art::strokes::Strokes;
 use super::art::{Canvas, Drawing, Hand, Reveal, Tip};
-use super::paint::premul;
-use super::stage::{FrameCx, Stage};
-use super::{Engine, EngineDef};
-use crate::render::art::prepare::Strategy;
-use crate::render::art::{ArtKind, Medium, style};
-use crate::render::illustration::Library;
-use crate::render::strokes::Picture;
 use pencil::{Graphite, graphite_lines, pencil};
 
 mod pencil;
 
 /// A sketchbook asks for finished graphite drawings and draws them in with
 /// outlines first, then hatching.
-pub static MEDIUM: Medium = Medium {
+pub const MEDIUM: Medium = Medium {
     name: "sketch",
-    kind: ArtKind::Tonal,
-    tonal: &style::SKETCH,
-    tonal_strategy: Strategy::Hatch,
+    kind: MediumKind::Tonal,
+    strategy: Strategy::Hatch,
 };
-
-/// Seconds into the end slide when the caption fades in.
-pub const END_CAPTION_DELAY: f32 = 5.2;
 
 pub static DEF: EngineDef = EngineDef {
-    capabilities: super::art::CAPABILITIES,
-    create: || Box::new(Sketch::new()),
-    end_caption_delay: END_CAPTION_DELAY,
-    medium: Some(&MEDIUM),
-    render_slide: None,
-    problems: None,
+    name: "sketch",
+    summary: "Generated graphite drawings drawn in with a pencil on a sketchbook page.",
+    capabilities: Capabilities {
+        medium: Some(MEDIUM),
+        ..super::art::CAPABILITIES
+    },
+    settings: &[],
+    needs: Needs { page: true },
+    ending_caption_delay: 5.2,
+    create: |_| Box::new(Sketch::new()),
+    board: None,
 };
+
 /// The end words hold this long, then fade.
 const END_WORDS: f32 = 3.6;
 /// Seconds to draw a picture.
@@ -80,15 +78,19 @@ impl Default for Sketch {
 }
 
 impl Engine for Sketch {
-    fn update(&mut self, cx: &FrameCx, stage: &Stage, lib: &mut Library) {
-        self.canvas.update(cx, stage, lib);
+    fn update(&mut self, frame: &Frame, stage: &Stage) {
+        self.canvas.update(frame, stage);
     }
 
-    fn paint(&mut self, ui: &egui::Ui, cx: &FrameCx, _stage: &Stage) {
+    fn paint(&mut self, painter: &mut Painter, frame: &Frame, _stage: &Stage) {
         let hand = Pencil {
-            g: Graphite::of(cx.theme),
+            g: Graphite::of(frame.tokens),
         };
-        self.canvas.paint(ui, cx, &hand);
+        self.canvas.paint(painter, frame, &hand);
+    }
+
+    fn animating(&self) -> bool {
+        self.canvas.moving
     }
 }
 
@@ -103,29 +105,29 @@ impl Hand for Pencil {
         0.3
     }
 
-    fn picture(&self, ui: &egui::Ui, cx: &FrameCx, d: &mut Drawing, now: f32, k: f32, _: bool) {
-        let line = d.picture.strategy == Strategy::Draw;
-        let (tint, reveal) = if line {
-            (premul(self.g.lead, k), LINE_REVEAL)
-        } else {
-            (premul(egui::Color32::WHITE, k), REVEAL)
-        };
-        d.paint(ui, cx.rect, now, tint, reveal);
-    }
-
-    fn strokes(
+    fn picture(
         &self,
-        painter: &egui::Painter,
-        cx: &FrameCx,
-        p: &Picture,
+        painter: &Painter,
+        frame: &Frame,
+        d: &mut Drawing,
         now: f32,
         k: f32,
         _: bool,
     ) {
-        graphite_lines(painter, p, now, cx.rect, cx.scale, &self.g, k);
+        let line = d.picture.strategy == Strategy::Draw;
+        let (tint, reveal) = if line {
+            (premul(self.g.lead, k), LINE_REVEAL)
+        } else {
+            (premul(Color::WHITE, k), REVEAL)
+        };
+        d.paint(painter, frame.rect, now, tint, reveal);
     }
 
-    fn finish(&self, painter: &egui::Painter, cx: &FrameCx, tip: Option<Tip>) {
+    fn strokes(&self, painter: &Painter, frame: &Frame, p: &Strokes, now: f32, k: f32, _: bool) {
+        graphite_lines(painter, p, now, frame.rect, frame.scale, &self.g, k);
+    }
+
+    fn finish(&self, painter: &Painter, frame: &Frame, tip: Option<Tip>) {
         let (at, wobble) = match tip {
             Some(Tip::Picture {
                 at,
@@ -136,7 +138,7 @@ impl Hand for Pencil {
             Some(Tip::Pen { at, progress }) => (at, progress * 4.0),
             _ => return,
         };
-        pencil(painter, at, cx.scale, &self.g, wobble, cx.opacity);
+        pencil(painter, at, frame.scale, &self.g, wobble, frame.opacity);
     }
 }
 
@@ -146,11 +148,9 @@ mod tests {
 
     #[test]
     fn a_sketchbook_asks_for_graphite_drawings() {
-        assert_eq!(MEDIUM.kind, ArtKind::Tonal);
-        assert_eq!(MEDIUM.tonal_strategy, Strategy::Hatch);
-        assert_eq!(
-            super::super::EngineKind::Sketch.medium().map(|m| m.name),
-            Some("sketch")
-        );
+        assert_eq!(MEDIUM.kind, MediumKind::Tonal);
+        assert_eq!(MEDIUM.strategy, Strategy::Hatch);
+        assert_eq!(DEF.capabilities.medium.map(|m| m.name), Some("sketch"));
+        assert!(DEF.capabilities.picture);
     }
 }

@@ -140,7 +140,7 @@ pub struct Directive {
 ///
 /// ```
 /// use mdeck_sdk::content::Block;
-/// let b = Block::Visual { tag: "barchart".into(), content: "A: 1".into() };
+/// let b = Block::Visual { tag: "barchart".into(), content: "A: 1".into(), step_base: 0 };
 /// assert!(matches!(b, Block::Visual { .. }));
 /// ```
 #[derive(Clone, Debug, PartialEq)]
@@ -204,6 +204,9 @@ pub enum Block {
         tag: String,
         /// The fence's body, for the visual to parse.
         content: String,
+        /// Reveal steps on the slide before this visual's own (its steps
+        /// follow on from them).
+        step_base: usize,
     },
     /// A column break (`+++`).
     ColumnSeparator,
@@ -265,7 +268,7 @@ pub enum Inline {
 ///
 /// ```
 /// use mdeck_sdk::content::{ListItem, ListMarker};
-/// let item = ListItem { marker: ListMarker::Static, inlines: vec![], children: vec![] };
+/// let item = ListItem { marker: ListMarker::Static, inlines: vec![], children: vec![], step: 0 };
 /// assert_eq!(item.marker, ListMarker::Static);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
@@ -276,6 +279,10 @@ pub struct ListItem {
     pub inlines: Vec<Inline>,
     /// Nested items.
     pub children: Vec<ListItem>,
+    /// The reveal step the item appears at (0: with the slide). The parser
+    /// numbers `+` items across the slide in reading order, visuals
+    /// included, and children appear with their parent.
+    pub step: usize,
 }
 
 /// How a list item is revealed.

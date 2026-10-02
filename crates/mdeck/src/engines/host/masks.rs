@@ -2,14 +2,19 @@
 //! digits and the end words, in the theme's display face.
 
 use eframe::egui;
+use mdeck_sdk::cloud::Mask;
 
-use super::Mask;
-use crate::render::particles;
+use crate::engines::rng::Rng;
 use crate::theme::Theme;
 
 /// Spectral's 1 wears a long flag. Keep only the half of it nearest the stem,
 /// then renormalise the mask to its new width.
-pub(super) fn trim_flag((pts, aspect): Mask) -> Mask {
+pub(super) fn trim_flag(
+    Mask {
+        points: pts,
+        aspect,
+    }: Mask,
+) -> Mask {
     // The flag is the part left of the stem in the top third of the glyph;
     // the stem starts around 45% of the width in this face.
     let flag_cut = 0.24;
@@ -24,7 +29,7 @@ pub(super) fn trim_flag((pts, aspect): Mask) -> Mask {
         .into_iter()
         .map(|p| [(p[0] - min_x) / width, p[1]])
         .collect();
-    (std::sync::Arc::new(renormalised), aspect * width)
+    Mask::new(renormalised, aspect * width)
 }
 
 /// Sample a glyph's coverage out of egui's font atlas into mask points in the
@@ -57,7 +62,7 @@ pub(super) fn text_mask(ui: &egui::Ui, theme: &Theme, text: &str) -> Mask {
         (glyphs, f.image())
     });
     if glyphs.is_empty() {
-        return (std::sync::Arc::new(Vec::new()), 0.6);
+        return Mask::new(Vec::new(), 0.6);
     }
     // bounding box of the ink in layout points
     let (mut bx0, mut by0, mut bx1, mut by1) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
@@ -91,12 +96,12 @@ pub(super) fn text_mask(ui: &egui::Ui, theme: &Theme, text: &str) -> Mask {
     // Masks are consumed in order (a group of n particles takes the first n
     // points), and scanline order would light the top of the glyph first.
     shuffle(&mut pts, 0x6C7F);
-    (std::sync::Arc::new(pts), bw / bh)
+    Mask::new(pts, bw / bh)
 }
 
 /// Deterministic Fisher-Yates.
 fn shuffle(pts: &mut [[f32; 2]], seed: u64) {
-    let mut rng = particles::Rng::new(seed);
+    let mut rng = Rng::new(seed);
     for i in (1..pts.len()).rev() {
         let j = (rng.unit() * (i + 1) as f32) as usize;
         pts.swap(i, j.min(i));
@@ -114,7 +119,10 @@ mod tests {
         crate::render::fonts::install(&ctx);
         let theme = Theme::ember();
         let mut output = ctx.run_ui(Default::default(), |ui| {
-            let (pts, aspect) = text_mask(ui, &theme, "THE END");
+            let Mask {
+                points: pts,
+                aspect,
+            } = text_mask(ui, &theme, "THE END");
             assert!(pts.len() > 1500, "only {} points", pts.len());
             assert!(aspect > 4.0 && aspect < 9.0, "aspect {aspect}");
             let (w, h) = (((14.0 * aspect) * 2.0) as usize, 14usize);
@@ -154,7 +162,10 @@ mod tests {
                     if ch == '1' {
                         mask = trim_flag(mask);
                     }
-                    let (pts, aspect) = mask;
+                    let Mask {
+                        points: pts,
+                        aspect,
+                    } = mask;
                     assert!(pts.len() > 300, "{ch}: only {} points", pts.len());
                     assert!(aspect > 0.35 && aspect < 0.9, "{ch}: aspect {aspect}");
                     // ASCII dump, 24 rows
