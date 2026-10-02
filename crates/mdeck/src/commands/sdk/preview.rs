@@ -293,7 +293,11 @@ mod tests {
         write_images(&dir).unwrap();
         // on a theme whose designs have a stage, so the picture slide shows
         // ember needs the particles engine; a build without it checks on dark
-        let theme = if cfg!(feature = "particles") { "ember" } else { "dark" };
+        let theme = if cfg!(feature = "particles") {
+            "ember"
+        } else {
+            "dark"
+        };
         let text = DECK.replacen("---\n", &format!("---\ntheme: {theme}\n"), 1);
         let file = dir.join("preview.md");
         std::fs::write(&file, &text).unwrap();
