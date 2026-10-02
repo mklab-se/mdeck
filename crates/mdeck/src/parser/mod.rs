@@ -120,8 +120,8 @@ fn parse_slide(raw: String, source_lines: Vec<usize>, deck_reveal: bool) -> Slid
         _ => deck_reveal,
     };
     let steps = steps::number(&mut blocks, reveal, &steps::default_visual_steps);
-    // Until pictures are one source (phase 2), `picture` names a point
-    // cloud and `picture: none` opts out of generated art too.
+    // `picture` names the fallback (a point cloud or an image) behind a
+    // generated artwork (D13); `picture: none` opts out of both.
     let picture = setting(&settings, "picture");
     let illustration = picture.filter(|p| *p != "none").map(|p| p.to_lowercase());
     let art = match picture {

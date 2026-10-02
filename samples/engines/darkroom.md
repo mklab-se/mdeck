@@ -42,7 +42,7 @@ y-label: Tonnes landed
 <!-- picture: camera -->
 
 - Without a photograph, the point cloud named by `picture` becomes a photogram
-- A slide that names a point cloud gets no generated art; `picture: none` keeps it empty
+- A generated picture comes first once there is one; `picture: none` keeps the slide empty
 
 # Lights on
 <!-- picture-prompt: A harbour café at dawn, a waiter setting out chairs, the first sunlight on the wet cobbles. -->

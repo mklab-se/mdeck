@@ -43,7 +43,7 @@ y-label: Baskets picked
 <!-- picture: globe -->
 
 - Without a painting, the point cloud named by `picture` is drawn in ink with a wash
-- A slide that names a point cloud gets no generated art; `picture: none` keeps it empty
+- A generated picture comes first once there is one; `picture: none` keeps the slide empty
 
 # Until next spring
 <!-- picture-prompt: The garden under a light snow at dusk, a warm light in the cottage window and a robin on the garden gate. -->

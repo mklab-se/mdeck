@@ -160,9 +160,9 @@ What later phases build on:
   `parser::steps::number` numbers a slide; `Deck` renumbers with thermal counts from the library.
 - **Interim mappings to replace:** `design:` maps onto the v1 `Layout` enum
   (`parser::layout::design_layout`; phase 3 replaces it with designs). `picture: <name>` fills
-  `Slide::illustration`, `picture: none` and `picture-prompt` fill `Slide::art`, and a slide that
-  names a point cloud without a `picture-prompt` takes no generated art (`render::art::wants_art`);
-  phase 2 makes the picture one source (D13). `art-world` is `PresentationMeta::art_world`.
+  `Slide::illustration`, `picture: none` and `picture-prompt` fill `Slide::art`; a slide that
+  names a point cloud still takes generated art (`render::art::wants_art`), which comes first
+  (D13). `art-world` is `PresentationMeta::art_world`.
 - **Per-slide transitions:** a slide's `transition` sets how it is entered (and left going back)
   in the window (`app::look::slide_transition`); `transition: zoom` works with `zoom-to`. Phase 4
   adds the rest of RUN's transition work.

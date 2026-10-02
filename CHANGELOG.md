@@ -98,6 +98,9 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
 
 ### Changed
 
+- A slide that names a `picture:` still takes a generated artwork on the art engines, and the
+  artwork comes first (D13): stored artworks for such slides are shown again instead of the point
+  cloud. In v1 a slide with `@illustration` got no generated art.
 - **The editorial look covers every slide.** On Ember and the other editorial themes, image,
   code, table, chart and column slides get the eyebrow, display heading and staggered entry too,
   instead of falling back to the plain layouts.
