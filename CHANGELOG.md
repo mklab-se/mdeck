@@ -10,6 +10,28 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
 
 ### Added
 
+- **Slide designs.** Every slide is one of 13 designs (`title`, `section`, `statement`, `points`,
+  `split`, `media`, `gallery`, `quote`, `code`, `visual`, `columns`, `table`, `content`),
+  recognised by one documented table that `mdeck spec` prints. The common `## Heading` + a
+  sentence is a `statement` in large type, and a heading with a table is a `table` slide.
+  `mdeck --check -v` prints each slide's design and the rule that matched; `--check` reports a
+  chosen `design:` that cannot hold the slide.
+- **Design sets and arrangements.** A theme picks `designs: standard` (the classic centred slide)
+  or `designs: editorial` (the Ember magazine spread) independently of its engine, and overrides
+  any arrangement key (regions, alignment, role type, ornaments, entry motion, stage) with
+  `arrangements:`, merged key by key through `extends`. Both sets are data
+  (`crates/mdeck/designs/*.yaml`).
+- Theme `spacing:` (`xs` to `xl`) and `radius:` tokens, used by every arrangement and by code,
+  table and callout cards.
+- A theme's engine settings live in its `engine:` block (`engine: { name: thermal, palette: iron }`).
+- `variant-of:`; `mdeck theme list` and `Shift+T` show themes first, then variants (spring,
+  summer, autumn, winter).
+- Themes from installed packs are found after the user folder and before the built-ins.
+- `mdeck theme check` warns about engine settings the engine does not read, `fonts.lead` the
+  design set never uses, and paper engines without a `page:`; its contrast check covers every
+  text colour a theme draws, at the size it is drawn.
+- `samples/layouts/` has one deck per design and `samples/features/designs.md` shows every design
+  with a deck-local theme that overrides arrangements.
 - Plain markdown presents cleanly: raw HTML keeps its text (`<img>` becomes an image,
   `<h1>`..`<h6>` a heading, `<br>` a line break), task lists show checkboxes, reference links and
   autolinks resolve, footnote text goes to the slide's notes, GitHub alerts (`> [!NOTE]`) render
@@ -59,6 +81,22 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
 
 ### Changed
 
+- **The editorial look covers every slide.** On Ember and the other editorial themes, image,
+  code, table, chart and column slides get the eyebrow, display heading and staggered entry too,
+  instead of falling back to the plain layouts.
+- **No slide drops content.** A diagram with bullets, two charts, a paragraph before an image,
+  several quotes or headings: everything shows, in reading order (DES-04, DES-07, DES-08).
+- Prose and lists shrink (to 80%) before a slide scrolls, after code (to 40%).
+- The default theme is `dark` (plain, standard designs, fades, no countdown).
+- `particles:`, `heat:`, `art:` and `surface:` moved into the theme's `engine:` block; the old
+  keys are errors saying where each one went.
+- `mdeck theme new` writes every key, generated from the format; `mdeck theme preview` shows one
+  slide per design.
+- Chart grids and axes use the theme's `rule`, grid labels and axis titles its `muted`.
+- Muted text is a little brighter by default; light, spring, sketchbook and watercolour colours
+  adjusted to pass WCAG AA.
+- `samples/layouts/` decks are named after their designs (`points.md`, `columns.md`, `media.md`,
+  `split.md`, `all-designs.md`).
 - **Deck settings are plain YAML keys** (`theme: ember`, `art-world: ...`). v1 `@key:` frontmatter
   keys are no longer read. `countdown` takes `on` or `off`; `date`, `@aspect` and `@code-theme`
   are gone.
@@ -142,6 +180,13 @@ one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpo
 
 ### Fixed
 
+- A paragraph before an image, every quote and heading on a quote slide, and everything besides
+  a diagram or a first chart are shown (D2, D3, D4).
+- A gallery that fits no longer scrolls (D9), and the reveal auto-scroll finds the item where the
+  design draws it (D10).
+- A `@fill` image beside text is cut at its panel instead of covering the text (D14).
+- Ordered lists show their numbers, and every nesting level is drawn, on editorial themes (D23).
+- Theme errors named non-colour keys `colors.<key>` (D18).
 - A quote's attribution written as its last paragraph (`> text`, `>`, `> Who`) no longer runs into
   the quotation.
 - Nested `+` items under the editorial layouts no longer take presses that reveal nothing.

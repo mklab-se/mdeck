@@ -167,6 +167,11 @@ impl<'s> Stack<'s> {
         self.width
     }
 
+    /// The gap the last element asks for after it.
+    pub fn trailing_gap(&self) -> f32 {
+        self.pending
+    }
+
     /// Height of the stack (no trailing gap).
     pub fn height(&self) -> f32 {
         self.y

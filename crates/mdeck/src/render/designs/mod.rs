@@ -197,7 +197,11 @@ fn plan<'s>(lay: &Lay, slide: &'s Slide, rect: Rect) -> Plan<'s> {
         }
         Place::Below => {
             let hc = stack.height();
-            let head_gap = if stack.pieces.is_empty() { 0.0 } else { gap };
+            let head_gap = if stack.pieces.is_empty() {
+                0.0
+            } else {
+                gap.max(stack.trailing_gap())
+            };
             // the footer, in the copy's column
             let mut footer = Stack::new(r.left(), r.width(), region.align);
             footer.items(lay, &parts.footer);

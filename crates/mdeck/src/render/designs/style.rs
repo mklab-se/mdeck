@@ -120,8 +120,10 @@ pub fn job(
 
 /// A job for plain `text` in style `r` (eyebrows, numbers).
 pub fn text_job(r: &Resolved, text: &str, halign: egui::Align) -> egui::text::LayoutJob {
-    let mut job = egui::text::LayoutJob::default();
-    job.halign = halign;
+    let mut job = egui::text::LayoutJob {
+        halign,
+        ..Default::default()
+    };
     job.append(
         &cased(text, r.case),
         0.0,

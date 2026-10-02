@@ -22,7 +22,7 @@ if [ $# -gt 0 ]; then
   decks=("$@")
 else
   decks=(samples/ember/*.md samples/themes/*.md samples/engines/*.md
-         samples/layouts/bullet.md samples/visualizations/all.md)
+         samples/layouts/points.md samples/visualizations/all.md)
 fi
 
 out=$(mktemp -d)

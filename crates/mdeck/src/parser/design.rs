@@ -599,10 +599,7 @@ mod tests {
         for (i, rule) in RULES.iter().enumerate() {
             let row = format!("| {} | `{}` | ", i + 1, rule.design.name());
             assert!(docs.contains(&row), "docs/writing-slides.md lacks {row}");
-            let when = rule
-                .when
-                .replace("+++", "`+++`")
-                .replace("separator, `+++`", "separator, `+++`");
+            let when = rule.when.replace("+++", "`+++`");
             assert!(
                 docs.contains(&when) || docs.contains(rule.when),
                 "docs/writing-slides.md lacks `{}`",

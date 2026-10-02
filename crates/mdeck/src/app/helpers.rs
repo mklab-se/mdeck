@@ -125,7 +125,6 @@ pub(super) fn print_incident_summary(log: &IncidentLog) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::Block;
     use std::path::Path;
 
     #[test]
@@ -142,17 +141,6 @@ mod tests {
             file
         ));
         assert!(!event_matches_file(Path::new("/tmp/deck/slides.md~"), file));
-    }
-
-    /// Blocks parsed and numbered as a slide's.
-    fn numbered(md: &str) -> Vec<Block> {
-        let mut blocks = crate::parser::blocks::parse(md);
-        crate::parser::steps::number(
-            &mut blocks,
-            true,
-            &crate::parser::steps::default_visual_steps,
-        );
-        blocks
     }
 
     use crate::parser::Slide;
