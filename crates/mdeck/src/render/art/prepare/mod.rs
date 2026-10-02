@@ -41,6 +41,10 @@ pub(super) const STEPS: f32 = 65535.0;
 pub use mdeck_sdk::stage::Strategy;
 
 /// How a medium reveals its pictures.
+#[allow(
+    dead_code,
+    reason = "interim: the art engines are being ported (phase 2b)"
+)]
 #[derive(Clone, Copy, Debug)]
 pub struct Reveal {
     /// How long a pixel takes to arrive, as a share of the reveal.
@@ -58,6 +62,10 @@ pub struct Reveal {
 pub use mdeck_sdk::stage::Artwork as Prepared;
 
 /// Revealing a prepared picture on the CPU.
+#[allow(
+    dead_code,
+    reason = "interim: the art engines are being ported (phase 2b)"
+)]
 pub trait Reveals {
     /// The picture at `t` as premultiplied pixels (see [`Reveal`]).
     fn reveal(&self, t: f32, r: &Reveal) -> Vec<egui::Color32>;

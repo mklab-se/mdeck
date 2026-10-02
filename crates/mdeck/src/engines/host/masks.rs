@@ -4,12 +4,17 @@
 use eframe::egui;
 use mdeck_sdk::cloud::Mask;
 
-use crate::render::particles;
+use crate::engines::rng::Rng;
 use crate::theme::Theme;
 
 /// Spectral's 1 wears a long flag. Keep only the half of it nearest the stem,
 /// then renormalise the mask to its new width.
-pub(super) fn trim_flag(Mask { points: pts, aspect }: Mask) -> Mask {
+pub(super) fn trim_flag(
+    Mask {
+        points: pts,
+        aspect,
+    }: Mask,
+) -> Mask {
     // The flag is the part left of the stem in the top third of the glyph;
     // the stem starts around 45% of the width in this face.
     let flag_cut = 0.24;
@@ -96,7 +101,7 @@ pub(super) fn text_mask(ui: &egui::Ui, theme: &Theme, text: &str) -> Mask {
 
 /// Deterministic Fisher-Yates.
 fn shuffle(pts: &mut [[f32; 2]], seed: u64) {
-    let mut rng = particles::Rng::new(seed);
+    let mut rng = Rng::new(seed);
     for i in (1..pts.len()).rev() {
         let j = (rng.unit() * (i + 1) as f32) as usize;
         pts.swap(i, j.min(i));
@@ -114,7 +119,10 @@ mod tests {
         crate::render::fonts::install(&ctx);
         let theme = Theme::ember();
         let mut output = ctx.run_ui(Default::default(), |ui| {
-            let Mask { points: pts, aspect } = text_mask(ui, &theme, "THE END");
+            let Mask {
+                points: pts,
+                aspect,
+            } = text_mask(ui, &theme, "THE END");
             assert!(pts.len() > 1500, "only {} points", pts.len());
             assert!(aspect > 4.0 && aspect < 9.0, "aspect {aspect}");
             let (w, h) = (((14.0 * aspect) * 2.0) as usize, 14usize);
@@ -154,7 +162,10 @@ mod tests {
                     if ch == '1' {
                         mask = trim_flag(mask);
                     }
-                    let Mask { points: pts, aspect } = mask;
+                    let Mask {
+                        points: pts,
+                        aspect,
+                    } = mask;
                     assert!(pts.len() > 300, "{ch}: only {} points", pts.len());
                     assert!(aspect > 0.35 && aspect < 0.9, "{ch}: aspect {aspect}");
                     // ASCII dump, 24 rows

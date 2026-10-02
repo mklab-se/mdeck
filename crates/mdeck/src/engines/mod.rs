@@ -15,6 +15,7 @@
 
 pub mod host;
 pub mod plain;
+pub mod rng;
 
 pub use host::{CountPhase, Host, Shot, choose, unsupported, unsupported_summary, with_engine};
 pub use mdeck_sdk::engine::{Capabilities, EngineDef, Medium};
@@ -154,7 +155,9 @@ mod tests {
                     }
                     files(&path, out);
                 } else if path.extension().is_some_and(|e| e == "rs")
-                    && path.file_name().is_some_and(|n| n != "mod.rs" || path.parent() != Some(dir))
+                    && path
+                        .file_name()
+                        .is_some_and(|n| n != "mod.rs" || path.parent() != Some(dir))
                 {
                     out.push(path);
                 }

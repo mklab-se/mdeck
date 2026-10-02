@@ -131,7 +131,7 @@ pub fn is_visual_tag(tag: &str) -> bool {
         .is_some_and(|t| crate::registry::get().visual_for(t).is_some())
 }
 
-pub use builtin::register;
+pub use builtin::{draw_tag, register};
 
 // ─── Standardized visualization design tokens ──────────────────────────────
 // All visualizations use these constants for visual consistency within a theme.
@@ -277,7 +277,7 @@ mod tests {
             .map(|i| format!("- Team {i}: does things\n"))
             .collect();
         let heights = draw_headless(
-            Chart::Flower,
+            Chart::from_info("@flower").unwrap(),
             &[
                 "",
                 "- center Only the centre",
@@ -297,7 +297,7 @@ mod tests {
             .map(|i| format!("- producer P{i}\n- consumer C{i}\n"))
             .collect();
         let heights = draw_headless(
-            Chart::ArtifactFlow,
+            Chart::from_info("@artifactflow").unwrap(),
             &[
                 "",
                 "- service Only a service\n  - item",

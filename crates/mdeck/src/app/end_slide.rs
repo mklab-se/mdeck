@@ -8,7 +8,7 @@ use super::PresentationApp;
 
 impl PresentationApp {
     pub(super) fn draw_end_slide(&mut self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
-        if self.theme.engine.capabilities().end_act {
+        if self.theme.engine.capabilities().ending {
             self.draw_end_caption(ui, rect, scale);
             return;
         }

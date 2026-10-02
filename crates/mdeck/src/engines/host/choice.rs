@@ -41,10 +41,7 @@ pub fn choose(
 /// `theme` running on `kind` instead of its own engine (colours, fonts and
 /// logo stay the theme's). The countdown switch stays the theme's; the
 /// engine decides how it looks.
-pub fn with_engine(
-    mut theme: crate::theme::Theme,
-    kind: Option<EngineId>,
-) -> crate::theme::Theme {
+pub fn with_engine(mut theme: crate::theme::Theme, kind: Option<EngineId>) -> crate::theme::Theme {
     let Some(kind) = kind else {
         return theme;
     };

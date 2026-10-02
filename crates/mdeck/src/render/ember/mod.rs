@@ -110,11 +110,6 @@ fn entry_age(ui: &egui::Ui, index: usize, animate: bool, hold: bool) -> f32 {
     age
 }
 
-/// Seconds the copy of a title or section slide holds back while an engine
-/// with a cold opening forms the heading in heat; the copy then rises into
-/// the settling heat.
-pub const COLD_OPEN_HOLD: f32 = 1.5;
-
 /// Fade/rise progress of the `nth` copy element, staggered 120 ms apart
 /// over a 650 ms rise, as on the site.
 fn stagger(age: f32, nth: usize) -> f32 {
@@ -261,10 +256,10 @@ pub fn render(cx: &BlockCx, slide: &Slide, rect: Rect, deck: &SlideContext) {
     };
     // an engine that forms headings itself (the thermal cold opening) gets
     // the title and section copy late, and the heading's layout as a hint
-    let cold_open = cx.theme.engine.capabilities().cold_open
+    let cold_open = cx.theme.copy_hold > 0.0
         && (is_title(slide, deck.index) || matches!(slide.layout, Layout::Title | Layout::Section));
     let age = if cold_open && age >= 0.0 && deck.animate {
-        age - COLD_OPEN_HOLD
+        age - cx.theme.copy_hold
     } else {
         age
     };

@@ -33,7 +33,7 @@ fn message_line(slide: &parser::Slide, message: &str) -> usize {
 /// Content the deck's engine will not show, one warning per slide and thing.
 pub fn engine_warnings(
     presentation: &parser::Presentation,
-    kind: crate::engines::EngineKind,
+    kind: crate::engines::EngineId,
 ) -> Vec<CheckWarning> {
     let mut out = Vec::new();
     for (i, slide) in presentation.slides.iter().enumerate() {

@@ -1,5 +1,6 @@
 pub mod art;
 pub mod background;
+pub mod board;
 pub mod context;
 pub mod diagram;
 pub mod ember;
@@ -11,7 +12,6 @@ pub mod layouts;
 pub mod logo;
 pub mod math;
 pub mod page;
-pub mod particles;
 pub mod syntax;
 pub mod text;
 pub mod thermal;

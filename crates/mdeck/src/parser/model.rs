@@ -348,10 +348,6 @@ pub struct Chart(&'static str);
 impl Chart {
     /// A thermal image with its lens, reveals and spots (`@thermal`).
     pub const Thermal: Chart = Chart("thermal");
-    /// KPI cards (`@kpi`).
-    pub const KpiCards: Chart = Chart("kpi");
-    /// Progress bars (`@progress`).
-    pub const ProgressBars: Chart = Chart("progress");
 
     /// The visual a fence info string (```` ```@bar ````) names, when one is
     /// registered under that tag.

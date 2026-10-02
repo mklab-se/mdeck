@@ -103,6 +103,8 @@ pub fn design_cx<'a>(
         published: Vec::new(),
         services: None,
         engine_live: false,
+        deck_title: None,
+        count: 0,
         ui,
     }
 }
@@ -113,6 +115,13 @@ pub fn with_services<'a>(
     services: &'a mut dyn DesignServices,
 ) -> DesignCx<'a> {
     cx.services = Some(services);
+    cx
+}
+
+/// Tell a design set the deck's title and slide count.
+pub fn with_deck(mut cx: DesignCx<'_>, title: Option<String>, count: usize) -> DesignCx<'_> {
+    cx.deck_title = title;
+    cx.count = count;
     cx
 }
 
@@ -140,6 +149,11 @@ pub fn transition_cx(
         rect,
         forward,
     }
+}
+
+/// An egui texture as an SDK texture.
+pub fn texture(handle: egui::TextureHandle) -> crate::paint::Texture {
+    crate::paint::Texture { handle }
 }
 
 /// SDK colour to egui.

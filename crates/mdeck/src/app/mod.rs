@@ -158,10 +158,10 @@ struct PresentationApp {
     /// A theme waiting for its font faces to become drawable (one frame).
     pending_theme: Option<Theme>,
     /// `--engine` from the command line (wins over everything).
-    cli_engine: Option<crate::engines::EngineKind>,
+    cli_engine: Option<crate::engines::EngineId>,
     /// The engine every theme runs on for this deck (`--engine`, then
     /// `engine`); `None` keeps each theme's own.
-    engine_override: Option<crate::engines::EngineKind>,
+    engine_override: Option<crate::engines::EngineId>,
     /// Keeps the context's fonts in step with theme font files.
     font_sync: render::fonts::FontSync,
     /// `defaults.transition` from the user config.

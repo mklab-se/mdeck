@@ -124,8 +124,6 @@ pub struct Theme {
     /// it names one. A deck's own `transition` wins; the user config and the
     /// built-in `fade` come after.
     pub transition: Option<String>,
-    /// The line engine's surface (`surface:`).
-    pub surface: Surface,
     pub background: Color32,
     pub foreground: Color32,
     pub heading_color: Color32,
@@ -180,8 +178,6 @@ pub struct Theme {
     pub page: Option<Page>,
     /// What generated artwork looks like (`art:`), over the engine's own style.
     pub art: ThemeArt,
-    /// The thermal engine's heat field (`heat:`).
-    pub heat: Heat,
     /// The file this theme was read from (`None` for built-ins).
     pub source: Option<PathBuf>,
 }

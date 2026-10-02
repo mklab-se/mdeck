@@ -10,7 +10,7 @@ use std::time::Instant;
 
 use eframe::egui;
 
-use crate::engines::{self, CountPhase, EngineKind, Host};
+use crate::engines::{self, CountPhase, EngineId, Host};
 use crate::parser::{self, Presentation};
 use crate::render::art::gallery::DeckArt;
 use crate::render::background::{Backgrounds, FadeIn};
@@ -95,7 +95,7 @@ impl Deck {
             logos: Logos::default(),
             backgrounds: Backgrounds::default(),
             background_fade: FadeIn::default(),
-            engine: Host::new(EngineKind::Plain),
+            engine: Host::new(EngineId::plain()),
         };
         deck.refresh_logos(theme);
         deck.refresh_backgrounds(quiet);
@@ -216,6 +216,7 @@ impl Deck {
             still: frame.still,
             deck_title: self.presentation.meta.title.as_deref(),
             count,
+            deck_dir: deck_dir(&self.file),
         };
         match rehearse_at {
             Some(t) => self.engine.rehearse(ui, shot, &mut self.illustrations, t),
@@ -259,7 +260,7 @@ impl Deck {
         cx: &SlideContext,
         scale: f32,
     ) {
-        if theme.engine.capabilities().editorial {
+        if crate::theme::uses_editorial(theme) {
             render::ember::draw_chrome(painter, theme, rect, cx, scale);
             return;
         }
@@ -356,10 +357,10 @@ pub fn deck_theme(
 /// The engine override for a deck: `--engine`, then its `engine` (whose
 /// problems are printed unless quiet). `None` keeps the theme's own.
 pub fn deck_engine(
-    cli: Option<EngineKind>,
+    cli: Option<EngineId>,
     presentation: &Presentation,
     quiet: bool,
-) -> Option<EngineKind> {
+) -> Option<EngineId> {
     if cli.is_some() {
         return cli;
     }
@@ -398,8 +399,8 @@ mod tests {
     fn a_cli_engine_wins_over_the_deck() {
         let pres = parser::parse("---\nengine: led\n---\n# A\n");
         assert_eq!(
-            deck_engine(Some(EngineKind::Plain), &pres, true),
-            Some(EngineKind::Plain)
+            deck_engine(Some(EngineId::plain()), &pres, true),
+            Some(EngineId::plain())
         );
     }
 }

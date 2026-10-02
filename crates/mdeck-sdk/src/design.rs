@@ -66,8 +66,7 @@ pub trait DesignServices {
 
     /// Draw the visual with fence tag `tag` from `src` into `rect` at reveal
     /// `step`, returning the height it used (0 when no visual has the tag).
-    fn visual(&mut self, painter: &Painter, tag: &str, src: &str, rect: Rect, step: usize)
-    -> f32;
+    fn visual(&mut self, painter: &Painter, tag: &str, src: &str, rect: Rect, step: usize) -> f32;
 }
 
 /// What a design set draws with.
@@ -83,6 +82,8 @@ pub struct DesignCx<'a> {
     pub(crate) published: Vec<Hint>,
     pub(crate) services: Option<&'a mut dyn DesignServices>,
     pub(crate) engine_live: bool,
+    pub(crate) deck_title: Option<String>,
+    pub(crate) count: usize,
     #[cfg_attr(not(feature = "unstable-egui"), allow(dead_code))]
     pub(crate) ui: Option<&'a mut egui::Ui>,
 }
@@ -111,6 +112,16 @@ impl<'a> DesignCx<'a> {
     /// The slide's 0-based index in the deck.
     pub fn index(&self) -> usize {
         self.index
+    }
+
+    /// The deck's title, for sets that print it.
+    pub fn deck_title(&self) -> Option<&str> {
+        self.deck_title.as_deref()
+    }
+
+    /// The number of slides in the deck (0 when the host does not say).
+    pub fn count(&self) -> usize {
+        self.count
     }
 
     /// Whether to animate (false for stills and reduced motion).

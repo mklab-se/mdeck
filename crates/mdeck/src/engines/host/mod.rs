@@ -134,13 +134,6 @@ impl Host {
         }
     }
 
-    /// Paint sprites as meshes instead of through GL (headless tests).
-    #[cfg(test)]
-    pub fn with_backend(mut self, backend: Backend) -> Self {
-        self.backend = backend;
-        self
-    }
-
     /// Seconds since the end slide was entered (0 when not on it).
     pub fn end_elapsed(&self) -> f32 {
         self.end_started
@@ -319,7 +312,10 @@ impl Host {
         if caps.medium.is_some()
             && let Some(art) = shot.art
         {
-            return Some(placed(PictureSource::Artwork(Arc::clone(art)), art.aspect()));
+            return Some(placed(
+                PictureSource::Artwork(Arc::clone(art)),
+                art.aspect(),
+            ));
         }
         if !crate::render::design_has_stage(slide, shot.theme) {
             return None;

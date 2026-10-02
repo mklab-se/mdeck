@@ -207,7 +207,7 @@ pub fn heading_job(
     scale: f32,
 ) -> egui::text::LayoutJob {
     let size = theme.heading_size(level) * scale;
-    if theme.engine.capabilities().editorial {
+    if crate::theme::uses_editorial(theme) {
         return crate::render::ember::display_job(inlines, size, color, max_width, theme);
     }
     display_inlines_job(inlines, size, color, max_width, theme)

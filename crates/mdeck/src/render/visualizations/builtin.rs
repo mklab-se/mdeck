@@ -51,16 +51,8 @@ impl Visual for Builtin {
     }
 
     fn draw(&self, _cx: &mut VisualCx, src: &str, rect: Rect, _step: usize) -> f32 {
-        current(|viz| {
-            (self.draw)(
-                viz,
-                src,
-                h::egui_pos(rect.min),
-                rect.width(),
-                rect.height(),
-            )
-        })
-        .unwrap_or(0.0)
+        current(|viz| (self.draw)(viz, src, h::egui_pos(rect.min), rect.width(), rect.height()))
+            .unwrap_or(0.0)
     }
 }
 
@@ -160,9 +152,26 @@ fn egui_hint(hint: mdeck_sdk::geometry::Hint) -> Option<crate::render::hints::Hi
 
 /// The tags of the built-in visuals.
 const BUILTIN_TAGS: [&str; 20] = [
-    "bar", "line", "pie", "donut", "scatter", "stackedbar", "funnel", "radar", "progress",
-    "kpi", "wordcloud", "timeline", "gantt", "orgchart", "gitgraph", "flower", "artifactflow",
-    "venn", "architecture", "thermal",
+    "bar",
+    "line",
+    "pie",
+    "donut",
+    "scatter",
+    "stackedbar",
+    "funnel",
+    "radar",
+    "progress",
+    "kpi",
+    "wordcloud",
+    "timeline",
+    "gantt",
+    "orgchart",
+    "gitgraph",
+    "flower",
+    "artifactflow",
+    "venn",
+    "architecture",
+    "thermal",
 ];
 
 fn grammar_steps(src: &str) -> usize {
@@ -180,21 +189,96 @@ pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
         steps: grammar_steps,
     };
     let all = [
-        grammar("bar", "Bar chart", bar_chart::draw_bar_chart, bar_chart::check),
-        grammar("line", "Line chart", line_chart::draw_line_chart, line_chart::check),
-        grammar("pie", "Pie chart", pie_chart::draw_pie_chart, pie_chart::check),
-        grammar("donut", "Donut chart", donut_chart::draw_donut_chart, donut_chart::check),
-        grammar("scatter", "Scatter plot", scatter_plot::draw_scatter_plot, scatter_plot::check),
-        grammar("stackedbar", "Stacked bar chart", stacked_bar::draw_stacked_bar, stacked_bar::check),
-        grammar("funnel", "Funnel chart", funnel_chart::draw_funnel_chart, funnel_chart::check),
-        grammar("radar", "Radar chart", radar_chart::draw_radar_chart, radar_chart::check),
-        grammar("progress", "Progress bars", progress_bars::draw_progress_bars, progress_bars::check),
-        grammar("kpi", "KPI cards", kpi_cards::draw_kpi_cards, kpi_cards::check),
-        grammar("wordcloud", "Word cloud", word_cloud::draw_word_cloud, word_cloud::check),
-        grammar("timeline", "Timeline", timeline::draw_timeline, timeline::check),
-        grammar("gantt", "Gantt chart", gantt_chart::draw_gantt_chart, gantt_chart::check),
-        grammar("orgchart", "Org chart", org_chart::draw_org_chart, org_chart::check),
-        grammar("gitgraph", "Git branch graph", git_graph::draw_gitgraph, git_graph::check),
+        grammar(
+            "bar",
+            "Bar chart",
+            bar_chart::draw_bar_chart,
+            bar_chart::check,
+        ),
+        grammar(
+            "line",
+            "Line chart",
+            line_chart::draw_line_chart,
+            line_chart::check,
+        ),
+        grammar(
+            "pie",
+            "Pie chart",
+            pie_chart::draw_pie_chart,
+            pie_chart::check,
+        ),
+        grammar(
+            "donut",
+            "Donut chart",
+            donut_chart::draw_donut_chart,
+            donut_chart::check,
+        ),
+        grammar(
+            "scatter",
+            "Scatter plot",
+            scatter_plot::draw_scatter_plot,
+            scatter_plot::check,
+        ),
+        grammar(
+            "stackedbar",
+            "Stacked bar chart",
+            stacked_bar::draw_stacked_bar,
+            stacked_bar::check,
+        ),
+        grammar(
+            "funnel",
+            "Funnel chart",
+            funnel_chart::draw_funnel_chart,
+            funnel_chart::check,
+        ),
+        grammar(
+            "radar",
+            "Radar chart",
+            radar_chart::draw_radar_chart,
+            radar_chart::check,
+        ),
+        grammar(
+            "progress",
+            "Progress bars",
+            progress_bars::draw_progress_bars,
+            progress_bars::check,
+        ),
+        grammar(
+            "kpi",
+            "KPI cards",
+            kpi_cards::draw_kpi_cards,
+            kpi_cards::check,
+        ),
+        grammar(
+            "wordcloud",
+            "Word cloud",
+            word_cloud::draw_word_cloud,
+            word_cloud::check,
+        ),
+        grammar(
+            "timeline",
+            "Timeline",
+            timeline::draw_timeline,
+            timeline::check,
+        ),
+        grammar(
+            "gantt",
+            "Gantt chart",
+            gantt_chart::draw_gantt_chart,
+            gantt_chart::check,
+        ),
+        grammar(
+            "orgchart",
+            "Org chart",
+            org_chart::draw_org_chart,
+            org_chart::check,
+        ),
+        grammar(
+            "gitgraph",
+            "Git branch graph",
+            git_graph::draw_gitgraph,
+            git_graph::check,
+        ),
         grammar(
             "flower",
             "A platform in the middle and the teams around it",
@@ -207,7 +291,12 @@ pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
             artifact_flow::draw_artifact_flow,
             artifact_flow::check,
         ),
-        grammar("venn", "Venn diagram", venn_diagram::draw_venn_diagram, venn_diagram::check),
+        grammar(
+            "venn",
+            "Venn diagram",
+            venn_diagram::draw_venn_diagram,
+            venn_diagram::check,
+        ),
         Builtin {
             tag: "architecture",
             summary: "Architecture diagram",

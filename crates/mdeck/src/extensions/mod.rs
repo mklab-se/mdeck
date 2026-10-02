@@ -41,38 +41,44 @@ pub struct Provided {
     pub origin: String,
 }
 
-/// Everything this binary provides, by kind and name.
-///
-/// Integration seam (phase 2b): build this from the registry `mdeck::run`
-/// received, with each entry's origin, instead of the built-in lists.
+/// Everything this binary provides, by kind and name: what the registry
+/// `mdeck::run` received holds, with each entry's origin. Transitions are
+/// still built in, not registered (a 2.0 deferral).
 pub fn provided() -> Vec<Provided> {
-    let builtin = |kind: Kind, name: &str| Provided {
-        kind,
-        name: name.to_string(),
-        origin: "built-in".to_string(),
+    let origin = |o: &str| {
+        if o == "mdeck" {
+            "built-in".to_string()
+        } else {
+            o.to_string()
+        }
     };
-    let mut out = Vec::new();
-    out.extend(
-        crate::engines::EngineKind::ALL
-            .iter()
-            .map(|k| builtin(Kind::Engine, k.name())),
-    );
-    out.extend(
-        crate::language::FENCES
-            .iter()
-            .filter(|f| f.kind == crate::language::FenceKind::Visual)
-            .map(|f| builtin(Kind::Visual, f.tag)),
-    );
-    out.extend(
-        crate::language::TRANSITIONS
-            .iter()
-            .map(|t| builtin(Kind::Transition, t)),
-    );
-    out.extend(
-        crate::theme::lookup::BUILTIN
-            .iter()
-            .map(|(n, _)| builtin(Kind::Theme, n)),
-    );
+    let mut out: Vec<Provided> = crate::registry::get()
+        .registrations()
+        .filter_map(|r| {
+            let kind = match r.kind {
+                "engine" => Kind::Engine,
+                "visual" => Kind::Visual,
+                "transition" => Kind::Transition,
+                "theme" => Kind::Theme,
+                _ => return None,
+            };
+            let name = if kind == Kind::Visual {
+                format!("@{}", r.name)
+            } else {
+                r.name.to_string()
+            };
+            Some(Provided {
+                kind,
+                name,
+                origin: origin(r.origin),
+            })
+        })
+        .collect();
+    out.extend(crate::language::TRANSITIONS.iter().map(|t| Provided {
+        kind: Kind::Transition,
+        name: t.to_string(),
+        origin: "built-in".to_string(),
+    }));
     out
 }
 
