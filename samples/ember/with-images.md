@@ -33,11 +33,11 @@ A team offsite, told in four pictures and a few words.
 
 ---
 
+<!-- picture: ../images/saloon-vertical.png -->
+
 > Play the hand you're dealt, then change the game.
 
 -- The evening's only quotable moment
-
-![Saloon at night](../images/saloon-vertical.png)
 
 ---
 
