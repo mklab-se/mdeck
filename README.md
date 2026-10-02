@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="media/showcase/hero.gif" width="100%" alt="An mdeck slide coming to life">
+  <img src="media/showcase/hero.gif" width="100%" alt="An ember slide: particles gather into a light bulb beside the copy">
 </p>
 
 <p align="center">
@@ -91,7 +91,7 @@ theme: ember
     <td><img src="media/showcase/stack.jpg" alt="A picture built from falling blocks"><br><sub><b>stack</b>: pictures built block by block</sub></td>
   </tr>
   <tr>
-    <td><img src="media/showcase/thermal.jpg" alt="A heading formed in heat"><br><sub><b>thermal</b>: headings that form in heat</sub></td>
+    <td><img src="media/showcase/thermal.jpg" alt="A thermal image of a cabinet with a hotspot"><br><sub><b>thermal</b>: infrared images with palettes and measured spots</sub></td>
     <td><img src="media/showcase/blueprint.jpg" alt="Line art inked on a blueprint sheet"><br><sub><b>blueprint</b>: line art inked on a drafting sheet</sub></td>
   </tr>
   <tr>
