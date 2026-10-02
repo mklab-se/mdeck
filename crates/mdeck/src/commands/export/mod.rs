@@ -20,6 +20,7 @@ mod rehearsal;
 
 use app::{ExportApp, NotesPages, Output};
 use cursor::Job;
+pub use rehearsal::Moment;
 
 /// What `mdeck export` writes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
@@ -112,6 +113,12 @@ pub struct ExportArgs {
     pub theme: ThemeChoice,
     /// `--engine`: overrides `@engine` and the theme's.
     pub engine: Option<String>,
+    /// `--at`: rehearse the engine's motion this many seconds from a cold start.
+    pub at: Option<f32>,
+    /// `--moment`: export the countdown or the end instead of the slides.
+    pub moment: Option<Moment>,
+    /// `--presenter-view` (hidden): the presenter's cockpit for each slide.
+    pub presenter_view: bool,
 }
 
 pub fn run(args: ExportArgs) -> anyhow::Result<()> {
@@ -127,12 +134,18 @@ pub fn run(args: ExportArgs) -> anyhow::Result<()> {
         notes,
         theme,
         engine,
+        at,
+        moment,
+        presenter_view,
     } = args;
     if width == 0 || height == 0 {
         anyhow::bail!("Export width and height must be greater than zero");
     }
     if notes && format != Format::Pdf {
         anyhow::bail!("--notes needs --format pdf (notes pages only exist in PDF export)");
+    }
+    if at.is_some_and(|t| !t.is_finite() || t < 0.0) {
+        anyhow::bail!("--at must be a number of seconds, 0 or more");
     }
 
     let (deck, theme) = open_deck(&file, theme, engine.as_deref())?;
@@ -167,6 +180,8 @@ pub fn run(args: ExportArgs) -> anyhow::Result<()> {
         height,
         debug,
         targets,
+        rehearsal: rehearsal::Rehearsal::new(at, moment),
+        presenter_view,
     };
     render_pages(deck, theme, output, job)?;
 

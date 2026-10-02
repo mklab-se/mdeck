@@ -49,7 +49,8 @@ pub fn set_enabled(ctx: &egui::Context, on: bool) {
     ctx.data_mut(|d| d.insert_temp(enabled_id(), on));
 }
 
-fn enabled(ctx: &egui::Context) -> bool {
+/// Whether collection is on.
+pub fn enabled(ctx: &egui::Context) -> bool {
     ctx.data(|d| d.get_temp::<bool>(enabled_id()).unwrap_or(false))
 }
 

@@ -6,7 +6,7 @@
 name: Chalkboard
 extends: dark
 engine: chalkboard
-countdown: burst
+countdown: on
 colors:
   background: "#26352f"      # green slate
   text: "#dfe5df"

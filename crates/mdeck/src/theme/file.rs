@@ -16,8 +16,10 @@ pub struct ThemeFile {
     pub extends: Option<String>,
     /// `plain` or `particles`.
     pub engine: Option<String>,
-    /// `none`, `plain` or `burst`.
+    /// `on` or `off`: whether decks open with the 3-2-1 countdown.
     pub countdown: Option<String>,
+    /// `slide`, `fade`, `spatial` or `none`.
+    pub transition: Option<String>,
     #[serde(default)]
     pub colors: Colors,
     #[serde(default)]
@@ -195,6 +197,7 @@ impl ThemeFile {
             extends: self.extends.clone(),
             engine: pick(&self.engine, &parent.engine),
             countdown: pick(&self.countdown, &parent.countdown),
+            transition: pick(&self.transition, &parent.transition),
             colors: Colors {
                 background: pick(&c.background, &p.background),
                 text: pick(&c.text, &p.text),

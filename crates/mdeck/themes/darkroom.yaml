@@ -6,7 +6,7 @@
 name: Darkroom
 extends: dark
 engine: darkroom
-countdown: burst
+countdown: on
 colors:
   background: "#141011"      # the darkroom
   text: "#d9ccc6"

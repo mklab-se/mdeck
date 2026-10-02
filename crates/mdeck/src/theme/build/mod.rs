@@ -32,7 +32,7 @@ impl Theme {
     pub fn build(name: &str, f: &ThemeFile) -> Result<Built, ThemeError> {
         let mut warnings = Vec::new();
         let palette = Palette::resolve(f, &mut warnings)?;
-        let (engine, countdown) = settings::engine_and_countdown(f, &mut warnings)?;
+        let (engine, countdown, transition) = settings::engine_and_countdown(f, &mut warnings)?;
         let fonts = fonts::resolve(&f.fonts, &mut warnings)?;
         let line_height = settings::line_height(f)?;
         let fill_opacity = settings::fill_opacity(f)?;
@@ -48,6 +48,7 @@ impl Theme {
             name: f.name.clone().unwrap_or_else(|| name.to_string()),
             engine,
             countdown,
+            transition,
             background: p.background,
             foreground: p.foreground,
             heading_color: p.heading,
@@ -89,7 +90,7 @@ impl Theme {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{Countdown, lookup};
+    use super::super::lookup;
     use super::*;
     use eframe::egui::Color32;
 
@@ -160,9 +161,18 @@ mod tests {
     }
 
     #[test]
-    fn burst_countdown_needs_the_particles_engine() {
-        let b = Theme::build("x", &over_dark("countdown: burst")).unwrap();
-        assert_eq!(b.theme.countdown, Countdown::Plain);
-        assert!(b.warnings.iter().any(|w| w.contains("burst")));
+    fn countdown_is_a_switch_and_transition_a_known_name() {
+        let t = |yaml: &str| Theme::build("x", &over_dark(yaml)).unwrap().theme;
+        assert!(t("countdown: on").countdown);
+        assert!(!t("countdown: off").countdown);
+        assert!(!t("engine: plain").countdown);
+        assert_eq!(
+            t("transition: spatial").transition.as_deref(),
+            Some("spatial")
+        );
+        assert_eq!(t("engine: plain").transition, None);
+        let bad = |yaml: &str| Theme::build("x", &over_dark(yaml)).unwrap_err().to_string();
+        assert!(bad("countdown: burst").contains("on or off"));
+        assert!(bad("transition: wipe").contains("transition"));
     }
 }

@@ -47,8 +47,8 @@ pub fn choose(
 }
 
 /// `theme` running on `kind` instead of its own engine (colours, fonts and
-/// logo stay the theme's). A countdown the new engine cannot draw itself
-/// becomes the plain one.
+/// logo stay the theme's). The countdown switch stays the theme's; the
+/// engine decides how it looks.
 pub fn with_engine(
     mut theme: crate::theme::Theme,
     kind: Option<EngineKind>,
@@ -57,9 +57,6 @@ pub fn with_engine(
         return theme;
     };
     theme.engine = kind;
-    if theme.countdown == crate::theme::Countdown::Burst && !kind.capabilities().countdown {
-        theme.countdown = crate::theme::Countdown::Plain;
-    }
     theme
 }
 
@@ -155,12 +152,12 @@ mod tests {
     }
 
     #[test]
-    fn with_engine_keeps_the_look_and_fixes_the_countdown() {
+    fn with_engine_keeps_the_look_and_the_countdown() {
         let ember = crate::theme::Theme::ember();
         let plain = with_engine(ember.clone(), Some(EngineKind::Plain));
         assert_eq!(plain.engine, EngineKind::Plain);
         assert_eq!(plain.accent, ember.accent);
-        assert_eq!(plain.countdown, crate::theme::Countdown::Plain);
+        assert!(plain.countdown);
         let dark = with_engine(crate::theme::Theme::dark(), Some(EngineKind::Particles));
         assert_eq!(dark.engine, EngineKind::Particles);
         assert_eq!(with_engine(ember.clone(), None).engine, ember.engine);

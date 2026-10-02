@@ -4,7 +4,7 @@
 name: Etch
 extends: dark
 engine: laser
-countdown: burst
+countdown: on
 colors:
   background: "#0c0d0f"      # slate
   text: "#b8bbc2"

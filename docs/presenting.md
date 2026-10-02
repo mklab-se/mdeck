@@ -11,6 +11,7 @@ MDeck reloads it in place, staying on the current slide.
 | P, Left, PageUp, Backspace | Previous slide |
 | Up, Down, scroll wheel | Scroll a long slide |
 | Home, End | First / last slide |
+| Digits, then Enter | Jump to that slide (`1` `2` Enter goes to slide 12) |
 | G | Grid overview (click a slide to jump to it) |
 | T | Cycle transition (slide, fade, spatial, none) |
 | Shift+T | Cycle theme (the built-ins, then your own) |
@@ -18,6 +19,8 @@ MDeck reloads it in place, staying on the current slide.
 | M | Move to the next monitor |
 | `.` or B | Blackout |
 | H | Presenter HUD with shortcuts (and the current story beat's line) |
+| V | Presenter view on the other display (notes overlay with one display) |
+| Shift+V | Reset the presenter timer |
 | C, Shift+C | Next thermal palette for every `@thermal` image; back to the palettes as written |
 | S | AI for this slide: a story on the particles engine, a picture on an art engine |
 | Esc | Clear drawings; press twice to quit (Q twice and Ctrl+C twice also quit) |
@@ -34,15 +37,40 @@ arrives white-hot and cools away). Presentation clickers that send
 PageUp/PageDown or Enter work out of the box, and keys pressed during a
 transition are queued rather than lost.
 
-Start options:
+## Presenter view
+
+Press `V` (or start with `mdeck talk.md --presenter`) and a second window
+opens on the display beside the slides: your cockpit. It shows the current
+slide large, the next slide or reveal step beside it, the slide's speaker
+notes rendered as markdown (headings, **emphasis**, lists, code, quotes,
+tables, math) and the elapsed time. `Shift+V` resets the timer; keys typed in
+either window drive the deck, and `V` closes it again.
+
+With one display (or displays that are not side by side) the presenter
+window has nowhere to go, so `V` shows the notes as an overlay at the bottom
+of the slides instead, with the timer; `V` hides it.
+
+Notes are written after a slide's `???` line, in plain markdown.
+
+## Start options
 
 ```bash
 mdeck talk.md --windowed     # in a window instead of fullscreen
+mdeck talk.md --presenter    # open the presenter view at once
+mdeck talk.md --theme nord   # present in another theme without editing the deck
 mdeck talk.md --slide 7      # start on slide 7
 mdeck talk.md --overview     # start in the grid overview
 mdeck talk.md --check        # validate the deck without opening a window
 mdeck talk.md --reduced-motion   # every slide and step settled, no motion
 ```
+
+**Transitions** come from the deck's `@transition`, then the theme's
+`transition:`, then `defaults.transition` in your config, then `fade`. `T`
+cycles them for the rest of the session.
+
+**The countdown** before the first slide is on when the deck says
+`@countdown: on`, off with `@countdown: off`, and otherwise follows the
+theme. The engine decides its look; plain themes show numerals.
 
 **Reduced motion** shows every slide and reveal step in its settled state:
 no transitions, entry or reveal animations, countdown or engine motion, as in

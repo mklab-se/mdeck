@@ -242,7 +242,7 @@ fn user_prompt(req: &Request) -> String {
          - Set every colour key in the mapping table that the design system can answer.\n\
          - Keep the built-in slide sizes unless the design system is itself about slides.\n\
          - Choose `extends:` from dark or light by the design system's background.\n\
-         - Choose an engine with `countdown: burst` only when the brand already has that \
+         - Choose an engine with `countdown: on` only when the brand already has that \
            character: `particles` (glow), `led` (neon, signage), `laser` (engineering, \
            precision), `blocks` (games, playful), `splitflap` (travel, schedules; text only). \
            Otherwise leave the engine out.\n"

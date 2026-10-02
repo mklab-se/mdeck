@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Presenter view.** `V` (or `mdeck deck.md --presenter`) opens a second window on the display
+  beside the slides: the current slide large, the next slide or reveal step, the slide's notes
+  rendered as markdown (headings, emphasis, lists, code, quotes, tables, math) and the elapsed
+  time (`Shift+V` resets it). Keys typed in either window drive the deck. With one display, `V`
+  shows the notes as an overlay at the bottom of the slides instead.
+- **Jump to a slide** by typing its number and Enter; the number shows small in the corner while
+  typed (Backspace edits, Esc cancels).
+- `--theme <name>` works for presenting, as it does for export, and survives live reload.
+- Themes can set a `transition:` (`slide`, `fade`, `spatial`, `none`).
+- `mdeck export --at <seconds>` and `--moment countdown|end` (or `3`, `2`, `1`, `burst`) export
+  stills of an engine's motion.
+
+### Changed
+
+- The built-in transition is now `fade` (it was `slide`). The transition comes from the deck,
+  then the theme, then `defaults.transition`, then `fade`.
+- The countdown is one switch: a deck's `@countdown: on|off` wins, otherwise the theme's
+  `countdown: on|off`; the engine decides how it looks (plain numerals without an engine
+  countdown). Theme files say `countdown: on` or `off`; `none`, `plain` and `burst` are no longer
+  accepted (built-in themes are updated).
+- `--at` and `--moment` replace the `MDECK_EXPORT_AT` and `MDECK_EXPORT_MOMENT` environment
+  variables.
+
+### Fixed
+
+- Export draws the footer and the slide counter as the window does (D13); editorial decks also
+  get their counter and progress hairline in export.
+- `@countdown: true` turns a countdown on, also on a theme without one (`--engine particles` on
+  the default theme), instead of being ignored (D17).
+- A blank `@transition` no longer skips the config default (D19).
+
 ## [1.19.0] - 2026-10-02
 
 ### Added

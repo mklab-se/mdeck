@@ -44,6 +44,15 @@ pub struct Cli {
     #[arg(long, global = false)]
     pub engine: Option<String>,
 
+    /// Present in this theme instead of @theme and the config default
+    #[arg(long, global = false)]
+    pub theme: Option<String>,
+
+    /// Open the presenter view (current and next slide, notes, timer) in a
+    /// second window; `V` toggles it while presenting
+    #[arg(long, global = false)]
+    pub presenter: bool,
+
     /// Show every slide and reveal step settled: no transitions, entry
     /// animations or engine motion (also `defaults.reduced_motion`)
     #[arg(long, global = false)]
@@ -131,6 +140,20 @@ pub enum Commands {
         /// Engine to export with, overriding @engine and the theme's (plain, particles, ...)
         #[arg(long)]
         engine: Option<String>,
+
+        /// A still of the motion: run the engine this many seconds from a cold start
+        #[arg(long, value_name = "SECONDS")]
+        at: Option<f32>,
+
+        /// Export a moment instead of the slides: the opening countdown (or one
+        /// of its digits, or the burst) or the end
+        #[arg(long, value_enum)]
+        moment: Option<crate::commands::export::Moment>,
+
+        /// Draw the presenter view (current and next slide, notes, timer) for
+        /// each slide, to look at it without a second display
+        #[arg(long, hide = true)]
+        presenter_view: bool,
     },
 
     /// Point cloud illustrations for the particle field (generate, import, list, show)
@@ -297,6 +320,9 @@ impl Cli {
                 notes,
                 theme,
                 engine,
+                at,
+                moment,
+                presenter_view,
             }) => crate::commands::export::run(crate::commands::export::ExportArgs {
                 file,
                 output_dir,
@@ -311,6 +337,9 @@ impl Cli {
                     crate::commands::export::ThemeChoice::Named(name)
                 }),
                 engine,
+                at,
+                moment,
+                presenter_view,
             }),
             Some(Commands::Theme { command }) => {
                 crate::commands::util::block_on(crate::commands::theme::run(command, self.quiet))?
@@ -342,14 +371,16 @@ impl Cli {
         if self.check {
             return crate::commands::check::run(file, self.verbose, self.quiet, self.engine);
         }
-        crate::app::run(
+        crate::app::run(crate::app::RunOptions {
             file,
-            self.windowed,
-            self.slide,
-            self.overview,
-            self.quiet,
-            self.engine,
-            self.reduced_motion,
-        )
+            windowed: self.windowed,
+            start_slide: self.slide,
+            start_overview: self.overview,
+            quiet: self.quiet,
+            engine: self.engine,
+            theme: self.theme,
+            reduced_motion: self.reduced_motion,
+            presenter: self.presenter,
+        })
     }
 }

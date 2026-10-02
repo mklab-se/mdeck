@@ -6,7 +6,7 @@
 name: Blueprint
 extends: dark
 engine: blueprint
-countdown: burst
+countdown: on
 colors:
   background: "#123a6e"      # Prussian blue
   text: "#d4e3f7"

@@ -17,8 +17,8 @@ drafting sheet), **sketchbook** (generated drawings, pencilled in),
 paintings that bloom), **darkroom** (generated photographs that develop) and
 **thermal** (a thermal instrument: headings form in heat, see
 [Thermal](engines.md#thermal-the-deck-through-a-thermal-camera)). Transitions are
-**slide**, **fade**, **spatial**, and **none**. Set them in the frontmatter or
-cycle them live with `Shift+T` and `T`. Every theme draws symbols (①, ✓, →) from
+**fade** (the default), **slide**, **spatial**, and **none**. Set them in the frontmatter
+(a theme can set its own with `transition:`) or cycle them live with `Shift+T` and `T`. Every theme draws symbols (①, ✓, →) from
 bundled fallback faces, and Chinese, Japanese and Korean from a font on your
 system (`mdeck --check` tells you if none was found):
 

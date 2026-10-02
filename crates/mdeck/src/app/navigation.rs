@@ -42,7 +42,7 @@ impl PresentationApp {
         let mut t = ActiveTransition::new(
             idx,
             idx + 1,
-            self.transition_kind(),
+            self.transition_between(idx, idx + 1),
             TransitionDirection::Forward,
         );
         // `@zoom: Spot` on the next slide zooms into that spot of this one
@@ -92,7 +92,7 @@ impl PresentationApp {
         self.transition = Some(ActiveTransition::new(
             idx,
             prev,
-            self.transition_kind(),
+            self.transition_between(idx, prev),
             TransitionDirection::Backward,
         ));
     }
@@ -118,7 +118,7 @@ impl PresentationApp {
         self.transition = Some(ActiveTransition::new(
             cur,
             index,
-            self.transition_kind(),
+            self.transition_between(cur, index),
             direction,
         ));
     }

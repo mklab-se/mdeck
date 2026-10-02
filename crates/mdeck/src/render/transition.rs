@@ -75,13 +75,15 @@ impl ActiveTransition {
 }
 
 impl TransitionKind {
-    pub fn from_name(name: &str) -> Self {
-        match name {
-            "fade" => Self::Fade,
-            "slide" => Self::SlideHorizontal,
-            "spatial" => Self::Spatial,
-            "none" => Self::None,
-            _ => Self::SlideHorizontal,
+    /// A transition by name (`slide`, `fade`, `spatial`, `none`, any case);
+    /// `None` for anything else.
+    pub fn parse(name: &str) -> Option<Self> {
+        match name.trim().to_ascii_lowercase().as_str() {
+            "fade" => Some(Self::Fade),
+            "slide" => Some(Self::SlideHorizontal),
+            "spatial" => Some(Self::Spatial),
+            "none" => Some(Self::None),
+            _ => None,
         }
     }
 }
@@ -101,26 +103,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn from_name_spatial() {
+    fn transitions_parse_by_name() {
         assert_eq!(
-            TransitionKind::from_name("spatial"),
-            TransitionKind::Spatial
+            TransitionKind::parse("spatial"),
+            Some(TransitionKind::Spatial)
         );
-    }
-
-    #[test]
-    fn from_name_known_variants() {
-        assert_eq!(TransitionKind::from_name("fade"), TransitionKind::Fade);
+        assert_eq!(TransitionKind::parse("fade"), Some(TransitionKind::Fade));
         assert_eq!(
-            TransitionKind::from_name("slide"),
-            TransitionKind::SlideHorizontal
+            TransitionKind::parse(" Slide "),
+            Some(TransitionKind::SlideHorizontal)
         );
-        assert_eq!(TransitionKind::from_name("none"), TransitionKind::None);
-        // Unknown falls back to SlideHorizontal
-        assert_eq!(
-            TransitionKind::from_name("unknown"),
-            TransitionKind::SlideHorizontal
-        );
+        assert_eq!(TransitionKind::parse("none"), Some(TransitionKind::None));
+        assert_eq!(TransitionKind::parse("unknown"), None);
+        assert_eq!(TransitionKind::parse(""), None);
     }
 
     #[test]

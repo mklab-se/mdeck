@@ -106,6 +106,9 @@ pub(super) fn preview(name: &str, output_dir: PathBuf, width: u32, height: u32) 
         notes: false,
         theme: crate::commands::export::ThemeChoice::Given(Box::new(built.theme)),
         engine: None,
+        at: None,
+        moment: None,
+        presenter_view: false,
     });
     let _ = std::fs::remove_dir_all(&dir);
     result

@@ -275,101 +275,35 @@ impl PresentationApp {
     }
 
     pub(super) fn draw_presentation_chrome(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
-        // The logo stays put while slides move under it.
+        // The logo and chrome stay put while slides move under them, and
+        // wait for the countdown to finish.
         if !self.countdown_running() {
+            let painter = ui.painter();
             self.deck
-                .draw_logo(ui.painter(), rect, self.current_slide, scale);
-        }
-        if self.theme.engine.capabilities().editorial {
-            if !self.countdown_running() {
-                render::ember::draw_chrome(
-                    ui.painter(),
-                    &self.theme,
-                    rect,
-                    &self.slide_context(self.current_slide),
-                    scale,
-                );
+                .draw_logo(painter, rect, self.current_slide, scale);
+            let cx = self.slide_context(self.current_slide);
+            self.deck
+                .draw_chrome(painter, &self.theme, rect, &cx, scale);
+            if self.show_hud
+                && self.theme.engine.capabilities().editorial
+                && let Some(line) = &cx.say
+            {
+                render::ember::draw_say_line(painter, &self.theme, rect, line, scale);
             }
-            if self.show_hud {
-                if let Some(line) = &self.slide_context(self.current_slide).say {
-                    render::ember::draw_say_line(ui.painter(), &self.theme, rect, line, scale);
-                }
-                let fps_text = format!("{:.0} fps", self.fps.per_second);
-                let fps_color = Theme::with_opacity(self.theme.foreground, 0.3);
-                let fps_galley = ui.painter().layout_no_wrap(
-                    fps_text,
-                    egui::FontId::new(14.0 * scale, self.theme.mono_family()),
-                    fps_color,
-                );
-                let fps_pos = egui::pos2(
-                    rect.right() - fps_galley.rect.width() - 12.0 * scale,
-                    rect.top() + 10.0 * scale,
-                );
-                ui.painter().galley(fps_pos, fps_galley, fps_color);
-            }
-            return;
         }
-        // A board prints its own labels under the board.
-        if self.theme.engine.is_board() {
-            if self.show_hud {
-                let fps_text = format!("{:.0} fps", self.fps.per_second);
-                let fps_color = Theme::with_opacity(self.theme.foreground, 0.3);
-                let fps_galley = ui.painter().layout_no_wrap(
-                    fps_text,
-                    egui::FontId::monospace(14.0 * scale),
-                    fps_color,
-                );
-                let fps_pos = egui::pos2(
-                    rect.right() - fps_galley.rect.width() - 12.0 * scale,
-                    rect.top() + 10.0 * scale,
-                );
-                ui.painter().galley(fps_pos, fps_galley, fps_color);
-            }
-            return;
-        }
-        // Footer
-        if let Some(ref footer) = self.deck.presentation.meta.footer {
-            let footer_color = Theme::with_opacity(self.theme.foreground, 0.4);
-            let galley = ui.painter().layout_no_wrap(
-                footer.clone(),
-                egui::FontId::proportional(14.0 * scale),
-                footer_color,
-            );
-            let pos = egui::pos2(
-                rect.center().x - galley.rect.width() / 2.0,
-                rect.bottom() - 30.0 * scale,
-            );
-            ui.painter().galley(pos, galley, footer_color);
-        }
-
-        // Slide counter
-        let counter_text = format!("{} / {}", self.current_slide + 1, self.slide_count());
-        let counter_color = Theme::with_opacity(self.theme.foreground, 0.3);
-        let counter_galley = ui.painter().layout_no_wrap(
-            counter_text,
-            egui::FontId::monospace(14.0 * scale),
-            counter_color,
-        );
-        let counter_pos = egui::pos2(
-            rect.right() - counter_galley.rect.width() - 16.0 * scale,
-            rect.bottom() - 30.0 * scale,
-        );
-        ui.painter()
-            .galley(counter_pos, counter_galley, counter_color);
-
         // FPS overlay: presenter-only, shown with the HUD (H) so the audience never sees it
-        if !self.show_hud {
-            return;
+        if self.show_hud {
+            let fps_color = Theme::with_opacity(self.theme.foreground, 0.3);
+            let fps_galley = ui.painter().layout_no_wrap(
+                format!("{:.0} fps", self.fps.per_second),
+                egui::FontId::new(14.0 * scale, self.theme.mono_family()),
+                fps_color,
+            );
+            let fps_pos = egui::pos2(
+                rect.right() - fps_galley.rect.width() - 12.0 * scale,
+                rect.top() + 10.0 * scale,
+            );
+            ui.painter().galley(fps_pos, fps_galley, fps_color);
         }
-        let fps_text = format!("{:.0} fps", self.fps.per_second);
-        let fps_color = Theme::with_opacity(self.theme.foreground, 0.3);
-        let fps_galley =
-            ui.painter()
-                .layout_no_wrap(fps_text, egui::FontId::monospace(14.0 * scale), fps_color);
-        let fps_pos = egui::pos2(
-            rect.right() - fps_galley.rect.width() - 12.0 * scale,
-            rect.top() + 10.0 * scale,
-        );
-        ui.painter().galley(fps_pos, fps_galley, fps_color);
     }
 }

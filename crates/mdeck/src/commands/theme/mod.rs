@@ -96,7 +96,7 @@ fn report(name: &str, l: &Lookup) -> bool {
                 "{} ({from}): {} engine, countdown {}",
                 t.name.bold(),
                 t.engine.name(),
-                t.countdown.name()
+                if t.countdown { "on" } else { "off" }
             );
             let advice = validate::review(t);
             for w in &built.warnings {
@@ -140,7 +140,8 @@ fn starter(name: &str) -> String {
 name: {name}
 extends: dark              # dark | light | nord | ember | another theme
 # engine: plain            # plain | particles | led | splitflap | laser | blocks
-# countdown: none          # none | plain | burst (burst: the engine's own countdown)
+# countdown: off           # on | off (the engine decides how it looks)
+# transition: fade         # slide | fade | spatial | none (a deck's own wins)
 colors:
   background: "#1e1e1e"    # slide background
   text: "#c8c8c8"          # body text

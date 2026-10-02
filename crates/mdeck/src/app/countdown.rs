@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use eframe::egui;
 
 use crate::render;
-use crate::theme::{Countdown as ThemeCountdown, Theme};
+use crate::theme::Theme;
 
 use super::PresentationApp;
 
@@ -19,8 +19,9 @@ const COUNTDOWN_LEAD: Duration = Duration::from_millis(450);
 const COUNTDOWN_FIRST_EXTRA: Duration = Duration::from_millis(600);
 /// Ember's final burst, after the "1".
 const COUNTDOWN_BURST: Duration = Duration::from_millis(1000);
-/// The 3-2-1 opener. Ember forms the digits out of particles and bursts;
-/// Nord shows plain numerals. Any key or click cancels it.
+/// The 3-2-1 opener. An engine with its own countdown forms the digits
+/// itself and bursts; any other shows plain numerals. Any key or click
+/// cancels it.
 pub(super) struct Countdown {
     /// Set on the first frame that draws it, not when the app is created:
     /// shader compilation and font atlas building would eat the first digit.
@@ -68,21 +69,24 @@ impl Countdown {
 }
 
 impl PresentationApp {
-    /// Start the opening countdown if the theme has one and the deck did not
-    /// turn it off (`@countdown: false`).
+    /// Start the opening countdown when it is on: the deck's `countdown`
+    /// wins, otherwise the theme's default. The engine decides the look: its
+    /// own countdown with a burst, or plain numerals. Never with reduced
+    /// motion.
     pub(super) fn start_countdown(&mut self) {
-        if self.deck.presentation.meta.countdown == Some(false) || self.reduced_motion {
+        // a theme waiting for its fonts is the one about to be shown
+        let theme = self.pending_theme.as_ref().unwrap_or(&self.theme);
+        if self.reduced_motion
+            || !countdown_on(self.deck.presentation.meta.countdown, theme.countdown)
+        {
             return;
         }
-        let burst = match self.theme.countdown {
-            ThemeCountdown::Burst => true,
-            ThemeCountdown::Plain => false,
-            ThemeCountdown::None => return,
-        };
+        let burst = theme.engine.capabilities().countdown;
         self.countdown = Some(Countdown { start: None, burst });
     }
 
-    /// Draw Nord's plain numeral for the current countdown phase.
+    /// Draw the plain numeral for the current countdown phase (engines
+    /// without a countdown of their own).
     pub(super) fn draw_countdown_numeral(&self, ui: &egui::Ui, rect: egui::Rect, scale: f32) {
         let Some(cd) = &self.countdown else {
             return;
@@ -110,9 +114,25 @@ impl PresentationApp {
     }
 }
 
+/// Whether the deck opens with a countdown: its own switch, else the
+/// theme's default.
+pub(super) fn countdown_on(deck: Option<bool>, theme: bool) -> bool {
+    deck.unwrap_or(theme)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// D17: `countdown: on` in a deck turns a countdown on whatever the
+    /// theme says, and `off` turns it off.
+    #[test]
+    fn the_deck_switch_wins_over_the_theme_default() {
+        assert!(countdown_on(Some(true), false));
+        assert!(!countdown_on(Some(false), true));
+        assert!(countdown_on(None, true));
+        assert!(!countdown_on(None, false));
+    }
 
     #[test]
     fn countdown_phases_run_three_two_one_then_burst_then_done() {

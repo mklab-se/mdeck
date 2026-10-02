@@ -139,6 +139,8 @@ impl PresentationApp {
             Action::LastSlide => self.jump_to_slide(self.slide_count().saturating_sub(1)),
             Action::EnterGrid => self.enter_grid(),
             Action::ToggleHud => self.show_hud = !self.show_hud,
+            Action::TogglePresenter => self.toggle_presenter(vp),
+            Action::ResetTimer => self.reset_timer(),
             Action::Generate => self.generate(),
             Action::CyclePalette => self.cycle_palette(),
             Action::ResetPalette => self.reset_palette(),

@@ -124,8 +124,8 @@ mod tests {
             "colors.accent is not set (and nothing it extends sets it)"
         );
         assert_eq!(
-            ThemeError::invalid("countdown", "'loud' is not none, plain or burst").to_string(),
-            "countdown: 'loud' is not none, plain or burst"
+            ThemeError::invalid("countdown", "'loud' is not on or off").to_string(),
+            "countdown: 'loud' is not on or off"
         );
         let range = ThemeError::OutOfRange {
             key: "text.line-height".into(),

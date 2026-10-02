@@ -245,17 +245,19 @@ illustration as a constellation of accent dots.
 
 ## Looking at motion
 
-Export captures stills, but two environment variables let it capture the
-motion too:
+Export captures stills, but two flags let it capture the motion too:
 
 ```bash
 # 0.3 s into the slide, simulated at 60 frames a second from a cold start
-MDECK_EXPORT_AT=0.3 mdeck export deck.md --slide 3 --output-dir /tmp/frames
+mdeck export deck.md --slide 3 --at 0.3 --output-dir /tmp/frames
 
-# the countdown digit 3, the burst, or the end act (with MDECK_EXPORT_AT for timing)
-MDECK_EXPORT_MOMENT=3 MDECK_EXPORT_AT=0.6 mdeck export deck.md --slide 1 --output-dir /tmp/cd
-MDECK_EXPORT_MOMENT=end MDECK_EXPORT_AT=2.0 mdeck export deck.md --slide 1 --output-dir /tmp/end
+# the countdown (its 3; or 2, 1, burst), or the end act, with --at for timing
+mdeck export deck.md --slide 1 --moment countdown --at 0.6 --output-dir /tmp/cd
+mdeck export deck.md --slide 1 --moment end --at 2.0 --output-dir /tmp/end
 ```
+
+(`--at` and `--moment` replace the `MDECK_EXPORT_AT` and
+`MDECK_EXPORT_MOMENT` environment variables of earlier versions.)
 
 Export a few moments of an animation and look at them side by side before
 calling it done. Then present the deck and step through it: timing is felt,

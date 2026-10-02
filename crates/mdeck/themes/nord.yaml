@@ -1,8 +1,8 @@
 # Nord: an arctic, blue-gray theme inspired by the polar landscape. Calm,
-# muted and professional, with a plain numeral countdown.
+# muted and professional, with a numeral countdown.
 name: Nord
 extends: dark
-countdown: plain
+countdown: on
 colors:
   background: "#2e3440" # Polar Night
   text: "#d8dee9"       # Snow Storm

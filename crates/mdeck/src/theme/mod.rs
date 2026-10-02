@@ -23,36 +23,6 @@ pub use paths::confined_path;
 
 pub use crate::engines::EngineKind;
 
-/// The opening countdown before the first slide.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Countdown {
-    None,
-    /// Numerals on the bare background.
-    Plain,
-    /// The engine's own countdown (particle numerals that burst into the
-    /// first slide on the particles engine).
-    Burst,
-}
-
-impl Countdown {
-    pub fn name(self) -> &'static str {
-        match self {
-            Countdown::None => "none",
-            Countdown::Plain => "plain",
-            Countdown::Burst => "burst",
-        }
-    }
-
-    pub fn from_name(name: &str) -> Option<Self> {
-        match name {
-            "none" => Some(Countdown::None),
-            "plain" => Some(Countdown::Plain),
-            "burst" => Some(Countdown::Burst),
-            _ => None,
-        }
-    }
-}
-
 /// The slide as a sheet on a surface: paper on a desk, a board on a wall.
 /// The sheet is the theme's background; sizes are px on a 1920x1080 slide.
 /// The thermal engine's heat field: the palette it glows in and whether
@@ -111,7 +81,13 @@ pub struct ThemeFonts {
 pub struct Theme {
     pub name: String,
     pub engine: EngineKind,
-    pub countdown: Countdown,
+    /// Whether decks in this theme open with the 3-2-1 countdown (`countdown:
+    /// on|off`; a deck's own `countdown` wins). The engine decides its look.
+    pub countdown: bool,
+    /// The theme's slide transition (`slide`, `fade`, `spatial`, `none`), if
+    /// it names one. A deck's own `transition` wins; the user config and the
+    /// built-in `fade` come after.
+    pub transition: Option<String>,
     pub background: Color32,
     pub foreground: Color32,
     pub heading_color: Color32,
@@ -210,7 +186,6 @@ impl Theme {
             .unwrap_or_else(|e| panic!("built-in theme {name} is invalid: {e}"))
     }
 
-    #[cfg(test)]
     pub fn dark() -> Self {
         Self::builtin("dark")
     }
@@ -343,7 +318,8 @@ mod tests {
         assert_eq!(d.syntax, "base16-ocean.dark");
         assert_eq!(d.fill_opacity, 0.85);
         assert_eq!(d.engine, EngineKind::Plain);
-        assert_eq!(d.countdown, Countdown::None);
+        assert!(!d.countdown);
+        assert_eq!(d.transition, None);
         assert_eq!(d.fonts.display, egui::FontFamily::Proportional);
         assert_eq!(d.strong, d.heading_color);
         assert_eq!(d.line_height, None);
@@ -357,7 +333,7 @@ mod tests {
 
         let n = Theme::nord();
         assert_eq!(n.background, Color32::from_rgb(0x2E, 0x34, 0x40));
-        assert_eq!(n.countdown, Countdown::Plain);
+        assert!(n.countdown);
         assert_eq!(n.strong, n.accent);
         // Nord used to get the light theme's pen colours on its dark ground.
         assert_eq!(n.pen, d.pen);
@@ -381,7 +357,7 @@ mod tests {
         assert_eq!(e.strong, e.heading_color);
         if cfg!(feature = "particles") {
             assert_eq!(e.engine, EngineKind::Particles);
-            assert_eq!(e.countdown, Countdown::Burst);
+            assert!(e.countdown);
         }
     }
 }

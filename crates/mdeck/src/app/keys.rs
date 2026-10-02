@@ -16,6 +16,7 @@ pub const SHORTCUTS: &[(&str, &str)] = &[
     ("P/←/PgUp/Backspace", "Previous slide / hide"),
     ("↑ / ↓ / Wheel", "Scroll slide content"),
     ("Home / End", "First / last slide"),
+    ("Digits, Enter", "Jump to that slide"),
     ("Left click", "Next slide"),
     ("Right click", "Previous slide"),
     ("Left drag", "Freehand pen"),
@@ -31,6 +32,8 @@ pub const SHORTCUTS: &[(&str, &str)] = &[
     ("F", "Toggle fullscreen"),
     ("M", "Move to next monitor"),
     ("H", "Toggle HUD"),
+    ("V", "Presenter view / notes"),
+    ("Shift+V", "Reset presenter timer"),
     (
         "S",
         "AI: story (particles) or picture (art engines) for slide",
@@ -73,6 +76,8 @@ pub enum Action {
     Generate,
     CyclePalette,
     ResetPalette,
+    TogglePresenter,
+    ResetTimer,
     // Grid mode
     GridRight,
     GridLeft,
@@ -132,6 +137,8 @@ pub fn map_key(key: Key, modifiers: Modifiers, mode: KeyMode) -> Option<Action> 
             Key::R => Some(Action::CycleRawOverlay),
             Key::C if modifiers.shift => Some(Action::ResetPalette),
             Key::C => Some(Action::CyclePalette),
+            Key::V if modifiers.shift => Some(Action::ResetTimer),
+            Key::V => Some(Action::TogglePresenter),
             _ => None,
         },
         KeyMode::Grid => match key {
@@ -173,6 +180,105 @@ impl DoubleTap {
     pub fn reset(&mut self) {
         self.last = None;
     }
+}
+
+/// Typed digits waiting for Enter: the slide-jump buffer (`1`, `2`, Enter
+/// goes to slide 12). It forgets what was typed after a pause.
+#[derive(Debug, Clone, Default)]
+pub struct SlideJump {
+    digits: String,
+    last: Option<Instant>,
+}
+
+/// What a key did to the slide-jump buffer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JumpKey {
+    /// The key was a digit (or edited the buffer): nothing else to do.
+    Consumed,
+    /// Enter after digits: go to this slide (1-based, unchecked).
+    Jump(usize),
+    /// Not for the buffer: handle the key as usual.
+    Pass,
+}
+
+impl SlideJump {
+    /// How long typed digits wait for the next key.
+    pub const TIMEOUT: Duration = Duration::from_secs(3);
+
+    /// Feed a key press at `now`.
+    pub fn key(&mut self, key: Key, modifiers: Modifiers, now: Instant) -> JumpKey {
+        self.expire(now);
+        if modifiers.any() && !modifiers.shift_only() {
+            return JumpKey::Pass;
+        }
+        if let Some(d) = digit(key) {
+            if self.digits.len() < 4 && !(self.digits.is_empty() && d == 0) {
+                self.digits.push(char::from(b'0' + d));
+            }
+            self.last = Some(now);
+            return JumpKey::Consumed;
+        }
+        if self.digits.is_empty() {
+            return JumpKey::Pass;
+        }
+        match key {
+            Key::Enter => {
+                let n = self.digits.parse().unwrap_or(0);
+                self.clear();
+                JumpKey::Jump(n)
+            }
+            Key::Backspace => {
+                self.digits.pop();
+                self.last = Some(now);
+                JumpKey::Consumed
+            }
+            Key::Escape => {
+                self.clear();
+                JumpKey::Consumed
+            }
+            _ => {
+                self.clear();
+                JumpKey::Pass
+            }
+        }
+    }
+
+    /// Forget digits typed more than [`Self::TIMEOUT`] ago.
+    pub fn expire(&mut self, now: Instant) {
+        if self
+            .last
+            .is_some_and(|t| now.saturating_duration_since(t) >= Self::TIMEOUT)
+        {
+            self.clear();
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.digits.clear();
+        self.last = None;
+    }
+
+    /// The digits typed so far ("" when none).
+    pub fn typed(&self) -> &str {
+        &self.digits
+    }
+}
+
+/// The value of a digit key.
+fn digit(key: Key) -> Option<u8> {
+    Some(match key {
+        Key::Num0 => 0,
+        Key::Num1 => 1,
+        Key::Num2 => 2,
+        Key::Num3 => 3,
+        Key::Num4 => 4,
+        Key::Num5 => 5,
+        Key::Num6 => 6,
+        Key::Num7 => 7,
+        Key::Num8 => 8,
+        Key::Num9 => 9,
+        _ => return None,
+    })
 }
 
 /// Frame-rate independent smoothing factor for exponential easing.
@@ -387,6 +493,54 @@ mod tests {
     }
 
     #[test]
+    fn v_is_the_presenter_and_shift_v_resets_its_timer() {
+        assert_eq!(map(Key::V), Some(Action::TogglePresenter));
+        assert_eq!(
+            map_key(Key::V, Modifiers::SHIFT, KeyMode::Presentation),
+            Some(Action::ResetTimer)
+        );
+    }
+
+    #[test]
+    fn digits_then_enter_jump_to_a_slide() {
+        let mut j = SlideJump::default();
+        let t0 = Instant::now();
+        let none = Modifiers::NONE;
+        assert_eq!(j.key(Key::Enter, none, t0), JumpKey::Pass);
+        assert_eq!(j.key(Key::Num1, none, t0), JumpKey::Consumed);
+        assert_eq!(j.key(Key::Num2, none, t0), JumpKey::Consumed);
+        assert_eq!(j.typed(), "12");
+        assert_eq!(j.key(Key::Enter, none, t0), JumpKey::Jump(12));
+        assert_eq!(j.typed(), "");
+        // Backspace edits, Escape cancels, other keys pass through and clear
+        j.key(Key::Num4, none, t0);
+        j.key(Key::Num5, none, t0);
+        assert_eq!(j.key(Key::Backspace, none, t0), JumpKey::Consumed);
+        assert_eq!(j.typed(), "4");
+        assert_eq!(j.key(Key::Escape, none, t0), JumpKey::Consumed);
+        assert_eq!(j.typed(), "");
+        j.key(Key::Num3, none, t0);
+        assert_eq!(j.key(Key::Space, none, t0), JumpKey::Pass);
+        assert_eq!(j.typed(), "");
+        // a leading zero is ignored
+        j.key(Key::Num0, none, t0);
+        assert_eq!(j.typed(), "");
+    }
+
+    #[test]
+    fn typed_digits_expire_after_a_pause() {
+        let mut j = SlideJump::default();
+        let t0 = Instant::now();
+        j.key(Key::Num7, Modifiers::NONE, t0);
+        j.expire(t0 + Duration::from_secs(1));
+        assert_eq!(j.typed(), "7");
+        assert_eq!(
+            j.key(Key::Enter, Modifiers::NONE, t0 + SlideJump::TIMEOUT),
+            JumpKey::Pass
+        );
+    }
+
+    #[test]
     fn double_tap_within_window() {
         let mut dt = DoubleTap::new(Duration::from_secs(1));
         let t0 = Instant::now();
@@ -524,6 +678,7 @@ mod tests {
             ("F", Key::F),
             ("M", Key::M),
             ("H", Key::H),
+            ("V", Key::V),
             (".", Key::Period),
             ("B", Key::B),
             ("R", Key::R),

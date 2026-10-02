@@ -57,7 +57,7 @@ story too. Made one worth sharing? `mdeck illustration contribute <name>`
 opens a prefilled issue; drag the file in and it can become a built-in.
 
 **It opens and closes.** A 3-2-1 countdown counted in particles (any key
-skips it, `@countdown: false` turns it off) and an ending where the field
+skips it, `@countdown: off` turns it off) and an ending where the field
 spells THE END before it bursts into black. Nord gets a plain countdown too,
 and any theme can ask for one.
 
