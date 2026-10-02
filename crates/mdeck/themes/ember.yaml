@@ -3,7 +3,10 @@
 # slide (the particles engine).
 name: Ember
 extends: dark
-engine: particles
+engine:
+  name: particles
+  light: "#d7d7e1"
+  cool: "#afc3f0"
 designs: editorial
 countdown: on
 colors:
@@ -28,9 +31,6 @@ colors:
     - "#d9b46a" # gold
     - "#e8341c" # bitter
     - "#b4b4bc" # ink-200
-particles:
-  light: "#d7d7e1"
-  cool: "#afc3f0"
 fonts:
   display: spectral-light
   body: hanken-regular

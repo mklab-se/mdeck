@@ -2,11 +2,12 @@
 # gentle, with a blossom-pink accent and young greens.
 name: Spring
 extends: light
+variant-of: light
 colors:
   background: "#f7faf2"      # morning haze
   text: "#34402f"            # moss
   heading: "#1e3a1b"         # deep leaf
-  muted: "#6f7d67"
+  muted: "#677460"
   accent: "#c73e6b"          # cherry blossom
   accent-soft: "#ec9ab5"
   secondary: "#5f9e3a"       # new leaf
@@ -31,7 +32,6 @@ annotations:
 fonts:
   display: spectral-light
   body: hanken-regular
-  lead: hanken-light
   strong: hanken-medium
   mono: jetbrains-mono
 text: { line-height: 1.4 }

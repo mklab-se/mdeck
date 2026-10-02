@@ -44,6 +44,7 @@ ratex-layout.workspace = true
 ratex-types.workspace = true
 pdf-writer.workspace = true
 flate2.workspace = true
+mdeck-sdk.workspace = true
 
 [features]
 default = [

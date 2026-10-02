@@ -171,7 +171,7 @@ pub fn draw_gantt_chart(
             Pos2::new(frame.left, frame.bottom),
             Pos2::new(frame.right, frame.bottom),
         ],
-        Stroke::new(VIZ_STROKE_AXIS * scale, cx.fg(0.15)),
+        Stroke::new(VIZ_STROKE_AXIS * scale, cx.rule(1.0)),
     );
 
     let tasks = GanttPaint {
@@ -199,7 +199,7 @@ pub fn draw_gantt_chart(
     let sep_x = frame.left - 4.0 * scale;
     painter.line_segment(
         [Pos2::new(sep_x, frame.top), Pos2::new(sep_x, frame.bottom)],
-        Stroke::new(0.5 * scale, cx.fg(0.08)),
+        Stroke::new(0.5 * scale, cx.rule(VIZ_OPACITY_GRID)),
     );
 
     height
@@ -218,7 +218,7 @@ fn draw_title(cx: &VizCtx, title: &str, pos: Pos2, max_width: f32) {
 fn draw_time_grid(cx: &VizCtx, frame: &PlotFrame, time_grid: &TimeGrid) {
     let painter = cx.ui.painter();
     let scale = cx.scale;
-    let grid_color = cx.fg(VIZ_OPACITY_GRID);
+    let grid_color = cx.rule(VIZ_OPACITY_GRID);
     let label_font = cx.font(VIZ_FONT_GRID_LABEL);
     let label_color = cx.fg(0.45);
 

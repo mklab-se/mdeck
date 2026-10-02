@@ -3,7 +3,11 @@
 # around the title (LED engine).
 name: Marquee
 extends: dark
-engine: led
+engine:
+  name: led
+  # the LED palette besides the accents
+  light: "#fff4f8"           # the hottest cores
+  cool: "#35d6ff"            # cyan, the far end of the gradient
 designs: editorial
 countdown: on
 colors:
@@ -28,9 +32,6 @@ colors:
     - "#ff7a3d" # orange
     - "#f6f6fb" # white
     - "#6c7cff" # blue
-particles:                   # the LED palette besides the accents
-  light: "#fff4f8"           # the hottest cores
-  cool: "#35d6ff"            # cyan, the far end of the gradient
 fonts:
   display: hanken-medium
   body: hanken-regular

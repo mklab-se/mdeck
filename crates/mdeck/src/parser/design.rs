@@ -444,7 +444,7 @@ pub fn recognise(design: Option<&str>, blocks: &[Block], first: bool) -> Recogni
             rule: "",
         };
     }
-    // the content fits the chosen design when one of its rules takes it
+    // the content fits the chosen design when it has a role for every block
     let fits = wanted.holds(&shape);
     Recognition {
         design: wanted,

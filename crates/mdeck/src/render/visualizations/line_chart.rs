@@ -230,7 +230,7 @@ fn draw_x_labels(cx: &super::VizCtx, x_labels: &[String], frame: &PlotFrame, max
     let painter = cx.ui.painter();
     let scale = cx.scale;
     let x_label_font = cx.font(VIZ_FONT_GRID_LABEL);
-    let x_label_color = cx.fg(0.7);
+    let x_label_color = cx.muted(1.0);
     let x_galleys: Vec<_> = x_labels
         .iter()
         .take(max_points)

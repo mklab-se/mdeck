@@ -15,6 +15,7 @@ mod error;
 pub mod file;
 pub mod lookup;
 mod paths;
+pub mod schema;
 pub mod spacing;
 pub mod validate;
 
@@ -115,8 +116,11 @@ pub struct Theme {
     /// it names one. A deck's own `transition` wins; the user config and the
     /// built-in `fade` come after.
     pub transition: Option<String>,
-    /// The line engine's surface (`surface:`).
+    /// The line engine's surface (`engine.surface`).
     pub surface: Surface,
+    /// The engine block's settings as written (every key but `name`), for
+    /// [`engine_settings`].
+    pub engine_block: Vec<(String, serde_norway::Value)>,
     /// How every design looks: the design set (`designs:`) with the theme's
     /// `arrangements:` applied.
     pub arrangements: std::sync::Arc<arrangement::Arrangements>,
@@ -176,9 +180,10 @@ pub struct Theme {
     pub logo: Option<crate::render::logo::Logo>,
     /// The slide as a sheet on a surface (`page:`); `None` fills the window.
     pub page: Option<Page>,
-    /// What generated artwork looks like (`art:`), over the engine's own style.
+    /// What generated artwork looks like (`engine.kind`, `engine.style`,
+    /// `engine.references`), over the engine's own style.
     pub art: ThemeArt,
-    /// The thermal engine's heat field (`heat:`).
+    /// The thermal engine's heat field (`engine.palette`, `engine.drift`).
     pub heat: Heat,
     /// The file this theme was read from (`None` for built-ins).
     pub source: Option<PathBuf>,
@@ -212,6 +217,45 @@ pub const EDGE_PALETTE_LEN: usize = 8;
 pub struct Built {
     pub theme: Theme,
     pub warnings: Vec<String>,
+}
+
+/// The settings of the theme's `engine:` block (every key but `name`), as
+/// the engine reads them (THM-11). Seam for the engines: an engine reads
+/// its settings from here, never from theme sections named after it.
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "the engines read it once they run on the SDK (phase 2b)"
+    )
+)]
+pub fn engine_settings(theme: &Theme) -> mdeck_sdk::tokens::EngineSettings {
+    mdeck_sdk::tokens::EngineSettings::from_pairs(
+        theme
+            .engine_block
+            .iter()
+            .map(|(k, v)| (k.clone(), sdk_value(v))),
+    )
+}
+
+#[cfg_attr(not(test), allow(dead_code, reason = "see engine_settings"))]
+/// A YAML value as the SDK's library-free [`mdeck_sdk::tokens::Value`].
+fn sdk_value(v: &serde_norway::Value) -> mdeck_sdk::tokens::Value {
+    use mdeck_sdk::tokens::Value as V;
+    use serde_norway::Value as Y;
+    match v {
+        Y::Null => V::Null,
+        Y::Bool(b) => V::Bool(*b),
+        Y::Number(n) => V::Number(n.as_f64().unwrap_or(0.0)),
+        Y::String(s) => V::String(s.clone()),
+        Y::Sequence(items) => V::List(items.iter().map(sdk_value).collect()),
+        Y::Mapping(map) => V::Map(
+            map.iter()
+                .map(|(k, v)| (k.as_str().unwrap_or_default().to_string(), sdk_value(v)))
+                .collect(),
+        ),
+        Y::Tagged(t) => sdk_value(&t.value),
+    }
 }
 
 /// Whether `theme` arranges slides with the editorial design set (seam for
@@ -342,6 +386,28 @@ impl Theme {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn engine_settings_come_from_the_engine_block() {
+        let f = file::ThemeFile::parse(
+            "engine: { name: thermal, palette: lava, drift: true, extra: [1, x] }",
+        )
+        .unwrap()
+        .over(&lookup::builtin_file("dark").unwrap());
+        let t = Theme::build("x", &f).unwrap().theme;
+        let s = engine_settings(&t);
+        assert_eq!(s.str("palette"), Some("lava"));
+        assert_eq!(s.bool("drift"), Some(true));
+        assert!(s.get("name").is_none());
+        assert_eq!(
+            s.get("extra"),
+            Some(&mdeck_sdk::tokens::Value::List(vec![
+                mdeck_sdk::tokens::Value::Number(1.0),
+                mdeck_sdk::tokens::Value::String("x".into())
+            ]))
+        );
+        assert!(engine_settings(&Theme::dark()).is_empty());
+    }
 
     #[test]
     fn edge_palette_is_distinct_per_theme_and_stable() {
