@@ -73,6 +73,18 @@ impl VizCtx<'_> {
         Theme::with_opacity(self.theme.foreground, self.opacity * alpha)
     }
 
+    /// The theme's `rule` colour (chart grids and axis lines, THM-08) at
+    /// `alpha` of the chart's opacity.
+    pub fn rule(&self, alpha: f32) -> Color32 {
+        Theme::with_opacity(self.theme.rule, self.opacity * alpha)
+    }
+
+    /// The theme's `muted` colour (grid labels and axis titles, THM-08) at
+    /// `alpha` of the chart's opacity.
+    pub fn muted(&self, alpha: f32) -> Color32 {
+        Theme::with_opacity(self.theme.muted, self.opacity * alpha)
+    }
+
     /// Palette colour `i` at the theme's fill opacity.
     pub fn fill(&self, palette: &[Color32], i: usize) -> Color32 {
         Theme::with_opacity(
@@ -173,10 +185,13 @@ pub const VIZ_TIMELINE_DOT: f32 = 8.0;
 
 // Opacity multipliers (applied to base opacity)
 pub const VIZ_OPACITY_FILL: f32 = 0.85; // default; themes override via Theme::fill_opacity
-pub const VIZ_OPACITY_GRID: f32 = 0.08;
-pub const VIZ_OPACITY_AXIS: f32 = 0.2;
+/// Grid lines: the theme's `rule` at this opacity.
+pub const VIZ_OPACITY_GRID: f32 = 0.7;
+/// Axis lines: the theme's `rule`, full.
+pub const VIZ_OPACITY_AXIS: f32 = 1.0;
 pub const VIZ_OPACITY_LABEL: f32 = 0.8;
-pub const VIZ_OPACITY_GRID_LABEL: f32 = 0.4;
+/// Grid labels: the theme's `muted`, full.
+pub const VIZ_OPACITY_GRID_LABEL: f32 = 1.0;
 pub const VIZ_OPACITY_SUBTLE_BG: f32 = 0.05;
 pub const VIZ_OPACITY_BORDER_RING: f32 = 0.15;
 

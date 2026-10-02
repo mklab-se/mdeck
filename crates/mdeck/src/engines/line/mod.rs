@@ -51,7 +51,7 @@ pub static DEF: EngineDef = EngineDef {
         kind: SettingKind::OneOf(SURFACES),
         summary: "What the lines are drawn on: a blueprint `sheet` (the default) or a chalk `slate`.",
     }],
-    needs: Needs { page: false },
+    needs: Needs { page: true },
     ending_caption_delay: 5.2,
     create: |settings| Box::new(Line::new(Surface::of(settings))),
     board: None,

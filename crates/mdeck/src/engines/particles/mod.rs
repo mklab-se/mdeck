@@ -244,13 +244,11 @@ impl Engine for Particles {
 
 /// Designs whose field follows the drawn content rather than a fixed scene.
 fn uses_geometry(slide: &Slide) -> bool {
-    matches!(
-        slide.design.as_str(),
-        "visualization" | "diagram" | "image" | "gallery"
-    ) || slide
-        .blocks
-        .iter()
-        .any(|b| matches!(b, Block::Image { .. }))
+    matches!(slide.design.as_str(), "visual" | "media" | "gallery")
+        || slide
+            .blocks
+            .iter()
+            .any(|b| matches!(b, Block::Image { .. }))
 }
 
 #[cfg(test)]
@@ -269,11 +267,11 @@ mod tests {
     #[test]
     fn charts_and_images_follow_their_geometry() {
         let mut s = Slide {
-            design: "visualization".into(),
+            design: "visual".into(),
             ..Default::default()
         };
         assert!(uses_geometry(&s));
-        s.design = "bullet".into();
+        s.design = "points".into();
         assert!(!uses_geometry(&s));
         s.blocks.push(Block::Image {
             alt: String::new(),

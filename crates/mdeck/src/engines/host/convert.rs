@@ -11,27 +11,9 @@ use mdeck_sdk::host as h;
 use mdeck_sdk::paint::{Font, FontRole};
 use mdeck_sdk::tokens::Tokens;
 
-use crate::parser::{self, Layout};
+use crate::parser;
 use crate::render::hints::Hint;
 use crate::theme::Theme;
-
-/// The design name a layout stands for, until slides carry designs
-/// (phase 3): what [`sdk::Slide::design`] holds.
-pub fn design_name(layout: Layout) -> &'static str {
-    match layout {
-        Layout::Title => "title",
-        Layout::Section => "section",
-        Layout::Image => "image",
-        Layout::Gallery => "gallery",
-        Layout::Quote => "quote",
-        Layout::Code => "code",
-        Layout::Bullet => "bullet",
-        Layout::Diagram => "diagram",
-        Layout::Visualization => "visualization",
-        Layout::TwoColumn => "two-column",
-        Layout::Content => "content",
-    }
-}
 
 /// The slide as the SDK's content model.
 pub fn slide(s: &parser::Slide) -> sdk::Slide {
@@ -46,7 +28,7 @@ pub fn slide(s: &parser::Slide) -> sdk::Slide {
             })
             .collect(),
         blocks: blocks(&s.blocks),
-        design: design_name(s.layout).to_string(),
+        design: s.design.name().to_string(),
         raw_source: s.raw_source.clone(),
         line: s.line,
         source_lines: s.source_lines.clone(),

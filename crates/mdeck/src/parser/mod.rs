@@ -1,4 +1,5 @@
 pub mod blocks;
+pub mod design;
 pub mod frontmatter;
 pub mod inline;
 mod layout;
@@ -11,6 +12,7 @@ pub mod splitter;
 pub mod steps;
 mod text;
 
+pub use design::{Design, Recognition};
 pub use layout::Layout;
 pub use model::{
     Alert, Align, Block, Chart, ImageDirectives, Inline, ListItem, ListMarker, Presentation,
@@ -19,7 +21,6 @@ pub use model::{
 pub use settings::{parse_setting_line, setting};
 pub use text::{for_each_inlines, inlines_to_text};
 
-use layout::classify_layout;
 use notes::extract_notes;
 
 pub fn parse(content: &str) -> Presentation {
@@ -36,8 +37,12 @@ pub fn parse(content: &str) -> Presentation {
                 let lines = lines.into_iter().map(|l| l + first_line).collect();
                 parse_slide(raw, lines, reveal)
             })
-            .collect()
+            .collect::<Vec<_>>()
     });
+    let mut slides = slides;
+    for (i, slide) in slides.iter_mut().enumerate() {
+        assign_design(slide, i == 0);
+    }
     Presentation { meta, slides }
 }
 
@@ -115,7 +120,6 @@ fn parse_slide(raw: String, source_lines: Vec<usize>, deck_reveal: bool) -> Slid
         _ => deck_reveal,
     };
     let steps = steps::number(&mut blocks, reveal, &steps::default_visual_steps);
-    let layout = classify_layout(setting(&settings, "design"), &blocks);
     // Until pictures are one source (phase 2), `picture` names a point
     // cloud and `picture: none` opts out of generated art too.
     let picture = setting(&settings, "picture");
@@ -128,7 +132,6 @@ fn parse_slide(raw: String, source_lines: Vec<usize>, deck_reveal: bool) -> Slid
     Slide {
         settings,
         blocks,
-        layout,
         raw_source: raw,
         line,
         source_lines,
@@ -139,7 +142,18 @@ fn parse_slide(raw: String, source_lines: Vec<usize>, deck_reveal: bool) -> Slid
         logo,
         art,
         problems,
+        ..Default::default()
     }
+}
+
+/// Give `slide` its design (the `design:` setting or the recognition
+/// table) and the layout view engines key on. `first`: the deck's first
+/// slide.
+pub fn assign_design(slide: &mut Slide, first: bool) {
+    let recognition = design::recognise(setting(&slide.settings, "design"), &slide.blocks, first);
+    slide.layout = Layout::of(recognition.design, &slide.blocks);
+    slide.design = recognition.design;
+    slide.recognition = recognition;
 }
 
 #[cfg(test)]

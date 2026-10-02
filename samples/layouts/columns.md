@@ -1,11 +1,11 @@
 ---
-title: "Layout Test: Two-Column Slides"
+title: "Design: columns"
 theme: dark
 transition: fade
 ---
 
-# Layout Test: Two-Column Slides
-Focused tests for the two-column layout
+# Design: columns
+Focused tests for the two-column design
 
 
 # Pros and Cons

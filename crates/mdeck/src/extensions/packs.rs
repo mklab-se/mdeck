@@ -161,10 +161,6 @@ fn pack_dirs(packs: &[Installed], folder: Folder) -> Vec<PathBuf> {
 
 /// Theme folders from packs, for the theme lookup (after the deck's and
 /// the user's `themes/`, before the built-ins).
-#[allow(
-    dead_code,
-    reason = "integration seam: theme::lookup (phase 3) adds these to its folders"
-)]
 pub fn theme_dirs(deck_dir: Option<&Path>) -> Vec<PathBuf> {
     dirs_for(deck_dir, Folder::Themes)
 }

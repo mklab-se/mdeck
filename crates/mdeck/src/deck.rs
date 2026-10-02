@@ -268,7 +268,7 @@ impl Deck {
         cx: &SlideContext,
         scale: f32,
     ) {
-        if crate::theme::uses_editorial(theme) {
+        if render::ember::draws_chrome(theme) {
             render::ember::draw_chrome(painter, theme, rect, cx, scale);
             return;
         }

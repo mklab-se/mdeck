@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 use super::file::ThemeFile;
 use super::{Built, Theme, ThemeError};
 
-/// The built-in themes, in `Shift+T` order. A theme that runs on an engine
+/// The built-in themes, in `Shift+T` order: the themes, then their
+/// variants (THM-14). A theme that runs on an engine
 /// behind a cargo feature (`ember`, `autumn` and `winter` on particles,
 /// `marquee` on led, `departures` on splitflap, `stack` on blocks,
 /// `blueprint` and `chalkboard` on line, `sketchbook` on sketch,
@@ -15,17 +16,14 @@ use super::{Built, Theme, ThemeError};
 /// thermal) is left out of a build without that
 /// feature.
 pub const BUILTIN: &[(&str, &str)] = &[
+    // themes
     ("dark", include_str!("../../themes/dark.yaml")),
     ("light", include_str!("../../themes/light.yaml")),
     ("nord", include_str!("../../themes/nord.yaml")),
     #[cfg(feature = "particles")]
     ("ember", include_str!("../../themes/ember.yaml")),
-    ("spring", include_str!("../../themes/spring.yaml")),
-    ("summer", include_str!("../../themes/summer.yaml")),
-    #[cfg(feature = "particles")]
-    ("autumn", include_str!("../../themes/autumn.yaml")),
-    #[cfg(feature = "particles")]
-    ("winter", include_str!("../../themes/winter.yaml")),
+    #[cfg(feature = "thermal")]
+    ("thermal", include_str!("../../themes/thermal.yaml")),
     #[cfg(feature = "led")]
     ("marquee", include_str!("../../themes/marquee.yaml")),
     #[cfg(feature = "splitflap")]
@@ -34,20 +32,25 @@ pub const BUILTIN: &[(&str, &str)] = &[
     ("stack", include_str!("../../themes/stack.yaml")),
     #[cfg(feature = "line")]
     ("blueprint", include_str!("../../themes/blueprint.yaml")),
-    #[cfg(feature = "sketch")]
-    ("sketchbook", include_str!("../../themes/sketchbook.yaml")),
     #[cfg(feature = "line")]
     ("chalkboard", include_str!("../../themes/chalkboard.yaml")),
+    #[cfg(feature = "sketch")]
+    ("sketchbook", include_str!("../../themes/sketchbook.yaml")),
     #[cfg(feature = "watercolour")]
     ("watercolour", include_str!("../../themes/watercolour.yaml")),
     #[cfg(feature = "darkroom")]
     ("darkroom", include_str!("../../themes/darkroom.yaml")),
-    #[cfg(feature = "thermal")]
-    ("thermal", include_str!("../../themes/thermal.yaml")),
+    // variants (`variant-of:`), after every theme (THM-14)
+    ("spring", include_str!("../../themes/spring.yaml")),
+    ("summer", include_str!("../../themes/summer.yaml")),
+    #[cfg(feature = "particles")]
+    ("autumn", include_str!("../../themes/autumn.yaml")),
+    #[cfg(feature = "particles")]
+    ("winter", include_str!("../../themes/winter.yaml")),
 ];
 
 /// The theme used when nothing names one.
-pub const DEFAULT_THEME: &str = "light";
+pub const DEFAULT_THEME: &str = "dark";
 
 /// Longest `extends` chain followed before giving up (catches cycles).
 const MAX_DEPTH: usize = 8;
@@ -59,6 +62,8 @@ pub enum Origin {
     Deck(PathBuf),
     /// `~/.config/mdeck/themes/`.
     User(PathBuf),
+    /// The `themes/` folder of an installed pack.
+    Pack(PathBuf),
     /// Built into the binary.
     Builtin,
 }
@@ -68,13 +73,14 @@ impl Origin {
         match self {
             Origin::Deck(_) => "deck",
             Origin::User(_) => "user",
+            Origin::Pack(_) => "pack",
             Origin::Builtin => "built-in",
         }
     }
 
     pub fn path(&self) -> Option<&Path> {
         match self {
-            Origin::Deck(p) | Origin::User(p) => Some(p),
+            Origin::Deck(p) | Origin::User(p) | Origin::Pack(p) => Some(p),
             Origin::Builtin => None,
         }
     }
@@ -94,6 +100,16 @@ pub struct Lookup {
     pub deck: Option<PathBuf>,
     /// The user's themes folder.
     pub user: Option<PathBuf>,
+    /// The `themes/` folders of installed packs, in lookup order (THM-04).
+    pub packs: Vec<PathBuf>,
+}
+
+/// Which kind of folder a theme folder is.
+#[derive(Clone, Copy, PartialEq)]
+enum Kind {
+    Deck,
+    User,
+    Pack,
 }
 
 /// The user theme folder.
@@ -107,34 +123,38 @@ impl Lookup {
         Lookup {
             deck: deck_dir.map(|d| d.join("themes")),
             user: user_dir(),
+            packs: crate::extensions::packs::theme_dirs(deck_dir),
         }
     }
 
-    fn dirs(&self) -> Vec<(PathBuf, bool)> {
+    /// The folders searched, highest priority first: the deck's, the
+    /// user's, then each installed pack's (built-ins come last).
+    fn dirs(&self) -> Vec<(PathBuf, Kind)> {
         let mut v = Vec::new();
         if let Some(d) = &self.deck {
-            v.push((d.clone(), true));
+            v.push((d.clone(), Kind::Deck));
         }
         if let Some(u) = &self.user {
-            v.push((u.clone(), false));
+            v.push((u.clone(), Kind::User));
         }
+        v.extend(self.packs.iter().map(|p| (p.clone(), Kind::Pack)));
         v
     }
 
     /// Every place `name` is defined, highest priority first.
     pub fn find_all(&self, name: &str) -> Vec<Found> {
         let mut out = Vec::new();
-        for (dir, deck) in self.dirs() {
+        for (dir, kind) in self.dirs() {
             for path in [
                 dir.join(format!("{name}.yaml")),
                 dir.join(format!("{name}.yml")),
                 dir.join(name).join("theme.yaml"),
             ] {
                 if path.is_file() {
-                    let origin = if deck {
-                        Origin::Deck(path)
-                    } else {
-                        Origin::User(path)
+                    let origin = match kind {
+                        Kind::Deck => Origin::Deck(path),
+                        Kind::User => Origin::User(path),
+                        Kind::Pack => Origin::Pack(path),
                     };
                     out.push(Found {
                         name: name.to_string(),
@@ -153,9 +173,30 @@ impl Lookup {
         out
     }
 
-    /// Every theme visible here, one per name: built-ins first (in their
-    /// `Shift+T` order, possibly shadowed), then user and deck themes by name.
+    /// Every theme visible here, one per name, in two tiers (THM-14): the
+    /// themes (built-ins in their order, possibly shadowed, then user, pack
+    /// and deck themes by name), then the variants (`variant-of:`) in the
+    /// same order. `Shift+T` and `mdeck theme list` follow it.
     pub fn available(&self) -> Vec<Found> {
+        let (themes, variants): (Vec<_>, Vec<_>) = self
+            .available_untiered()
+            .into_iter()
+            .partition(|f| self.variant_of(f).is_none());
+        themes.into_iter().chain(variants).collect()
+    }
+
+    /// The theme `found` recolours, from its own file (`variant-of:`).
+    pub fn variant_of(&self, found: &Found) -> Option<String> {
+        let file = match &found.origin {
+            Origin::Builtin => builtin_file(&found.name).ok()?,
+            Origin::Deck(p) | Origin::User(p) | Origin::Pack(p) => {
+                ThemeFile::parse(&std::fs::read_to_string(p).ok()?).ok()?
+            }
+        };
+        file.variant_of
+    }
+
+    fn available_untiered(&self) -> Vec<Found> {
         let mut names: Vec<String> = embedded_names();
         let mut extra = std::collections::BTreeSet::new();
         for (dir, _) in self.dirs() {
@@ -256,7 +297,7 @@ impl Lookup {
         }
         let file = match &found.origin {
             Origin::Builtin => builtin_file(&found.name)?,
-            Origin::Deck(p) | Origin::User(p) => {
+            Origin::Deck(p) | Origin::User(p) | Origin::Pack(p) => {
                 let text =
                     std::fs::read_to_string(p).map_err(|e| ThemeError::file(p.display(), e))?;
                 let mut file =
@@ -326,17 +367,23 @@ fn absolutize(file: &mut ThemeFile, base: &Path, warnings: &mut Vec<String>) {
             }
         }
     }
-    if let Some(refs) = file.art.references.as_mut() {
+    let refs = file
+        .engine
+        .as_ref()
+        .and_then(|b| b.list("references").ok().flatten());
+    if let (Some(mut refs), Some(block)) = (refs, file.engine.as_mut()) {
         refs.retain_mut(|v| match super::confined_path(base, v) {
             Ok(p) => {
                 *v = p.to_string_lossy().to_string();
                 true
             }
             Err(e) => {
-                warnings.push(format!("art.references: {e}; left out"));
+                warnings.push(format!("engine.references: {e}; left out"));
                 false
             }
         });
+        let list = refs.into_iter().map(serde_norway::Value::String).collect();
+        block.set("references", serde_norway::Value::Sequence(list));
     }
 }
 
@@ -453,15 +500,70 @@ mod tests {
         Lookup {
             deck: Some(t.0.join("deck").join("themes")),
             user: Some(t.0.join("user")),
+            packs: vec![t.0.join("pack").join("themes")],
         }
+    }
+
+    #[test]
+    fn packs_come_after_user_themes_and_before_built_ins() {
+        // THM-04: deck, user, installed extensions, built-ins
+        let t = Tmp::new("packs");
+        t.write("pack/themes/acme.yaml", "colors: { accent: '#00ff00' }\n");
+        t.write(
+            "pack/themes/dark.yaml",
+            "extends: dark\ncolors: { accent: '#ff00ff' }\n",
+        );
+        t.write("user/acme.yaml", "colors: { accent: '#0000ff' }\n");
+        let l = lookup(&t);
+        let found = l.find_all("acme");
+        assert!(matches!(found[0].origin, Origin::User(_)));
+        assert!(matches!(found[1].origin, Origin::Pack(_)));
+        assert_eq!(found[1].origin.label(), "pack");
+        let dark = l.load("dark").unwrap().theme;
+        assert_eq!(dark.accent, eframe::egui::Color32::from_rgb(255, 0, 255));
+        assert_eq!(dark.background, Theme::dark().background);
     }
 
     #[test]
     fn frontmatter_beats_config_beats_default() {
         assert_eq!(select(Some("nord"), Some("dark")), "nord");
         assert_eq!(select(None, Some("dark")), "dark");
-        assert_eq!(select(None, None), "light");
+        assert_eq!(select(None, None), "dark");
         assert_eq!(select(Some("  "), Some("dark")), "dark");
+    }
+
+    #[test]
+    fn the_default_theme_is_plain_dark_and_still() {
+        // THM-15: plain, standard designs, no countdown; the transition is
+        // the built-in fade (left unset so the user config can still win)
+        assert_eq!(DEFAULT_THEME, "dark");
+        let d = load_builtin(DEFAULT_THEME).unwrap();
+        assert_eq!(d.engine, crate::engines::EngineId::plain());
+        assert_eq!(d.arrangements.set, "standard");
+        assert!(!d.countdown);
+        assert_eq!(d.transition, None);
+        assert!(crate::theme::luminance(d.background) < 0.2);
+        assert!(crate::theme::contrast(d.foreground, d.background) > 7.0);
+        assert!(builtin_file(DEFAULT_THEME).unwrap().extends.is_none());
+    }
+
+    #[test]
+    fn variants_come_after_every_theme() {
+        let tiers: Vec<bool> = BUILTIN
+            .iter()
+            .map(|(name, _)| builtin_file(name).unwrap().variant_of.is_some())
+            .collect();
+        let first_variant = tiers.iter().position(|v| *v).unwrap();
+        assert!(tiers[first_variant..].iter().all(|v| *v), "{tiers:?}");
+        for (name, _) in BUILTIN {
+            if let Some(of) = builtin_file(name).unwrap().variant_of {
+                assert_eq!(
+                    builtin_file(name).unwrap().extends,
+                    Some(of.clone()),
+                    "{name}"
+                );
+            }
+        }
     }
 
     #[test]
@@ -492,8 +594,15 @@ mod tests {
         assert_eq!(dark.background, Theme::dark().background);
         let names: Vec<String> = l.available().into_iter().map(|f| f.name).collect();
         // the built-ins this build has, in order, then the user's own
-        let expected: Vec<&str> = BUILTIN.iter().map(|(n, _)| *n).chain(["brand"]).collect();
+        let variant = |n: &&str| builtin_file(n).unwrap().variant_of.is_some();
+        let themes = BUILTIN.iter().map(|(n, _)| *n).filter(|n| !variant(n));
+        let variants = BUILTIN.iter().map(|(n, _)| *n).filter(variant);
+        let expected: Vec<&str> = themes.chain(["brand"]).chain(variants).collect();
         assert_eq!(names, expected);
+        // a user variant joins the variants
+        t.write("user/dusk.yaml", "extends: dark\nvariant-of: dark\n");
+        let names: Vec<String> = l.available().into_iter().map(|f| f.name).collect();
+        assert_eq!(names.last().map(String::as_str), Some("dusk"));
         assert!(matches!(l.available()[0].origin, Origin::User(_)));
     }
 
@@ -538,12 +647,12 @@ mod tests {
         let t = Tmp::new("unknown");
         let err = lookup(&t).load("solarized").unwrap_err().to_string();
         assert!(
-            err.contains("solarized") && err.contains("dark, light, nord, ember, spring"),
+            err.contains("solarized") && err.contains("dark, light, nord, ember"),
             "{err}"
         );
         let (th, problems) = resolve_or_default(&lookup(&t), "solarized");
-        assert_eq!(th.background, Theme::light().background);
-        assert!(problems[0].contains("using light"));
+        assert_eq!(th.background, Theme::dark().background);
+        assert!(problems[0].contains("using dark"));
     }
 
     #[test]

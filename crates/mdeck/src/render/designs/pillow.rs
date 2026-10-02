@@ -2,7 +2,7 @@
 
 use eframe::egui::{self, Pos2, Rect};
 
-use super::fade;
+use super::style::fade;
 use crate::theme::Theme;
 
 /// The soft dark ellipse that keeps copy readable over the lights: a radial

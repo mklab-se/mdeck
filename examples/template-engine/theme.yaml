@@ -2,11 +2,11 @@
 # a deck selects it with `theme: template-engine`.
 name: template-engine
 extends: dark
-engine: template-engine
-countdown: none
+engine:
+  name: template-engine
+  cool: "#8fb2ff"
+countdown: off
 colors:
   background: "#0c0c10"
   accent: "#ff6a3d"
   secondary: "#f5b84a"
-particles:
-  cool: "#8fb2ff"

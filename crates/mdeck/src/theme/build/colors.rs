@@ -32,7 +32,7 @@ pub(super) struct Palette {
     pub particle_cool: Color32,
 }
 
-/// Parse one colour value; `key` names it in the error (`colors.<key>`).
+/// Parse one colour value; `key` is its full key path, for the error.
 pub(super) fn parse(key: &str, s: &str) -> Result<Color32, ThemeError> {
     channels(key, s).map(|[r, g, b, a]| Color32::from_rgba_unmultiplied(r, g, b, a))
 }
@@ -43,16 +43,18 @@ pub(super) fn parse_opaque(key: &str, s: &str) -> Result<Color32, ThemeError> {
 }
 
 fn channels(key: &str, s: &str) -> Result<[u8; 4], ThemeError> {
-    parse_color(s).ok_or_else(|| {
-        ThemeError::invalid(
-            format!("colors.{key}"),
-            format!("'{s}' is not a colour (use #rrggbb)"),
-        )
-    })
+    parse_color(s)
+        .ok_or_else(|| ThemeError::invalid(key, format!("'{s}' is not a colour (use #rrggbb)")))
 }
 
-/// An optional colour: `None` when unset, an error when not a colour.
+/// An optional colour under `colors:`: `None` when unset, an error when
+/// not a colour.
 fn optional(key: &str, v: &Option<String>) -> Result<Option<Color32>, ThemeError> {
+    optional_at(&format!("colors.{key}"), v)
+}
+
+/// An optional colour at the full key path `key`.
+fn optional_at(key: &str, v: &Option<String>) -> Result<Option<Color32>, ThemeError> {
     v.as_deref().map(|s| parse(key, s)).transpose()
 }
 
@@ -74,7 +76,7 @@ fn series(
     let parsed = src
         .iter()
         .enumerate()
-        .map(|(i, s)| parse(&format!("series[{}]", i + 1), s))
+        .map(|(i, s)| parse(&format!("colors.series[{}]", i + 1), s))
         .collect::<Result<Vec<_>, _>>()?;
     if parsed.len() > EDGE_PALETTE_LEN {
         warnings.push(format!(
@@ -107,7 +109,7 @@ impl Palette {
         let code_foreground = required("code-text", &c.code_text)?;
         let positive = required("positive", &c.positive)?;
         let negative = required("negative", &c.negative)?;
-        let muted = optional("muted", &c.muted)?.unwrap_or(mix(background, foreground, 0.6));
+        let muted = optional("muted", &c.muted)?.unwrap_or(mix(background, foreground, 0.65));
         let rule = optional("rule", &c.rule)?.unwrap_or(mix(background, foreground, 0.18));
         let strong =
             optional("strong", &c.strong)?.unwrap_or(default_strong(heading, foreground, accent));
@@ -117,14 +119,16 @@ impl Palette {
         let series = series(&c.series, warnings)?;
 
         let a = &f.annotations;
-        let pen = optional("pen", &a.pen)?.unwrap_or(accent);
-        let pen_outline = optional("pen-outline", &a.pen_outline)?.unwrap_or(darken(pen, 0.6));
-        let arrow = optional("arrow", &a.arrow)?.unwrap_or(secondary);
-        let arrow_outline =
-            optional("arrow-outline", &a.arrow_outline)?.unwrap_or(darken(arrow, 0.6));
-        let particle_light = optional("light", &f.particles.light)?.unwrap_or(heading);
+        let pen = optional_at("annotations.pen", &a.pen)?.unwrap_or(accent);
+        let pen_outline =
+            optional_at("annotations.pen-outline", &a.pen_outline)?.unwrap_or(darken(pen, 0.6));
+        let arrow = optional_at("annotations.arrow", &a.arrow)?.unwrap_or(secondary);
+        let arrow_outline = optional_at("annotations.arrow-outline", &a.arrow_outline)?
+            .unwrap_or(darken(arrow, 0.6));
+        let tints = f.particles()?;
+        let particle_light = optional_at("engine.light", &tints.light)?.unwrap_or(heading);
         let particle_cool =
-            optional("cool", &f.particles.cool)?.unwrap_or(Color32::from_rgb(0xAF, 0xC3, 0xF0));
+            optional_at("engine.cool", &tints.cool)?.unwrap_or(Color32::from_rgb(0xAF, 0xC3, 0xF0));
 
         Ok(Palette {
             background,
@@ -190,10 +194,7 @@ mod tests {
     #[test]
     fn colour_errors_name_the_key() {
         let e = parse("page.surface", "paper").unwrap_err().to_string();
-        assert_eq!(
-            e,
-            "colors.page.surface: 'paper' is not a colour (use #rrggbb)"
-        );
+        assert_eq!(e, "page.surface: 'paper' is not a colour (use #rrggbb)");
         let e = required("accent", &None).unwrap_err().to_string();
         assert_eq!(
             e,

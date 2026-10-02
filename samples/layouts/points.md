@@ -1,11 +1,11 @@
 ---
-title: "Layout Test: Bullet Slides"
+title: "Design: points"
 theme: dark
 transition: fade
 ---
 
-# Layout Test: Bullet Slides
-Focused tests for the bullet layout
+# Design: points
+Focused tests for the bullet design
 
 
 # Simple Unordered List

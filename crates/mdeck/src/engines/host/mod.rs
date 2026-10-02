@@ -307,7 +307,7 @@ impl Host {
         let placed = |source: PictureSource, aspect: f32| Picture {
             source,
             backdrop: title,
-            place: figure_box(aspect, slide.layout, rect_aspect, title),
+            place: figure_box(aspect, slide.design, rect_aspect, title),
         };
         if caps.medium.is_some()
             && let Some(art) = shot.art
@@ -510,7 +510,7 @@ mod tests {
     #[test]
     fn settings_an_engine_does_not_read_are_reported() {
         use crate::theme::file::ThemeFile;
-        let f = ThemeFile::parse("engine: plain\nsurface: slate\n")
+        let f = ThemeFile::parse("engine: { name: plain, surface: slate }\n")
             .unwrap()
             .over(&crate::theme::lookup::builtin_file("dark").unwrap());
         let theme = Theme::build("x", &f).unwrap().theme;

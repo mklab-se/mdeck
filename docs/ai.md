@@ -96,7 +96,7 @@ optional reference images. Each kind of asset has a default style: a clean
 presentation look for images, a minimalist icon look for icons, the engine's
 medium for pictures (line art, graphite, watercolour, a darkroom print) and
 glowing particles for point clouds. A deck chooses its own with `image-style`
-and `icon-style`; a theme's `art:` block sets the house style of pictures
+and `icon-style`; a theme's engine block (`kind`, `style`, `references`) sets the house style of pictures
 ([Themes](themes.md#pages-and-art)). A style is a name or a literal
 description:
 

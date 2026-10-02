@@ -206,9 +206,9 @@ pub fn draw_scatter_plot(
 fn draw_x_grid(cx: &super::VizCtx, frame: &PlotFrame, range: ValueRange) {
     let painter = cx.ui.painter();
     let scale = cx.scale;
-    let grid_color = cx.fg(VIZ_OPACITY_GRID);
+    let grid_color = cx.rule(VIZ_OPACITY_GRID);
     let grid_font = cx.font(VIZ_FONT_GRID_LABEL);
-    let grid_label_color = cx.fg(VIZ_OPACITY_GRID_LABEL);
+    let grid_label_color = cx.muted(VIZ_OPACITY_GRID_LABEL);
     let x_step = nice_grid_step(range.max - range.min, 5);
     for gx in grid_range_values(range.min, range.max, x_step) {
         let px = frame.x_at(gx, range);

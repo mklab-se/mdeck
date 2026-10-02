@@ -1,11 +1,11 @@
 ---
-title: "Layout Test: Content Slides"
+title: "Design: content"
 theme: dark
 transition: fade
 ---
 
-# Layout Test: Content Slides
-Focused tests for the content (fallback) layout
+# Design: content
+Focused tests for the content design: anything else
 
 
 # Mixed Content

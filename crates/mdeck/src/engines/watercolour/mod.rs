@@ -30,7 +30,7 @@ pub static DEF: EngineDef = EngineDef {
         ..super::art::CAPABILITIES
     },
     settings: &[],
-    needs: Needs { page: false },
+    needs: Needs { page: true },
     ending_caption_delay: 5.4,
     create: |_| Box::new(Watercolour::new()),
     board: None,

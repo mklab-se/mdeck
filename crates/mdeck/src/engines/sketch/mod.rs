@@ -33,7 +33,7 @@ pub static DEF: EngineDef = EngineDef {
         ..super::art::CAPABILITIES
     },
     settings: &[],
-    needs: Needs { page: false },
+    needs: Needs { page: true },
     ending_caption_delay: 5.2,
     create: |_| Box::new(Sketch::new()),
     board: None,

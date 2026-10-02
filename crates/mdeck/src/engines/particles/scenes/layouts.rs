@@ -234,11 +234,22 @@ pub fn for_slide(slide: &Slide, seed: u64, title: bool) -> Scene {
         "section" => section(seed),
         "quote" => candle(seed),
         "code" => rain(seed),
-        "bullet" | "content" | "two-column" => clusters(slide, seed),
+        "points" | "statement" => clusters(slide, seed),
+        // copy with a wide block (an image, code, a table, a visual) gives
+        // the stage to that block: keep the field quiet behind it
+        "content" if !slide.blocks.iter().any(is_wide) => clusters(slide, seed),
         // Images, galleries, diagrams, visualizations and any design this
         // engine does not know: keep the field quiet so the content reads.
         _ => quiet(seed),
     }
+}
+
+/// A block that needs more width than a copy column.
+fn is_wide(block: &Block) -> bool {
+    matches!(
+        block,
+        Block::Image { .. } | Block::CodeBlock { .. } | Block::Table { .. } | Block::Visual { .. }
+    )
 }
 
 #[cfg(test)]
@@ -269,7 +280,7 @@ mod tests {
                     item(ListMarker::Static, 0),
                 ],
             }],
-            design: "bullet".into(),
+            design: "points".into(),
             ..Default::default()
         };
         let scene = for_slide(&slide, 3, false);
@@ -289,7 +300,7 @@ mod tests {
                 ordered: false,
                 items: (0..n).map(|_| item(ListMarker::Static, 0)).collect(),
             }],
-            design: "bullet".into(),
+            design: "points".into(),
             ..Default::default()
         }
     }
@@ -332,13 +343,15 @@ mod tests {
             "section",
             "quote",
             "code",
-            "bullet",
+            "points",
             "content",
-            "two-column",
-            "image",
+            "columns",
+            "statement",
+            "table",
+            "split",
+            "media",
             "gallery",
-            "diagram",
-            "visualization",
+            "visual",
         ] {
             let slide = Slide {
                 design: layout.into(),

@@ -1,11 +1,11 @@
 ---
-title: "Layout Test: Code Slides"
+title: "Design: code"
 theme: dark
 transition: fade
 ---
 
-# Layout Test: Code Slides
-Focused tests for the code layout
+# Design: code
+Focused tests for the code design
 
 
 # Hello World in Rust

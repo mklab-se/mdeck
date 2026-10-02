@@ -284,7 +284,7 @@ mod tests {
                 level: 1,
                 inlines: vec![Inline::Text("MMMMMMMMMMMMMMMMMMMMMMMMMMMMMM".into())],
             }],
-            design: "bullet".into(),
+            design: "points".into(),
             ..Default::default()
         };
         let mut h = Headless::new(480, 270);

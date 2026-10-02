@@ -392,7 +392,7 @@ mod tests {
     fn slide(blocks: Vec<Block>) -> Slide {
         Slide {
             blocks,
-            design: "bullet".into(),
+            design: "points".into(),
             ..Default::default()
         }
     }

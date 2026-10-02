@@ -266,7 +266,7 @@ fn draw_web(cx: &VizCtx, layout: &RadarLayout, axes: &[String]) {
     let radius = layout.radius;
 
     let grid_levels = 4u32;
-    let grid_color = cx.fg(0.25);
+    let grid_color = cx.rule(1.0);
     for level in 1..=grid_levels {
         let frac = level as f32 / grid_levels as f32;
         let r = radius * frac;
@@ -277,7 +277,7 @@ fn draw_web(cx: &VizCtx, layout: &RadarLayout, axes: &[String]) {
         );
     }
 
-    let axis_line_color = cx.fg(0.3);
+    let axis_line_color = cx.rule(1.0);
     let axis_label_font = cx.font(VIZ_FONT_AXIS_LABEL);
     let label_color = cx.fg(VIZ_OPACITY_LABEL);
     let num_axes = axes.len();

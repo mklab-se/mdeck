@@ -41,8 +41,18 @@ impl Theme {
         let logo = extras::logo(&f.logo, &mut warnings)?;
         let page = extras::page(&f.page)?;
         let art = extras::art(f)?;
-        extras::heat(&f.heat)?;
+        extras::heat(&f.heat()?)?;
         let [h1_size, h2_size, h3_size, body_size, code_size] = settings::sizes(&f.sizes)?;
+        let arrangements = super::arrangement::Arrangements::resolve(
+            f.designs
+                .as_deref()
+                .map(str::trim)
+                .unwrap_or(super::arrangement::DEFAULT_SET),
+            f.arrangements.as_ref(),
+        )?;
+        let spacing = super::spacing::Spacing::resolve(&f.spacing)?;
+        let radius =
+            range("radius", f.radius, 0.0, 100.0)?.unwrap_or(super::spacing::DEFAULT_RADIUS);
 
         let p = palette.flattened();
         let mut theme = Theme {
@@ -50,8 +60,11 @@ impl Theme {
             engine,
             copy_hold: 0.0,
             engine_numbers_slides: false,
-            engine_keys: super::engine::engine_keys(f),
             countdown,
+            engine_block: f.engine_block().settings,
+            arrangements,
+            spacing,
+            radius,
             transition,
             background: p.background,
             foreground: p.foreground,
@@ -145,7 +158,10 @@ mod tests {
         assert!(bad("fonts: { body: comic-sans }").contains("bundled face"));
         assert!(bad("code: { syntax: rainbow }").contains("code.syntax"));
         assert!(bad("colors: { series: [] }").contains("series"));
-        assert!(bad("page: { surface: paper }").contains("colors.page.surface"));
+        assert!(bad("page: { surface: paper }").starts_with("page.surface"));
+        // D18: only colours are under `colors.`
+        assert!(bad("annotations: { pen: nope }").starts_with("annotations.pen"));
+        assert!(bad("engine: { name: particles, light: nope }").starts_with("engine.light"));
     }
 
     /// The first problem in file order is the one reported, as before the

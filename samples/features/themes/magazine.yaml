@@ -1,0 +1,31 @@
+# Magazine: a deck-local theme for designs.md. The editorial design set on
+# a still dark screen, with a few arrangements overridden: only what
+# differs from the set is written, and it merges key by key.
+name: Magazine
+extends: dark
+designs: editorial
+fonts:
+  display: spectral-light
+  body: hanken-regular
+  lead: hanken-light
+  strong: hanken-medium
+  mono: jetbrains-mono
+colors:
+  background: "#0b0d12"
+  accent: "#e8b04b"
+  accent-soft: "#f2cf8a"
+  muted: "#8a90a0"
+spacing: { md: 28 }
+radius: 12
+arrangements:
+  all:
+    ornaments: { bullet: "◆", bullet-color: accent }
+  quote:
+    copy: { region: [0.12, 0.18, 0.76, 0.64], align: center }
+    roles:
+      quote: { scale: 0.95 }
+      attribution: { color: accent }
+    ornaments: { quote-bar: none, quote-marks: true }
+  title:
+    roles:
+      title: { case: upper, tracking: 0.04, scale: 0.9 }

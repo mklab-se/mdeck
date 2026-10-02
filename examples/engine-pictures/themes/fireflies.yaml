@@ -3,8 +3,11 @@
 # engine (SDK tutorial step 2).
 name: Fireflies
 extends: dark
-engine: pictures
-countdown: burst
+engine:
+  name: pictures
+  light: "#fff1b8"
+  cool: "#b8e0a0"
+countdown: on
 colors:
   background: "#070b08"
   text: "#c8d2c4"
@@ -13,6 +16,3 @@ colors:
   rule: "#1f2a20"
   accent: "#e8b84a"
   secondary: "#9ccf6a"
-particles:
-  light: "#fff1b8"
-  cool: "#b8e0a0"

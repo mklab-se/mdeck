@@ -1,11 +1,11 @@
 ---
-title: "Layout Test: Title Slides"
+title: "Design: title"
 theme: dark
 transition: fade
 ---
 
-# Layout Test: Title Slides
-Focused tests for the title layout
+# Design: title
+Focused tests for the title design
 
 
 # The Art of Presentations

@@ -11,6 +11,7 @@ use crate::render;
 pub fn illustration_warnings(
     presentation: &parser::Presentation,
     deck: &std::path::Path,
+    theme: &crate::theme::Theme,
 ) -> Vec<CheckWarning> {
     let mut out = Vec::new();
     let base = deck.parent().unwrap_or(std::path::Path::new("."));
@@ -27,10 +28,11 @@ pub fn illustration_warnings(
                 "no illustration named `{name}` (run `mdeck illustration list`, or \
                  `mdeck ai point-cloud <deck>` to generate it)"
             )
-        } else if !render::ember::handles(slide) {
+        } else if !render::design_has_stage(slide, theme) {
             format!(
-                "`{name}` is ignored: {} slides do not show an illustration",
-                format!("{:?}", slide.layout).to_lowercase()
+                "`{name}` is ignored: {} slides leave no stage for a picture in the {} design set",
+                slide.design.name(),
+                theme.arrangements.set
             )
         } else {
             continue;
@@ -74,7 +76,10 @@ mod tests {
         std::fs::write(tmp.join("illustrations/broken.mdpc"), "{").unwrap();
         let md = "\n## Fine\n<!-- picture: kettle -->\n\n- a\n\n---\n\n\n## Missing\n<!-- picture: nothing -->\n\n- a\n\n---\n\n\n## Code\n<!-- picture: kettle -->\n\n```rust\nfn main() {}\n```\n\n---\n\n\n## Bad\n<!-- picture: Bad Name -->\n\n- a\n\n---\n\n\n## Broken\n<!-- picture: broken -->\n\n- a\n";
         let pres = parser::parse(md);
-        let warnings = illustration_warnings(&pres, &tmp.join("talk.md"));
+        let mut theme = crate::theme::Theme::dark();
+        theme.arrangements =
+            crate::theme::arrangement::Arrangements::resolve("editorial", None).unwrap();
+        let warnings = illustration_warnings(&pres, &tmp.join("talk.md"), &theme);
         let by_slide: Vec<(usize, String)> = warnings
             .iter()
             .map(|w| (w.slide, w.message.clone()))
@@ -89,7 +94,7 @@ mod tests {
         assert!(
             by_slide
                 .iter()
-                .any(|(s, m)| *s == 3 && m.contains("code slides do not show")),
+                .any(|(s, m)| *s == 3 && m.contains("code slides leave no stage")),
             "{by_slide:?}"
         );
         assert!(

@@ -38,12 +38,18 @@ pub fn draw_image_in_area(
         ImageState::Ready(texture) => {
             let tex_size = texture.size_vec2();
             let draw_rect = compute_image_rect(directives, tex_size, available, scale);
-            crate::render::hints::push(ui.ctx(), crate::render::hints::Hint::Frame(draw_rect));
+            // a covering image is cut to its area, never over its
+            // neighbours (D14)
+            let visible = draw_rect.intersect(available);
+            crate::render::hints::push(ui.ctx(), crate::render::hints::Hint::Frame(visible));
             let alpha = (opacity * 255.0) as u8;
             let tint = Color32::from_rgba_unmultiplied(255, 255, 255, alpha);
             let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
-            ui.painter().image(texture.id(), draw_rect, uv, tint);
-            draw_rect
+            let painter = ui
+                .painter()
+                .with_clip_rect(available.intersect(ui.clip_rect()));
+            painter.image(texture.id(), draw_rect, uv, tint);
+            visible
         }
         // Reserve the space quietly; the decode thread repaints when done.
         ImageState::Loading => available,
@@ -61,6 +67,23 @@ pub fn draw_image_in_area(
                 draw_image_placeholder(&cx.text(), alt, available.left_top(), available.width());
             egui::Rect::from_min_size(available.left_top(), egui::vec2(available.width(), height))
         }
+    }
+}
+
+/// Where the image at `path` would be drawn in `available`, once it is
+/// loaded (`None` while it loads or when it is missing).
+pub fn image_rect_in(
+    cx: &BlockCx,
+    path: &str,
+    directives: &ImageDirectives,
+    available: egui::Rect,
+) -> Option<egui::Rect> {
+    match cx.image_cache.state(cx.ui.ctx(), path) {
+        ImageState::Ready(texture) => Some(
+            compute_image_rect(directives, texture.size_vec2(), available, cx.scale)
+                .intersect(available),
+        ),
+        _ => None,
     }
 }
 
