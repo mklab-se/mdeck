@@ -210,6 +210,17 @@ an AI harness can convert a deck.
 
 ### Fixed
 
+- **Code reads as written.** Monospace ligatures no longer turn `---` into a line or `<!--`
+  into dash glyphs, in inline code and in code blocks.
+- **Inline code sits on the baseline.** Code chips in editorial lists no longer drop below the
+  text around them.
+- **Code is a comfortable size.** Short code grows toward the body size instead of sitting
+  small, and its box hugs its lines; the editorial `code` slide puts the code under the heading
+  across the wide region instead of a narrow plate beside it.
+- **Charts hold their slide.** KPI cards grow their type with the room they have, and progress
+  bars are thicker.
+- **Editorial headings breathe.** The heading of an editorial slide sits further from the list
+  under it.
 - Slides no longer drop content: a paragraph before an image, every quote and heading on a quote
   slide, and everything besides a diagram or a first chart are shown.
 - A gallery that fits no longer scrolls, and the reveal auto-scroll finds the item where the

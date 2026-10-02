@@ -33,6 +33,11 @@ pub const CODE_FIT_FLOOR: f32 = 0.4;
 /// the slide scrolls.
 pub const PROSE_FIT_FLOOR: f32 = 0.8;
 
+/// Short code grows toward this fraction of the body size when its lines
+/// and the slide have room for it (a few lines should not sit small in a
+/// large box).
+pub const CODE_GROW_CEIL: f32 = 0.9;
+
 /// A slide laid out.
 pub struct Plan<'s> {
     pub pieces: Vec<Piece<'s>>,
@@ -366,10 +371,12 @@ pub fn layout<'s>(
             .map(|c| crate::render::text::widest_code_line(ui, c, &t, scale))
             .fold(0.0, f32::max);
         let inner = w - 2.0 * crate::render::text::CODE_PADDING * scale;
-        if widest > inner && widest > 0.0 {
-            fc = (inner / widest).max(CODE_FIT_FLOOR);
-            t.code_size = theme.code_size * fc;
-            p = build(&t);
+        if widest > 0.0 {
+            fc = grow_factor(theme, widest, inner);
+            if (fc - 1.0).abs() > 1e-3 {
+                t.code_size = theme.code_size * fc;
+                p = build(&t);
+            }
         }
     }
     for _ in 0..8 {
@@ -392,6 +399,22 @@ pub fn layout<'s>(
         p = build(&t);
     }
     (t, p)
+}
+
+/// How much code whose widest line is `widest` (at the theme's code size)
+/// is scaled to sit in `inner`: down to fit the width (not below
+/// [`CODE_FIT_FLOOR`]), or up toward [`CODE_GROW_CEIL`] of the body size
+/// while the lines still fit. Height is fitted afterwards.
+pub fn grow_factor(theme: &Theme, widest: f32, inner: f32) -> f32 {
+    if widest <= 0.0 || theme.code_size <= 0.0 {
+        return 1.0;
+    }
+    let by_width = inner / widest;
+    if by_width < 1.0 {
+        return by_width.max(CODE_FIT_FLOOR);
+    }
+    let ceil = (theme.body_size * CODE_GROW_CEIL / theme.code_size).max(1.0);
+    by_width.min(ceil)
 }
 
 /// `(content height, room)` of `slide` drawn in `rect`: the slide scrolls

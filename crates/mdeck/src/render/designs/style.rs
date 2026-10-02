@@ -174,7 +174,7 @@ fn append(
                 f.extra_letter_spacing = 0.0;
                 f.line_height = None;
                 f.background = fade(theme.accent, alpha * 0.12);
-                job.append(s, 0.0, f);
+                crate::render::text::append_code(job, s, f);
             }
             Inline::Link { text, .. } => {
                 let mut f = base.clone();

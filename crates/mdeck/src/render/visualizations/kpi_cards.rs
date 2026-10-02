@@ -8,6 +8,25 @@ use super::{
     grammar::{Problem, Source},
 };
 
+/// Widest a card gets, and the width its type is designed at: wider cards
+/// (a few KPIs on a large plate) set their type larger, up to
+/// [`KPI_GROW_MAX`], so the cards hold the slide instead of sitting small.
+const KPI_CARD_MAX: f32 = 460.0;
+const KPI_CARD_BASE: f32 = 320.0;
+const KPI_GROW_MAX: f32 = 1.4;
+
+/// How much a card `card_width` wide grows its type and padding, given
+/// that its content at base size needs `base_height` and it has `height`.
+fn kpi_growth(card_width: f32, base_height: f32, height: f32, scale: f32) -> f32 {
+    let by_width = card_width / (KPI_CARD_BASE * scale);
+    let by_height = if base_height > 0.0 {
+        height / base_height
+    } else {
+        1.0
+    };
+    by_width.min(by_height).clamp(1.0, KPI_GROW_MAX)
+}
+
 /// Headline values shrink to fit the card, but never below this multiple of the
 /// body size: a KPI that is not readable from the back of the room is pointless.
 const KPI_VALUE_MIN_FONT: f32 = 0.75;
@@ -74,7 +93,7 @@ impl CardRow {
     fn new(left: f32, max_width: f32, n: usize, scale: f32) -> Self {
         let card_gap = 24.0 * scale;
         let total_gaps = (n as f32 - 1.0).max(0.0) * card_gap;
-        let card_width = ((max_width - total_gaps) / n as f32).min(320.0 * scale);
+        let card_width = ((max_width - total_gaps) / n as f32).min(KPI_CARD_MAX * scale);
         let total_width = n as f32 * card_width + total_gaps;
         Self {
             start_x: left + (max_width - total_width) / 2.0,
@@ -137,6 +156,8 @@ struct CardStyle {
     value_row: f32,
     /// Height of value, label and trend rows together.
     content_height: f32,
+    /// Space between the rows.
+    row_gap: f32,
     card_width: f32,
     card_height: f32,
     text_max_w: f32,
@@ -169,10 +190,28 @@ pub fn draw_kpi_cards(
     let value_font = FontId::new(cx.theme.body_size * 2.0 * scale, cx.theme.body_family());
     let label_font = cx.font(VIZ_FONT_PRIMARY_LABEL);
     let trend_font = cx.font(VIZ_FONT_SECONDARY_LABEL);
+    let has_trend = entries.iter().any(|e| e.trend.is_some());
+    // grow the type with the card, as far as the height allows
+    let k = {
+        let m = |font: &FontId| {
+            painter
+                .layout_no_wrap("Ag".into(), font.clone(), Color32::WHITE)
+                .rect
+                .height()
+        };
+        let mut base = m(&value_font) + 8.0 * scale + m(&label_font) + 2.0 * 56.0 * scale;
+        if has_trend {
+            base += 8.0 * scale + m(&trend_font);
+        }
+        kpi_growth(row.card_width, base, height, scale)
+    };
+    let grown = |f: FontId| FontId::new(f.size * k, f.family);
+    let (value_font, label_font, trend_font) =
+        (grown(value_font), grown(label_font), grown(trend_font));
 
     // Size cards to their content (value, label, optional trend) so the text
     // sits centered with even padding instead of floating in a tall box.
-    let row_gap = 8.0 * scale;
+    let row_gap = 8.0 * scale * k;
     let measure = |text: &str, font: &FontId| {
         painter
             .layout_no_wrap(text.to_string(), font.clone(), Color32::WHITE)
@@ -181,16 +220,17 @@ pub fn draw_kpi_cards(
     };
     let value_row = measure("0", &value_font);
     let mut content_height = value_row + row_gap + measure("Ag", &label_font);
-    if entries.iter().any(|e| e.trend.is_some()) {
+    if has_trend {
         content_height += row_gap + measure("Ag", &trend_font);
     }
-    let card_padding = 56.0 * scale;
+    let card_padding = 56.0 * scale * k;
     let style = CardStyle {
         value_font,
         label_font,
         trend_font,
         value_row,
         content_height,
+        row_gap,
         card_width: row.card_width,
         card_height: (content_height + card_padding * 2.0).min(height),
         text_max_w: row.card_width - 24.0 * scale,
@@ -256,7 +296,7 @@ fn draw_card(cx: &VizCtx, entry: &KpiEntry, style: &CardStyle, card_pos: Pos2, i
         theme.body_size * VIZ_FONT_MIN * scale,
     );
     let label_x = card_x + (card_width - label_galley.rect.width()) / 2.0;
-    let label_y = value_y + value_galley.rect.height() + 8.0 * scale;
+    let label_y = value_y + value_galley.rect.height() + style.row_gap;
     painter.galley(
         Pos2::new(label_x, label_y),
         label_galley.clone(),
@@ -265,7 +305,7 @@ fn draw_card(cx: &VizCtx, entry: &KpiEntry, style: &CardStyle, card_pos: Pos2, i
 
     // Trend indicator with arrow (centered, below label)
     if let Some(ref trend) = entry.trend {
-        let trend_y = label_y + label_galley.rect.height() + 8.0 * scale;
+        let trend_y = label_y + label_galley.rect.height() + style.row_gap;
         draw_trend(cx, trend, style, card_x, trend_y, item_opacity);
     }
 }
@@ -385,12 +425,22 @@ mod tests {
     #[test]
     fn test_card_row_centres_and_caps_width() {
         let row = CardRow::new(0.0, 1000.0, 2, 1.0);
-        assert_eq!(row.card_width, 320.0);
-        assert_eq!(row.start_x, (1000.0 - 664.0) / 2.0);
-        assert_eq!(row.card_x(1), row.start_x + 344.0);
+        assert_eq!(row.card_width, 460.0);
+        assert_eq!(row.start_x, (1000.0 - 944.0) / 2.0);
+        assert_eq!(row.card_x(1), row.start_x + 484.0);
         let row = CardRow::new(10.0, 500.0, 4, 1.0);
         assert_eq!(row.card_width, (500.0 - 72.0) / 4.0);
         assert_eq!(row.start_x, 10.0);
+    }
+
+    #[test]
+    fn cards_grow_their_type_with_the_room() {
+        // three cards on a 1700 px plate: wide cards, tall room
+        assert_eq!(kpi_growth(460.0, 250.0, 800.0, 1.0), KPI_GROW_MAX);
+        // narrow cards keep the base size
+        assert_eq!(kpi_growth(200.0, 250.0, 800.0, 1.0), 1.0);
+        // a short plate limits the growth
+        assert!((kpi_growth(460.0, 250.0, 300.0, 1.0) - 1.2).abs() < 1e-4);
     }
 
     #[test]
