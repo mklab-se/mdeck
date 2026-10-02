@@ -281,6 +281,21 @@ an AI harness can convert a deck.
   publish their copy box as the new SDK hint `Hint::Copy`.
 - The presenter view's current slide shows the engine's layer (particles, generated pictures, the
   blueprint sheet) as the slides window does, run by its own engine so the slides are not slowed.
+- `picture:` naming an image file (`<!-- picture: images/team.jpg -->`) shows on the slide's
+  stage on every engine, `plain` included: mdeck draws it itself, framed beside the copy or large
+  and dim behind a title, and keeps the path's case. `--check` accepts an existing image path
+  instead of calling it an invalid point cloud name, and reports a missing one.
+- `--check` reports a picture on a design without a stage once, not in both the `point-cloud`
+  and `engine` categories.
+- `--check` reports a slide's `transition` or `zoom-to` on a board engine, where it has no effect.
+- A bad `surface` in a theme's `engine:` block no longer stops the theme from building (the deck
+  fell back to dark) and hides the block's other problems: `--check` and `mdeck theme check`
+  report them all.
+- Two charts on one content slide share its height instead of the second running off the bottom
+  without a cue, at any export size.
+- `mdeck ai deck` checks the deck it writes and sends the problems back to the model once; what is
+  still left is printed. A malformed scene list in `mdeck ai pictures` is asked for again once
+  with the error instead of failing.
 
 ### Deferred to 2.x
 
@@ -294,18 +309,15 @@ The full list, with the requirements behind each item, is in
   compiled in CI; built-in visuals are not cargo features; no dynamic loading.
 - The SDK content model flattens quotes and callouts and has no list start number (the split-flap
   board numbers lists from 1); headings reach engines one glyph at a time.
-- `picture:` naming an image file is not drawn yet; a generated artwork also shows on designs
-  without a stage; diagram icons and point clouds have separate names.
+- A generated artwork also shows on designs without a stage; diagram icons and point clouds have
+  separate names.
 - `--check -v` does not yet say that a theme's engine settings are ignored when the deck or
-  `--engine` runs another engine, nor warn that a slide's `transition` has no effect on a board
-  engine; no `--check --json`; no editor completion from the language table.
+  `--engine` runs another engine; no `--check --json`; no editor completion from the language
+  table.
 - No video or animated export.
-- `mdeck ai deck` does not check the deck it writes and ask again; a malformed scene reply in
-  `mdeck ai pictures` fails without a second request.
 - The split-flap board shows an empty panel while its image loads; inline images in a copy column
   sit in a fixed box; italic display text is a synthetic slant (no italic faces are bundled).
-- Two internal modules keep v1 names (`render::ember`, `render::illustration`), and the tests
-  that read `docs/`, `samples/` or `examples/` run from the repository only.
+- The tests that read `docs/`, `samples/` or `examples/` run from the repository only.
 
 ## [1.19.0] - 2026-10-02
 
