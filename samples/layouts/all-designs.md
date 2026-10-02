@@ -109,6 +109,6 @@ Additional paragraph with **bold** and *italic* text.
 
 Content above the rule.
 
----
+***
 
 Content below the rule with more detail.
