@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::design::DesignCx;
+use crate::design::{DesignCx, DesignServices};
 use crate::geometry::Hint;
 use crate::paint::painter::FontFamilies;
 use crate::paint::{Color, FontRole, FromEgui, Painter, Pos2, Rect, ToEgui, Vec2};
@@ -101,8 +101,25 @@ pub fn design_cx<'a>(
         index,
         animate,
         published: Vec::new(),
+        services: None,
+        engine_live: false,
         ui,
     }
+}
+
+/// Lend a design set the host's images and visuals.
+pub fn with_services<'a>(
+    mut cx: DesignCx<'a>,
+    services: &'a mut dyn DesignServices,
+) -> DesignCx<'a> {
+    cx.services = Some(services);
+    cx
+}
+
+/// Tell a board's design set whether its engine painted the slide live.
+pub fn with_engine_live(mut cx: DesignCx<'_>, live: bool) -> DesignCx<'_> {
+    cx.engine_live = live;
+    cx
 }
 
 /// The geometry a design set published.

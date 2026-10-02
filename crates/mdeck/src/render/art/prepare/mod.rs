@@ -26,7 +26,7 @@ use eframe::egui;
 use image::{GenericImageView, RgbaImage, imageops};
 
 use super::ArtKind;
-use crate::engines::paint::smoothstep;
+use mdeck_sdk::paint::smoothstep;
 use order::{bloom_order, develop_order, draw_order, hatch_order};
 
 mod order;
@@ -38,13 +38,7 @@ pub const MAX_SIDE: u32 = 900;
 /// Moments are stored in this many steps.
 pub(super) const STEPS: f32 = 65535.0;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Strategy {
-    Draw,
-    Hatch,
-    Bloom,
-    Develop,
-}
+pub use mdeck_sdk::stage::Strategy;
 
 /// How a medium reveals its pictures.
 #[derive(Clone, Copy, Debug)]
@@ -59,32 +53,27 @@ pub struct Reveal {
     pub grain: f32,
 }
 
-/// A picture ready to be drawn in.
-pub struct Prepared {
-    pub width: usize,
-    pub height: usize,
-    /// Straight (not premultiplied) RGBA. Line art is white with the ink's
-    /// darkness as alpha, so the engine tints it with its own ink.
-    pub rgba: Vec<[u8; 4]>,
-    /// When each pixel appears, 0..=65535 over the reveal.
-    pub when: Vec<u16>,
-    /// Where the drawing hand is over the reveal, as `(t, u, v)` with `u, v`
-    /// in 0..1 of the picture; `t` rises. Empty for Develop.
-    pub path: Vec<(f32, f32, f32)>,
-    pub strategy: Strategy,
+/// A picture ready to be drawn in: the SDK's [`mdeck_sdk::stage::Artwork`],
+/// which the host hands to art engines as the slide's picture.
+pub use mdeck_sdk::stage::Artwork as Prepared;
+
+/// Revealing a prepared picture on the CPU.
+pub trait Reveals {
+    /// The picture at `t` as premultiplied pixels (see [`Reveal`]).
+    fn reveal(&self, t: f32, r: &Reveal) -> Vec<egui::Color32>;
+    /// The finished picture, premultiplied.
+    #[cfg(test)]
+    fn finished(&self) -> Vec<egui::Color32>;
+    /// Where the hand is at `t`, in 0..1 of the picture, while it draws.
+    fn tip(&self, t: f32) -> Option<(f32, f32)>;
 }
 
-impl Prepared {
-    /// Height over width.
-    pub fn aspect(&self) -> f32 {
-        self.height as f32 / self.width.max(1) as f32
-    }
-
+impl Reveals for Prepared {
     /// The picture at `t` (0: nothing yet, 1: finished) as premultiplied
     /// pixels. `soft` is how long a pixel takes to arrive (0..1 of the
     /// reveal), `ghost` the opacity of a faint first pass that runs ahead
     /// at `ghost_speed` (a draftsman's construction lines; 0 for none).
-    pub fn reveal(&self, t: f32, r: &Reveal) -> Vec<egui::Color32> {
+    fn reveal(&self, t: f32, r: &Reveal) -> Vec<egui::Color32> {
         let soft = r.soft.max(1e-3);
         let t_now = t * STEPS;
         let span = soft * STEPS;
@@ -128,7 +117,7 @@ impl Prepared {
 
     /// The finished picture, premultiplied.
     #[cfg(test)]
-    pub fn finished(&self) -> Vec<egui::Color32> {
+    fn finished(&self) -> Vec<egui::Color32> {
         self.reveal(
             1.0 + 1e-3,
             &Reveal {
@@ -141,7 +130,7 @@ impl Prepared {
     }
 
     /// Where the hand is at `t`, in 0..1 of the picture, while it draws.
-    pub fn tip(&self, t: f32) -> Option<(f32, f32)> {
+    fn tip(&self, t: f32) -> Option<(f32, f32)> {
         if self.path.is_empty() || t <= 0.0 || t >= 1.0 {
             return None;
         }

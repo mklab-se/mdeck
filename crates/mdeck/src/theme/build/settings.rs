@@ -3,33 +3,26 @@
 use std::path::Path;
 
 use super::super::file::{Sizes, ThemeFile};
-use super::super::{EngineKind, Surface, ThemeError};
+use super::super::{EngineId, Surface, ThemeError};
 use super::range;
 use crate::render::syntax;
 
-/// `engine:`, `countdown:` and `transition:`. An engine left out of this
-/// build falls back to plain with a warning.
+/// `engine:`, `countdown:` and `transition:`. An engine name the registry
+/// does not know (an extension this build leaves out, a misspelling) falls
+/// back to plain with a warning (EXT-07).
 pub(super) fn engine_and_countdown(
     f: &ThemeFile,
     warnings: &mut Vec<String>,
-) -> Result<(EngineKind, bool, Option<String>), ThemeError> {
-    let engine = match &f.engine {
-        None => EngineKind::Plain,
-        Some(e) => EngineKind::from_name(e).ok_or_else(|| {
-            ThemeError::invalid(
-                "engine",
-                format!("'{e}' is not an engine ({})", EngineKind::names()),
-            )
-        })?,
-    };
-    let engine = if engine.available() {
-        engine
-    } else {
-        warnings.push(format!(
-            "engine '{}' is not in this build of MDeck; using plain",
-            engine.name()
-        ));
-        EngineKind::Plain
+) -> Result<(EngineId, bool, Option<String>), ThemeError> {
+    let engine = match f.engine.as_deref().map(str::trim) {
+        None => EngineId::plain(),
+        Some(e) => EngineId::find(e).unwrap_or_else(|| {
+            warnings.push(format!(
+                "engine '{e}' is not an engine in this build of MDeck ({}); using plain",
+                crate::engines::names()
+            ));
+            EngineId::plain()
+        }),
     };
     let countdown = match f.countdown.as_deref().map(str::trim) {
         None | Some("off") => false,
@@ -199,7 +192,7 @@ mod tests {
         let (engine, countdown, transition) = engine_and_countdown(&file("{}"), &mut w).unwrap();
         assert_eq!(
             (engine, countdown, transition),
-            (EngineKind::Plain, false, None)
+            (EngineId::plain(), false, None)
         );
         assert!(w.is_empty());
     }

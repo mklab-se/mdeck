@@ -2610,6 +2610,7 @@ dependencies = [
  "futures",
  "image",
  "inquire",
+ "mdeck-sdk",
  "notify-debouncer-mini",
  "pdf-extract",
  "pdf-writer",

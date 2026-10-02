@@ -1,37 +1,14 @@
-mod app;
-mod assets;
-mod banner;
-mod check;
-mod cli;
-mod commands;
-mod config;
-mod deck;
-mod engines;
-mod incident_log;
-mod language;
-mod parser;
-mod prompt;
-mod render;
-mod theme;
+//! The `mdeck` binary: mdeck with its built-in engines, visuals and themes.
+//! A custom build calls [`mdeck::run`] with its own extensions registered
+//! next to the built-ins (D15).
 
-use clap::{CommandFactory, Parser};
-use colored::Colorize;
+use std::process::ExitCode;
 
-fn main() {
-    clap_complete::CompleteEnv::with_factory(cli::Cli::command).complete();
-
-    let cli = cli::Cli::parse();
-
-    // The renderer never reads configuration; what it needs is handed over here.
-    let config = config::Config::load_or_default();
-    render::diagram::set_routing_weights(config.routing.unwrap_or_default().to_cost_weights());
-
-    if cli.no_color {
-        colored::control::set_override(false);
+fn main() -> ExitCode {
+    let mut registry = mdeck_sdk::registry::Registry::new();
+    if let Err(e) = mdeck::builtins(&mut registry) {
+        eprintln!("Error: {e}");
+        return ExitCode::FAILURE;
     }
-
-    if let Err(e) = cli.run() {
-        eprintln!("{} {e:#}", "Error:".red().bold());
-        std::process::exit(1);
-    }
+    mdeck::run(registry)
 }

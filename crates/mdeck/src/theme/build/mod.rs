@@ -45,9 +45,12 @@ impl Theme {
         let [h1_size, h2_size, h3_size, body_size, code_size] = settings::sizes(&f.sizes)?;
 
         let p = palette.flattened();
-        let theme = Theme {
+        let mut theme = Theme {
             name: f.name.clone().unwrap_or_else(|| name.to_string()),
             engine,
+            copy_hold: 0.0,
+            engine_numbers_slides: false,
+            engine_keys: super::engine::engine_keys(f),
             countdown,
             surface,
             transition,
@@ -86,6 +89,7 @@ impl Theme {
             art,
             source: None,
         };
+        theme.set_engine(engine);
         Ok(Built { theme, warnings })
     }
 }
@@ -137,7 +141,6 @@ mod tests {
     fn invalid_values_are_errors() {
         let bad = |yaml: &str| Theme::build("x", &over_dark(yaml)).unwrap_err().to_string();
         assert!(bad("colors: { accent: 'orange' }").contains("colors.accent"));
-        assert!(bad("engine: fireworks").contains("engine"));
         assert!(bad("countdown: loud").contains("countdown"));
         assert!(bad("sizes: { h1: -3 }").contains("sizes.h1"));
         assert!(bad("charts: { fill-opacity: 2 }").contains("fill-opacity"));

@@ -12,9 +12,6 @@ pub mod logo;
 pub mod math;
 pub mod page;
 pub mod particles;
-// Pen strokes: the art engines draw with them.
-#[cfg(feature = "art")]
-pub mod strokes;
 pub mod syntax;
 pub mod text;
 pub mod thermal;
@@ -27,6 +24,13 @@ use crate::parser::{Layout, Slide};
 use crate::theme::Theme;
 
 pub use context::{BlockCx, SlideContext, TextCx};
+
+/// Whether `slide`'s design has a stage a picture stands on (ENG-14).
+/// Interim: the slides the editorial arrangement draws; phase 3 asks the
+/// slide's arrangement.
+pub fn design_has_stage(slide: &Slide, theme: &Theme) -> bool {
+    crate::theme::uses_editorial(theme) && ember::handles(slide)
+}
 
 /// Measure the content height of a slide (for scroll/overflow detection),
 /// laying blocks out at the same column width the slide's layout draws them.
@@ -46,7 +50,7 @@ pub fn measure_slide_content_height(
         return (0.0, available_height);
     }
 
-    if theme.engine.lays_out(slide) {
+    if crate::theme::uses_editorial(theme) && ember::handles(slide) {
         let h = ember::measure_content_height(ui, slide, theme, rect, scale);
         return (h, rect.height() * 0.80);
     }
@@ -71,10 +75,10 @@ pub fn measure_slide_content_height(
 pub fn render_slide(cx: &BlockCx, slide: &Slide, rect: egui::Rect, slide_cx: &SlideContext) {
     let theme = cx.theme;
     if let Some(board) = theme.engine.board() {
-        board(cx, slide, rect, slide_cx);
+        board::render(board, cx, slide, rect, slide_cx);
         return;
     }
-    if theme.engine.lays_out(slide) {
+    if crate::theme::uses_editorial(theme) && ember::handles(slide) {
         ember::render(cx, slide, rect, slide_cx);
         return;
     }

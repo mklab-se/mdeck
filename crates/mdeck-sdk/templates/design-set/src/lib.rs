@@ -153,6 +153,7 @@ mod tests {
             marker,
             inlines: text(s),
             children: vec![],
+            step: usize::from(marker == ListMarker::NextStep),
         };
         let slide = Slide {
             blocks: vec![
@@ -181,6 +182,7 @@ mod tests {
             blocks: vec![Block::Visual {
                 tag: "bar".into(),
                 content: String::new(),
+                step_base: 0,
             }],
             ..Default::default()
         };

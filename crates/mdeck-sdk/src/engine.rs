@@ -50,6 +50,21 @@ pub trait Engine {
         false
     }
 
+    /// Seconds the core holds back the copy of a title or section slide
+    /// after it arrives, while the engine forms the heading itself (the
+    /// thermal engine's cold opening; it reads the heading's geometry from
+    /// [`crate::geometry::Hint::Text`]). The default, 0, shows the copy at once.
+    fn copy_hold(&self) -> f32 {
+        0.0
+    }
+
+    /// Whether the engine prints the slide number itself (the line engine's
+    /// sheet has a title block), so the core leaves out its own counter.
+    /// The default is `false`.
+    fn numbers_slides(&self) -> bool {
+        false
+    }
+
     /// Whether the engine is still moving and needs another frame soon.
     /// The host stops repainting a settled slide when this is `false`.
     fn animating(&self) -> bool {

@@ -41,10 +41,10 @@ pub fn deck_theme(pres: &Presentation, base: &Path, engine: Option<&str>) -> Res
 
 /// The engines that draw art, for messages.
 fn art_engines() -> String {
-    crate::engines::EngineKind::ALL
-        .iter()
-        .filter(|k| k.medium().is_some())
-        .map(|k| k.name())
+    crate::registry::get()
+        .engines()
+        .filter(|d| d.capabilities.medium.is_some())
+        .map(|d| d.name)
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -99,14 +99,14 @@ pub async fn run(file: PathBuf, opts: Options) -> Result<()> {
         bail!("No slides found in {}", file.display());
     }
     let theme = deck_theme(&pres, &base, opts.engine.as_deref())?;
-    let Some(medium) = theme.engine.medium() else {
+    let Some(medium) = theme.engine.medium().map(crate::render::art::Medium::of) else {
         bail!(
             "the deck runs on the {} engine, which draws no art. Choose an engine that does ({}) with `engine:` in the frontmatter, a theme on one, or --engine",
             theme.engine.name(),
             art_engines()
         );
     };
-    let style = Style::for_medium(medium, &theme);
+    let style = Style::for_medium(&medium, &theme);
     let mut sc = manifest::load(&file)?.unwrap_or_else(Manifest::new);
     let resolved = resolve::resolve(&file, &pres, Some(&sc), &style.id());
     for r in resolved.iter().flatten() {
@@ -318,8 +318,9 @@ pub fn generate_one_blocking(deck: &Path, index: usize, theme: &Theme) -> Result
         let medium = theme
             .engine
             .medium()
+            .map(crate::render::art::Medium::of)
             .context("this theme's engine draws no art")?;
-        let style = Style::for_medium(medium, theme);
+        let style = Style::for_medium(&medium, theme);
         let sc = manifest::load(deck)?;
         let resolved = resolve::resolve(deck, &pres, sc.as_ref(), &style.id());
         if resolved[index]

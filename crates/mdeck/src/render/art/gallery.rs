@@ -79,7 +79,7 @@ impl DeckArt {
     /// Bring the resolution up to date with the deck and the theme's
     /// medium. Cheap when nothing changed.
     pub fn sync(&mut self, presentation: &Presentation, theme: &Theme) {
-        let Some(medium) = theme.engine.medium() else {
+        let Some(medium) = theme.engine.medium().map(super::Medium::of) else {
             if self.key.as_deref() != Some("") {
                 self.key = Some(String::new());
                 self.style = None;
@@ -88,7 +88,7 @@ impl DeckArt {
             }
             return;
         };
-        let style = Style::for_medium(medium, theme);
+        let style = Style::for_medium(&medium, theme);
         let key = format!("{}:{}", style.id(), presentation.slides.len());
         if self.key.as_deref() == Some(key.as_str()) {
             return;
@@ -105,7 +105,7 @@ impl DeckArt {
             Some(deck) => resolve::resolve(deck, presentation, sc.as_ref(), &style.id()),
             None => vec![None; presentation.slides.len()],
         };
-        self.strategy = strategy_for(medium, style.kind);
+        self.strategy = strategy_for(&medium, style.kind);
         self.style = Some(style);
         self.key = Some(key);
     }

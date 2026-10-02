@@ -1,280 +1,103 @@
-//! Engines: what a theme does beyond colours and type.
+//! Engines: what brings a slide to life around its content (ENG-01).
 //!
-//! The core decides *what* a slide wants to show (its illustration and where
-//! it goes, the countdown digit, the end words, the geometry the renderers
-//! drew) and hands that over as a [`Stage`]. An engine decides *how* it looks:
-//! a particle field, an LED wall, a departure board, falling blocks. Engines never parse
-//! markdown or resolve illustrations themselves.
+//! The core decides *what* a slide wants to show (its picture and where it
+//! goes, the countdown digit, the end words, the geometry the renderers
+//! drew) and the [`host`] hands that over through the SDK
+//! ([`mdeck_sdk::stage::Stage`], [`mdeck_sdk::stage::Frame`],
+//! [`mdeck_sdk::paint::Painter`]). An engine decides *how* it looks: a
+//! particle field, an LED wall, a departure board, falling blocks.
 //!
-//! Adding one: a module here behind a cargo feature, with a type implementing
-//! [`Engine`] and its [`EngineDef`] (`DEF`); a variant in [`EngineKind`] with
-//! its name, and its entry in [`EngineKind::def`]. The guide is
-//! `crates/mdeck/doc/engines.md`.
+//! The built-in engines are written exactly like an extension's (EXT-06,
+//! ENG-13): each module implements [`mdeck_sdk::engine::Engine`], defines
+//! its [`EngineDef`] as `DEF` and is registered by [`register`]. They use
+//! only `mdeck_sdk` and engine helpers under `engines/` (a test checks). The
+//! guide is `crates/mdeck/doc/engines.md` and the SDK's `docs/sdk/`.
 
-#[cfg(feature = "art")]
-pub mod art;
-#[cfg(feature = "blocks")]
-pub mod blocks;
-mod choice;
-#[cfg(feature = "darkroom")]
-pub mod darkroom;
-#[cfg(test)]
-mod example;
-mod host;
-#[cfg(feature = "led")]
-pub mod led;
-#[cfg(feature = "line")]
-pub mod line;
-mod masks;
-pub mod paint;
-#[cfg(feature = "particles")]
-pub mod particles;
+pub mod host;
 pub mod plain;
-#[cfg(feature = "sketch")]
-pub mod sketch;
-#[cfg(feature = "splitflap")]
-pub mod splitflap;
-pub mod stage;
-#[cfg(feature = "thermal")]
-pub mod thermal;
-#[cfg(feature = "watercolour")]
-pub mod watercolour;
 
-pub use choice::{choose, unsupported, unsupported_summary, with_engine};
-pub use host::{Host, Shot};
-pub use stage::{CountPhase, FrameCx, Mask, Stage};
+pub use host::{CountPhase, Host, Shot, choose, unsupported, unsupported_summary, with_engine};
+pub use mdeck_sdk::engine::{Capabilities, EngineDef, Medium};
 
-use crate::parser::Slide;
-use crate::render::art::Medium;
-use crate::render::illustration::Library;
+use mdeck_sdk::design::DesignSet;
+use mdeck_sdk::registry::{Registry, RegistryError};
 
-/// Which engine a theme (or a deck's `engine`) runs. Every engine has a
-/// variant in every build, so a theme can name one the build leaves out; it
-/// is then reported as not available.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EngineKind {
-    /// Slides on a flat background.
-    Plain,
-    /// A living particle field under every slide, editorial copy layouts
-    /// and point cloud illustrations.
-    Particles,
-    /// A wall of RGB LEDs that light up illustrations, digits and words.
-    Led,
-    /// A departure board: every slide's text on a grid of split flaps.
-    SplitFlap,
-    /// Illustrations, digits and words built from falling blocks.
-    Blocks,
-    /// Generated line art on a surface: inked onto a draughtsman's blue
-    /// sheet, or drawn in chalk on a slate (the theme's `surface:`).
-    Line,
-    /// A sketchbook: generated graphite drawings drawn in with a pencil.
-    Sketch,
-    /// Watercolour: generated paintings that bloom onto cold-press paper.
-    Watercolour,
-    /// A darkroom: generated photographs that develop under a safelight.
-    Darkroom,
-    /// A thermal instrument: a heat field under the slides, headings that
-    /// form in heat, heat signatures and a heat-trace pen.
-    Thermal,
+/// Register the built-in engines (each one but plain is a cargo feature).
+pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
+    r.engine(&plain::DEF)?;
+    Ok(())
 }
 
-/// What an engine can show. The core uses it for fallbacks (an illustration
-/// an engine cannot show is not drawn) and `--check` for warnings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Capabilities {
-    /// Paints a layer of its own every frame (plain paints nothing).
-    pub paints: bool,
-    /// Copy slides use the editorial layouts: a copy column on the left and
-    /// a stage on the right, display headings, the counter chrome.
-    pub editorial: bool,
-    /// The engine draws every slide itself, text included, and owns the
-    /// transitions between slides (the split-flap board). Its
-    /// [`EngineDef::render_slide`] draws the slide.
-    pub board: bool,
-    /// Shows point cloud pictures (`picture`).
-    pub illustrations: bool,
-    /// Draws the opening countdown itself (when `countdown: on`).
-    pub countdown: bool,
-    /// Plays an act of its own on the end slide.
-    pub end_act: bool,
-    /// Draws generated art (`mdeck ai pictures`) in its medium.
-    pub art: bool,
-    /// Prints the slide number itself on a numbered surface (the line
-    /// engine's sheet, see [`crate::theme::Theme::numbers_slides`]), so the
-    /// editorial counter is left out.
-    pub numbers_slides: bool,
-    /// Forms title and section headings itself (the thermal cold opening):
-    /// the editorial copy holds back for [`crate::render::ember::COLD_OPEN_HOLD`]
-    /// seconds while the engine draws the title in heat.
-    pub cold_open: bool,
-    /// Pen strokes arrive white-hot and cool away (the heat trace).
-    pub heat_trace: bool,
+/// A registered engine: what a theme (or a deck's `engine`) runs. Looked
+/// up by name in the registry, so extension engines are chosen exactly like
+/// built-in ones (EXT-07).
+#[derive(Clone, Copy)]
+pub struct EngineId(&'static EngineDef);
+
+impl PartialEq for EngineId {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0, other.0)
+    }
 }
 
-impl Capabilities {
-    /// Nothing: slides on their own (plain).
-    pub const NONE: Capabilities = Capabilities {
-        paints: false,
-        editorial: false,
-        board: false,
-        illustrations: false,
-        countdown: false,
-        end_act: false,
-        art: false,
-        numbers_slides: false,
-        cold_open: false,
-        heat_trace: false,
-    };
+impl Eq for EngineId {}
 
-    /// What most engines show: a layer under editorial slides, the slide's
-    /// illustration, the countdown and an end act.
-    #[cfg_attr(
-        not(all_engines),
-        allow(dead_code, reason = "the engines that show pictures")
-    )]
-    pub const PICTURES: Capabilities = Capabilities {
-        paints: true,
-        editorial: true,
-        illustrations: true,
-        countdown: true,
-        end_act: true,
-        ..Capabilities::NONE
-    };
+impl std::fmt::Debug for EngineId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "EngineId({})", self.0.name)
+    }
 }
 
-/// A board engine's static renderer: the slide the way the board shows it
-/// when no engine runs live (thumbnails, the overview), with the arguments
-/// of the core's `render_slide`.
-pub type RenderSlide =
-    fn(&crate::render::BlockCx, &Slide, eframe::egui::Rect, &crate::render::SlideContext);
-
-/// One engine as the core sees it: everything but its name. Each engine
-/// module has one as `DEF`, and [`EngineKind::def`] lists them.
-pub struct EngineDef {
-    pub capabilities: Capabilities,
-    /// A new, empty runtime.
-    pub create: fn() -> Box<dyn Engine>,
-    /// Seconds into the end slide when the "powered by" caption fades in.
-    pub end_caption_delay: f32,
-    /// The medium an art engine draws in.
-    pub medium: Option<&'static Medium>,
-    /// A board engine's static renderer (see [`Capabilities::board`]).
-    pub render_slide: Option<RenderSlide>,
-    /// What the engine does not show on a slide, one message per thing, for
-    /// `--check` (beyond what its capabilities say).
-    pub problems: Option<fn(&Slide) -> Vec<String>>,
-}
-
-impl EngineKind {
-    /// Every engine, in the order `mdeck theme list` and the docs show them.
-    pub const ALL: &'static [EngineKind] = &[
-        EngineKind::Plain,
-        EngineKind::Particles,
-        EngineKind::Led,
-        EngineKind::SplitFlap,
-        EngineKind::Blocks,
-        EngineKind::Line,
-        EngineKind::Sketch,
-        EngineKind::Watercolour,
-        EngineKind::Darkroom,
-        EngineKind::Thermal,
-    ];
-
-    pub fn from_name(name: &str) -> Option<Self> {
-        Self::ALL.iter().copied().find(|k| k.name() == name)
+impl EngineId {
+    /// The plain engine: slides on their own. What every unknown name
+    /// falls back to.
+    pub fn plain() -> Self {
+        EngineId(&plain::DEF)
     }
 
-    /// The engine's name, known in every build.
+    /// The engine registered as `name`.
+    pub fn find(name: &str) -> Option<Self> {
+        crate::registry::get().engine_def(name).map(EngineId)
+    }
+
+    /// The engine's name.
     pub fn name(self) -> &'static str {
-        match self {
-            EngineKind::Plain => "plain",
-            EngineKind::Particles => "particles",
-            EngineKind::Led => "led",
-            EngineKind::SplitFlap => "splitflap",
-            EngineKind::Blocks => "blocks",
-            EngineKind::Line => "line",
-            EngineKind::Sketch => "sketch",
-            EngineKind::Watercolour => "watercolour",
-            EngineKind::Darkroom => "darkroom",
-            EngineKind::Thermal => "thermal",
-        }
+        self.0.name
     }
 
-    /// The engine's definition, `None` when this build leaves it out (each
-    /// engine but plain is a cargo feature).
-    pub fn def(self) -> Option<&'static EngineDef> {
-        match self {
-            EngineKind::Plain => Some(&plain::DEF),
-            #[cfg(feature = "particles")]
-            EngineKind::Particles => Some(&particles::DEF),
-            #[cfg(feature = "led")]
-            EngineKind::Led => Some(&led::DEF),
-            #[cfg(feature = "splitflap")]
-            EngineKind::SplitFlap => Some(&splitflap::DEF),
-            #[cfg(feature = "blocks")]
-            EngineKind::Blocks => Some(&blocks::DEF),
-            #[cfg(feature = "line")]
-            EngineKind::Line => Some(&line::DEF),
-            #[cfg(feature = "sketch")]
-            EngineKind::Sketch => Some(&sketch::DEF),
-            #[cfg(feature = "watercolour")]
-            EngineKind::Watercolour => Some(&watercolour::DEF),
-            #[cfg(feature = "darkroom")]
-            EngineKind::Darkroom => Some(&darkroom::DEF),
-            #[cfg(feature = "thermal")]
-            EngineKind::Thermal => Some(&thermal::DEF),
-            #[allow(unreachable_patterns)]
-            _ => None,
-        }
+    /// The engine's definition.
+    pub fn def(self) -> &'static EngineDef {
+        self.0
     }
 
-    /// Every engine name, for error messages: "plain, particles, ...".
-    pub fn names() -> String {
-        Self::ALL
-            .iter()
-            .map(|k| k.name())
-            .collect::<Vec<_>>()
-            .join(", ")
-    }
-
-    /// Whether this build includes the engine (each one is a cargo feature).
-    pub fn available(self) -> bool {
-        self.def().is_some()
-    }
-
-    /// What the engine shows; an engine this build leaves out shows nothing.
+    /// What the core must do differently for it.
     pub fn capabilities(self) -> Capabilities {
-        self.def().map_or(Capabilities::NONE, |d| d.capabilities)
+        self.0.capabilities
     }
 
-    /// A new, empty runtime for this engine (plain's when it is left out).
-    pub fn create(self) -> Box<dyn Engine> {
-        (self.def().unwrap_or(&plain::DEF).create)()
-    }
-
-    /// The medium an art engine draws in (`None`: the engine draws no art).
-    pub fn medium(self) -> Option<&'static Medium> {
-        self.def().and_then(|d| d.medium)
-    }
-
-    /// A board engine's renderer for whole slides (`None`: not a board).
-    pub fn board(self) -> Option<RenderSlide> {
-        self.def().and_then(|d| d.render_slide)
-    }
-
-    /// Paints a layer of its own under the slide.
+    /// Paints a layer of its own under the slide (every engine but the
+    /// core's own fallback, plain).
     pub fn paints(self) -> bool {
-        self.capabilities().paints
+        self != Self::plain()
     }
 
-    /// Lays `slide` out with the editorial layouts instead of the generic ones.
-    pub fn lays_out(self, slide: &Slide) -> bool {
-        self.capabilities().editorial && crate::render::ember::handles(slide)
+    /// The medium an art engine draws generated pictures in.
+    pub fn medium(self) -> Option<Medium> {
+        self.0.capabilities.medium
     }
 
-    /// Draws every slide itself (a board), text and transitions included.
+    /// A board engine's design set, which draws every slide (ENG-03).
+    pub fn board(self) -> Option<&'static dyn DesignSet> {
+        if self.0.capabilities.board {
+            self.0.board
+        } else {
+            None
+        }
+    }
+
+    /// Draws every slide itself (a board), text included.
     pub fn is_board(self) -> bool {
-        self.capabilities().board
+        self.board().is_some()
     }
 
     /// Frames an export waits on a slide before capturing it, so the engine
@@ -285,8 +108,17 @@ impl EngineKind {
 
     /// Seconds into the end slide when the "powered by" caption fades in.
     pub fn end_caption_delay(self) -> f32 {
-        self.def().map_or(0.0, |d| d.end_caption_delay)
+        self.0.ending_caption_delay
     }
+}
+
+/// Every engine name in this build, for messages: "blocks, darkroom, ...".
+pub fn names() -> String {
+    crate::registry::get()
+        .engines()
+        .map(|d| d.name)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// A stable pseudo-random number in 0..1 for an index: engines seed their
@@ -302,59 +134,28 @@ pub fn hash01(i: u32) -> f32 {
     (x & 0x00FF_FFFF) as f32 / 16_777_215.0
 }
 
-/// An engine's runtime: the state behind one presentation window or export.
-///
-/// Each frame the host calls [`Engine::update`] (advance the clock by
-/// `cx.dt`, or settle at once when `cx.still`), then [`Engine::paint`].
-/// Painting happens under the slide; everything an engine draws must look
-/// finished when `cx.still` is set, because that is what export captures.
-pub trait Engine {
-    /// Read what needs the UI (the font atlas) before [`Engine::update`];
-    /// runs every step, rehearsals included. Most engines need nothing.
-    fn prepare(&mut self, _ui: &eframe::egui::Ui, _cx: &FrameCx, _stage: &Stage) {}
-
-    /// Bring the state up to date with `stage` and advance its clock.
-    fn update(&mut self, cx: &FrameCx, stage: &Stage, lib: &mut Library);
-
-    /// Paint the engine's layer into `cx.rect`.
-    fn paint(&mut self, ui: &eframe::egui::Ui, cx: &FrameCx, stage: &Stage);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// The engine boundary: an engine uses the stage, the theme, the parsed
-    /// slide and the render helpers engines share, never the app, the
-    /// commands, the config or the CLI. Every file under `src/engines/` is
-    /// checked, so a new engine is covered without being listed.
+    /// The engine boundary (ENG-13, EXT-06): an engine is written the way
+    /// an extension is. Every file under `src/engines/` except the host
+    /// (the core's side) may use `mdeck_sdk` and engine helpers under
+    /// `crate::engines`, nothing else of mdeck, and no egui. A new engine
+    /// is covered without being listed.
     #[test]
     fn engines_stay_inside_their_boundary() {
-        const ALLOWED: &[&str] = &[
-            "crate::engines",
-            "crate::parser",
-            "crate::theme",
-            "crate::render::hints",
-            "crate::render::illustration",
-            "crate::render::image_cache",
-            "crate::render::art",
-            "crate::render::strokes",
-            "crate::render::particles",
-            "crate::render::fonts",
-            "crate::render::ember",
-            // thermal images and palettes: the board shows a `@thermal`
-            // block in its panel, the thermal engine glows in a palette
-            "crate::render::thermal",
-            "crate::render::SlideContext",
-            "crate::render::BlockCx",
-            "crate::render::test_support",
-        ];
         fn files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
             for entry in std::fs::read_dir(dir).expect("engines dir").flatten() {
                 let path = entry.path();
                 if path.is_dir() {
+                    if path.file_name().is_some_and(|n| n == "host") {
+                        continue;
+                    }
                     files(&path, out);
-                } else if path.extension().is_some_and(|e| e == "rs") {
+                } else if path.extension().is_some_and(|e| e == "rs")
+                    && path.file_name().is_some_and(|n| n != "mod.rs" || path.parent() != Some(dir))
+                {
                     out.push(path);
                 }
             }
@@ -362,19 +163,25 @@ mod tests {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/engines");
         let mut all = Vec::new();
         files(&dir, &mut all);
-        assert!(all.len() >= 10, "found {} engine files", all.len());
+        assert!(!all.is_empty(), "no engine files found");
         let mut bad = Vec::new();
         for path in all {
             let src = std::fs::read_to_string(&path).expect("read");
             for (n, line) in src.lines().enumerate() {
-                let mut rest = line;
+                let code = line.split("//").next().unwrap_or("");
+                let mut rest = code;
                 while let Some(at) = rest.find("crate::") {
                     let tail = &rest[at..];
                     let quoted = rest[..at].ends_with('"');
-                    if !quoted && !ALLOWED.iter().any(|a| tail.starts_with(a)) {
+                    let ok = tail.starts_with("crate::engines::")
+                        && !tail.starts_with("crate::engines::host");
+                    if !quoted && !ok {
                         bad.push(format!("{}:{}: {}", path.display(), n + 1, line.trim()));
                     }
                     rest = &tail[7..];
+                }
+                if code.contains("egui") || code.contains("super::super::host") {
+                    bad.push(format!("{}:{}: {}", path.display(), n + 1, line.trim()));
                 }
             }
         }
@@ -386,55 +193,25 @@ mod tests {
     }
 
     #[test]
-    fn names_round_trip() {
-        for &k in EngineKind::ALL {
-            assert_eq!(EngineKind::from_name(k.name()), Some(k));
+    fn names_resolve_through_the_registry() {
+        for def in crate::registry::get().engines() {
+            assert_eq!(EngineId::find(def.name).map(EngineId::name), Some(def.name));
         }
-        assert_eq!(EngineKind::from_name("fireworks"), None);
-        assert_eq!(
-            EngineKind::names(),
-            "plain, particles, led, splitflap, blocks, line, sketch, watercolour, darkroom, thermal"
-        );
+        assert_eq!(EngineId::find("fireworks"), None);
+        assert!(names().contains("plain"));
     }
 
-    /// The hooks agree with the capabilities: a board brings its renderer,
-    /// an art engine its medium, and an engine the build leaves out shows
-    /// nothing and runs as plain.
+    /// The hooks agree with the capabilities: a board brings its design
+    /// set, and only plain paints nothing.
     #[test]
     fn the_registry_agrees_with_the_capabilities() {
-        assert!(EngineKind::Plain.available());
-        for &k in EngineKind::ALL {
-            let caps = k.capabilities();
-            assert_eq!(caps.board, k.board().is_some(), "{}", k.name());
-            assert_eq!(caps.art, k.medium().is_some(), "{}", k.name());
-            if !k.available() {
-                assert_eq!(caps, Capabilities::NONE, "{}", k.name());
-                assert_eq!(k.end_caption_delay(), 0.0);
-            }
+        for def in crate::registry::get().engines() {
+            let id = EngineId::find(def.name).unwrap();
+            assert_eq!(def.capabilities.board, id.board().is_some(), "{}", def.name);
+            assert_eq!(id.paints(), def.name != "plain", "{}", def.name);
         }
-    }
-
-    #[cfg(feature = "line")]
-    #[test]
-    fn the_line_sheet_numbers_its_own_slides_and_the_slate_does_not() {
-        let mut theme = crate::theme::lookup::load_builtin("blueprint").expect("blueprint");
-        assert_eq!(theme.engine, EngineKind::Line);
-        assert!(theme.numbers_slides());
-        theme.surface = crate::theme::Surface::Slate;
-        assert!(!theme.numbers_slides());
-        theme.engine = EngineKind::Plain;
-        theme.surface = crate::theme::Surface::Sheet;
-        assert!(!theme.numbers_slides());
-    }
-
-    #[cfg(feature = "particles")]
-    #[test]
-    fn plain_paints_nothing_and_particles_does_everything() {
-        let plain = EngineKind::Plain.capabilities();
-        assert!(!plain.paints && !plain.editorial && !plain.illustrations);
-        assert_eq!(EngineKind::Plain.settle_frames(), 0);
-        let particles = EngineKind::Particles.capabilities();
-        assert!(particles.paints && particles.countdown);
-        assert_eq!(EngineKind::Particles.settle_frames(), 2);
+        let plain = EngineId::plain();
+        assert_eq!(plain.capabilities(), Capabilities::NONE);
+        assert_eq!(plain.settle_frames(), 0);
     }
 }
