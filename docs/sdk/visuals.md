@@ -122,9 +122,57 @@ assert_golden(path, &out.image, GOLDEN_TOLERANCE);
 Test `check` with a table of broken inputs and the lines you expect: it is the part deck authors
 meet most.
 
-## External visual programs
+## Visuals in any language
 
-If your team does not write Rust, a visual can also be an executable registered in mdeck's config:
-mdeck passes it the fence source, the theme's tokens and the size, and caches the SVG or PNG it
-returns. Such visuals are static (no reveal beyond whole-image steps, no engine reactions); use the
-`Visual` trait when you need more.
+If your team does not write Rust, a visual can be any program that writes a PNG. Map a fence tag
+to a command in the user config (`~/.config/mdeck/config.yaml`; `mdeck config show` prints it):
+
+```yaml
+visuals:
+  plantuml: ~/bin/plantuml-png      # draws ```@plantuml blocks
+```
+
+For each ```` ```@plantuml ```` block, mdeck runs the command through the shell (`sh -c`, or
+`cmd /C` on Windows) and writes one JSON object to its stdin:
+
+```json
+{
+  "tag": "@plantuml",
+  "source": "Alice -> Bob: hello\n",
+  "tokens": { "background": "#101014", "text": "#e8e8ec", "accent": "#ff4d1c" },
+  "width": 1600,
+  "height": 700,
+  "scale": 2.0
+}
+```
+
+- `source` is the fence's content, exactly as written.
+- `tokens` are the theme's colours by token name, as `#rrggbb`, so the picture matches the deck.
+- `width` and `height` are the visual's box on a 1920x1080 slide; draw the image about
+  `width * scale` by `height * scale` pixels. mdeck fits it into the box with its aspect kept.
+
+The program writes a **PNG** to stdout and exits with status 0. Anything else is an error, shown
+with the last lines of the program's stderr. SVG is not accepted: mdeck's SVG rasteriser is built
+without text support, and the diagrams such programs draw are mostly text. A program that runs
+longer than 30 seconds is stopped.
+
+The PNG is cached next to the deck as `<deck>.assets/visuals/<tag>-<hash>.png`, keyed by the
+command and everything in the request. A program runs once per block when the deck opens and its
+image is missing, never while you present; change the block or the theme and it runs again for
+that block. Commit the `visuals/` folder with the deck and it presents on machines without the
+program. A minimal program in Python:
+
+```python
+#!/usr/bin/env python3
+import json, sys
+from PIL import Image, ImageDraw   # pip install pillow
+
+req = json.load(sys.stdin)
+w, h = int(req["width"] * req["scale"]), int(req["height"] * req["scale"])
+img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+ImageDraw.Draw(img).text((20, 20), req["source"], fill=req["tokens"].get("text", "#ffffff"))
+img.save(sys.stdout.buffer, "PNG")
+```
+
+Such visuals are static: no reveal steps, no engine reactions, no `check` of the fence. Use the
+`Visual` trait when you need more. `mdeck extensions list` shows the configured programs.

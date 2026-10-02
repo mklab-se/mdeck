@@ -237,6 +237,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
+      # The SDK first: mdeck depends on the exact same version of it.
+      - name: Publish mdeck-sdk
+        run: cargo publish -p mdeck-sdk
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
       - name: Publish mdeck
         run: cargo publish -p mdeck
         env:

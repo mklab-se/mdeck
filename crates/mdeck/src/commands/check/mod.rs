@@ -12,6 +12,7 @@ mod background;
 mod content;
 mod engine;
 mod illustration;
+mod requires;
 mod settings;
 mod theme;
 mod thermal;
@@ -108,6 +109,7 @@ fn collect(
     add(background_warnings(presentation, base_path, content));
     add(thermal_warnings(presentation, base_path));
     add(visuals::visual_warnings(presentation));
+    add(requires::requires_warnings(presentation, base_path));
     let (theme, problems) = deck_theme(presentation, defaults.theme.as_deref(), base_path, engine)?;
     add(problems
         .into_iter()

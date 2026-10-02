@@ -1,6 +1,7 @@
 //! The command line: arguments, subcommands and dispatch.
 
 mod ai;
+mod extend;
 
 use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
@@ -175,6 +176,9 @@ pub enum Commands {
 
     /// Show version information
     Version,
+
+    #[command(flatten)]
+    Extend(extend::ExtendCommands),
 }
 
 #[derive(Subcommand)]
@@ -332,6 +336,7 @@ impl Cli {
                 crate::banner::print_banner_with_version();
                 Ok(())
             }
+            Some(Commands::Extend(command)) => command.run(self.quiet),
             None => self.run_file(),
         }
     }
