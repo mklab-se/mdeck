@@ -35,6 +35,11 @@ pub enum Hint {
     Point(Pos2),
     /// A box the engine must stay out of: the content area, a node, a card.
     Frame(Rect),
+    /// The slide's copy (headings, text, lists) as laid out by the active
+    /// design. An engine that fills the slide keeps its brightest motion
+    /// clear of it so the words stay readable; one that draws only behind
+    /// visuals can ignore it.
+    Copy(Rect),
     /// A heading as laid out, at the place it settles: an engine that forms
     /// titles itself draws it (for example with
     /// [`crate::paint::Painter::glyph_points`]).
@@ -85,6 +90,10 @@ pub fn fingerprint(hints: &[Hint]) -> u64 {
             Hint::Point(p) => {
                 4u8.hash(&mut h);
                 (q(p.x), q(p.y)).hash(&mut h);
+            }
+            Hint::Copy(r) => {
+                6u8.hash(&mut h);
+                (q(r.left()), q(r.top()), q(r.right()), q(r.bottom())).hash(&mut h);
             }
             Hint::Text {
                 text,

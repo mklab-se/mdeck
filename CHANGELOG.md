@@ -244,6 +244,9 @@ an AI harness can convert a deck.
   as a finished drawing instead of one wandering pen line: the cloud's own lines traced clean and
   smooth, section hatching on the shadow side in line, hatching and cross-hatching in sketch, and
   washes laid over the shape in watercolour.
+- On the particles engine the clusters keep clear of the copy whatever the design set: with
+  `designs: standard` (a centred title, wide bullets) they no longer land on the words. Designs
+  publish their copy box as the new SDK hint `Hint::Copy`.
 
 ### Deferred to 2.x
 
