@@ -1,0 +1,25 @@
+[package]
+name = "mdeck-sdk"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "The SDK for mdeck extensions: engines, visuals, design sets and transitions"
+keywords = ["mdeck", "presentation", "slides", "sdk"]
+categories = ["graphics", "rendering"]
+
+[dependencies]
+egui.workspace = true
+egui_glow.workspace = true
+glow.workspace = true
+
+[features]
+default = []
+# Raw egui access for what `paint` does not offer yet. Outside the
+# compatibility promise: any egui release may break code that uses it.
+unstable-egui = []
+
+[package.metadata.docs.rs]
+all-features = true
