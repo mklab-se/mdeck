@@ -139,9 +139,9 @@ the binary where `--out` says.
 | # | Phase | Status |
 |---|---|---|
 | 1 | Language and content model: D1-D7, story removal from the format, samples converted to v2 syntax | done |
-| 2 | Workspace, SDK, registries, paint; engines v2 (D10-D13), laser removed, line merged, D24/D26 fixed | todo |
+| 2 | Workspace, SDK, registries, paint; engines v2 (D10-D13), laser removed, line merged, D24/D26 fixed | in progress: `mdeck-sdk` crate exists (not wired), laser removed, line merged, D24/D26 fixed, visual grammar done |
 | 3 | Designs and themes v2 (D8, D9), default theme, layout defects | todo |
-| 4 | Presenter view, per-slide transitions, slide jump, `--theme`, `export --at`; generated assets and `mdeck ai` (D14) | todo |
+| 4 | Presenter view, per-slide transitions, slide jump, `--theme`, `export --at`; generated assets and `mdeck ai` (D14) | done |
 | 5 | Extensibility tooling: `mdeck build`, packs, external visual programs, `mdeck sdk new/preview`, SDK docs and tutorials | todo |
 | 6 | Documentation, README, gallery, format reference, CHANGELOG, release workflow (publish `mdeck-sdk`), v2.0.0 | todo |
 
@@ -171,14 +171,42 @@ What later phases build on:
 - **`--check`:** new categories `settings`, `visual` and `content`; `--check -v` prints the
   settings that apply per slide.
 
+## Integration notes (phases 2 and 4, parallel branches)
+
+Five branches were merged onto phase 1 (October 2026):
+
+- **Engines:** laser and its `etch` theme are removed; blueprint and chalkboard are one `line`
+  engine with the interim top-level theme key `surface: sheet|slate` (`theme::Surface`), which
+  moves into the theme's `engine:` block with D9. `Theme::numbers_slides()` replaces the engine
+  capability. D24 (hints leaking to the next slide) and D26 (thermal end still) are fixed.
+- **SDK:** `crates/mdeck-sdk` holds the public interfaces (D10: `paint::Painter` and its own
+  geometry types, tokens, content, stage, `Engine`, `Visual`, `DesignSet`, `Transition`,
+  `Registry`, `testing`). It is a workspace member with its own tests but **not yet used by
+  mdeck**: no registry is filled, no built-in goes through it, `mdeck::run` does not exist (D11).
+- **Presenter and run:** presenter view (`V`, `--presenter`, `app/presenter/`, `app/cockpit.rs`;
+  markdown notes via `presenter::notes_blocks`, also used by PDF notes), slide jump, `--theme`
+  for presenting, transition precedence deck > theme `transition:` > config > `fade`, per-slide
+  `transition` (`app::look::slide_transition`; `zoom` with `zoom-to`), `countdown: on|off` in
+  themes and decks, `Deck::draw_chrome` in window and export, `export --at/--moment` and the
+  hidden `export --presenter-view`.
+- **Generated assets (D14):** `crate::assets` (`<stem>.assets/manifest.yaml`, placeholders
+  `![prompt](generate:)` and `(icon: generate:, prompt: "...")`), everything AI under `mdeck ai`,
+  check category `assets`. Artworks key on `art-world` and the slide source.
+- **Visual grammar (VIZ-03, VIZ-04, VIZ-08):** `render/visualizations/grammar.rs` reads every
+  visual; `*` is static there too, and `count_viz_steps` counts `+` items through the grammar so
+  the parser's slide numbering and the visual agree. Tags are exact v2 tags only.
+
 ## Deferrals
 
 Any requirement deferred to 2.x is listed here and in the release notes.
 
-- **Phase 2 or later, by plan:** in-fence grammar unification and per-visual validation
-  (VIZ-03, VIZ-04); image options in the settings grammar and their validation (LANG-12,
-  VIZ-11); `picture:` resolving to artworks and image paths (PIC-02, D13).
-- **Phase 4:** notes in the presenter view (MD-15; PDF notes already render markdown).
+- **Phase 2:** wiring `mdeck-sdk` into mdeck: registries instead of `EngineKind`/`Chart`/
+  `Layout` (D11), built-in engines on `paint` only, `mdeck::run(registry)`; engine settings in
+  the theme's `engine:` block (`surface:` and `particles`/`heat`/`art` move there); image options
+  in the settings grammar and their validation (LANG-12, VIZ-11); `picture:` resolving to
+  artworks and image paths as one source (PIC-02, D13).
+- **Phase 3:** designs and themes v2 (D8, D9) as planned; `design:` still maps onto the v1
+  `Layout` enum.
 - **Phase 6:** `docs/*.md`, the README and the AI supplement were converted mechanically to the
   v2 syntax but not rewritten; the gallery and tutorial screenshots were not regenerated; the
   format reference still describes v1 layouts and engines outside the sections phase 1 changed.

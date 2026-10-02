@@ -4,8 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-The v2 authoring language. v2 breaks with v1 syntax on purpose; `mdeck --check` names the v2
-form of every v1 construct it finds.
+v2, in progress: the authoring language, the presenter view, generated assets under `mdeck ai`,
+one grammar for visuals and the `line` engine. v2 breaks with v1 syntax on purpose; `mdeck
+--check` names the v2 form of every v1 construct it finds.
 
 ### Added
 
@@ -31,7 +32,10 @@ form of every v1 construct it finds.
 - Themes can set a `transition:` (`slide`, `fade`, `spatial`, `none`).
 - `mdeck export --at <seconds>` and `--moment countdown|end` (or `3`, `2`, `1`, `burst`) export
   stills of an engine's motion.
-- **`mdeck --check` reports visual problems** in a new `visual` category, each on its line in the file: lines that are neither a setting nor an item, settings after the first item, unknown settings and attributes, and values that do not parse (a bar without a number, a Gantt duration such as `2 weeks`, a link to a name that is not in the diagram).
+- **`mdeck --check` reports problems inside visual fences** in the `visual` category, each on its
+  line in the file: lines that are neither a setting nor an item, settings after the first item,
+  unknown settings and attributes, and values that do not parse (a bar without a number, a Gantt
+  duration such as `2 weeks`, a link to a name that is not in the diagram).
 
 ### Changed
 
@@ -93,9 +97,19 @@ form of every v1 construct it finds.
   (or the theme's `art:`). Every asset records its style, so a style change makes it stale.
 - `--check` category `art` is now `assets`: missing and stale artworks, images and icons, missing
   point cloud files, and a manifest that cannot be read.
-- **One grammar inside every visual.** Charts, diagrams and `@thermal` blocks all read `key: value` settings before the first item, list items with `(key: value)` attributes (a visual's verbs such as `petal`, `lens` or `commit` are the item's first word), `A -> B: label` relations, and `#` comments, also at the end of a line. Settings are no longer written as `# key: value`: `# x-label: Year` is now a comment, so write `x-label: Year`. Lines without a list marker are no longer drawn as items.
-- **`@orgchart`, `@kpi` and `@venn` accept what the format reference says.** Org charts are `- Manager -> Report` links, KPI trends are `(trend: +12%)`, and Venn diagrams are `- Name (size: N)` sets with `- A & B: label` overlaps. The flower's `centre` spelling is gone (`center`).
-- **The format reference matches the code.** The `@architecture` `sequence` qualifier, the `label` and `style` node keys and tree auto-layout, which never existed, are gone from it; the `scale:` setting is documented; the timeline no longer claims a vertical orientation. Every visual example in it is parsed by a test.
+- **One grammar inside every visual.** Charts, diagrams and `@thermal` blocks all read `key: value`
+  settings before the first item, list items with `(key: value)` attributes (a visual's verbs such
+  as `petal`, `lens` or `commit` are the item's first word), `A -> B: label` relations, and `#`
+  comments, also at the end of a line. Settings are no longer written as `# key: value`:
+  `# x-label: Year` is now a comment, so write `x-label: Year`. Lines without a list marker are no
+  longer drawn as items.
+- **`@orgchart`, `@kpi` and `@venn` accept what the format reference says.** Org charts are
+  `- Manager -> Report` links, KPI trends are `(trend: +12%)`, and Venn diagrams are
+  `- Name (size: N)` sets with `- A & B: label` overlaps. The flower's `centre` spelling is gone (`center`).
+- **The format reference matches the code.** The `@architecture` `sequence` qualifier, the `label`
+  and `style` node keys and tree auto-layout, which never existed, are gone from it; the `scale:`
+  setting is documented; the timeline no longer claims a vertical orientation. Every visual example
+  in it is parsed by a test.
 
 ### Removed
 
@@ -119,7 +133,6 @@ form of every v1 construct it finds.
 - `countdown: on` turns a countdown on, also on a theme without one (`--engine particles` on
   the default theme), instead of being ignored (D17).
 - A blank `transition` no longer skips the config default (D19).
-
 
 ## [1.19.0] - 2026-10-02
 

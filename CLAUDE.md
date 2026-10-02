@@ -10,7 +10,7 @@ A markdown-based presentation tool.
 
 ## Layout
 
-Rust workspace with one crate, `crates/mdeck` (package and binary `mdeck`). `crates/mdeck/doc/mdeck-spec.md` is the format spec, embedded in the binary via `include_str!` and printed by `mdeck spec`. Visualization design rules and the docs that must stay in sync with visualizations live in `crates/mdeck/src/render/CLAUDE.md`.
+Rust workspace with two crates: `crates/mdeck` (package and binary `mdeck`) and `crates/mdeck-sdk`, the public extension interfaces (`paint::Painter` and its own geometry types, tokens, content, stage, the `Engine`/`Visual`/`DesignSet`/`Transition` traits, the `Registry`, `testing`; no egui type in its surface, raw egui only behind `unstable-egui`). The SDK is not wired into mdeck yet (v2 phase 2, see `docs/spec/implementation-plan.md`). `crates/mdeck/doc/mdeck-spec.md` is the format spec, embedded in the binary via `include_str!` and printed by `mdeck spec`. Visualization design rules and the docs that must stay in sync with visualizations live in `crates/mdeck/src/render/CLAUDE.md`.
 
 ## Key Patterns
 
@@ -108,7 +108,7 @@ mdeck + pidge + rigg + rusty-tmpl).
   - `CHANGELOG.md`: new entries for every user-visible change
   - `CLAUDE.md`: architecture, commands, patterns
   - `crates/mdeck/doc/mdeck-spec.md`: format specification (embedded in binary via `mdeck spec`)
-- **The format spec (`mdeck-spec.md`) must be updated whenever features are added or changed.** This includes new visualization types, directives, keyboard shortcuts, layouts, or any other user-facing feature. The spec is used by both humans and AI agents to understand how to write presentations.
+- **The format spec (`mdeck-spec.md`) must be updated whenever features are added or changed.** This includes new visualization types, settings, keyboard shortcuts, layouts, or any other user-facing feature. The spec is used by both humans and AI agents to understand how to write presentations.
 - **Sample presentations must reflect all features.** When adding a new visualization type, layout, or feature:
   - Add it to `samples/visualizations/all.md` (comprehensive showcase)
   - Create a dedicated file in `samples/visualizations/` or `samples/layouts/`

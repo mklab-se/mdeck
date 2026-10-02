@@ -158,9 +158,13 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let deck = dir.join("talk.md");
-        let builtin = illustration::builtin_names()[0];
+        // a built-in name is never planned (built-ins come with the particles engine)
+        let b = match illustration::builtin_names().first() {
+            Some(builtin) => format!("## B\n<!-- picture: {builtin} -->\n\n- b\n\n"),
+            None => String::new(),
+        };
         let md = format!(
-            "## A\n<!-- picture: zz-unknown-thing -->\n\n- a\n\n## B\n<!-- picture: {builtin} -->\n\n- b\n\n## C\n<!-- picture: zz-unknown-thing -->\n\n- c\n"
+            "## A\n<!-- picture: zz-unknown-thing -->\n\n- a\n\n{b}## C\n<!-- picture: zz-unknown-thing -->\n\n- c\n"
         );
         let pres = parser::parse(&md);
         let mut m = Manifest::new();
