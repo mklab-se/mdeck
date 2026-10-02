@@ -1,0 +1,10 @@
+# Blank issues stay enabled: `mdeck point-cloud contribute` opens a prefilled
+# issue without a template.
+blank_issues_enabled: true
+contact_links:
+  - name: Contributing guide
+    url: https://github.com/mklab-se/mdeck/blob/main/CONTRIBUTING.md
+    about: How to contribute themes, engines, visuals, point clouds and fixes
+  - name: Writing an extension (SDK)
+    url: https://github.com/mklab-se/mdeck/blob/main/docs/sdk/README.md
+    about: Build your own engine, visual, design set or transition without changing mdeck

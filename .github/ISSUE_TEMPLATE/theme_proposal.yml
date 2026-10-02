@@ -1,0 +1,63 @@
+name: Theme proposal
+description: Propose a theme or variant for MDeck's built-in set
+labels: [enhancement]
+title: "Theme: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read [Contributing a theme](https://github.com/mklab-se/mdeck/blob/main/CONTRIBUTING.md#contributing-a-theme)
+        first. Your theme already works as a deck, user or pack theme; this issue is about making it a built-in.
+  - type: input
+    id: name
+    attributes:
+      label: Name
+      description: Lowercase letters, digits, `-` and `_`. A word for the look, not a brand.
+    validations:
+      required: true
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Theme or variant
+      description: A recolouring of an existing theme is a variant (`variant-of:`).
+      options:
+        - A theme (distinct type, designs or engine)
+        - A variant of an existing theme
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What makes it distinct
+      description: How it differs from the closest built-in theme, and who it is for.
+    validations:
+      required: true
+  - type: textarea
+    id: pictures
+    attributes:
+      label: Pictures
+      description: |
+        The `mdeck theme preview <name> -o out` sampler, plus a few slides of a real deck in it
+        (charts and code included).
+    validations:
+      required: true
+  - type: textarea
+    id: theme
+    attributes:
+      label: The theme file
+      description: Paste the YAML, or link to it.
+      render: yaml
+  - type: textarea
+    id: fonts
+    attributes:
+      label: Fonts
+      description: Any font it needs beyond the bundled faces, with its license (OFL or similar).
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: "`mdeck theme check <name>` reports no issues"
+          required: true
+        - label: It does not copy a company's, product's or event's brand
+          required: true

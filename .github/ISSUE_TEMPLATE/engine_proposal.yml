@@ -1,0 +1,64 @@
+name: Engine proposal
+description: Propose an engine for MDeck's built-in set (build it as an extension first)
+labels: [enhancement]
+title: "Engine: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read [Contributing an engine](https://github.com/mklab-se/mdeck/blob/main/CONTRIBUTING.md#contributing-an-engine)
+        first. Engines start as extensions (`mdeck sdk new engine <name>`, `mdeck build --with .`), so
+        you can show this one working before anyone writes a pull request.
+  - type: input
+    id: name
+    attributes:
+      label: Name
+      description: Lowercase letters, digits and hyphens.
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What it does
+      description: The medium, what moves, how it draws pictures, its countdown and end act if any.
+    validations:
+      required: true
+  - type: textarea
+    id: distinct
+    attributes:
+      label: Why it is visibly distinct
+      description: Compare it with the closest existing engine (ENG-17).
+    validations:
+      required: true
+  - type: textarea
+    id: pictures
+    attributes:
+      label: Exports or a recording
+      description: |
+        A title, a points slide, a picture, a chart and an image slide
+        (`mdeck export deck.md --slide N --at 1.5`), and `--moment countdown` / `--moment end`
+        if it has them. A short screen recording helps for motion.
+    validations:
+      required: true
+  - type: input
+    id: repo
+    attributes:
+      label: Extension repository
+      description: A link to the extension crate, if it is public.
+  - type: textarea
+    id: maintenance
+    attributes:
+      label: Maintenance
+      description: Can you help keep it working across releases? Would an official optional extension suit it as well?
+  - type: checkboxes
+    id: contract
+    attributes:
+      label: The contract
+      description: As in CONTRIBUTING.md and docs/sdk/concepts.md.
+      options:
+        - label: Stills are deterministic, and reduced motion shows the settled state
+          required: true
+        - label: It scales with the slide, takes colours from theme tokens and stays clear of the content
+          required: true
+        - label: It holds 60 fps and returns `false` from `animating` when nothing moves
+          required: true

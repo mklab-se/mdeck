@@ -220,7 +220,7 @@ for every slide on the art engines, and `mdeck ai skill` teaches your AI agent t
 | [Format reference](crates/mdeck/doc/mdeck-spec.md) | The complete format (also `mdeck spec`) |
 | [SDK](docs/sdk/README.md) | Writing extensions in Rust |
 | [Changelog](CHANGELOG.md) and [Roadmap](BACKLOG.md) | What changed, and what is next |
-| [Contributing](CONTRIBUTING.md), [Development](docs/development.md) | Working on mdeck itself |
+| [Contributing](CONTRIBUTING.md), [Development](docs/development.md) | Working on mdeck itself: what a pull request needs, adding a theme or an engine |
 
 ---
 

@@ -26,6 +26,8 @@ the PNG. `scripts/engine-golden.sh` proves a change did not move the other engin
 - The v2 design documents are in [`docs/spec/`](spec/README.md).
 - Writing an engine: [`crates/mdeck/doc/engines.md`](../crates/mdeck/doc/engines.md) and the
   [SDK](sdk/README.md).
+- Contributing (what a pull request needs, and how to add a theme, an engine, a visual or a
+  point cloud): [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
 ## Releasing
 
