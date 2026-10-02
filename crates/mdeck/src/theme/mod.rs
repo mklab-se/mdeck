@@ -8,12 +8,14 @@ use std::path::PathBuf;
 
 use eframe::egui::{self, Color32};
 
+pub mod arrangement;
 mod build;
 mod color;
 mod error;
 pub mod file;
 pub mod lookup;
 mod paths;
+pub mod spacing;
 pub mod validate;
 
 use color::mix;
@@ -115,6 +117,13 @@ pub struct Theme {
     pub transition: Option<String>,
     /// The line engine's surface (`surface:`).
     pub surface: Surface,
+    /// How every design looks: the design set (`designs:`) with the theme's
+    /// `arrangements:` applied.
+    pub arrangements: std::sync::Arc<arrangement::Arrangements>,
+    /// The spacing scale arrangements name.
+    pub spacing: spacing::Spacing,
+    /// Corner radius of cards, px at 1920x1080.
+    pub radius: f32,
     pub background: Color32,
     pub foreground: Color32,
     pub heading_color: Color32,
@@ -205,7 +214,18 @@ pub struct Built {
     pub warnings: Vec<String>,
 }
 
+/// Whether `theme` arranges slides with the editorial design set (seam for
+/// the engines: the set comes from the theme, never from the engine).
+pub fn uses_editorial(theme: &Theme) -> bool {
+    theme.arrangements.is_editorial()
+}
+
 impl Theme {
+    /// The arrangement of `design` in this theme.
+    pub fn arrangement(&self, design: crate::parser::Design) -> &arrangement::Arrangement {
+        self.arrangements.get(design)
+    }
+
     /// The engine prints the slide number itself (the line engine's sheet,
     /// in its title block), so the editorial counter is left out. A slate
     /// is a board, not a numbered sheet.

@@ -6,6 +6,7 @@
 name: Blueprint
 extends: dark
 engine: line
+designs: editorial
 surface: sheet               # interim: moves into an engine block in v2
 countdown: on
 colors:

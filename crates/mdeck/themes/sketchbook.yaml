@@ -6,6 +6,7 @@
 name: Sketchbook
 extends: light
 engine: sketch
+designs: editorial
 countdown: on
 colors:
   background: "#f5f0e6"      # the paper

@@ -4,6 +4,7 @@
 name: Stack
 extends: dark
 engine: blocks
+designs: editorial
 countdown: on
 colors:
   background: "#0d0e1a"      # the playfield

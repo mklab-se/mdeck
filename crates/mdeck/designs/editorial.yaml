@@ -1,0 +1,110 @@
+# The editorial design set: the magazine spread (the Ember look). A narrow
+# copy column on the left with an eyebrow over it, display type, a soft
+# pillow behind the text, a staggered entry, and the right side left as the
+# stage where the engine draws the slide's picture. Image, code, table and
+# chart slides are arranged editorially too: an eyebrow and a display
+# heading with a wide plate. Keys as in standard.yaml.
+
+base:
+  copy: { region: [0.07, 0.10, 0.44, 0.80], align: left, valign: middle }
+  stage: right
+  eyebrow: numeral
+  byline: false
+  entry: { kind: stagger, step-ms: 120, duration-ms: 650, rise: 14, reveal: rise, reveal-ms: 550 }
+  roles:
+    eyebrow:     { font: mono, size: 17, color: muted, case: upper, tracking: 0.22, gap: 22 }
+    title:       { font: display, size: h2, scale: 1.05, color: heading, tracking: -0.018, line-height: 1.06, gap: 28 }
+    heading:     { font: display, size: h2, scale: 0.7, color: heading, tracking: -0.018, line-height: 1.06, gap: 24 }
+    subtitle:    { font: lead, size: body, scale: 0.94, color: text, line-height: 1.5, gap: 0 }
+    kicker:      { font: lead, size: body, scale: 0.9, color: muted, line-height: 1.5, gap: 0 }
+    byline:      { font: mono, size: 15, color: muted, case: upper, tracking: 0.2, gap: 0 }
+    statement:   { font: display, size: h2, scale: 0.8, color: heading, tracking: -0.012, line-height: 1.18, gap: 26 }
+    lead:        { font: lead, size: body, scale: 0.895, color: text, line-height: 1.5, gap: 22 }
+    body:        { font: lead, size: body, scale: 0.895, color: text, line-height: 1.5, gap: 22 }
+    list:        { font: body, size: body, scale: 0.895, color: bright, line-height: 1.5, gap: 26 }
+    nested:      { font: body, size: body, scale: 0.805, color: bright, opacity: 0.85, line-height: 1.5, gap: 0 }
+    quote:       { font: display, size: h2, scale: 0.82, color: heading, line-height: 1.22, italic: true, gap: 26 }
+    attribution: { font: mono, size: 17, color: muted, case: upper, tracking: 0.22, gap: 0 }
+    caption:     { font: mono, size: 15, color: muted, case: upper, tracking: 0.18, gap: 0 }
+  ornaments:
+    bullet: dot
+    bullet-color: accent
+    indent: 34
+    nested-indent: 34
+    item-gap: 16
+    numbering: true
+    quote-marks: false
+    quote-bar: left
+    bar-color: accent
+    bar-width: 1.5
+    title-rule: false
+    emphasis: accent
+    pillow: true
+
+designs:
+  title:
+    copy: { region: [0.19, 0.08, 0.62, 0.80], align: center, valign: middle }
+    stage: backdrop
+    eyebrow: deck
+    roles:
+      eyebrow: { gap: 30 }
+      title: { size: h1, scale: 1.08, gap: 40 }
+      subtitle: { gap: 0 }
+  section:
+    copy: { region: [0.07, 0.10, 0.56, 0.76], align: left, valign: bottom }
+    roles:
+      eyebrow: { gap: 30 }
+      title: { size: h1, scale: 1.08, gap: 26 }
+  statement:
+    copy: { region: [0.07, 0.10, 0.50, 0.80], align: left, valign: middle }
+    roles:
+      title: { size: h3, scale: 0.8, color: muted, gap: 24 }
+  points: {}
+  split:
+    copy: { region: [0.07, 0.10, 0.40, 0.80], align: left, valign: middle }
+    plate: { region: [0.53, 0.12, 0.40, 0.76], place: beside, valign: middle }
+    stage: none
+  media:
+    copy: { region: [0.07, 0.08, 0.86, 0.84], align: left, valign: top }
+    plate: { region: [0.07, 0.08, 0.86, 0.84], place: below, valign: middle, gap: sm }
+    stage: none
+    roles:
+      title: { scale: 0.8, gap: 24 }
+  gallery:
+    copy: { region: [0.07, 0.08, 0.86, 0.84], align: left, valign: top }
+    plate: { region: [0.07, 0.08, 0.86, 0.84], place: below, gap: sm }
+    stage: none
+    roles:
+      title: { scale: 0.8, gap: 24 }
+  quote:
+    copy: { region: [0.07, 0.10, 0.58, 0.80], align: left, valign: middle }
+    roles:
+      eyebrow: { gap: 26 }
+      title: { scale: 0.8, gap: 26 }
+  code:
+    copy: { region: [0.07, 0.10, 0.29, 0.80], align: left, valign: middle }
+    plate: { region: [0.40, 0.10, 0.53, 0.80], place: beside, valign: middle }
+    stage: none
+    roles:
+      title: { scale: 0.8 }
+  visual:
+    copy: { region: [0.07, 0.08, 0.86, 0.84], align: left, valign: top }
+    plate: { region: [0.07, 0.08, 0.86, 0.84], place: below, gap: md }
+    stage: none
+    roles:
+      title: { scale: 0.8, gap: 24 }
+      lead: { gap: 16 }
+  columns:
+    copy: { region: [0.07, 0.08, 0.86, 0.84], align: left, valign: middle }
+    plate: { region: [0.07, 0.08, 0.86, 0.84], place: below, gap: lg, rule: true }
+    stage: none
+    roles:
+      title: { scale: 0.8, gap: 36 }
+  table:
+    copy: { region: [0.07, 0.08, 0.86, 0.84], align: left, valign: middle }
+    plate: { region: [0.07, 0.08, 0.86, 0.84], place: below, gap: md }
+    stage: none
+    roles:
+      title: { scale: 0.8, gap: 24 }
+  content:
+    wide: { region: [0.07, 0.10, 0.86, 0.80], align: left, valign: middle }

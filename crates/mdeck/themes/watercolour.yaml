@@ -6,6 +6,7 @@
 name: Watercolour
 extends: light
 engine: watercolour
+designs: editorial
 countdown: on
 colors:
   background: "#fbf8f1"      # cold-press paper

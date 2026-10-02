@@ -1,0 +1,89 @@
+# The standard design set: the classic slide. Content centred, the heading
+# on top, no ornament and no entry motion. Every value is an arrangement key
+# a theme can override (`arrangements:` in the theme file); see
+# `docs/themes.md`. Regions are [x, y, width, height] in fractions of the
+# slide; sizes are theme size tokens (h1, h2, h3, body, code, level) or px
+# at 1920x1080; gaps are spacing tokens (xs, sm, md, lg, xl), px, or a
+# multiple of the role's own size (`0.5em`).
+
+base:
+  copy: { region: [0.15, 0.074, 0.70, 0.852], align: left, valign: middle }
+  stage: none
+  eyebrow: none
+  byline: false
+  entry: { kind: none, step-ms: 0, duration-ms: 0, rise: 0, reveal: slide, reveal-ms: 450 }
+  roles:
+    eyebrow:     { font: mono, size: 17, color: muted, case: upper, tracking: 0.22, gap: 22 }
+    title:       { font: display, size: level, color: heading, gap: 0.5em }
+    heading:     { font: display, size: level, color: heading, gap: 0.5em }
+    subtitle:    { font: body, size: h2, scale: 0.7, color: text, opacity: 0.8, gap: 20 }
+    kicker:      { font: body, size: h3, scale: 0.8, color: muted, gap: 20 }
+    byline:      { font: body, size: body, scale: 0.6, color: muted, gap: 0 }
+    statement:   { font: display, size: h2, scale: 0.8, color: heading, line-height: 1.25, gap: 28 }
+    lead:        { font: body, size: body, color: text, gap: 20 }
+    body:        { font: body, size: body, color: text, gap: 20 }
+    list:        { font: body, size: body, color: text, gap: 20 }
+    nested:      { font: body, size: body, color: text, gap: 0 }
+    quote:       { font: body, size: body, scale: 1.3, color: text, gap: 30 }
+    attribution: { font: body, size: body, scale: 0.9, color: text, opacity: 0.7, align: right, gap: 0 }
+    caption:     { font: body, size: body, scale: 0.9, color: text, opacity: 0.7, align: center, gap: 0 }
+  ornaments:
+    bullet: "•"
+    bullet-color: text
+    indent: 45
+    nested-indent: 30
+    item-gap: 8
+    numbering: true
+    quote-marks: true
+    quote-bar: left
+    bar-color: accent
+    bar-width: 4
+    title-rule: false
+    emphasis: italic
+    pillow: false
+
+designs:
+  title:
+    copy: { region: [0.042, 0.074, 0.916, 0.852], align: center, valign: middle }
+    byline: true
+    roles:
+      title: { size: h1, scale: 1.1, gap: 20 }
+      subtitle: { gap: 24 }
+  section:
+    copy: { region: [0.042, 0.074, 0.916, 0.852], align: center, valign: middle }
+    roles:
+      title: { scale: 1.15, gap: 24 }
+  statement:
+    copy: { region: [0.15, 0.074, 0.70, 0.852], align: center, valign: middle }
+    roles:
+      title: { font: body, size: body, scale: 0.7, color: accent, case: upper, tracking: 0.12, gap: 28 }
+  points: {}
+  split:
+    copy: { region: [0.042, 0.074, 0.504, 0.852], align: left, valign: middle }
+    plate: { region: [0.592, 0.074, 0.366, 0.852], place: beside, valign: middle }
+  media:
+    copy: { region: [0.031, 0.056, 0.938, 0.888], align: left, valign: top }
+    plate: { region: [0.031, 0.056, 0.938, 0.888], place: below, valign: middle, gap: sm }
+    roles:
+      title: { gap: 20 }
+  gallery:
+    copy: { region: [0.026, 0.046, 0.948, 0.908], align: left, valign: top }
+    plate: { region: [0.026, 0.046, 0.948, 0.908], place: below, gap: 16 }
+    roles:
+      title: { gap: 20 }
+      caption: { scale: 0.6 }
+  quote:
+    copy: { region: [0.125, 0.074, 0.75, 0.852], align: center, valign: middle }
+  code:
+    copy: { region: [0.125, 0.074, 0.75, 0.852], align: left, valign: middle }
+    plate: { region: [0.125, 0.074, 0.75, 0.852], place: below, gap: 20 }
+  visual:
+    copy: { region: [0.031, 0.056, 0.938, 0.888], align: left, valign: top }
+    plate: { region: [0.031, 0.056, 0.938, 0.888], place: below, gap: md }
+  columns:
+    copy: { region: [0.10, 0.074, 0.80, 0.852], align: left, valign: middle }
+    plate: { region: [0.10, 0.074, 0.80, 0.852], place: below, gap: 40 }
+  table:
+    copy: { region: [0.15, 0.074, 0.70, 0.852], align: left, valign: middle }
+    plate: { region: [0.15, 0.074, 0.70, 0.852], place: below, gap: 20 }
+  content: {}

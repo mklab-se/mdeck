@@ -6,6 +6,7 @@
 name: Chalkboard
 extends: dark
 engine: line
+designs: editorial
 surface: slate               # interim: moves into an engine block in v2
 countdown: on
 colors:

@@ -6,6 +6,7 @@
 name: Darkroom
 extends: dark
 engine: darkroom
+designs: editorial
 countdown: on
 colors:
   background: "#141011"      # the darkroom
