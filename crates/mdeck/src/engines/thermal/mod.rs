@@ -143,8 +143,8 @@ impl Thermal {
             }
             Moment::Burst { .. } => {}
             Moment::End { words, elapsed } => {
-                if *elapsed < END_WORDS {
-                    let v = smooth(0.0, 0.5, *elapsed);
+                let v = end_heat(*elapsed, cx.still);
+                if v > 0.0 {
                     stamp_mask(field, &words.0, words.1, 0.16, v);
                 }
             }
@@ -303,6 +303,19 @@ fn ember(i: u32, seed: u32) -> Ember {
         vx: (r(3) - 0.5) * 0.02,
         vy: -0.012 - 0.03 * r(4),
         heat: 0.25 + 0.45 * r(5),
+    }
+}
+
+/// The heat the end words are stamped with. They warm up over half a
+/// second and cool after [`END_WORDS`]; a still shows them at full glow, so
+/// an exported end slide looks finished instead of black (D26).
+fn end_heat(elapsed: f32, still: bool) -> f32 {
+    if elapsed >= END_WORDS {
+        0.0
+    } else if still {
+        1.0
+    } else {
+        smooth(0.0, 0.5, elapsed)
     }
 }
 
@@ -470,6 +483,15 @@ mod tests {
             });
             output.textures_delta.clear();
         }
+    }
+
+    #[test]
+    fn a_still_of_the_end_shows_the_words_glowing() {
+        // export enters the end slide and takes the still at once
+        assert_eq!(end_heat(0.0, true), 1.0);
+        assert!(end_heat(0.0, false) < 0.01, "live, the words warm up");
+        assert!((end_heat(1.0, false) - 1.0).abs() < 1e-6);
+        assert_eq!(end_heat(END_WORDS + 0.1, false), 0.0, "then they cool");
     }
 
     #[test]

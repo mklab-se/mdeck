@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- Chart reactions no longer leak onto the next slide: LED peak markers and other engine reactions
+  to a chart stay on the chart's slide instead of showing on the slides after it.
+- The thermal engine's end slide exports with its glowing "THE END" instead of an empty frame.
+
 ## [1.19.0] - 2026-10-02
 
 ### Added
