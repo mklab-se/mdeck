@@ -139,7 +139,7 @@ the binary where `--out` says.
 | # | Phase | Status |
 |---|---|---|
 | 1 | Language and content model: D1-D7, story removal from the format, samples converted to v2 syntax | done |
-| 2 | Workspace, SDK, registries, paint; engines v2 (D10-D13), laser removed, line merged, D24/D26 fixed | in progress: `mdeck-sdk` crate exists (not wired), laser removed, line merged, D24/D26 fixed, visual grammar done |
+| 2 | Workspace, SDK, registries, paint; engines v2 (D10-D13), laser removed, line merged, D24/D26 fixed | done (deferrals below) |
 | 3 | Designs and themes v2 (D8, D9), default theme, layout defects | todo |
 | 4 | Presenter view, per-slide transitions, slide jump, `--theme`, `export --at`; generated assets and `mdeck ai` (D14) | done |
 | 5 | Extensibility tooling: `mdeck build`, packs, external visual programs, `mdeck sdk new/preview`, SDK docs and tutorials | todo |
@@ -196,15 +196,69 @@ Five branches were merged onto phase 1 (October 2026):
   visual; `*` is static there too, and `count_viz_steps` counts `+` items through the grammar so
   the parser's slide numbering and the visual agree. Tags are exact v2 tags only.
 
+## Phase 2b notes (SDK wiring)
+
+What later phases build on:
+
+- **Library and registry.** `mdeck::builtins(&mut Registry)` and `mdeck::run(registry)` (and
+  `run_with_args`) are the entry points; `src/main.rs` is the two of them. `crate::registry::get()`
+  is the registry in use (the installed one, else the built-ins). Engines (`EngineId`, a handle on
+  a registered `EngineDef`), visuals (`parser::Chart` is a fence tag), embedded themes
+  (`theme::lookup`) and embedded point clouds (`render::illustration`) are looked up there, so an
+  extension's are used exactly like the built-ins. `crates/mdeck/tests/extension_engine.rs`
+  registers `examples/engine-ambience` next to the built-ins and exports a slide with it and its
+  `dusk` theme (EXT-14 end to end); `mdeck build`'s ignored test builds a real custom mdeck.
+- **The engine host** (`engines/host/`) is the core's half: it converts the parsed slide to the
+  SDK content model (`host::convert`, the slide's `design` is the v1 layout name until phase 3),
+  the theme to `Tokens` and font roles, published hints to SDK `Hint`s (a heading galley becomes
+  `Hint::Text`), resolves the picture (D13: artwork on art engines, else the named point cloud,
+  else the named image file, the last two only where `render::design_has_stage`), and builds
+  `Stage`, `Frame` and `Painter` each frame. Every file under `engines/` outside `host/` uses only
+  `mdeck_sdk` and engine helpers (a test checks; no egui).
+- **Seams for phase 3:** `theme::engine_settings(theme)` (interim: built from the file's `surface:`
+  and `heat:` keys, kept in the private `Theme::engine_keys`), `theme::uses_editorial(theme)`
+  (interim: not plain and not a board) and `render::design_has_stage(slide, theme)` (interim: the
+  editorial layouts' slides). The core learns what an engine needs from a runtime made with the
+  theme's settings in `Theme::set_engine` (`copy_hold`, `numbers_slides`), so changing the engine
+  goes through `set_engine`.
+- **New SDK surface** used by the core: `Engine::copy_hold` and `Engine::numbers_slides`
+  (generic hooks replacing the `cold_open` and `numbers_slides` capabilities), `DesignCx::image`,
+  `DesignCx::visual`, `DesignCx::engine_live`, `DesignCx::deck_title`, `DesignCx::count` (what a
+  board's design set needs), `Registry::registrations` (origins for `mdeck extensions list`),
+  `content::ListItem::step` and `content::Block::Visual::step_base`, `mdeck_sdk::templates`
+  (the scaffolds, embedded in the SDK so `mdeck` packages on its own). Engine ports added what
+  they needed to `mdeck_sdk::paint` (see the commits).
+- **Boards** draw through `render::board::render` with the engine's `DesignSet`; `--check` takes
+  its `unsupported` messages.
+- **External visual programs** are wired: `extensions::external::configure` (from `run`) makes
+  their tags fence tags, `Deck::open` runs the missing ones and records the images in the image
+  cache, the block renderer draws them (or the source when there is none).
+- **Image options** use the settings grammar (`@width: 60%`, `@height`, `@fill`); `@fit`, `@left`,
+  `@right`, `@center` and unknown options are `content` problems in `--check`.
+
 ## Deferrals
 
 Any requirement deferred to 2.x is listed here and in the release notes.
 
-- **Phase 2:** wiring `mdeck-sdk` into mdeck: registries instead of `EngineKind`/`Chart`/
-  `Layout` (D11), built-in engines on `paint` only, `mdeck::run(registry)`; engine settings in
-  the theme's `engine:` block (`surface:` and `particles`/`heat`/`art` move there); image options
-  in the settings grammar and their validation (LANG-12, VIZ-11); `picture:` resolving to
-  artworks and image paths as one source (PIC-02, D13).
+- **Phase 2 (to 2.x):**
+  - Built-in visuals still draw with egui: each is a registered `Visual` whose `draw` reaches the
+    slide's `VizCtx` through a bridge (`render::visualizations::builtin`), using the SDK's
+    `unstable-egui` feature. Moving them onto `mdeck_sdk::paint` is a 2.x task. The `@thermal`
+    and `@architecture` visuals are registered (tags, check, steps) but drawn by their own
+    renderers, which need the deck's images.
+  - Transitions (`slide`, `fade`, `spatial`, `none`, `zoom`) are still the app's own and not
+    registered through the SDK `Transition` trait; `mdeck extensions list` lists them as built in.
+  - Design sets: the standard and editorial designs are phase 3's; only a board's code design set
+    goes through the SDK today.
+  - The SDK content model is converted from the parser's each time a slide is first shown
+    (quotes and callouts flatten to one run of text); the parser does not produce it directly.
+  - Engine settings come from the old top-level theme keys until phase 3's `engine:` block.
+  - A generated artwork shows on any slide the art pipeline resolves one for (as in 1.x), not
+    only where `design_has_stage` says; point clouds and image pictures follow the seam.
+  - `mdeck-sdk`'s templates contain `Cargo.toml` files, which `cargo package` leaves out of a
+    crate: publishing the SDK (phase 6) needs them renamed (for example `Cargo.toml.tmpl`).
+  - The workspace's `mdeck-sdk` dependency pins `=1.19.0`; the release skill must bump it with
+    the workspace version.
 - **Phase 3:** designs and themes v2 (D8, D9) as planned; `design:` still maps onto the v1
   `Layout` enum.
 - **Phase 6:** `docs/*.md`, the README and the AI supplement were converted mechanically to the
