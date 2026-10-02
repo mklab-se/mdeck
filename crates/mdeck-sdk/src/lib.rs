@@ -52,6 +52,8 @@ pub mod paint;
 pub mod problem;
 pub mod registry;
 pub mod stage;
+#[doc(hidden)]
+pub mod templates;
 pub mod testing;
 pub mod tokens;
 pub mod transition;
