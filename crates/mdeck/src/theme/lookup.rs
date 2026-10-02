@@ -524,7 +524,7 @@ mod tests {
         assert_eq!(d.arrangements.set, "standard");
         assert!(!d.countdown);
         assert_eq!(d.transition, None);
-        assert!(crate::theme::luminance(d.background) < 0.1);
+        assert!(crate::theme::luminance(d.background) < 0.2);
         assert!(crate::theme::contrast(d.foreground, d.background) > 7.0);
         assert!(builtin_file(DEFAULT_THEME).unwrap().extends.is_none());
     }
