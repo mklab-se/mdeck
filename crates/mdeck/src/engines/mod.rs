@@ -31,6 +31,8 @@ pub mod plain;
 pub mod rng;
 #[cfg(feature = "sketch")]
 pub mod sketch;
+#[cfg(feature = "splitflap")]
+pub mod splitflap;
 #[cfg(feature = "thermal")]
 pub mod thermal;
 #[cfg(feature = "watercolour")]
@@ -52,6 +54,8 @@ pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
     r.engine(&particles::DEF)?;
     #[cfg(feature = "led")]
     r.engine(&led::DEF)?;
+    #[cfg(feature = "splitflap")]
+    r.engine(&splitflap::DEF)?;
     #[cfg(feature = "blocks")]
     r.engine(&blocks::DEF)?;
     #[cfg(feature = "line")]

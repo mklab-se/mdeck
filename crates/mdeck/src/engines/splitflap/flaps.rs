@@ -2,19 +2,20 @@
 //! halves, its hinge and pins, the falling flap of a turning cell, and
 //! the part of a character each half shows.
 
-use eframe::egui::{self, Color32, Pos2, Rect, epaint};
+use mdeck_sdk::paint::{Color, Mesh, Painter, Pos2, Rect, Vec2};
 
 use super::draw::{EMBOLDEN, Glyphs, Palette, View, WHITE, mix};
 use super::layout::Cell;
 
 /// The flaps of one board going into one mesh.
 pub(super) struct Flaps<'a> {
-    pub(super) ui: &'a egui::Ui,
+    pub(super) painter: &'a Painter,
     /// A flap's height.
     pub(super) cell_h: f32,
     pub(super) pal: &'a Palette,
     pub(super) glyphs: Glyphs,
-    pub(super) mesh: egui::Mesh,
+    /// The board's one mesh, on the font atlas.
+    pub(super) mesh: Mesh,
     pub(super) opacity: f32,
     /// A flap half's corner radius, the hinge's height and a pin's width.
     pub(super) r: f32,
@@ -23,7 +24,7 @@ pub(super) struct Flaps<'a> {
 }
 
 impl Flaps<'_> {
-    fn fade(&self, c: Color32) -> Color32 {
+    fn fade(&self, c: Color) -> Color {
         c.gamma_multiply(self.opacity)
     }
 
@@ -32,11 +33,8 @@ impl Flaps<'_> {
     pub(super) fn cell(&mut self, cell: Rect, view: &View) {
         let (r, hinge) = (self.r, self.hinge);
         let mid = cell.center().y;
-        let top = Rect::from_min_max(cell.left_top(), Pos2::new(cell.right(), mid - hinge / 2.0));
-        let bottom = Rect::from_min_max(
-            Pos2::new(cell.left(), mid + hinge / 2.0),
-            cell.right_bottom(),
-        );
+        let top = Rect::from_min_max(cell.min, Pos2::new(cell.right(), mid - hinge / 2.0));
+        let bottom = Rect::from_min_max(Pos2::new(cell.left(), mid + hinge / 2.0), cell.max);
         let turning = view.t > 0.0;
         // static halves: the next character's top, the current one's bottom
         let upper = if turning { view.to } else { view.from };
@@ -59,7 +57,7 @@ impl Flaps<'_> {
             ),
             gap,
         );
-        let pin = egui::vec2(self.pin, hinge * 2.2);
+        let pin = Vec2::new(self.pin, hinge * 2.2);
         let pin_color = self.fade(self.pal.pin);
         for x in [cell.left() + pin.x * 0.2, cell.right() - pin.x * 1.2] {
             quad(
@@ -96,7 +94,7 @@ impl Flaps<'_> {
             )
         };
         let base = self.pal.face(face, first);
-        let tint = self.fade(mix(Color32::BLACK, base, shade));
+        let tint = self.fade(mix(Color::BLACK, base, shade));
         warped_quad(&mut self.mesh, half, WHITE, tint, &warp);
         self.glyph(cell, half, face, self.opacity * shade, Some(&warp));
     }
@@ -114,10 +112,10 @@ impl Flaps<'_> {
         // a list marker is a coloured bar, like a platform indicator, not the
         // font's small bullet
         let (rel, uv) = if c.ch == '•' {
-            let size = egui::vec2(cell.width() * 0.26, cell.height() * 0.56);
+            let size = Vec2::new(cell.width() * 0.26, cell.height() * 0.56);
             (Rect::from_center_size(Pos2::ZERO, size), WHITE)
         } else {
-            match self.glyphs.get(self.ui, c.ch) {
+            match self.glyphs.get(self.painter, c.ch) {
                 Some(q) => q,
                 None => return,
             }
@@ -150,12 +148,10 @@ impl Flaps<'_> {
             rel.height() * EMBOLDEN
         };
         for dx in [0.0, bold] {
-            let part = clipped.translate(egui::vec2(dx, 0.0));
+            let part = clipped.translate(Vec2::new(dx, 0.0));
             match warp {
                 Some(w) => warped_quad(&mut self.mesh, part, uv_part, color, w),
-                None => {
-                    self.mesh.add_rect_with_uv(part, uv_part, color);
-                }
+                None => self.mesh.add_rect_uv(part, uv_part, color),
             }
             if bold == 0.0 {
                 break;
@@ -164,49 +160,47 @@ impl Flaps<'_> {
     }
 }
 
-fn quad(mesh: &mut egui::Mesh, rect: Rect, color: Color32) {
-    mesh.add_rect_with_uv(rect, WHITE, color);
+fn quad(mesh: &mut Mesh, rect: Rect, color: Color) {
+    mesh.add_rect_uv(rect, WHITE, color);
 }
 
-fn warped_quad(
-    mesh: &mut egui::Mesh,
-    rect: Rect,
-    uv: Rect,
-    color: Color32,
-    warp: &dyn Fn(Pos2) -> Pos2,
-) {
-    let base = mesh.vertices.len() as u32;
-    for (p, t) in [
-        (rect.left_top(), uv.left_top()),
-        (rect.right_top(), uv.right_top()),
-        (rect.left_bottom(), uv.left_bottom()),
-        (rect.right_bottom(), uv.right_bottom()),
-    ] {
-        mesh.vertices.push(epaint::Vertex {
-            pos: warp(p),
-            uv: t,
+fn warped_quad(mesh: &mut Mesh, rect: Rect, uv: Rect, color: Color, warp: &dyn Fn(Pos2) -> Pos2) {
+    let corner = |r: Rect, right: bool, bottom: bool| {
+        Pos2::new(
+            if right { r.right() } else { r.left() },
+            if bottom { r.bottom() } else { r.top() },
+        )
+    };
+    let mut ids = [0u32; 4];
+    for (k, (right, bottom)) in [(false, false), (true, false), (false, true), (true, true)]
+        .into_iter()
+        .enumerate()
+    {
+        ids[k] = mesh.vertex(
+            warp(corner(rect, right, bottom)),
+            corner(uv, right, bottom),
             color,
-        });
+        );
     }
-    mesh.add_triangle(base, base + 1, base + 2);
-    mesh.add_triangle(base + 1, base + 3, base + 2);
+    mesh.triangle(ids[0], ids[1], ids[2]);
+    mesh.triangle(ids[1], ids[3], ids[2]);
 }
 
 /// Half a flap with its two outer corners rounded, lit from above: a fan of
 /// triangles from the centre so the corners stay smooth.
-fn rounded_half(mesh: &mut egui::Mesh, rect: Rect, r: f32, top: bool, color: Color32) {
+fn rounded_half(mesh: &mut Mesh, rect: Rect, r: f32, top: bool, color: Color) {
     let r = r.min(rect.height() * 0.5).min(rect.width() * 0.5);
     let light = if top {
-        mix(color, Color32::WHITE, 0.035)
+        mix(color, Color::WHITE, 0.035)
     } else {
         color
     };
     let dark = if top {
         color
     } else {
-        mix(color, Color32::BLACK, 0.18)
+        mix(color, Color::BLACK, 0.18)
     };
-    let shade = |p: Pos2| -> Color32 {
+    let shade = |p: Pos2| -> Color {
         let t = ((p.y - rect.top()) / rect.height()).clamp(0.0, 1.0);
         mix(light, dark, t)
     };
@@ -225,11 +219,11 @@ fn rounded_half(mesh: &mut egui::Mesh, rect: Rect, r: f32, top: bool, color: Col
             Pos2::new(rect.right() - r, rect.top() + r),
             1.5 * PI,
         );
-        outline.push(rect.right_bottom());
-        outline.push(rect.left_bottom());
+        outline.push(rect.max);
+        outline.push(Pos2::new(rect.left(), rect.bottom()));
     } else {
-        outline.push(rect.left_top());
-        outline.push(rect.right_top());
+        outline.push(rect.min);
+        outline.push(Pos2::new(rect.right(), rect.top()));
         arc(
             &mut outline,
             Pos2::new(rect.right() - r, rect.bottom() - r),
@@ -241,22 +235,13 @@ fn rounded_half(mesh: &mut egui::Mesh, rect: Rect, r: f32, top: bool, color: Col
             0.5 * PI,
         );
     }
-    let base = mesh.vertices.len() as u32;
     let c = rect.center();
-    mesh.vertices.push(epaint::Vertex {
-        pos: c,
-        uv: epaint::WHITE_UV,
-        color: shade(c),
-    });
+    let base = mesh.vertex(c, Pos2::ZERO, shade(c));
     for p in &outline {
-        mesh.vertices.push(epaint::Vertex {
-            pos: *p,
-            uv: epaint::WHITE_UV,
-            color: shade(*p),
-        });
+        mesh.vertex(*p, Pos2::ZERO, shade(*p));
     }
     let n = outline.len() as u32;
     for k in 0..n {
-        mesh.add_triangle(base, base + 1 + k, base + 1 + (k + 1) % n);
+        mesh.triangle(base, base + 1 + k, base + 1 + (k + 1) % n);
     }
 }

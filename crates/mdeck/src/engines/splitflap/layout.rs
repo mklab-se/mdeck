@@ -7,8 +7,10 @@
 use std::collections::BTreeSet;
 
 use super::wheel::{SOLID, WHEEL};
-use super::writer::{Line, Writer};
-use crate::parser::{Block, Layout, Slide};
+use mdeck_sdk::content::{Block, Slide};
+use mdeck_sdk::problem::Problem;
+
+use super::writer::{Line, THERMAL, Writer};
 
 /// The board: columns and rows of flaps, the same on every slide.
 pub const COLS: usize = 32;
@@ -104,14 +106,8 @@ pub fn lay_out(slide: &Slide, title: bool, reveal: usize) -> Board {
         .enumerate()
         // a thermal image takes the panel too, composed as everywhere else
         .filter(|(_, b)| {
-            matches!(
-                b,
-                Block::Image { .. }
-                    | Block::Chart {
-                        kind: crate::parser::Chart::Thermal,
-                        ..
-                    }
-            )
+            matches!(b, Block::Image { .. })
+                || matches!(b, Block::Visual { tag, .. } if tag == THERMAL)
         })
         .map(|(i, _)| i)
         .collect();
@@ -165,7 +161,7 @@ pub fn lay_out(slide: &Slide, title: bool, reveal: usize) -> Board {
         w.lines.pop();
     }
 
-    let centred = title || matches!(slide.layout, Layout::Title | Layout::Section);
+    let centred = title || matches!(slide.design.as_str(), "title" | "section");
     let needed = w.lines.len();
     let mut board = Board::blank();
     let top = if centred && needed < ROWS {
@@ -284,8 +280,34 @@ pub fn scramble(seed: u64) -> Board {
     board
 }
 
+/// Whether `slide` (at `index` in the deck) reads as the deck's title
+/// page: a title design, or a first slide that opens with a top heading and
+/// has no list, code or image.
+pub fn is_title(slide: &Slide, index: usize) -> bool {
+    slide.design == "title"
+        || (index == 0
+            && matches!(slide.blocks.first(), Some(Block::Heading { level: 1, .. }))
+            && !slide.blocks.iter().any(|b| {
+                matches!(
+                    b,
+                    Block::List { .. } | Block::CodeBlock { .. } | Block::Image { .. }
+                )
+            }))
+}
+
 /// What the board does not show on `slide`, for `--check`.
-pub fn problems(slide: &Slide) -> Vec<String> {
+pub fn problems(slide: &Slide) -> Vec<Problem> {
+    messages(slide)
+        .into_iter()
+        .map(|m| {
+            let p = Problem::new("engine", m);
+            if slide.line > 0 { p.at(slide.line) } else { p }
+        })
+        .collect()
+}
+
+/// The messages of [`problems`].
+fn messages(slide: &Slide) -> Vec<String> {
     let board = lay_out(slide, false, usize::MAX);
     let mut out: Vec<String> = board
         .unsupported
@@ -314,15 +336,77 @@ pub fn problems(slide: &Slide) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mdeck_sdk::content::{Inline, ListItem, ListMarker};
 
-    fn slide(md: &str) -> Slide {
-        crate::parser::parse(md).slides.into_iter().next().unwrap()
+    fn text(s: &str) -> Vec<Inline> {
+        vec![Inline::Text(s.into())]
+    }
+
+    fn h1(s: &str) -> Block {
+        Block::Heading {
+            level: 1,
+            inlines: text(s),
+        }
+    }
+
+    fn para(inlines: Vec<Inline>) -> Block {
+        Block::Paragraph { inlines }
+    }
+
+    fn item(s: &str, step: usize) -> ListItem {
+        ListItem {
+            marker: if step > 0 {
+                ListMarker::NextStep
+            } else {
+                ListMarker::Static
+            },
+            inlines: text(s),
+            children: Vec::new(),
+            step,
+        }
+    }
+
+    fn list(items: Vec<ListItem>) -> Block {
+        Block::List {
+            ordered: false,
+            items,
+        }
+    }
+
+    fn visual(tag: &str, content: &str) -> Block {
+        Block::Visual {
+            tag: tag.into(),
+            content: content.into(),
+            step_base: 0,
+        }
+    }
+
+    fn image(path: &str) -> Block {
+        Block::Image {
+            alt: String::new(),
+            path: path.into(),
+            directives: Default::default(),
+        }
+    }
+
+    fn slide(blocks: Vec<Block>) -> Slide {
+        Slide {
+            blocks,
+            design: "bullet".into(),
+            ..Default::default()
+        }
     }
 
     #[test]
     fn a_bullet_slide_reads_like_a_timetable() {
         let b = lay_out(
-            &slide("# Departures\n\n- Stockholm 10:42\n- Göteborg on time\n"),
+            &slide(vec![
+                h1("Departures"),
+                list(vec![
+                    item("Stockholm 10:42", 0),
+                    item("Göteborg on time", 0),
+                ]),
+            ]),
             false,
             usize::MAX,
         );
@@ -339,7 +423,13 @@ mod tests {
     #[test]
     fn long_items_wrap_under_their_text() {
         let b = lay_out(
-            &slide("# T\n\n- one two three four five six seven eight nine ten eleven\n"),
+            &slide(vec![
+                h1("T"),
+                list(vec![item(
+                    "one two three four five six seven eight nine ten eleven",
+                    0,
+                )]),
+            ]),
             false,
             usize::MAX,
         );
@@ -354,7 +444,12 @@ mod tests {
 
     #[test]
     fn a_title_is_centred() {
-        let b = lay_out(&slide("# On Time\n\nEvery train, every day\n"), true, 0);
+        let s = Slide {
+            design: "title".into(),
+            ..slide(vec![h1("On Time"), para(text("Every train, every day"))])
+        };
+        assert!(is_title(&s, 3));
+        let b = lay_out(&s, true, 0);
         let t = b.text();
         let row = t.iter().position(|l| l.contains("ON TIME")).unwrap();
         assert!(row >= 3, "centred vertically: {t:?}");
@@ -364,8 +459,20 @@ mod tests {
     }
 
     #[test]
+    fn the_first_slide_is_a_title_without_lists_or_images() {
+        let opening = slide(vec![h1("Hello"), para(text("world"))]);
+        assert!(is_title(&opening, 0));
+        assert!(!is_title(&opening, 1));
+        let listed = slide(vec![h1("Hello"), list(vec![item("a", 0)])]);
+        assert!(!is_title(&listed, 0));
+    }
+
+    #[test]
     fn unrevealed_items_keep_their_rows_blank() {
-        let s = slide("# T\n\n- a\n+ b\n+ c\n");
+        let s = slide(vec![
+            h1("T"),
+            list(vec![item("a", 0), item("b", 1), item("c", 2)]),
+        ]);
         let before = lay_out(&s, false, 0).text();
         assert_eq!(before[3], "");
         assert_eq!(before[4], "");
@@ -377,7 +484,16 @@ mod tests {
     #[test]
     fn tables_align_and_numbers_go_right() {
         let b = lay_out(
-            &slide("# T\n\n| Train | Track |\n|---|---|\n| X2000 | 4 |\n| Regional | 12 |\n"),
+            &slide(vec![
+                h1("T"),
+                Block::Table {
+                    headers: vec![text("Train"), text("Track")],
+                    rows: vec![
+                        vec![text("X2000"), text("4")],
+                        vec![text("Regional"), text("12")],
+                    ],
+                },
+            ]),
             false,
             usize::MAX,
         );
@@ -389,34 +505,80 @@ mod tests {
     }
 
     #[test]
+    fn quotes_run_their_paragraphs_on() {
+        let b = lay_out(
+            &slide(vec![Block::BlockQuote {
+                inlines: text("Mind\nthe gap"),
+            }]),
+            false,
+            usize::MAX,
+        );
+        assert_eq!(b.text()[0], " \"MIND THE GAP\"");
+    }
+
+    #[test]
     fn overflow_and_missing_characters_are_reported() {
-        let long: String = (0..20).map(|i| format!("- item {i}\n")).collect();
-        let s = slide(&format!("# Many\n\n{long}"));
+        let items = (0..20).map(|i| item(&format!("item {i}"), 0)).collect();
+        let s = Slide {
+            line: 7,
+            ..slide(vec![h1("Many"), list(items)])
+        };
         let b = lay_out(&s, false, usize::MAX);
         assert!(b.needed > ROWS);
         assert!(b.text()[ROWS - 1].ends_with('…'), "{:?}", b.text());
         let p = problems(&s);
-        assert!(p.iter().any(|m| m.contains("rows")), "{p:?}");
-        let cjk = problems(&slide("# 你好\n\n- ok\n"));
-        assert!(cjk.iter().any(|m| m.contains("do not carry")), "{cjk:?}");
+        assert!(p.iter().any(|m| m.message.contains("rows")), "{p:?}");
+        assert!(
+            p.iter()
+                .all(|m| m.category == "engine" && m.line == Some(7))
+        );
+        let cjk = problems(&slide(vec![h1("你好"), list(vec![item("ok", 0)])]));
+        assert!(
+            cjk.iter().any(|m| m.message.contains("do not carry")),
+            "{cjk:?}"
+        );
     }
 
     #[test]
     fn code_charts_and_formulas_are_reported() {
-        let p = problems(&slide(
-            "# T\n\nThe $x^2$ rule\n\n```rust\nfn main() {}\n```\n\n```@bar\nA: 1\n```\n",
-        ));
-        let all = p.join("|");
+        let p = problems(&slide(vec![
+            h1("T"),
+            para(vec![
+                Inline::Text("The ".into()),
+                Inline::Math {
+                    tex: "x^2".into(),
+                    display: false,
+                },
+                Inline::Text(" rule".into()),
+            ]),
+            Block::CodeBlock {
+                language: Some("rust".into()),
+                code: "fn main() {}".into(),
+                highlight_lines: Vec::new(),
+            },
+            visual("bar", "A: 1"),
+            visual("architecture", "a -> b"),
+            visual("sparkle", "x"),
+        ]));
+        let all: Vec<String> = p.into_iter().map(|p| p.message).collect();
+        let all = all.join("|");
         assert!(all.contains("code blocks"), "{all}");
         assert!(all.contains("bar charts"), "{all}");
+        assert!(all.contains("diagrams"), "{all}");
         assert!(all.contains("formulas"), "{all}");
+        assert!(all.contains("@sparkle visuals"), "{all}");
     }
 
     #[test]
     fn an_image_takes_the_panel_and_narrows_the_text() {
-        let s = slide(
-            "# Platform\n\n![map](map.png)\n\n- A very long line of text that will need to wrap\n",
-        );
+        let s = slide(vec![
+            h1("Platform"),
+            image("map.png"),
+            list(vec![item(
+                "A very long line of text that will need to wrap",
+                0,
+            )]),
+        ]);
         let b = lay_out(&s, false, usize::MAX);
         assert_eq!(b.image, Some(1));
         for row in b.text() {
@@ -425,9 +587,26 @@ mod tests {
     }
 
     #[test]
+    fn a_thermal_image_takes_the_panel_and_a_second_image_is_reported() {
+        let s = slide(vec![
+            h1("Heat"),
+            visual("thermal", "source: a.png"),
+            image("b.png"),
+        ]);
+        let b = lay_out(&s, false, usize::MAX);
+        assert_eq!(b.image, Some(1));
+        let p = problems(&s);
+        assert!(
+            p.iter()
+                .any(|m| m.message == "a second image is not shown on the split-flap board"),
+            "{p:?}"
+        );
+    }
+
+    #[test]
     fn progress_bars_are_solid_flaps() {
         let b = lay_out(
-            &slide("# Build\n\n```@progress\n- Tests: 50%\n```\n"),
+            &slide(vec![h1("Build"), visual("progress", "- Tests: 50%")]),
             false,
             usize::MAX,
         );
@@ -445,6 +624,21 @@ mod tests {
             "{lit} {dim}"
         );
         assert!(b.text()[2].ends_with("50%"));
+    }
+
+    #[test]
+    fn kpi_cards_are_label_and_value() {
+        let b = lay_out(
+            &slide(vec![
+                h1("Numbers"),
+                visual("kpi", "- Trains: 42 (trend: up)"),
+            ]),
+            false,
+            usize::MAX,
+        );
+        let row = &b.text()[2];
+        assert!(row.starts_with(" TRAINS") && row.ends_with("42"), "{row}");
+        assert!(b.unsupported.is_empty());
     }
 
     #[test]

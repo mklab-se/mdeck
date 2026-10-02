@@ -326,6 +326,73 @@ impl Painter {
             .sdk()
     }
 
+    /// The glyphs of `text` set on one line in `font` as quads cut from the
+    /// font atlas, with the text's top-left corner at `pos`: a mesh on the
+    /// atlas texture with four vertices and two triangles per visible glyph
+    /// (in [`Mesh::add_rect_uv`]'s order: top-left, top-right, bottom-right,
+    /// bottom-left), each coloured `color`. Nothing is drawn; pass the mesh
+    /// (or quads cut, squashed or warped from it) to [`Painter::mesh`].
+    ///
+    /// The atlas's uv `(0, 0)` is a white texel, so plain quads with uv
+    /// [`Pos2::ZERO`] can go into the same mesh: a split-flap board draws its
+    /// flaps and the halves of their characters folding at the hinge as one
+    /// mesh. The atlas may be rebuilt between frames, so build the mesh in
+    /// the frame that draws it.
+    ///
+    /// ```no_run
+    /// # fn demo(p: &mdeck_sdk::paint::Painter) {
+    /// use mdeck_sdk::paint::{Color, Font, Pos2};
+    /// let mut m = p.glyph_mesh(Pos2::new(100.0, 100.0), "AB", Font::display(64.0), Color::WHITE);
+    /// assert_eq!(m.vertices.len(), 8);
+    /// // keep only the top half of each glyph: move the bottom vertices up
+    /// for q in m.vertices.chunks_mut(4) {
+    ///     let mid = (q[0].pos.y + q[2].pos.y) / 2.0;
+    ///     let v_mid = (q[0].uv.y + q[2].uv.y) / 2.0;
+    ///     for v in &mut q[2..] {
+    ///         v.pos.y = mid;
+    ///         v.uv.y = v_mid;
+    ///     }
+    /// }
+    /// p.mesh(m);
+    /// # }
+    /// ```
+    pub fn glyph_mesh(&self, pos: Pos2, text: &str, font: Font, color: Color) -> Mesh {
+        let id = self.font_id(font);
+        let (quads, atlas) = self.inner.ctx().fonts_mut(|f| {
+            let galley = f.layout_no_wrap(text.to_owned(), id, egui::Color32::WHITE);
+            let quads: Vec<(egui::Rect, [u16; 2], [u16; 2])> = galley
+                .rows
+                .iter()
+                .flat_map(|row| {
+                    row.glyphs
+                        .iter()
+                        .filter(|g| g.uv_rect.max[0] > g.uv_rect.min[0])
+                        .map(move |g| {
+                            let min = row.pos + g.pos.to_vec2() + g.uv_rect.offset;
+                            (
+                                egui::Rect::from_min_size(min, g.uv_rect.size),
+                                g.uv_rect.min,
+                                g.uv_rect.max,
+                            )
+                        })
+                })
+                .collect();
+            (quads, f.font_image_size())
+        });
+        let mut mesh = Mesh::with_texture(Texture {
+            handle: super::shapes::TextureRef::FontAtlas(atlas),
+        });
+        let (aw, ah) = (atlas[0].max(1) as f32, atlas[1].max(1) as f32);
+        for (rect, min, max) in quads {
+            let uv = Rect::from_min_max(
+                Pos2::new(min[0] as f32 / aw, min[1] as f32 / ah),
+                Pos2::new(max[0] as f32 / aw, max[1] as f32 / ah),
+            );
+            mesh.add_rect_uv(rect.sdk().translate(pos.to_vec2()), uv, color);
+        }
+        mesh
+    }
+
     /// Upload `image` as a texture named `name` (the name shows in debug
     /// tools only).
     ///
@@ -335,7 +402,8 @@ impl Painter {
             handle: self
                 .inner
                 .ctx()
-                .load_texture(name, image.to_egui(), filter.eg()),
+                .load_texture(name, image.to_egui(), filter.eg())
+                .into(),
         }
     }
 
@@ -620,6 +688,37 @@ mod tests {
             assert!(p.text_size("Hi", Font::display(40.0)).x > 0.0);
         });
         out.textures_delta.clear();
+    }
+
+    #[test]
+    fn glyph_mesh_cuts_quads_from_the_atlas() {
+        with_painter(|p| {
+            let m = p.glyph_mesh(
+                Pos2::new(10.0, 20.0),
+                "A B",
+                Font::display(40.0),
+                Color::WHITE,
+            );
+            assert_eq!(m.vertices.len(), 8, "the space has no quad");
+            assert_eq!(m.indices.len(), 12);
+            let tex = m.texture.as_ref().expect("on the atlas");
+            assert!(tex.size()[0] > 0);
+            assert!(
+                m.vertices
+                    .iter()
+                    .all(|v| v.pos.x >= 10.0 && v.pos.y >= 20.0)
+            );
+            assert!(
+                m.vertices
+                    .iter()
+                    .all(|v| (0.0..=1.0).contains(&v.uv.x) && (0.0..=1.0).contains(&v.uv.y))
+            );
+            assert!(m.to_egui().texture_id == egui::TextureId::default());
+            assert!(
+                p.glyph_mesh(Pos2::ZERO, "", Font::display(40.0), Color::WHITE)
+                    .is_empty()
+            );
+        });
     }
 
     #[test]

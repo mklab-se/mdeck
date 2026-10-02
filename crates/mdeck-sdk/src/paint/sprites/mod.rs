@@ -144,11 +144,13 @@ impl SpriteLayer {
             .lock()
             .unwrap_or_else(|p| p.into_inner())
             .get_or_insert_with(|| Texture {
-                handle: ctx.load_texture(
-                    "mdeck-sdk-sprite",
-                    sprite_falloff().to_egui(),
-                    TextureFilter::Linear.eg(),
-                ),
+                handle: ctx
+                    .load_texture(
+                        "mdeck-sdk-sprite",
+                        sprite_falloff().to_egui(),
+                        TextureFilter::Linear.eg(),
+                    )
+                    .into(),
             })
             .clone();
         sprite_mesh(texture, sprites, blend)
@@ -216,7 +218,9 @@ mod tests {
     fn tex() -> Texture {
         let ctx = egui::Context::default();
         Texture {
-            handle: ctx.load_texture("t", sprite_falloff().to_egui(), Default::default()),
+            handle: ctx
+                .load_texture("t", sprite_falloff().to_egui(), Default::default())
+                .into(),
         }
     }
 

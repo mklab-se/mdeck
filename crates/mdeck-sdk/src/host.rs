@@ -153,7 +153,9 @@ pub fn transition_cx(
 
 /// An egui texture as an SDK texture.
 pub fn texture(handle: egui::TextureHandle) -> crate::paint::Texture {
-    crate::paint::Texture { handle }
+    crate::paint::Texture {
+        handle: handle.into(),
+    }
 }
 
 /// SDK colour to egui.
