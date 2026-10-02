@@ -2,6 +2,7 @@
 # gentle, with a blossom-pink accent and young greens.
 name: Spring
 extends: light
+variant-of: light
 colors:
   background: "#f7faf2"      # morning haze
   text: "#34402f"            # moss

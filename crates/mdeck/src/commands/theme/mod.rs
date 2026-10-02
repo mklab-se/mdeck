@@ -48,7 +48,18 @@ pub async fn run(cmd: ThemeCommands, quiet: bool) -> Result<()> {
 
 fn list() -> Result<()> {
     let l = here();
+    let mut tier = None;
     for found in l.available() {
+        let variant = l.variant_of(&found);
+        if tier != Some(variant.is_some()) {
+            tier = Some(variant.is_some());
+            let heading = if variant.is_some() {
+                "\nVariants (recolourings of a theme)"
+            } else {
+                "Themes"
+            };
+            println!("{}", heading.bold());
+        }
         let (label, path) = match &found.origin {
             Origin::Builtin => ("built-in", String::new()),
             o => (
@@ -59,11 +70,21 @@ fn list() -> Result<()> {
             ),
         };
         let desc = match l.load_found(&found) {
-            Ok(b) => format!("{} engine", b.theme.engine.name()),
+            Ok(b) => match &variant {
+                Some(of) => format!("of {of}, {}", b.theme.engine.name()),
+                None if b.theme.engine.is_board() => {
+                    format!("{}, board", b.theme.engine.name())
+                }
+                None => format!(
+                    "{}, {}",
+                    b.theme.engine.name(),
+                    b.theme.arrangements.set
+                ),
+            },
             Err(_) => "invalid (run `mdeck theme check`)".red().to_string(),
         };
         println!(
-            "  {:<16} {:<9} {:<14} {}",
+            "  {:<16} {:<9} {:<22} {}",
             found.name,
             label,
             desc,
@@ -214,6 +235,7 @@ fn written_in(dir: &Path) -> Lookup {
     Lookup {
         deck: None,
         user: Some(dir.to_path_buf()),
+        packs: Vec::new(),
     }
 }
 

@@ -1,9 +1,13 @@
-# Dark: the default dark theme. Every built-in theme is written in the same
+# Dark: the default theme (THM-15): plain, dark, a bright foreground,
+# standard designs, fades between slides and no countdown. Every theme
+# without `extends` inherits it. Built-in themes are written in the same
 # format as user themes; see `mdeck spec`, section 9.4.
 name: Dark
 engine: plain
 designs: standard
 countdown: off
+# no transition: the built-in fade applies, so a user's configured default
+# transition still wins over this theme and every theme that extends it
 colors:
   background: "#1e1e1e"
   text: "#c8c8c8"

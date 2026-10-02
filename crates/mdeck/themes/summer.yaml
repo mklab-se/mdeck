@@ -2,6 +2,7 @@
 # accent and a sunlit secondary.
 name: Summer
 extends: light
+variant-of: light
 colors:
   background: "#fffaf0"      # sand in the sun
   text: "#3b2f22"            # driftwood
