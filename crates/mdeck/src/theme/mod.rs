@@ -408,8 +408,9 @@ mod tests {
 
     #[test]
     fn engine_settings_come_from_the_engine_block() {
+        // `plain`, which every build has: a missing engine's settings are dropped.
         let f = file::ThemeFile::parse(
-            "engine: { name: thermal, palette: lava, drift: true, extra: [1, x] }",
+            "engine: { name: plain, palette: lava, drift: true, extra: [1, x] }",
         )
         .unwrap()
         .over(&lookup::builtin_file("dark").unwrap());

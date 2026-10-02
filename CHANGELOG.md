@@ -82,14 +82,22 @@ an AI harness can convert a deck.
   as `picture:`).
 - **Private extensions.**
   - `mdeck sdk new <engine|visual|design-set|transition> <name>` creates an extension crate that
-    builds and tests as it is (`--dir` picks the folder; it never writes into a folder that is
-    not empty).
+    builds and tests as it is, with a `.gitignore` for build output and golden-test leftovers
+    (`--dir` picks the folder; it never writes into a folder that is not empty).
   - `mdeck sdk preview [--engine <name>] [--theme <name>] [-o <dir>]` exports a built-in preview
     deck (every design, a chart, images, a picture slide) and the countdown and end moments as
     PNGs, with an engine and theme chosen by name (an extension engine in a build with it).
-  - `mdeck build --with <path|crate[@version]>...` builds an mdeck with extension crates in it:
-    a generated cargo project registers the built-ins and each extension, compiles in release
-    mode and copies the binary to `./target/release/mdeck` (`--out`, `--name`, `--mdeck-path`).
+  - `mdeck build --with <path|crate[@version]|git-url>...` builds an mdeck with extension crates
+    in it: a generated cargo project registers the built-ins and each extension, compiles in
+    release mode and copies the binary to `./target/release/mdeck` (`--out`, `--name`,
+    `--mdeck-path`). Git sources (`git+https://...`, `git+ssh://...`, `git+file://...`,
+    `git@host:org/repo`) take an optional `#tag`, `#branch` or `#commit` and `?package=<name>`,
+    and are fetched with the user's own git credentials, so a private repository is enough to
+    share an extension. A rebuild picks up new commits on a branch and new crates.io releases
+    (tags and commits stay put), and `--out dir/` with a trailing slash makes the folder instead
+    of a file named `dir`.
+  - `Registry::font(file, bytes)` lets a crate's embedded themes use font files the crate embeds,
+    so a brand engine, its themes and its fonts travel in one crate.
   - **Packs** are folders of data with an `mdeck-pack.yaml` manifest: `mdeck pack install <folder|zip|git-url>` (for the user, or `--deck` for the deck's
     `packs/`), `mdeck pack list` and `mdeck pack remove`. Pack themes and point clouds are found
     after the deck's and the user's and before the built-ins. A pack's `designs/` holds design
@@ -108,6 +116,11 @@ an AI harness can convert a deck.
     image is made when the deck opens and cached in `<deck>.assets/visuals/`; when none can be
     made, the fence's source shows instead (see
     [Writing a visual kind](docs/sdk/visuals.md#visuals-in-any-language)).
+- **SDK guides a beginner can follow** (`docs/sdk/`): prerequisites (Rust, a C toolchain, git),
+  a full-cycle first tutorial from an empty folder to colleagues presenting with your engine
+  (build, look, test, version, share, troubleshoot), deeper tutorial steps after it, and a
+  packaging and sharing guide (engines with themes and fonts in one crate, packs, crates.io,
+  private registries, binaries).
 - `docs/upgrading-from-v1.md`, a samples index (`samples/README.md`), one sample deck per design
   in `samples/layouts/`, and `samples/features/designs.md`, which restyles every design with a
   deck-local theme.
@@ -279,6 +292,14 @@ an AI harness can convert a deck.
 - On the particles engine the clusters keep clear of the copy whatever the design set: with
   `designs: standard` (a centred title, wide bullets) they no longer land on the words. Designs
   publish their copy box as the new SDK hint `Hint::Copy`.
+- `--check` labels a theme's problems with where the theme comes from
+  (`theme 'acme-night' (from extension acme-brand)`, or the theme file) instead of `slide 0`.
+- A theme naming an engine this build lacks reports the unknown engine once, instead of also
+  reporting each of that engine's settings as an unknown setting of `plain`.
+- The `requires:` hint in `--check` names git sources for `mdeck build --with`.
+- `MDECK_UPDATE_GOLDEN=1` deletes the stale `<name>.actual.png` a failed golden test left when it
+  rewrites the golden image (`mdeck_sdk::testing::assert_golden`).
+- `mdeck --check` documents its exit status: 1 when it reports warnings, 0 when clean.
 - The presenter view's current slide shows the engine's layer (particles, generated pictures, the
   blueprint sheet) as the slides window does, run by its own engine so the slides are not slowed.
 

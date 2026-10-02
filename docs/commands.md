@@ -15,9 +15,12 @@ mdeck talk.md                      # present fullscreen
   --theme <name>                   #   in another theme
   --engine <name>                  #   on another engine
   --reduced-motion                 #   settled states, no motion
-mdeck talk.md --check              # validate without opening a window (exit status 1 on problems)
+mdeck talk.md --check              # validate without opening a window (exit 1: warnings, 0: clean)
 mdeck talk.md --check -v           #   with each slide's design, steps and settings
 ```
+
+`--check` exits with status 1 when it reports any warning and 0 when it finds no issues, so a
+script or CI job can stop on a deck that will not show as written.
 
 See [Presenting](presenting.md) and [Writing slides](writing-slides.md#check-your-deck).
 

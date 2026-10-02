@@ -8,6 +8,10 @@ macro_rules! template {
             // Stored as `Cargo.toml.tmpl`: `cargo package` drops any
             // `Cargo.toml` below the crate root, taking it for a nested crate.
             template!(@file $kind, "Cargo.toml", "Cargo.toml.tmpl"),
+            // Stored as `gitignore.tmpl`: `cargo package` would honour a
+            // `.gitignore` and leave out the files it names, and a dotfile
+            // is easy to lose.
+            template!(@file $kind, ".gitignore", "gitignore.tmpl"),
             template!(@file $kind, "README.md"),
             template!(@file $kind, "deck.md"),
             template!(@file $kind, "theme.yaml"),

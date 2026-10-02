@@ -19,6 +19,7 @@ fn warn(slide: usize, line: usize, message: String) -> CheckWarning {
         line,
         category: CheckCategory::Assets,
         message,
+        place: None,
     }
 }
 

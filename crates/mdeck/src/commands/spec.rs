@@ -157,7 +157,7 @@ EXTENDING (spec section 18)
   mdeck pack install <folder|zip|git-url>   Themes, designs, point clouds, fonts
   mdeck sdk new engine|visual|design-set|transition <name>   A Rust crate
   mdeck sdk preview --engine NAME [--theme NAME] -o DIR   Every design and both moments, as PNGs
-  mdeck build --with <path|crate>   An mdeck with the extension inside
+  mdeck build --with <path|crate|git-url>   An mdeck with the extension inside
   requires: [pack, extension]       In the frontmatter; --check names missing ones
 "#;
 

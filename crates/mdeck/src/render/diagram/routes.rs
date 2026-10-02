@@ -316,6 +316,7 @@ pub fn precache_all_diagrams_with_report(
                     line: 0,
                     category: CheckCategory::DiagramRouting,
                     message: warning_msg,
+                    place: None,
                 });
             }
         }

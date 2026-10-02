@@ -55,6 +55,7 @@ pub fn picture_stage_warnings(
                 message: format!(
                     "picture: {name} is not shown: this slide's design has no stage for a picture"
                 ),
+                place: None,
             })
         })
         .collect()
@@ -73,6 +74,7 @@ pub fn engine_warnings(
                 line: message_line(slide, &message),
                 category: CheckCategory::Engine,
                 message,
+                place: None,
             });
         }
     }

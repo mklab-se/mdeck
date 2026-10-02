@@ -133,6 +133,7 @@ pub(crate) fn collect(
             line: 0,
             category: CheckCategory::Engine,
             message,
+            place: None,
         })
         .collect());
     add(crate::engines::settings_problems(&theme)
@@ -141,7 +142,8 @@ pub(crate) fn collect(
             slide: 0,
             line: 0,
             category: CheckCategory::Engine,
-            message: format!("theme {}: {message}", theme.name),
+            message,
+            place: Some(theme::place_of(&theme.name, &theme, base_path)),
         })
         .collect());
     add(point_cloud_warnings(presentation, file, &theme));
@@ -176,6 +178,7 @@ fn design_warnings(presentation: &parser::Presentation) -> Vec<CheckWarning> {
                 line: slide.setting_line("design"),
                 category: CheckCategory::Settings,
                 message,
+                place: None,
             })
         })
         .collect()
@@ -195,6 +198,7 @@ fn diagram_warnings(presentation: &parser::Presentation) -> Vec<CheckWarning> {
                         line,
                         category: CheckCategory::DiagramRouting,
                         message,
+                        place: None,
                     });
                 }
             }

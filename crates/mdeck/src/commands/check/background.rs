@@ -20,6 +20,7 @@ pub fn background_warnings(
         line,
         category: CheckCategory::Background,
         message,
+        place: None,
     };
     let mut out: Vec<CheckWarning> = problems
         .into_iter()

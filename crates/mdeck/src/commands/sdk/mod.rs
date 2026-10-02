@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn every_kind_instantiates_without_placeholders() {
         for kind in TemplateKind::value_variants() {
-            assert_eq!(kind.files().len(), 6);
+            assert_eq!(kind.files().len(), 7);
             for (file, text) in kind.files() {
                 let out = instantiate(text, "my-ext");
                 assert!(!out.contains("{{"), "{}/{file}", kind.name());
@@ -140,10 +140,11 @@ mod tests {
         let dir = crate::extensions::packs::tempdir("sdk-new").unwrap();
         let target = dir.join("template-engine");
         let files = create(TemplateKind::Engine, "template-engine", &target).unwrap();
-        assert_eq!(files.len(), 6);
+        assert_eq!(files.len(), 7);
         let example = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/template-engine");
         // Cargo.toml differs on purpose: the example is a workspace member.
         for file in [
+            ".gitignore",
             "README.md",
             "deck.md",
             "theme.yaml",

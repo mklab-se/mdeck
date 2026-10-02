@@ -18,6 +18,7 @@ pub fn thermal_warnings(presentation: &parser::Presentation, base: &Path) -> Vec
             line: d.line,
             category: CheckCategory::Thermal,
             message: d.message,
+            place: None,
         })
         .collect();
     // the palette the deck asks for
@@ -31,6 +32,7 @@ pub fn thermal_warnings(presentation: &parser::Presentation, base: &Path) -> Vec
             message: format!(
                 "palette: '{p}' is not one of iron, white-hot, black-hot, rainbow, arctic, lava"
             ),
+            place: None,
         });
     }
     out
