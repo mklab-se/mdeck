@@ -245,7 +245,7 @@ themes). Left out of that round, each a decision or a follow-up:
 - **The reveal runs on the CPU** (a time map, one pass per frame into a
   texture, pictures capped at 900 px). A GPU shader would allow full
   resolution pictures; not needed at today's sizes.
-- **Line art on laser and LED.** Both could trace a slide's line art instead
+- **Line art on LED.** It could trace a slide's line art instead
   of its point cloud. Small once wanted.
 - **A hand-lettered heading face** for sketch and chalkboard, as a theme
   option. Needs a bundled face with a suitable licence.

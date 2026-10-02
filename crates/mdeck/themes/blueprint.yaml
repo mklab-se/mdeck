@@ -1,7 +1,7 @@
 # Blueprint: a draftsman's sheet. Prussian blue with a fine grid, a ruled
 # border and a title block; each slide's generated line art is inked in
 # pale blue-white, construction lines first (line engine, sheet surface). Make the
-# art with `mdeck ai art`; without it, `@illustration` point clouds are
+# art with `mdeck ai pictures`; without it, `picture:` point clouds are
 # drawn as technical pen lines.
 name: Blueprint
 extends: dark
