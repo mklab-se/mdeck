@@ -16,6 +16,8 @@
 pub mod host;
 pub mod plain;
 pub mod rng;
+#[cfg(feature = "splitflap")]
+pub mod splitflap;
 
 pub use host::{CountPhase, Host, Shot, choose, unsupported, unsupported_summary, with_engine};
 pub use mdeck_sdk::engine::{Capabilities, EngineDef, Medium};
@@ -26,6 +28,8 @@ use mdeck_sdk::registry::{Registry, RegistryError};
 /// Register the built-in engines (each one but plain is a cargo feature).
 pub fn register(r: &mut Registry) -> Result<(), RegistryError> {
     r.engine(&plain::DEF)?;
+    #[cfg(feature = "splitflap")]
+    r.engine(&splitflap::DEF)?;
     Ok(())
 }
 
