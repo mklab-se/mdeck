@@ -11,7 +11,7 @@ colors:
   background: "#050505"
   text: "#8f8f98"
   heading: "#ececef"
-  muted: "#6b6b74"
+  muted: "#85858e"
   rule: "#ffffff0f" # Judgement call: subtle 6% hairlines preserve the quiet structure.
   accent: "#ff4d1c"
   accent-soft: "#ff8a66"

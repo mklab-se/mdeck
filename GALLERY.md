@@ -1,472 +1,229 @@
-# MDeck Gallery
+# mdeck gallery
 
-A visual showcase of what you can create with MDeck — layouts, charts, diagrams, and more. Everything below was generated from a single markdown file using `mdeck export`.
+Every picture on this page is a slide exported with `mdeck export` from a markdown file in
+[`samples/`](samples/). Nothing was touched up afterwards: what you see is what the window shows.
+Stills of motion (particles, LEDs, drawings that ink themselves in) are taken with
+`mdeck export --at <seconds>`.
 
-> **Source:** [`samples/gallery.md`](samples/gallery.md)
->
-> **Try it yourself:** `mdeck samples/gallery.md`
+- [Designs](#designs): the thirteen kinds of slide, in both design sets
+- [Engines](#engines): ten ways to bring a deck to life
+- [Visuals](#visuals): charts, diagrams and thermal images from fenced blocks
+- [Themes](#themes): colours, variants and your own
+- [Presenter view](#presenter-view)
 
 ---
 
-## Ember
+## Designs
 
-The Ember theme puts a living field of glowing particles behind every slide.
-These stills are from `samples/ember.md`,
-`samples/ember/illustrations.md` and `samples/ember/visualizations.md`; the
-field moves in the presentation.
+mdeck recognises what each slide is from its content and gives it one of thirteen designs. A
+theme decides how the designs look by picking a design set: **standard** (the classic centred
+slide, here the default `dark` theme) or **editorial** (a magazine spread with an eyebrow, display
+type and a stage for the picture, here `ember`). The markdown is the same in both columns.
 
-### Title
+Source: [`samples/features/designs.md`](samples/features/designs.md), exported with
+`--theme dark` and `--theme ember`.
 
-The particles gather into a constellation on the flanks of the title.
+| Design | Standard | Editorial |
+|---|---|---|
+| `title`: an H1 and one short line | <img src="media/gallery/design-title-standard.jpg" width="400" alt="Title slide, standard"> | <img src="media/gallery/design-title-editorial.jpg" width="400" alt="Title slide, editorial"> |
+| `section`: a lone heading, or a heading and a deeper one | <img src="media/gallery/design-section-standard.jpg" width="400" alt="Section slide, standard"> | <img src="media/gallery/design-section-editorial.jpg" width="400" alt="Section slide, editorial"> |
+| `statement`: a heading and a sentence or two, said big | <img src="media/gallery/design-statement-standard.jpg" width="400" alt="Statement slide, standard"> | <img src="media/gallery/design-statement-editorial.jpg" width="400" alt="Statement slide, editorial"> |
+| `points`: a heading and a list | <img src="media/gallery/design-points-standard.jpg" width="400" alt="Points slide, standard"> | <img src="media/gallery/design-points-editorial.jpg" width="400" alt="Points slide, editorial"> |
+| `split`: text beside one image | <img src="media/gallery/design-split-standard.jpg" width="400" alt="Split slide, standard"> | <img src="media/gallery/design-split-editorial.jpg" width="400" alt="Split slide, editorial"> |
+| `media`: one image, large, with a lead and a caption | <img src="media/gallery/design-media-standard.jpg" width="400" alt="Media slide, standard"> | <img src="media/gallery/design-media-editorial.jpg" width="400" alt="Media slide, editorial"> |
+| `gallery`: two or more images, captioned from their alt text | <img src="media/gallery/design-gallery-standard.jpg" width="400" alt="Gallery slide, standard"> | <img src="media/gallery/design-gallery-editorial.jpg" width="400" alt="Gallery slide, editorial"> |
+| `quote`: a quotation and its attribution | <img src="media/gallery/design-quote-standard.jpg" width="400" alt="Quote slide, standard"> | <img src="media/gallery/design-quote-editorial.jpg" width="400" alt="Quote slide, editorial"> |
+| `code`: a code block with a heading and a line of context | <img src="media/gallery/design-code-standard.jpg" width="400" alt="Code slide, standard"> | <img src="media/gallery/design-code-editorial.jpg" width="400" alt="Code slide, editorial"> |
+| `visual`: a chart or diagram | <img src="media/gallery/design-visual-standard.jpg" width="400" alt="Visual slide, standard"> | <img src="media/gallery/design-visual-editorial.jpg" width="400" alt="Visual slide, editorial"> |
+| `columns`: side by side, split with `+++` | <img src="media/gallery/design-columns-standard.jpg" width="400" alt="Columns slide, standard"> | <img src="media/gallery/design-columns-editorial.jpg" width="400" alt="Columns slide, editorial"> |
+| `table`: a heading and a table | <img src="media/gallery/design-table-standard.jpg" width="400" alt="Table slide, standard"> | <img src="media/gallery/design-table-editorial.jpg" width="400" alt="Table slide, editorial"> |
+| `content`: anything else, in reading order | <img src="media/gallery/design-content-standard.jpg" width="400" alt="Content slide, standard"> | <img src="media/gallery/design-content-editorial.jpg" width="400" alt="Content slide, editorial"> |
 
-<img src="media/gallery/ember-title.png" width="720">
+### Arrangements
 
-### Bullets
+A theme can change any design's arrangement with a few lines of YAML. The deck-local `magazine`
+theme next to [`designs.md`](samples/features/designs.md) uses the editorial set on a still
+screen, with diamond bullets everywhere and a centred quote with marks instead of a bar.
 
-One cluster per item, each lighting with its reveal step, beside the copy column.
-
-<img src="media/gallery/ember-bullets.png" width="720">
-
-### A diagram
-
-On charts and diagrams the field serves the content: here runners travel the
-routed edges in their direction while dust keeps to the margins.
-
-<img src="media/gallery/ember-diagram.png" width="720">
-
-### An illustration
-
-`<!-- picture: robot -->` under the slide's heading, and the particles settle into a
-point cloud beside the copy: a hint of the thing, never a picture of it. Thirty-eight
-are built in; `mdeck ai point-cloud` makes more from a description.
-
-<img src="media/gallery/ember-illustration.png" width="720">
+| Points with `bullet: "◆"` | A quote, centred, with marks |
+|---|---|
+| <img src="media/gallery/arrangement-points.jpg" width="400" alt="A points slide with diamond bullets"> | <img src="media/gallery/arrangement-quote.jpg" width="400" alt="A centred quote with quote marks"> |
 
 ---
 
 ## Engines
 
-The same slides on other engines (spec section 9.6); any deck switches with
-`engine` in its frontmatter. These stills are from `samples/engines/`.
+An engine is what moves on the screen. Every built-in engine comes with a showcase theme; any deck
+switches with one line (`theme: ember`), or try one without editing with
+`mdeck talk.md --theme ember`.
 
-### LED wall
+### plain: `dark`, `light`, `nord`
 
-The `led` engine and its `marquee` theme: a wall of RGB LEDs behind every
-slide. Title slides get a marquee border of chasing bulbs, with the
-illustration dim behind the copy.
+The default. A still, clean page that shows that mdeck is simple.
 
-<img src="media/gallery/marquee-title.jpg" width="720">
+<img src="media/gallery/engine-plain.jpg" width="720" alt="A points slide on the plain dark theme">
 
-An illustration powers on from its centre, LED by LED, and shimmers between
-the theme's colours. Brightness follows the point cloud's density, so the
-filament stays brighter than the glass.
+*Source: [`samples/showcase/launch.md`](samples/showcase/launch.md), theme `dark`.*
 
-<img src="media/gallery/marquee-illustration.jpg" width="720">
+### particles: `ember` (variants `autumn`, `winter`)
 
-On a chart, a peak marker floats over every bar like a level meter's.
+A living field of glowing particles. A slide's `picture` (a point cloud such as `lightbulb` or
+`gear`) gathers on the stage beside the copy.
 
-<img src="media/gallery/marquee-chart.jpg" width="720">
+| | |
+|---|---|
+| <img src="media/gallery/engine-particles.jpg" width="400" alt="Particles forming a light bulb beside a list"> | <img src="media/gallery/engine-particles-gear.jpg" width="400" alt="Particles forming a gear"> |
 
-The countdown, lit digit by digit.
+*Source: [`samples/showcase/launch.md`](samples/showcase/launch.md), theme `ember`, `--at 8`.*
 
-<img src="media/gallery/marquee-countdown.jpg" width="720">
+### led: `marquee`
 
-### Departure board
+A wall of RGB LEDs. Pictures power on from their centre, title slides get a border of chasing
+bulbs, and charts get peak markers.
 
-The `splitflap` engine and its `departures` theme: every slide on a
-split-flap board. A table becomes a timetable.
+| | | |
+|---|---|---|
+| <img src="media/gallery/engine-led-title.jpg" width="260" alt="LED title slide with a marquee border"> | <img src="media/gallery/engine-led.jpg" width="260" alt="An LED light bulb beside a list"> | <img src="media/gallery/engine-led-chart.jpg" width="260" alt="A bar chart with LED peak markers"> |
 
-<img src="media/gallery/departures-schedule.jpg" width="720">
+*Source: [`samples/engines/led.md`](samples/engines/led.md).*
 
-Going to the next slide, every flap turns through its wheel until it shows
-its new character.
+### splitflap: `departures`
 
-<img src="media/gallery/departures-turning.jpg" width="720">
+Every slide on a split-flap departure board, flap by flap. A board engine: it draws the whole
+slide itself.
 
-Progress bars in solid flaps, and a slide's first image in a panel on the
-board.
+| | | |
+|---|---|---|
+| <img src="media/gallery/engine-splitflap-schedule.jpg" width="260" alt="A schedule table on a departure board"> | <img src="media/gallery/engine-splitflap-progress.jpg" width="260" alt="Progress bars made of flaps"> | <img src="media/gallery/engine-splitflap.jpg" width="260" alt="A departure board with a photograph"> |
 
-<img src="media/gallery/departures-progress.jpg" width="720">
+*Source: [`samples/engines/splitflap.md`](samples/engines/splitflap.md).*
 
-<img src="media/gallery/departures-picture.jpg" width="720">
+### blocks: `stack`
 
-The countdown in solid flaps.
+Pictures built from falling blocks, bottom row first, with a small bounce.
 
-<img src="media/gallery/departures-countdown.jpg" width="720">
+| | |
+|---|---|
+| <img src="media/gallery/engine-blocks-title.jpg" width="400" alt="A title over a rocket of blocks"> | <img src="media/gallery/engine-blocks.jpg" width="400" alt="A light bulb built from blocks"> |
 
-### Falling blocks
+*Source: [`samples/engines/blocks.md`](samples/engines/blocks.md).*
 
-The `blocks` engine and its `stack` theme: illustrations built from falling
-blocks. The pieces drop bottom row first:
+### thermal: `thermal`
 
-<img src="media/gallery/stack-falling.jpg" width="720">
+A heat field: headings form in heat, pictures show as heat signatures, and `@thermal` images get
+palettes, lenses, threshold reveals and measured spots.
 
-and settle into the picture:
+| | |
+|---|---|
+| <img src="media/gallery/engine-thermal-title.jpg" width="400" alt="A title formed in heat"> | <img src="media/gallery/engine-thermal.jpg" width="400" alt="A thermal image of a cabinet with two spots"> |
+| <img src="media/gallery/engine-thermal-signature.jpg" width="400" alt="A heat signature beside a list"> | <img src="media/gallery/engine-thermal-compare.jpg" width="400" alt="Two thermal images, before and after a repair"> |
 
-<img src="media/gallery/stack-illustration.jpg" width="720">
+*Source: [`samples/engines/thermal.md`](samples/engines/thermal.md).*
 
-On a title slide the stack stands dim behind the copy.
+### line: `blueprint` (surface `sheet`) and `chalkboard` (surface `slate`)
 
-<img src="media/gallery/stack-title.jpg" width="720">
+Line art drawn stroke by stroke, construction lines first. Each slide's picture is made once with
+`mdeck ai pictures` and kept next to the deck; without one, the slide's point cloud is drawn with
+the same pen.
 
-### Blueprint
+| | |
+|---|---|
+| <img src="media/gallery/engine-line-sheet-title.jpg" width="400" alt="A blueprint title sheet with a dim drawing"> | <img src="media/gallery/engine-line-sheet.jpg" width="400" alt="A blueprint drawing beside a list"> |
+| <img src="media/gallery/engine-line-slate-title.jpg" width="400" alt="A chalkboard title with a lighthouse"> | <img src="media/gallery/engine-line-slate.jpg" width="400" alt="A chalk drawing of a lighthouse lens"> |
+| <img src="media/gallery/engine-line-sheet-fallback.jpg" width="400" alt="A gear point cloud drawn with a technical pen"> | |
 
-The `line` engine on its `sheet` surface, and the `blueprint` theme: each slide gets line art
-generated for it (`mdeck ai pictures`), inked onto a Prussian blue sheet.
-Mid-drawing, construction lines run ahead of the ink under the drafting
-machine's crosshair:
+*Sources: [`samples/engines/blueprint.md`](samples/engines/blueprint.md),
+[`samples/engines/chalkboard.md`](samples/engines/chalkboard.md).*
 
-<img src="media/gallery/blueprint-drawing.jpg" width="720">
+### sketch: `sketchbook`
 
-and the finished sheet, with its dimension lines and title block:
+Graphite drawings on paper, pencilled in as the slide opens: outlines first, then the shading.
 
-<img src="media/gallery/blueprint-sheet.jpg" width="720">
+| | |
+|---|---|
+| <img src="media/gallery/engine-sketch-title.jpg" width="400" alt="A sketchbook title page"> | <img src="media/gallery/engine-sketch.jpg" width="400" alt="A pencil drawing of a workshop beside a list"> |
 
-On a title slide the drawing stands dim behind the copy.
+*Source: [`samples/engines/sketch.md`](samples/engines/sketch.md).*
 
-<img src="media/gallery/blueprint-title.jpg" width="720">
+### watercolour: `watercolour`
 
-### Sketchbook
+Paintings that bloom onto the page, ink first, then the washes.
 
-The `sketch` engine and its `sketchbook` theme: each slide gets a graphite
-and ink drawing in the MKLab house style, drawn in by a pencil. The outlines
-come first, then the shading sweeps in stroke by stroke:
+| | |
+|---|---|
+| <img src="media/gallery/engine-watercolour-title.jpg" width="400" alt="A watercolour title page"> | <img src="media/gallery/engine-watercolour.jpg" width="400" alt="A watercolour of a gardener resting"> |
 
-<img src="media/gallery/sketch-drawing.jpg" width="720">
+*Source: [`samples/engines/watercolour.md`](samples/engines/watercolour.md).*
 
-and the finished page:
+### darkroom: `darkroom`
 
-<img src="media/gallery/sketch-page.jpg" width="720">
+Black-and-white photographs that develop under a safelight, shadows first.
 
-The title page, its drawing faint behind the copy.
+| | | |
+|---|---|---|
+| <img src="media/gallery/engine-darkroom-title.jpg" width="260" alt="A darkroom title over a dim photograph"> | <img src="media/gallery/engine-darkroom-print.jpg" width="260" alt="A photograph of a print in a developer tray"> | <img src="media/gallery/engine-darkroom.jpg" width="260" alt="A photograph of a fishing boat"> |
 
-<img src="media/gallery/sketch-title.jpg" width="720">
+*Source: [`samples/engines/darkroom.md`](samples/engines/darkroom.md).*
 
-### Chalkboard
+### Countdowns and endings
 
-The `line` engine on its `slate` surface, and the `chalkboard` theme: a slate in a wooden frame, generated line
-art drawn in chalk with a stick of chalk at the point:
+Engines with a countdown open the deck with 3, 2, 1, and some close it with an end act. Export a
+moment with `mdeck export deck.md --moment countdown` (or `3`, `2`, `1`, `burst`, `end`).
 
-<img src="media/gallery/chalkboard-drawing.jpg" width="720">
+| particles | led | splitflap | thermal |
+|---|---|---|---|
+| <img src="media/gallery/moment-countdown-particles.jpg" width="200" alt="A 3 made of particles"> | <img src="media/gallery/moment-countdown-led.jpg" width="200" alt="A 3 on an LED wall"> | <img src="media/gallery/moment-countdown-splitflap.jpg" width="200" alt="A 3 made of yellow flaps"> | <img src="media/gallery/moment-end-thermal.jpg" width="200" alt="THE END glowing in heat"> |
 
-and the finished board:
+---
 
-<img src="media/gallery/chalkboard-board.jpg" width="720">
+## Visuals
 
-The title, the drawing faint behind it.
+Charts and diagrams are fenced blocks: ```` ```@bar ````, ```` ```@architecture ```` and so on.
+They take the theme's colours and animate in. These are on `ember`.
 
-<img src="media/gallery/chalkboard-title.jpg" width="720">
+Source: [`samples/visualizations/all.md`](samples/visualizations/all.md) (one file per kind in
+[`samples/visualizations/`](samples/visualizations/)).
 
-### Watercolour
-
-The `watercolour` engine and theme: each slide's generated watercolour
-blooms onto cold-press paper, a pale wash first and then the colour
-spreading from where the paint is heaviest:
-
-<img src="media/gallery/watercolour-blooming.jpg" width="720">
-
-and dry:
-
-<img src="media/gallery/watercolour-page.jpg" width="720">
-
-<img src="media/gallery/watercolour-title.jpg" width="720">
-
-### Darkroom
-
-The `darkroom` engine and theme: each slide's generated photograph develops
-as a print under the red safelight:
-
-<img src="media/gallery/darkroom-developing.jpg" width="720">
-
-then the white light comes on:
-
-<img src="media/gallery/darkroom-print.jpg" width="720">
-
-<img src="media/gallery/darkroom-title.jpg" width="720">
-
-### Thermal
-
-The `thermal` engine and theme: the deck seen through a thermal instrument.
-Title and section headings form in heat and settle with a faint contour halo:
-
-<img src="media/gallery/thermal-title.jpg" width="720">
-
-A `@thermal` block finds the problem: a lens over the ordinary photo,
-
-<img src="media/gallery/thermal-lens.jpg" width="720">
-
-a threshold that colours only the hottest metal,
-
-<img src="media/gallery/thermal-threshold.jpg" width="720">
-
-an illustration as a heat signature,
-
-<img src="media/gallery/thermal-signature.jpg" width="720">
-
-and before and after on one temperature scale (the pictures are synthetic
-examples):
-
-<img src="media/gallery/thermal-compare.jpg" width="720">
+| | | |
+|---|---|---|
+| <img src="media/gallery/visual-bar.jpg" width="260" alt="Bar chart"><br>`@bar` | <img src="media/gallery/visual-bar-horizontal.jpg" width="260" alt="Horizontal bar chart"><br>`@bar` with `orientation: horizontal` | <img src="media/gallery/visual-line.jpg" width="260" alt="Line chart"><br>`@line` |
+| <img src="media/gallery/visual-pie.jpg" width="260" alt="Pie chart"><br>`@pie` | <img src="media/gallery/visual-donut.jpg" width="260" alt="Donut chart"><br>`@donut` | <img src="media/gallery/visual-scatter.jpg" width="260" alt="Scatter plot"><br>`@scatter` |
+| <img src="media/gallery/visual-stackedbar.jpg" width="260" alt="Stacked bar chart"><br>`@stackedbar` | <img src="media/gallery/visual-funnel.jpg" width="260" alt="Funnel chart"><br>`@funnel` | <img src="media/gallery/visual-radar.jpg" width="260" alt="Radar chart"><br>`@radar` |
+| <img src="media/gallery/visual-progress.jpg" width="260" alt="Progress bars"><br>`@progress` | <img src="media/gallery/visual-kpi.jpg" width="260" alt="KPI cards"><br>`@kpi` | <img src="media/gallery/visual-wordcloud.jpg" width="260" alt="Word cloud"><br>`@wordcloud` (on `dark`) |
+| <img src="media/gallery/visual-timeline.jpg" width="260" alt="Timeline"><br>`@timeline` | <img src="media/gallery/visual-gantt.jpg" width="260" alt="Gantt chart"><br>`@gantt` | <img src="media/gallery/visual-gitgraph.jpg" width="260" alt="Git graph"><br>`@gitgraph` |
+| <img src="media/gallery/visual-architecture.jpg" width="260" alt="Architecture diagram"><br>`@architecture` | <img src="media/gallery/visual-orgchart.jpg" width="260" alt="Org chart"><br>`@orgchart` | <img src="media/gallery/visual-venn.jpg" width="260" alt="Venn diagram"><br>`@venn` |
+| <img src="media/gallery/visual-flower.jpg" width="260" alt="Flower diagram"><br>`@flower` | <img src="media/gallery/visual-artifactflow.jpg" width="260" alt="Artifact flow"><br>`@artifactflow` | <img src="media/gallery/visual-thermal.jpg" width="260" alt="Thermal image"><br>`@thermal` (on `thermal`) |
 
 ---
 
 ## Themes
 
-Seventeen built-in themes, all written as theme files, and your own in a few lines
-of YAML (spec section 9.4). These stills are from `samples/themes/`.
+A theme is colours, fonts, a design set and an engine, in one YAML file. Variants recolour a theme
+and are listed after it (`mdeck theme list`, `Shift+T` while presenting). These slides are from
+[`samples/showcase/launch.md`](samples/showcase/launch.md), exported with `--theme <name>`.
 
-### The four seasons
+| | |
+|---|---|
+| <img src="media/gallery/theme-light.jpg" width="400" alt="An architecture diagram on the light theme"><br>`light` | <img src="media/gallery/theme-nord.jpg" width="400" alt="A points slide on the nord theme"><br>`nord` |
+| <img src="media/gallery/theme-spring.jpg" width="400" alt="A stacked bar chart on the spring theme"><br>`spring`, a variant of `light` | <img src="media/gallery/theme-summer.jpg" width="400" alt="A stacked bar chart on the summer theme"><br>`summer`, a variant of `light` |
+| <img src="media/gallery/theme-autumn.jpg" width="400" alt="A particle light bulb on the autumn theme"><br>`autumn`, a variant of `ember` | <img src="media/gallery/theme-winter.jpg" width="400" alt="KPI cards on the winter theme"><br>`winter`, a variant of `ember` |
 
-`spring` and `summer` on the plain engine, `autumn` and `winter` on the
-particles engine in their own colours. The same slide in each:
+### Your own
 
-<img src="media/gallery/theme-spring.png" width="360"> <img src="media/gallery/theme-summer.png" width="360">
-<img src="media/gallery/theme-autumn.png" width="360"> <img src="media/gallery/theme-winter.png" width="360">
+`mdeck theme new acme` writes a commented starter, and `mdeck ai theme acme --from <folder>`
+converts a design system. This one was converted from
+[`samples/design-systems/mdeck-co`](samples/design-systems/mdeck-co); the deck is
+[`samples/themes/custom-theme.md`](samples/themes/custom-theme.md).
 
-<img src="media/gallery/theme-winter-title.png" width="720">
-
-### From a design system
-
-`mdeck ai theme mdeck-co --from samples/design-systems/mdeck-co` read a Claude
-Design export and wrote this theme: the brand's palette, type and particle
-field, and its logo quiet in the corner.
-
-<img src="media/gallery/theme-from-design-system.png" width="720">
+<img src="media/gallery/theme-from-design-system.jpg" width="720" alt="A slide in a theme converted from a design system">
 
 ---
 
-## Layouts
+## Presenter view
 
-MDeck automatically infers the right layout from your content structure. No configuration needed.
+`V` (or `mdeck talk.md --presenter`) opens the presenter view on a second display: the current
+slide, the next slide or step, your notes rendered as markdown, and the time.
 
-### Title Slide
+<img src="media/showcase/presenter.jpg" width="720" alt="The presenter view: current slide, next slide, notes and timer">
 
-A heading with a short subtitle — detected automatically.
-
-<img src="media/gallery/slide-01.png" width="720">
-
-### Section Divider
-
-A lone heading becomes a section divider between topics.
-
-<img src="media/gallery/slide-03.png" width="720">
-
-### Bullet Points
-
-A heading followed by a list renders as a bullet slide.
-
-<img src="media/gallery/slide-04.png" width="720">
-
-### Code Highlight
-
-Fenced code blocks get automatic syntax highlighting with language detection.
-
-<img src="media/gallery/slide-05.png" width="720">
-
-### Blockquote
-
-Blockquotes with attribution render as elegant quote slides.
-
-<img src="media/gallery/slide-06.png" width="720">
-
-### Data Table
-
-Standard markdown tables render with clean formatting.
-
-<img src="media/gallery/slide-07.png" width="720">
-
-### Bullet Slide with Image
-
-Add a single image to a bullet slide and it automatically renders as a split layout — content on the left, image on the right.
-
-<img src="media/gallery/slide-27.png" width="720">
-
-### Full-Screen Image
-
-A slide with just an image fills the entire slide area.
-
-<img src="media/gallery/slide-28.png" width="720">
-
-### Two-Column Layout
-
-Split content into two columns using the `+++` separator.
-
-<img src="media/gallery/slide-29.png" width="720">
-
-### Math
-
-LaTeX between dollar signs: `$...$` inline on the text baseline, `$$...$$` centred on its own line.
-
-<img src="media/gallery/slide-30.png" width="720">
-
----
-
-## Diagrams
-
-Architecture and flow diagrams rendered from simple text descriptions. Supports grid positioning, icons, labeled arrows, and multiple arrow types.
-
-### Architecture Diagram
-
-Grid-positioned nodes with icons and labeled connections.
-
-<img src="media/gallery/slide-08.png" width="720">
-
-### Flow Diagram
-
-Auto-layout pipeline showing process flow.
-
-<img src="media/gallery/slide-09.png" width="720">
-
----
-
-## Charts & Visualizations
-
-All visualizations are written as fenced code blocks with `@` language tags. Data is specified as simple `- Label: value` lines.
-
-### Bar Chart
-
-Vertical bar chart with axis labels.
-
-<img src="media/gallery/slide-10.png" width="720">
-
-### Horizontal Bar Chart
-
-<img src="media/gallery/slide-11.png" width="720">
-
-### Line Chart
-
-Multi-series line chart with shared X-axis categories.
-
-<img src="media/gallery/slide-12.png" width="720">
-
-### Pie Chart
-
-Proportional segments with automatic percentage labels.
-
-<img src="media/gallery/slide-13.png" width="720">
-
-### Donut Chart
-
-Pie chart variant with a center label.
-
-<img src="media/gallery/slide-14.png" width="720">
-
-### Stacked Bar Chart
-
-Multiple series stacked per category.
-
-<img src="media/gallery/slide-15.png" width="720">
-
-### Scatter Plot
-
-2D scatter plot with labeled data points and axis descriptions.
-
-<img src="media/gallery/slide-16.png" width="720">
-
-### Radar Chart
-
-Multi-axis comparison between data series.
-
-<img src="media/gallery/slide-17.png" width="720">
-
-### Funnel Chart
-
-Progressive narrowing stages — great for conversion metrics.
-
-<img src="media/gallery/slide-18.png" width="720">
-
-### KPI Dashboard
-
-Key metrics with trend indicators.
-
-<img src="media/gallery/slide-19.png" width="720">
-
-### Progress Bars
-
-Horizontal progress indicators for project status.
-
-<img src="media/gallery/slide-20.png" width="720">
-
-### Timeline
-
-Chronological events along a visual timeline.
-
-<img src="media/gallery/slide-21.png" width="720">
-
-### Word Cloud
-
-Words sized proportionally to importance with automatic layout.
-
-<img src="media/gallery/slide-22.png" width="720">
-
-### Venn Diagram
-
-Set intersections with automatic overlap detection.
-
-<img src="media/gallery/slide-23.png" width="720">
-
-### Organization Chart
-
-Hierarchical tree with parent-child relationships.
-
-<img src="media/gallery/slide-24.png" width="720">
-
-### Gantt Chart
-
-Project timeline with task dependencies and automatic time scaling.
-
-<img src="media/gallery/slide-25.png" width="720">
-
-### Git Graph
-
-Branches as lanes, commits as dots, forks and merges as S-curves, with tags and progressive reveal.
-
-<img src="media/gallery/slide-26.png" width="720">
-
-### Flower
-
-A platform in the middle and the teams around it, each petal flowing in and back out.
-
-<img src="media/gallery/slide-31.png" width="720">
-
-### Artifact Flow
-
-Artifacts from the teams that produce them, through shared infrastructure, to the teams that consume them.
-
-<img src="media/gallery/slide-32.png" width="720">
-
----
-
-## AI-Generated Images
-
-MDeck integrates with AI image generation. Add `![prompt](generate:)` to your slides, then run `mdeck ai images` to create images automatically.
-
-The images below were generated using `mdeck ai images` with the style: *"Cinematic landscape photography style. Vivid colors, dramatic lighting, sweeping vistas."*
-
-<img src="media/gallery/africa.png" width="720">
-
-*African savanna at golden hour — generated from a text prompt and automatically placed in the slide.*
-
-<img src="media/gallery/antarctica.png" width="720">
-
-*Antarctic ice shelf with aurora — another AI-generated image used in the [continents presentation](samples/continents.md).*
-
----
-
-## Getting Started
-
-```bash
-# Install
-brew install mklab-se/tap/mdeck
-
-# Present any markdown file
-mdeck your-talk.md
-
-# Export slides as PNG
-mdeck export your-talk.md
-
-# See the full format specification
-mdeck spec
-```
-
-See the [README](README.md) for full installation and usage instructions.
+*Source: [`samples/features/notes.md`](samples/features/notes.md).*
