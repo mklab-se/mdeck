@@ -47,7 +47,7 @@ pub const BUILTIN: &[(&str, &str)] = &[
 ];
 
 /// The theme used when nothing names one.
-pub const DEFAULT_THEME: &str = "light";
+pub const DEFAULT_THEME: &str = "dark";
 
 /// Longest `extends` chain followed before giving up (catches cycles).
 const MAX_DEPTH: usize = 8;
@@ -448,7 +448,7 @@ mod tests {
     fn frontmatter_beats_config_beats_default() {
         assert_eq!(select(Some("nord"), Some("dark")), "nord");
         assert_eq!(select(None, Some("dark")), "dark");
-        assert_eq!(select(None, None), "light");
+        assert_eq!(select(None, None), "dark");
         assert_eq!(select(Some("  "), Some("dark")), "dark");
     }
 
