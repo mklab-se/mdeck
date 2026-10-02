@@ -386,8 +386,9 @@ Standard markdown blockquotes:
 ```
 
 A quote keeps its paragraphs, each starting a new line inside the quote's
-accent bar. Lists and nested quotes inside it give their text as further
-lines: a nested quote is not drawn as a quote within a quote. A quote of
+accent bar. A list inside a quote is drawn as a list, and a nested quote
+(`> > text`) as a quote within the quote: indented, with a bar of its own.
+A quote with a list or a nested quote is set flush left. A quote of
 several paragraphs whose last paragraph is short (80 characters or fewer)
 ends in its attribution, set apart under the quotation:
 

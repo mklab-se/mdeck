@@ -229,35 +229,32 @@ impl Block {
         out
     }
 
-    /// A quote slide's quotation and attribution. With no paragraph after
-    /// the quote (`after` false), a quote of several paragraphs ends in its
-    /// attribution (`> text`, `>`, `> Who`), which never runs into the
+    /// A quote slide's quotation blocks and attribution. With no paragraph
+    /// after the quote (`after` false), a quote of several blocks ends in
+    /// its attribution (`> text`, `>`, `> Who`), which never runs into the
     /// quotation (D25).
-    pub fn quote_parts(blocks: &[Block], after: bool) -> (Vec<Inline>, Option<Vec<Inline>>) {
-        // The attribution is a short last paragraph of the quote's own.
-        let own = match blocks {
+    pub fn quote_split(blocks: &[Block], after: bool) -> (&[Block], Option<&Vec<Inline>>) {
+        match blocks {
             [rest @ .., Block::Paragraph { inlines }]
                 if !after
                     && !rest.is_empty()
                     && super::text::inlines_to_text(inlines).chars().count() <= 80 =>
             {
-                Some((rest, inlines.clone()))
+                (rest, Some(inlines))
             }
-            _ => None,
-        };
-        let (blocks, attribution) = match own {
-            Some((rest, a)) => (rest, Some(a)),
-            None => (blocks, None),
-        };
-        let paragraphs = Block::quote_paragraphs(blocks);
-        let mut quote = Vec::new();
-        for (i, p) in paragraphs.into_iter().enumerate() {
-            if i > 0 {
-                quote.push(Inline::Text("\n".into()));
-            }
-            quote.extend(p);
+            _ => (blocks, None),
         }
-        (quote, attribution)
+    }
+
+    /// Whether a quote holds structure (a list or a nested quote) that one
+    /// run of text would flatten.
+    pub fn quote_is_structured(blocks: &[Block]) -> bool {
+        blocks.iter().any(|b| {
+            matches!(
+                b,
+                Block::List { .. } | Block::BlockQuote { .. } | Block::Callout { .. }
+            )
+        })
     }
 
     /// A quote's text as one run, paragraphs separated by line breaks.

@@ -41,8 +41,9 @@ an AI harness can convert a deck.
 - **Plain markdown presents cleanly.** Raw HTML keeps its text (`<img>` becomes an image,
   `<h1>`..`<h6>` a heading, `<br>` a line break), task lists show checkboxes, reference links and
   autolinks resolve, footnote text goes to the slide's notes, GitHub alerts (`> [!NOTE]`) render
-  as callouts, indented code is code, quotes keep their paragraphs and nesting, ordered lists keep
-  their start number, and tables keep their column alignment.
+  as callouts, indented code is code, quotes keep their paragraphs and structure (a nested quote is
+  an indented quote with its own bar, a list inside a quote is a list, in every design), ordered
+  lists keep their start number, and tables keep their column alignment.
 - **Themes v2.**
   - A theme's engine and its settings live in its `engine:` block
     (`engine: { name: thermal, palette: iron }`).
