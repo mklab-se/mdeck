@@ -81,14 +81,17 @@ pub(crate) fn widest_code_line(ui: &egui::Ui, code: &str, theme: &Theme, scale: 
     let font = egui::FontId::new(theme.code_size * scale, theme.mono_family());
     code.lines()
         .map(|line| {
-            ui.painter()
-                .layout_no_wrap(
-                    line.replace('\t', "    "),
-                    font.clone(),
-                    egui::Color32::WHITE,
-                )
-                .rect
-                .width()
+            // laid out the way the block draws it (no ligatures)
+            let mut job = egui::text::LayoutJob::default();
+            super::mono::append_code(
+                &mut job,
+                &line.replace('\t', "    "),
+                egui::text::TextFormat {
+                    font_id: font.clone(),
+                    ..Default::default()
+                },
+            );
+            ui.painter().layout_job(job).rect.width()
         })
         .fold(0.0, f32::max)
 }

@@ -114,10 +114,11 @@ fn append_inlines(
                     font_id: FontId::new(font_size * 0.85, style.mono_family.clone()),
                     color: style.color,
                     background: style.code_bg,
-                    line_height: style.line_height.map(|lh| lh * font_size),
+                    // its own line height: `paint` settles it on the
+                    // prose baseline (see `text::mono`)
                     ..Default::default()
                 };
-                job.append(s, 0.0, format);
+                super::mono::append_code(job, s, format);
             }
             Inline::Link { text, .. } => {
                 // Render link text in the theme accent colour

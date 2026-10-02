@@ -158,7 +158,7 @@ pub fn highlight_code(
             color: Color32::from_rgba_unmultiplied(r, g, b, alpha),
             ..Default::default()
         };
-        job.append(&span.text, 0.0, format);
+        crate::render::text::append_code(&mut job, &span.text, format);
     }
 
     job
