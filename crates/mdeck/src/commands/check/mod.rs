@@ -131,6 +131,7 @@ fn collect(
         })
         .collect());
     add(engine_warnings(presentation, theme.engine));
+    add(engine::picture_stage_warnings(presentation, &theme));
     add(asset_warnings(file, presentation, &theme));
     Ok(report)
 }
