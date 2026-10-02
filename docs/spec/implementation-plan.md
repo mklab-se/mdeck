@@ -138,13 +138,47 @@ the binary where `--out` says.
 
 | # | Phase | Status |
 |---|---|---|
-| 1 | Language and content model: D1-D7, story removal from the format, samples converted to v2 syntax | todo |
+| 1 | Language and content model: D1-D7, story removal from the format, samples converted to v2 syntax | done |
 | 2 | Workspace, SDK, registries, paint; engines v2 (D10-D13), laser removed, line merged, D24/D26 fixed | todo |
 | 3 | Designs and themes v2 (D8, D9), default theme, layout defects | todo |
 | 4 | Presenter view, per-slide transitions, slide jump, `--theme`, `export --at`; generated assets and `mdeck ai` (D14) | todo |
 | 5 | Extensibility tooling: `mdeck build`, packs, external visual programs, `mdeck sdk new/preview`, SDK docs and tutorials | todo |
 | 6 | Documentation, README, gallery, format reference, CHANGELOG, release workflow (publish `mdeck-sdk`), v2.0.0 | todo |
 
+## Phase 1 notes
+
+What later phases build on:
+
+- **`crate::language`** is the language table (D1): `SETTINGS` (`SettingDef`), `FENCES`,
+  `invalid_value`, `suggestion`, `v1_replacement`, `v1_fence`, `settings_reference` (fills the
+  `<!-- generated: settings -->` marker in `mdeck-spec.md` via `commands::spec::full_reference`)
+  and `settings_card` (`spec --short`). Phase 6 generates the rest of the format reference from it.
+- **Parser model:** `Slide::settings` (as written, with file lines), `Slide::problems`,
+  `Slide::reveal`, `Slide::steps`; `ListItem::step` and `checked`; `Block::List { start }`,
+  `Block::Table { align }`, `Block::BlockQuote { blocks }`, `Block::Callout`, and `step_base` on
+  `Block::Chart` / `Block::Diagram` (draw visuals with `BlockCx::after_steps(step_base)`).
+  `parser::steps::number` numbers a slide; `Deck` renumbers with thermal counts from the library.
+- **Interim mappings to replace:** `design:` maps onto the v1 `Layout` enum
+  (`parser::layout::design_layout`; phase 3 replaces it with designs). `picture: <name>` fills
+  `Slide::illustration`, `picture: none` and `picture-prompt` fill `Slide::art`, and a slide that
+  names a point cloud without a `picture-prompt` takes no generated art (`render::art::wants_art`);
+  phase 2 makes the picture one source (D13). `art-world` is `PresentationMeta::art_world`.
+- **Per-slide transitions:** a slide's `transition` sets how it is entered (and left going back)
+  in the window (`app::look::slide_transition`); `transition: zoom` works with `zoom-to`. Phase 4
+  adds the rest of RUN's transition work.
+- **`*` is static everywhere**, visuals included (`VizReveal::WithPrev` and
+  `DiagramReveal::WithPrev` are gone); the git graph's straight `*` merge line went with it.
+- **`--check`:** new categories `settings`, `visual` and `content`; `--check -v` prints the
+  settings that apply per slide.
+
 ## Deferrals
 
-None yet. Any requirement deferred to 2.x is listed here and in the release notes.
+Any requirement deferred to 2.x is listed here and in the release notes.
+
+- **Phase 2 or later, by plan:** in-fence grammar unification and per-visual validation
+  (VIZ-03, VIZ-04); image options in the settings grammar and their validation (LANG-12,
+  VIZ-11); `picture:` resolving to artworks and image paths (PIC-02, D13).
+- **Phase 4:** notes in the presenter view (MD-15; PDF notes already render markdown).
+- **Phase 6:** `docs/*.md`, the README and the AI supplement were converted mechanically to the
+  v2 syntax but not rewritten; the gallery and tutorial screenshots were not regenerated; the
+  format reference still describes v1 layouts and engines outside the sections phase 1 changed.
