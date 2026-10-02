@@ -54,8 +54,14 @@ pub fn with_engine(mut theme: crate::theme::Theme, kind: Option<EngineId>) -> cr
 pub fn unsupported(kind: EngineId, slide: &Slide) -> Vec<String> {
     let caps = kind.capabilities();
     let mut out = Vec::new();
+    // an image file is drawn by mdeck itself, except on a board, which
+    // draws the whole slide; a point cloud needs an engine with pictures
     if let Some(name) = &slide.illustration
-        && !caps.picture
+        && if crate::render::picture::is_image_path(name) {
+            kind.board().is_some()
+        } else {
+            !caps.picture
+        }
     {
         out.push(format!(
             "picture: {name} is not shown by the {} engine",
@@ -63,6 +69,15 @@ pub fn unsupported(kind: EngineId, slide: &Slide) -> Vec<String> {
         ));
     }
     if let Some(board) = kind.board() {
+        // a board owns its transitions (RUN-10)
+        for name in ["transition", "zoom-to"] {
+            if let Some(value) = crate::parser::setting(&slide.settings, name) {
+                out.push(format!(
+                    "{name}: {value} has no effect: the {} board turns its own panels between slides",
+                    kind.name()
+                ));
+            }
+        }
         let content = super::convert::slide(slide);
         out.extend(board.unsupported(&content).into_iter().map(|p| p.message));
     }
@@ -158,5 +173,37 @@ mod tests {
         let line = unsupported_summary(EngineId::plain(), &pres).unwrap();
         assert!(line.contains("1 slide;"), "{line}");
         assert!(unsupported_summary(particles(), &pres).is_none());
+    }
+
+    #[test]
+    fn a_slide_transition_on_a_board_is_reported() {
+        let pres = crate::parser::parse(
+            "# A\n\n- one\n\n---\n\n## B\n<!-- transition: slide -->\n\n- two\n\n---\n\n## C\n<!-- transition: zoom -->\n<!-- zoom-to: Hotspot -->\n\n- three\n",
+        );
+        assert!(unsupported(EngineId::plain(), &pres.slides[1]).is_empty());
+        if let Some(board) = EngineId::find("splitflap") {
+            assert!(unsupported(board, &pres.slides[0]).is_empty());
+            let b = unsupported(board, &pres.slides[1]);
+            assert!(
+                b.iter()
+                    .any(|m| m.starts_with("transition: slide has no effect")),
+                "{b:?}"
+            );
+            let c = unsupported(board, &pres.slides[2]);
+            assert!(c.iter().any(|m| m.starts_with("transition: zoom")), "{c:?}");
+            assert!(c.iter().any(|m| m.starts_with("zoom-to: Hotspot")), "{c:?}");
+        }
+    }
+
+    #[test]
+    fn an_image_picture_shows_on_every_engine_but_a_board() {
+        let pres = crate::parser::parse("# A\n<!-- picture: images/team.jpg -->\n\n- one\n");
+        let a = &pres.slides[0];
+        assert!(unsupported(EngineId::plain(), a).is_empty());
+        assert!(unsupported(particles(), a).is_empty());
+        if let Some(board) = EngineId::find("splitflap") {
+            let w = unsupported(board, a);
+            assert!(w.iter().any(|m| m.contains("images/team.jpg")), "{w:?}");
+        }
     }
 }

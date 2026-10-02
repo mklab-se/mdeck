@@ -293,6 +293,13 @@ impl PresentationApp {
                     self.deck.image_cache.preload(ctx, path);
                 }
             }
+            if let Some(picture) = slide
+                .illustration
+                .as_deref()
+                .filter(|p| crate::render::picture::is_image_path(p))
+            {
+                self.deck.image_cache.preload(ctx, picture);
+            }
         }
     }
 

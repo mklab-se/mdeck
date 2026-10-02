@@ -59,11 +59,12 @@ Every AI feature lives under `mdeck ai`, and every asset generated for a deck fo
 - **GEN-06** MUST `implemented`: Generated assets are ordinary files that can be committed,
   reviewed, replaced by hand, or pinned. A hand-made file in the same place is used exactly like a
   generated one.
-- **GEN-07** MUST `deferred to 2.x`: AI replies that feed mdeck formats are validated by loading the
+- **GEN-07** MUST `implemented`: AI replies that feed mdeck formats are validated by loading the
   result, and the model is asked once more with the error before failing. Themes
-  (`mdeck ai theme`) are. *Deferred to 2.x:* a deck written by `mdeck ai deck` is not yet checked
-  and sent back with its problems, and the scene list `mdeck ai pictures` asks for fails on a
-  malformed reply instead of asking again.
+  (`mdeck ai theme`) and the scene list `mdeck ai pictures` asks for are. A deck written by
+  `mdeck ai deck` is parsed and checked; its problems go back to the model once, and what the
+  second answer still has is printed after the deck is written (a deck with a warning still
+  presents).
 - **GEN-08** MUST `implemented`: `mdeck ai skill` produces the AI agent skill from the format
   reference, whose settings sections are generated from the language table (LANG-04), so agents
   write valid v2 decks.

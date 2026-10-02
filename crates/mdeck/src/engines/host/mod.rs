@@ -9,10 +9,8 @@
 mod choice;
 pub mod convert;
 mod masks;
-pub mod place;
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -21,19 +19,18 @@ use mdeck_sdk::cloud::{Cloud as SdkCloud, Mask};
 use mdeck_sdk::engine::{Annotation, Engine};
 use mdeck_sdk::geometry::{Hint as SdkHint, fingerprint};
 use mdeck_sdk::host::{self as h, Backend};
-use mdeck_sdk::paint::ImageData;
 use mdeck_sdk::stage::{Frame, Moment, Picture, PictureSource, Stage};
 use mdeck_sdk::tokens::EngineSettings;
 
+use crate::render::picture::figure_box;
 pub use choice::{choose, unsupported, unsupported_summary, with_engine};
 use masks::{glyph_mask, text_mask, trim_flag};
-use place::figure_box;
 
 use super::EngineId;
 use crate::parser::Slide;
 use crate::render::art::prepare::Prepared;
 use crate::render::hints;
-use crate::render::illustration::Library;
+use crate::render::point_cloud::Library;
 use crate::theme::Theme;
 
 /// Seconds a rehearsed burst spends forming the countdown's 1 first, so the
@@ -70,8 +67,6 @@ pub struct Shot<'a> {
     pub deck_title: Option<&'a str>,
     /// Slides in the deck.
     pub count: usize,
-    /// The deck's folder, for pictures that are image paths.
-    pub deck_dir: &'a Path,
 }
 
 /// One step of the engine's clock: seconds since the last, seconds into
@@ -111,8 +106,6 @@ pub struct Host {
     slides: HashMap<usize, (String, Arc<mdeck_sdk::content::Slide>)>,
     /// Point clouds as the SDK sees them, by name.
     clouds: HashMap<String, Arc<SdkCloud>>,
-    /// Pictures that are image paths, decoded once (`None`: unreadable).
-    images: HashMap<PathBuf, Option<Arc<ImageData>>>,
     /// Collects the geometry the slide's renderers publish. A second host
     /// (the presenter's thumbnail) leaves it to the slides' own host.
     collects_hints: bool,
@@ -137,7 +130,6 @@ impl Host {
             last_tick: None,
             slides: HashMap::new(),
             clouds: HashMap::new(),
-            images: HashMap::new(),
             collects_hints: true,
         }
     }
@@ -285,7 +277,7 @@ impl Host {
         let moment = self.moment(ui, shot, tick.end_elapsed);
         let title = shot
             .slide
-            .is_some_and(|s| crate::render::ember::is_title(s, shot.index));
+            .is_some_and(|s| crate::render::editorial::is_title(s, shot.index));
         let picture = self.picture(shot, lib, title);
         let slide = shot.slide.map(|s| self.sdk_slide(shot.index, s));
         let stage = Stage {
@@ -333,8 +325,10 @@ impl Host {
 
     /// The slide's picture (D13), on engines that show pictures: its
     /// current generated artwork (art engines), else the point cloud it
-    /// names, else the image it names. Clouds and images show only where
-    /// the design has a stage ([`crate::render::design_has_stage`]).
+    /// names. Clouds show only where the design has a stage
+    /// ([`crate::render::design_has_stage`]). An image file is not handed
+    /// to the engine: mdeck draws it on the stage itself
+    /// ([`crate::render::picture`]), and the engine sees it as a `Frame`.
     fn picture(&mut self, shot: &Shot, lib: &mut Library, title: bool) -> Option<Picture> {
         let caps = self.id.capabilities();
         if !caps.picture {
@@ -358,44 +352,24 @@ impl Host {
         if !crate::render::design_has_stage(slide, shot.theme) {
             return None;
         }
-        let name = slide.illustration.as_deref()?;
-        if let Some(cloud) = lib.get(name) {
-            let sdk = self
-                .clouds
-                .entry(name.to_string())
-                .or_insert_with(|| {
-                    Arc::new(SdkCloud::new(
-                        cloud.name.clone(),
-                        cloud.points.to_vec(),
-                        cloud.aspect,
-                    ))
-                })
-                .clone();
-            let aspect = sdk.aspect;
-            return Some(placed(PictureSource::Cloud(sdk), aspect));
-        }
-        let image = self.image(&shot.deck_dir.join(name))?;
-        let aspect = image.height() as f32 / image.width().max(1) as f32;
-        Some(placed(PictureSource::Image(image), aspect))
-    }
-
-    /// An image picture, decoded once (only files that look like images).
-    fn image(&mut self, path: &Path) -> Option<Arc<ImageData>> {
-        let ext = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(str::to_ascii_lowercase)?;
-        if !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "webp") {
-            return None;
-        }
-        self.images
-            .entry(path.to_path_buf())
+        let name = slide
+            .illustration
+            .as_deref()
+            .filter(|n| !crate::render::picture::is_image_path(n))?;
+        let cloud = lib.get(name)?;
+        let sdk = self
+            .clouds
+            .entry(name.to_string())
             .or_insert_with(|| {
-                let img = image::open(path).ok()?.to_rgba8();
-                let size = [img.width() as usize, img.height() as usize];
-                ImageData::from_rgba_unmultiplied(size, img.as_raw()).map(Arc::new)
+                Arc::new(SdkCloud::new(
+                    cloud.name.clone(),
+                    cloud.points.to_vec(),
+                    cloud.aspect,
+                ))
             })
-            .clone()
+            .clone();
+        let aspect = sdk.aspect;
+        Some(placed(PictureSource::Cloud(sdk), aspect))
     }
 
     /// Take the geometry the renderers published. They publish while the
@@ -572,6 +546,28 @@ mod tests {
             ["engine plain: unknown setting `surface`"]
         );
         assert!(settings_problems(&Theme::dark()).is_empty());
+    }
+
+    /// A bad `surface` stopped the theme from building, so the unknown key
+    /// beside it was never reported (and the deck fell back to dark).
+    #[cfg(feature = "line")]
+    #[test]
+    fn a_bad_surface_does_not_hide_other_engine_problems() {
+        use crate::theme::file::ThemeFile;
+        let f = ThemeFile::parse("engine: { name: line, surface: paper, glitter: 3 }\n")
+            .unwrap()
+            .over(&crate::theme::lookup::builtin_file("blueprint").unwrap());
+        let theme = Theme::build("x", &f).expect("builds").theme;
+        let p = settings_problems(&theme);
+        assert!(
+            p.iter()
+                .any(|m| m.contains("`surface`") && m.contains("paper")),
+            "{p:?}"
+        );
+        assert!(
+            p.iter().any(|m| m.contains("unknown setting `glitter`")),
+            "{p:?}"
+        );
     }
 
     #[test]

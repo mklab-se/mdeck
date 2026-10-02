@@ -43,9 +43,8 @@ describes is what the window presents and what export writes.
 - **RUN-09** MUST `implemented`: A slide can set its own transition into it (`transition:` in its
   settings), used when it is entered going forward and when it is left going back. The thermal
   spot zoom is `transition: zoom` with `zoom-to: <spot>` on the same slide.
-- **RUN-10** MUST `deferred to 2.x`: A board engine owns transitions; a per-slide transition on a
-  board is ignored, and `--check` says so. *Deferred:* the board ignores it, but `--check` does
-  not yet warn that a slide's `transition` has no effect on a board engine.
+- **RUN-10** MUST `implemented`: A board engine owns transitions; a per-slide transition on a
+  board is ignored, and `--check` says so (category `engine`, for `transition` and `zoom-to`).
 - **RUN-11** MUST `implemented`: The overview (`G`) zooms in and out with animation.
 
 ### Opening and ending

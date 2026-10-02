@@ -43,7 +43,9 @@ MDeck extracts the text, analyses it for key points and visualization
 opportunities, and writes a concise deck with varied layouts, charts, image
 placeholders, and speaker notes, in the v2 format. The source stays the
 handout; the deck tells the story. `--style` sets the style of its image
-placeholders.
+placeholders. Before writing, mdeck checks the deck as `mdeck --check` would;
+when it finds problems it sends them back to the model once, and anything still
+left is printed after the deck is written.
 
 ## Generated assets
 

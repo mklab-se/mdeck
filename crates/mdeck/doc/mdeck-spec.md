@@ -63,7 +63,8 @@ transition comes from its `transition` setting, then the theme's
 `transition:` (section 9.4), then the user config (`defaults.transition`),
 then the built-in `fade`; a blank or unknown value passes to the next in
 line. Reduced motion shows no transitions, and a board engine (section 9.6)
-draws its own.
+draws its own: `mdeck --check` reports a slide's `transition` or `zoom-to` there,
+since it has no effect.
 
 **Parser rule:** If the document starts with a line that is exactly `---`, begin parsing YAML until a closing `---` line. If no closing `---` is found, there is no frontmatter and the whole file is slides. If the YAML is invalid, each `key: value` line is still read on its own.
 
@@ -212,8 +213,9 @@ recognised design and is reported too.
 
 ### 4.3 Overflow
 
-Content that does not fit first shrinks: code down to 40% of its size, then prose and lists down
-to 80%. Past that the slide scrolls smoothly (Up and Down), with fade cues at the edges. The
+Content that does not fit first shrinks: visuals and images in the copy (two charts on one
+slide) share the height, down to 35% of their usual height, then code down to 40% of its size,
+then prose and lists down to 80%. Past that the slide scrolls smoothly (Up and Down), with fade cues at the edges. The
 height that decides scrolling is measured with the same layout that draws the slide.
 
 ---
@@ -916,8 +918,11 @@ one with the `picture` setting. Its value resolves in this order:
    is one;
 2. a **point cloud** of that name: a named file of points that the particles
    settle into, the LEDs light up, the blocks build or the pencil traces;
-3. an image file at that path, relative to the deck, drawn on the stage as it
-   is.
+3. an image file at that path, relative to the deck (`.png`, `.jpg`, `.jpeg`,
+   `.webp` or `.svg`, as in `<!-- picture: images/team.jpg -->`). mdeck draws
+   it on the stage itself, framed beside the copy or large and dim behind a
+   title, so it shows on every engine but the split-flap board (which draws
+   the whole slide); the engine sees where it is and keeps clear of it.
 
 ```markdown
 ## Our new server
@@ -933,8 +938,9 @@ the right, beside the copy, warm and lit from the first step. Title slides
 put it behind the centred copy, large, dim and slow: a backdrop rather than
 a picture. Split, media, gallery, code, visual, columns and table slides
 never show one, and the standard set leaves no stage at all. Every engine
-except `plain` and `splitflap` draws pictures, each in its own medium
-(section 9.6). `mdeck --check` warns when a slide asks for a picture its
+except `plain` and `splitflap` draws point clouds and artworks, each in its
+own medium (section 9.6); an image file shows on every engine but
+`splitflap`. `mdeck --check` warns when a slide asks for a picture its
 design or engine cannot show, or one that does not exist. `picture: none`
 keeps a slide's stage empty.
 
@@ -1789,7 +1795,7 @@ The `+++` separator was chosen because it is visually distinct from `---` (slide
 ## 11. Edge Cases
 
 ### Content overflow
-Text is never truncated silently. Content that does not fit first shrinks (code to 40% of its size, then prose and lists to 80%), then scrolls with fade cues at the edges (section 4.3).
+Text is never truncated silently. Content that does not fit first shrinks (visuals in the copy to 35% of their height, code to 40% of its size, then prose and lists to 80%), then scrolls with fade cues at the edges (section 4.3).
 
 ### Empty slides
 A slide with no content renders as a blank slide with the theme's background. This is intentional, not an error.

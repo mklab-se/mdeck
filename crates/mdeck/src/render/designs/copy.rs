@@ -21,6 +21,9 @@ pub struct Lay<'a> {
     pub deck: &'a SlideContext,
     /// The slide rect (inline visuals size against it).
     pub rect: Rect,
+    /// How much of their usual height visuals and images in the copy get
+    /// (below 1 when the slide would not fit otherwise).
+    pub visual_fit: f32,
 }
 
 impl Lay<'_> {
@@ -598,9 +601,9 @@ impl<'s> Stack<'s> {
         let w = self.width;
         let s = lay.scale;
         let height = match block {
-            Block::Image { .. } => (w * 0.6).min(400.0 * s),
+            Block::Image { .. } => (w * 0.6).min(400.0 * s) * lay.visual_fit,
             Block::Chart { .. } | Block::Diagram { .. } => {
-                (w * 0.5625).min(lay.rect.height() * 0.6)
+                (w * 0.5625).min(lay.rect.height() * 0.6) * lay.visual_fit
             }
             _ => crate::render::text::measure_single_block_height(lay.ui, block, lay.theme, w, s),
         };
@@ -618,6 +621,15 @@ impl<'s> Stack<'s> {
             gap,
         );
     }
+}
+
+/// A block the copy sizes as a box (a visual or an image) rather than by
+/// its text, so it can give up height when the slide does not fit.
+pub fn is_inline_visual(block: &Block) -> bool {
+    matches!(
+        block,
+        Block::Image { .. } | Block::Chart { .. } | Block::Diagram { .. }
+    )
 }
 
 pub fn h(align: HAlign) -> egui::Align {
