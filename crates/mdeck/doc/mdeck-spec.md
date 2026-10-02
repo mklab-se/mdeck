@@ -1160,7 +1160,8 @@ links, muted captions and eyebrows, code on its background, the soft accent
 where the design set draws emphasis in it, and every role of every design at
 its size and opacity), and keys that do nothing: an engine setting the engine
 does not read, `fonts.lead` when no design uses the lead face, and an engine
-that draws on a page (line, sketch, watercolour) without a `page:`.
+that draws on a page (line, sketch, watercolour) without a `page:`. It exits
+non-zero on an error or a contrast failure, so a theme can be checked in CI.
 
 **The page.** With a `page:` block the slide is a sheet (the theme's
 `background`) lying on `surface`, with a soft shadow and a fine paper grain.

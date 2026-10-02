@@ -22,14 +22,20 @@ const LARGE_PX: f32 = 24.0;
 pub fn review(theme: &Theme) -> Vec<String> {
     let mut out = Vec::new();
     for (what, fg, bg, min) in pairs(theme) {
-        let r = contrast(fg, bg);
-        if r < min - 0.005 {
-            out.push(format!(
-                "{what} has a contrast of {r:.1}:1 (at least {min}:1 reads comfortably)"
-            ));
+        if let Some(problem) = contrast_problem(contrast(fg, bg), min) {
+            out.push(format!("{what} {problem}"));
         }
     }
     out
+}
+
+/// The advice for a contrast `ratio` against the minimum `min`, if it falls
+/// short. The ratio is compared exactly as it is printed (two decimals), so
+/// a pair is never reported with the very ratio it needs.
+fn contrast_problem(ratio: f32, min: f32) -> Option<String> {
+    let shown = (ratio * 100.0).round() / 100.0;
+    (shown < min)
+        .then(|| format!("has a contrast of {shown:.2}:1 (at least {min:.1}:1 reads comfortably)"))
 }
 
 /// Every text/ground pair the theme renders, with the contrast it needs.
@@ -279,6 +285,18 @@ mod tests {
         assert!(!p.iter().any(|(w, ..)| w.contains("accent-soft")));
         let e = over_dark("designs: editorial");
         assert!(pairs(&e).iter().any(|(w, ..)| w.contains("accent-soft")));
+    }
+
+    #[test]
+    fn contrast_is_compared_as_it_is_printed() {
+        // a pair that rounds to the minimum passes; one that falls short
+        // never prints the minimum it fails against
+        assert_eq!(contrast_problem(4.4999, 4.5), None);
+        assert_eq!(contrast_problem(4.5, 4.5), None);
+        let p = contrast_problem(4.494, 4.5).unwrap();
+        assert!(p.contains("4.49:1") && p.contains("at least 4.5:1"), "{p}");
+        let p = contrast_problem(2.96, 3.0).unwrap();
+        assert!(p.contains("2.96:1") && p.contains("at least 3.0:1"), "{p}");
     }
 
     #[test]

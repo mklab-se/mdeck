@@ -43,7 +43,7 @@ See [Export](export.md).
 ```bash
 mdeck theme list                   # every theme visible from here: themes, then variants
 mdeck theme new <name>             # a starter theme in ./themes, every key commented (--user, --force)
-mdeck theme check <name|file>      # errors, fallbacks, contrast, keys that do nothing
+mdeck theme check <name|file>      # errors, fallbacks, contrast, keys that do nothing (exit 1: error or contrast)
 mdeck theme preview <name|file> -o <dir>   # one slide per design, as PNGs (--width, --height)
 
 mdeck point-cloud list            # every point cloud visible from here

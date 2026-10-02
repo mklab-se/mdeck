@@ -54,7 +54,8 @@ an AI harness can convert a deck.
     variants (`spring`, `summer`, `autumn`, `winter`).
   - `mdeck theme check` warns about engine settings the engine does not read, `fonts.lead` the
     design set never uses and paper engines without a `page:`; its contrast check covers every
-    text colour a theme draws, at the size it is drawn.
+    text colour a theme draws, at the size it is drawn, and prints the ratio it compared (two
+    decimals). It exits non-zero on an error or a contrast failure, so it can guard a theme in CI.
 - **A better `mdeck --check`.** It reports unknown settings and fence tags with a "did you mean",
   invalid values, deck settings written in a slide, v1 syntax with its v2 form, content that will
   not show as written, and problems inside visual fences, each on its line in the file (lines that
