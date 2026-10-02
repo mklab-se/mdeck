@@ -1,0 +1,150 @@
+# v2 implementation plan
+
+How v2 is built from v1.19. The requirements are in the other documents of this folder; this file
+records the architecture decisions taken to implement them, the order of work and the status. It
+is updated at the end of every phase.
+
+Work happens directly on `main`. Every commit keeps `cargo fmt --all -- --check && cargo clippy
+--workspace -- -D warnings && cargo test --workspace` green.
+
+## Architecture decisions
+
+### D1. One language table
+
+`crates/mdeck/src/language/` holds one table of every setting (`Setting { name, scope, kind,
+values, default, summary, since }`, scope `Deck`, `Slide` or `Both`) and the list of mdeck fences.
+The parser validates against it, `--check` reports against it, and the format reference sections
+and `mdeck spec --short` that list settings are generated from it (LANG-04). The AI skill is
+produced from the format reference, so it follows automatically.
+
+### D2. Deck settings
+
+Frontmatter is parsed as plain YAML with plain keys (`theme: ember`). A v1 `@key` is not honoured;
+`--check` reports it with its v2 form (LANG-07). Unknown keys and invalid values are reported.
+
+### D3. Slide settings
+
+An HTML comment whose first non-blank line is `key: value` with a known slide-setting key is a
+settings comment; every line in it is `key: value`. It applies to the slide it is in. Other
+comments are ordinary comments; `--check` warns when one looks like a misspelt setting. Visible
+`@key: value` lines are plain text, and `--check` reports them as v1 syntax.
+
+### D4. Splitting
+
+ATX and setext headings at or above the slide level split slides. `---` with blank lines on both
+sides is the explicit break. Three blank lines no longer split. No setting ever moves between
+slides. Slide level inference is unchanged (MD-01, MD-03).
+
+### D5. Notes
+
+```` ```@notes ```` fenced blocks hold markdown notes, anywhere in the slide, joined in order. The
+model keeps the notes source; the presenter view and PDF notes parse and render it as markdown.
+
+### D6. Steps
+
+`+` items are steps; `-` and `*` are static. Children of a `+` item reveal with it. Steps are
+numbered across the slide in reading order, over lists and visuals. Hidden content reserves its
+space. Deck or slide setting `reveal: none` turns steps off.
+
+### D7. Visual kinds
+
+Visual fences are matched by exact tag against the visual registry. Tags: `@bar`, `@line`, `@pie`,
+`@donut`, `@scatter`, `@stackedbar`, `@funnel`, `@radar`, `@progress`, `@kpi`, `@wordcloud`,
+`@timeline`, `@gantt`, `@architecture`, `@orgchart`, `@gitgraph`, `@flower`, `@artifactflow`,
+`@venn`, `@thermal`. `@notes` is the one other mdeck fence. Inside fences: settings are
+`key: value` lines before the first item, items are list lines with `(key: value)` attributes,
+relations are `A -> B: label`, and `#` starts a comment (VIZ-03).
+
+### D8. Designs and arrangements
+
+Designs: `title`, `section`, `statement`, `points`, `split`, `media`, `gallery`, `quote`, `code`,
+`visual`, `columns`, `table`, `content`. One recogniser (a documented ordered table) assigns them.
+Each design has one Rust renderer that is parameterised entirely by an `Arrangement` value. The
+design sets `standard` and `editorial` are YAML files embedded in the binary
+(`crates/mdeck/designs/*.yaml`); a theme picks one with `designs:` and overrides any arrangement
+key with `arrangements:`. Editorial's eyebrow, column, pillow and stagger are arrangement values,
+so a design set never falls back to another one. No renderer drops content.
+
+### D9. Themes
+
+The v2 theme file:
+
+- adds `designs`, `arrangements`, `transition`, a spacing scale and `countdown: on|off`;
+- replaces `engine: name` with an `engine:` block whose keys the engine validates;
+- moves `particles`, `heat` and `art` into that block.
+
+The default theme is `dark`: plain, bright foreground, `designs: standard`, `engine: plain`,
+`transition: fade`, no countdown. A theme without `extends` inherits `dark`. Variants (`autumn`,
+`winter`, `spring`, `summer`) carry `variant-of:` so lists and Shift+T tier them.
+
+### D10. Workspace and SDK
+
+- **`crates/mdeck-sdk`** holds the public, stable interfaces:
+  - `Engine` and `EngineDef`, `Visual`, `DesignSet`, `Transition`;
+  - the content model (`Slide`, `Block`, `Inline`);
+  - theme tokens, the `Stage`, point clouds and published geometry;
+  - the `Registry`;
+  - the drawing interface `paint` (own `Color`, `Pos2`, `Vec2`, `Rect`, `Stroke`, `Mesh`,
+    `Painter`, text and textures);
+  - `testing`.
+
+  It depends on egui privately and exposes none of its types (EXT-24, EXT-25).
+- **`crates/mdeck`** is the library and the binary: parser, designs, themes, app, export,
+  commands, and the built-in engines, visuals and design sets. The built-ins register themselves
+  through the same `Registry` an extension uses (EXT-06).
+- **Raw egui** is reachable through the `unstable-egui` feature, outside the promise (EXT-26).
+  Built-in visuals may use it in 2.0, with that deferral noted; built-in engines use `paint` only.
+
+### D11. Registries
+
+`EngineKind`, `Chart` and `Layout` enums give way to name-keyed registries filled at startup.
+`mdeck::run(registry)` is the library entry point; the `mdeck` binary calls it with the built-ins.
+
+### D12. Engines
+
+The ten engines are:
+
+- `plain`, `particles`, `led`, `splitflap`, `blocks`, `thermal`;
+- `line` (with `surface: sheet|slate`);
+- `sketch`, `watercolour`, `darkroom`.
+
+Capabilities: `picture`, `countdown`, `ending`, `board`, `transition`, `medium`. Laser, stories,
+`editorial`, `numbers_slides`, `cold_open` and `heat_trace` (as capabilities) are removed.
+
+### D13. Pictures
+
+The `picture:` setting resolves, in order:
+
+1. a current generated artwork for the slide;
+2. a point cloud of that name;
+3. an image path.
+
+`picture: none` keeps the slide empty. `picture-prompt` (slide) and `art-world` (deck) feed only
+`mdeck ai`.
+
+### D14. Generated assets
+
+One folder (`<deck-stem>.assets/`) and one manifest (`manifest.yaml`) for every generated asset,
+with current, stale and pinned states. `![prompt](generate:)` placeholders stay in the source.
+
+### D15. Custom builds
+
+An extension crate exposes `pub fn register(r: &mut mdeck_sdk::Registry)`. `mdeck build --with
+<path|crate[@version]>...` generates a cargo project that depends on `mdeck` and the extensions,
+calls `mdeck::run` with the built-ins plus each `register`, builds it in release mode and installs
+the binary where `--out` says.
+
+## Phases
+
+| # | Phase | Status |
+|---|---|---|
+| 1 | Language and content model: D1-D7, story removal from the format, samples converted to v2 syntax | todo |
+| 2 | Workspace, SDK, registries, paint; engines v2 (D10-D13), laser removed, line merged, D24/D26 fixed | todo |
+| 3 | Designs and themes v2 (D8, D9), default theme, layout defects | todo |
+| 4 | Presenter view, per-slide transitions, slide jump, `--theme`, `export --at`; generated assets and `mdeck ai` (D14) | todo |
+| 5 | Extensibility tooling: `mdeck build`, packs, external visual programs, `mdeck sdk new/preview`, SDK docs and tutorials | todo |
+| 6 | Documentation, README, gallery, format reference, CHANGELOG, release workflow (publish `mdeck-sdk`), v2.0.0 | todo |
+
+## Deferrals
+
+None yet. Any requirement deferred to 2.x is listed here and in the release notes.
