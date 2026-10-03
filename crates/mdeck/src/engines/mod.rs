@@ -284,7 +284,7 @@ mod tests {
         frame.still = true;
         let mut wrong = Vec::new();
         for def in crate::registry::get().engines() {
-            let mut draws = |moment: Moment| {
+            let draws = |moment: Moment| {
                 let mut h = Headless::new(320, 180);
                 let quiet = h.render_engine(
                     &mut *(def.create)(&settings),

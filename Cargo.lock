@@ -255,7 +255,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "aurora"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "mdeck-sdk",
 ]
@@ -536,9 +536,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.5.1"
+version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f360145194ee8e21db5ee7f3fcd4fe52210864c75c985dae33218202c8bbe040"
+checksum = "f74872d07caf508b30a21f6836e7d7016a2eaf7d9ff4f48deaa58cd8a0407630"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -1317,21 +1317,21 @@ dependencies = [
 
 [[package]]
 name = "engine-ambience"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "engine-pictures"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "engine-reactive"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "mdeck-sdk",
 ]
@@ -1515,9 +1515,9 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "font-types"
-version = "0.12.5"
+version = "0.12.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8eb065f3251655b3c90e22e5e363f310fc5332fb3402e37bbc94752283248f6"
+checksum = "6c92d9081c7ab3bd83ef1eecdfad090f3d966e3ce74106779664114cfe1a6274"
 dependencies = [
  "bytemuck",
 ]
@@ -2603,7 +2603,7 @@ dependencies = [
 
 [[package]]
 name = "mdeck"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "ailloy",
  "anyhow",
@@ -2639,7 +2639,7 @@ dependencies = [
 
 [[package]]
 name = "mdeck-sdk"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "egui",
  "egui_glow",
@@ -4853,28 +4853,28 @@ dependencies = [
 
 [[package]]
 name = "template-design-set"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "template-engine"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "template-transition"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "template-visual"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "mdeck-sdk",
 ]
