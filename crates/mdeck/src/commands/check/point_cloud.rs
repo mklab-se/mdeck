@@ -183,13 +183,22 @@ mod tests {
     /// designs, so only designs without one are reported there.
     #[test]
     fn the_standard_set_stages_a_picture_on_copy_slides() {
-        let md = "# Deck\n<!-- picture: rocket -->\n\n---\n\n## Points\n<!-- picture: rocket -->\n\n- a\n\n---\n\n> Said.\n<!-- picture: rocket -->\n\n---\n\n## Code\n<!-- picture: rocket -->\n\n```rust\nfn main() {}\n```\n";
+        let tmp = std::env::temp_dir().join(format!("mdeck-std-stage-{}", std::process::id()));
+        std::fs::create_dir_all(tmp.join("point-clouds")).unwrap();
+        let cloud = render::point_cloud::Cloud {
+            version: render::point_cloud::VERSION,
+            name: "kettle".into(),
+            description: String::new(),
+            prompt: None,
+            generated: None,
+            aspect: 1.0,
+            points: std::sync::Arc::new(vec![[0.5, 0.5]]),
+        };
+        std::fs::write(tmp.join("point-clouds/kettle.mdpc"), cloud.to_json()).unwrap();
+        let md = "# Deck\n<!-- picture: kettle -->\n\n---\n\n## Points\n<!-- picture: kettle -->\n\n- a\n\n---\n\n> Said.\n<!-- picture: kettle -->\n\n---\n\n## Code\n<!-- picture: kettle -->\n\n```rust\nfn main() {}\n```\n";
         let pres = parser::parse(md);
-        let w = point_cloud_warnings(
-            &pres,
-            std::path::Path::new("/nonexistent/talk.md"),
-            &crate::theme::Theme::dark(),
-        );
+        let w = point_cloud_warnings(&pres, &tmp.join("talk.md"), &crate::theme::Theme::dark());
+        std::fs::remove_dir_all(&tmp).ok();
         let slides: Vec<usize> = w.iter().map(|w| w.slide).collect();
         assert_eq!(slides, vec![4], "{w:?}");
         assert!(w[0].message.contains("code slides leave no stage"), "{w:?}");
