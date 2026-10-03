@@ -24,7 +24,12 @@ pub static DEF: EngineDef = EngineDef::new(
     "Pictures built from falling blocks that land, settle and clear row by row.",
     |_| Box::new(Blocks::new()),
 )
-.with_capabilities(Capabilities::NONE.with_picture())
+.with_capabilities(
+    Capabilities::NONE
+        .with_picture()
+        .with_countdown()
+        .with_ending(),
+)
 .with_ending_caption_delay(END_CAPTION_DELAY);
 const END_WORDS: f32 = 3.6;
 /// Gravity, px/s² on a 1920x1080 slide.

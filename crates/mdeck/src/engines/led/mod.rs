@@ -30,7 +30,12 @@ pub static DEF: EngineDef = EngineDef::new(
     "A wall of RGB LEDs behind every slide; pictures light up, nothing moves.",
     |_| Box::new(Led::new()),
 )
-.with_capabilities(Capabilities::NONE.with_picture())
+.with_capabilities(
+    Capabilities::NONE
+        .with_picture()
+        .with_countdown()
+        .with_ending(),
+)
 .with_ending_caption_delay(END_CAPTION_DELAY);
 
 /// LED pitch in px on a 1920x1080 slide.

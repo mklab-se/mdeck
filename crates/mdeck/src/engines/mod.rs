@@ -259,4 +259,59 @@ mod tests {
         assert_eq!(plain.capabilities(), Capabilities::NONE);
         assert_eq!(plain.settle_frames(), 0);
     }
+
+    /// An engine that draws the countdown digits or the end words declares
+    /// `countdown` or `ending`, and one that declares them draws them: the
+    /// window draws its own numerals and "The End" for every other engine,
+    /// so an undeclared act shows twice (#22).
+    #[test]
+    fn engines_declare_the_acts_they_draw() {
+        use mdeck_sdk::cloud::Mask;
+        use mdeck_sdk::paint::Font;
+        use mdeck_sdk::stage::{Frame, Moment, Stage};
+        use mdeck_sdk::testing::{Headless, mean_difference};
+        use mdeck_sdk::tokens::{EngineSettings, Tokens};
+
+        let mut h = Headless::new(320, 180);
+        let mut mask = |text: &str| -> Mask {
+            let mut out = None;
+            h.paint(|p| out = Some(p.glyph_points(text, Font::display(200.0), 1500)));
+            out.unwrap()
+        };
+        let (digit, words) = (mask("3"), mask("THE END"));
+        let (tokens, settings) = (Tokens::default(), EngineSettings::new());
+        let mut frame = Frame::new(h.rect(), &tokens, &settings);
+        frame.still = true;
+        let mut wrong = Vec::new();
+        for def in crate::registry::get().engines() {
+            let mut draws = |moment: Moment| {
+                let mut h = Headless::new(320, 180);
+                let quiet = h.render_engine(
+                    &mut *(def.create)(&settings),
+                    &frame,
+                    &Stage::new(Moment::Slide),
+                );
+                let act =
+                    h.render_engine(&mut *(def.create)(&settings), &frame, &Stage::new(moment));
+                // a board's end words fill only a few flaps: anything counts
+                mean_difference(&quiet, &act).unwrap() > 0.05
+            };
+            let caps = def.capabilities;
+            let countdown = draws(Moment::countdown(3, digit.clone(), 0.5));
+            let ending = draws(Moment::end(1.0, words.clone()));
+            if countdown != caps.countdown {
+                wrong.push(format!(
+                    "{}: draws the countdown {countdown}, declares {}",
+                    def.name, caps.countdown
+                ));
+            }
+            if ending != caps.ending {
+                wrong.push(format!(
+                    "{}: draws the end {ending}, declares {}",
+                    def.name, caps.ending
+                ));
+            }
+        }
+        assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+    }
 }

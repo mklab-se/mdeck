@@ -27,8 +27,12 @@ use strokes::{Strokes, plan, plan_layers, to_screen, toured};
 pub use trace::Fill;
 
 /// What an art engine can do: show the slide's picture (its generated
-/// artwork, else its point cloud as pen strokes).
-pub const CAPABILITIES: Capabilities = Capabilities::NONE.with_picture();
+/// artwork, else its point cloud as pen strokes), and draw the countdown
+/// digits and the end words in its medium.
+pub const CAPABILITIES: Capabilities = Capabilities::NONE
+    .with_picture()
+    .with_countdown()
+    .with_ending();
 
 /// The shared sprite sheet ([`sprite_sheet`]) as a texture, uploaded on
 /// first use.

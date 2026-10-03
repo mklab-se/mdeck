@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- **The countdown and "The End" showed twice on six engines.** In the presentation window, the
+  `blocks`, `led`, `line`, `sketch`, `watercolour` and `darkroom` engines drew their own countdown
+  digits and THE END while mdeck also drew its plain numerals and "The End" text over them. These
+  engines now declare the countdown and end act they draw, so the window shows only theirs, with
+  the countdown's burst and the quiet "Powered by MDeck" caption after the end act, as the spec
+  describes. Export was not affected. ([#22](https://github.com/mklab-se/mdeck/issues/22))
+
 ## [2.0.0] - 2026-10-03
 
 **mdeck 2.** A breaking release that makes mdeck simpler to write for and better looking out of
