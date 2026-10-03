@@ -1,8 +1,9 @@
 //! The presenter's cockpit: the current slide, what comes next, the speaker
 //! notes rendered as markdown, and the elapsed time. The window shows it in
-//! a second OS window (`V`, `--presenter`); with one display `V` shows the
-//! notes overlay instead. Export draws the same layout with the hidden
-//! `--presenter-view` flag, so it can be looked at without a window.
+//! a second OS window (`V`, `--presenter`): on another display when there
+//! is one, else beside the slides, which leave fullscreen for it ([`place`]).
+//! Export draws the same layout with the hidden `--presenter-view` flag, so
+//! it can be looked at without a window.
 
 use std::time::{Duration, Instant};
 
@@ -14,7 +15,8 @@ use crate::render;
 use crate::theme::Theme;
 
 mod notes;
-pub use notes::{draw_notes, draw_overlay, notes_blocks};
+pub mod place;
+pub use notes::{draw_notes, notes_blocks};
 
 /// The cockpit's own colours: a quiet dark desk, whatever the deck's theme.
 mod ink {
@@ -403,46 +405,71 @@ fn slide(ui: &mut egui::Ui, view: &mut View, index: usize, reveal: usize, r: Rec
     );
 }
 
-/// The presenter window and the notes overlay, as the window holds them.
+/// The presenter window, as the slides window holds it.
 pub(super) struct Presenter {
     /// The second window is open (or opening).
     pub(super) window: bool,
-    /// The notes overlay is shown over the slides.
-    pub(super) overlay: bool,
     /// The elapsed time counts from here (`Shift+V` resets it).
     pub(super) since: Instant,
-    /// Opening: where the presenter window was asked to go and when, and
-    /// the slide window's monitor (left edge and width) to tell displays
-    /// apart once it has settled.
+    /// A presenter window sent to another display, until it has landed.
     pub(super) placing: Option<Placing>,
+    /// Both windows on the slides' display.
+    pub(super) shared: Option<Shared>,
+    /// The slides window goes back to fullscreen on the next frame.
+    pub(super) restore_fullscreen: bool,
     /// `--presenter`: open on the first frame.
     pub(super) open_at_start: bool,
     /// Frames waited for the display to be known (`--presenter`).
     pub(super) start_frames: u32,
-    /// Where the presenter window opens.
-    pub(super) target: Pos2,
+    /// Where the presenter window opens (its outer top-left) and its inner
+    /// size.
+    pub(super) target: (Pos2, egui::Vec2),
     /// The engine under the "now" slide (its own state, apart from the
     /// slides window's engine).
     pub(super) engine: Host,
 }
 
+/// A presenter window sent to another display: when, and the slides'
+/// display, to tell whether the system let it go there.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Placing {
     pub(super) since: Instant,
-    pub(super) main_x: f32,
-    pub(super) monitor_width: f32,
+    pub(super) own: Rect,
+    /// The slides were fullscreen, to restore if both end up on one display.
+    pub(super) slides_fullscreen: bool,
+}
+
+/// The slides and the presenter window side by side on one display.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Shared {
+    pub(super) display: Rect,
+    /// The slides were fullscreen: they go back when the presenter closes.
+    pub(super) was_fullscreen: bool,
+    pub(super) stage: Stage,
+}
+
+/// How far the side-by-side arrangement has come.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) enum Stage {
+    /// The slides are to leave fullscreen.
+    Leave,
+    /// Leaving fullscreen (an animation on macOS) since then.
+    Leaving(Instant),
+    /// Both windows are in place.
+    Arranged,
 }
 
 impl Presenter {
     pub(super) fn new(open_at_start: bool) -> Self {
         Self {
             window: false,
-            overlay: false,
             since: Instant::now(),
             placing: None,
+            shared: None,
+            restore_fullscreen: false,
             open_at_start,
             start_frames: 0,
-            target: Pos2::ZERO,
+            target: (Pos2::ZERO, vec2(1280.0, 800.0)),
             engine: Host::new(crate::engines::EngineId::plain()).without_hints(),
         }
     }
@@ -451,26 +478,25 @@ impl Presenter {
         self.since.elapsed()
     }
 
+    /// Whether the presenter is open or opening, in either arrangement.
+    pub(super) fn open(&self) -> bool {
+        self.window || self.shared.is_some()
+    }
+
+    /// Close the presenter window; the slides go back to fullscreen if
+    /// they left it for the side-by-side arrangement.
+    pub(super) fn close(&mut self) {
+        self.window = false;
+        self.placing = None;
+        if self.shared.take().is_some_and(|s| s.was_fullscreen) {
+            self.restore_fullscreen = true;
+        }
+    }
+
     /// How long a new presenter window gets to land before we look where.
     pub(super) const SETTLE: Duration = Duration::from_millis(900);
-}
-
-/// Where to open the presenter window: on the display beside the slides.
-/// When the slides run on a display right of the origin, the presenter
-/// goes to the primary display; otherwise one display to the right.
-pub fn presenter_target(main_pos: Pos2, monitor_width: f32) -> Pos2 {
-    if main_pos.x.abs() >= monitor_width / 2.0 {
-        pos2(40.0, 40.0)
-    } else {
-        pos2(main_pos.x + monitor_width + 40.0, main_pos.y + 40.0)
-    }
-}
-
-/// Whether a window at `x` sits on a different display than the slide
-/// window's monitor (left edge `main_x`, `width` wide). A window the OS
-/// pulled back onto the slides' display means there is only one.
-pub fn on_other_display(main_x: f32, width: f32, x: f32) -> bool {
-    x < main_x - 1.0 || x >= main_x + width - 1.0
+    /// How long the slides take to leave fullscreen (macOS animates it).
+    pub(super) const LEAVE: Duration = Duration::from_millis(900);
 }
 
 #[cfg(test)]
@@ -530,21 +556,5 @@ mod tests {
         assert_eq!(format_elapsed(Duration::from_secs(0)), "0:00");
         assert_eq!(format_elapsed(Duration::from_secs(754)), "12:34");
         assert_eq!(format_elapsed(Duration::from_secs(3723)), "1:02:03");
-    }
-
-    #[test]
-    fn the_presenter_goes_to_the_other_display() {
-        // slides on the primary display: presenter one display to the right
-        assert_eq!(presenter_target(pos2(0.0, 0.0), 1920.0), pos2(1960.0, 40.0));
-        // slides on a display to the right: presenter on the primary one
-        assert_eq!(
-            presenter_target(pos2(1920.0, 0.0), 1920.0),
-            pos2(40.0, 40.0)
-        );
-        // where it landed decides whether there was a second display
-        assert!(on_other_display(0.0, 1920.0, 1960.0));
-        assert!(on_other_display(1920.0, 1920.0, 40.0));
-        assert!(!on_other_display(0.0, 1920.0, 600.0));
-        assert!(!on_other_display(0.0, 1920.0, 0.0));
     }
 }

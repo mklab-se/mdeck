@@ -16,13 +16,13 @@ shortcuts.
 | Home, End | First, last slide |
 | Digits, then Enter | Jump to that slide (`1` `2` Enter goes to slide 12; Backspace edits, Esc cancels) |
 | G | Grid overview: arrows move, Enter, E or a click opens a slide |
-| V | Presenter view (a notes overlay with one display) |
+| V | Presenter view (beside the slides with one display) |
 | Shift+V | Reset the presenter timer |
 | `.` or B | Black out the screen |
 | T | Next transition (fade, slide, spatial, none, then any an extension adds) |
 | Shift+T | Next theme (the built-ins, then your own) |
 | F | Toggle fullscreen |
-| M | Move to the next monitor (remembered next time) |
+| M | Move the slides to the next display (remembered next time) |
 | H | Shortcuts and status (with a frame rate counter) |
 | C, Shift+C | Next palette for every `@thermal` image; back to the palettes as written |
 | S | Draw this slide's picture in the background (art engines, needs AI) |
@@ -43,13 +43,19 @@ is never changed.
 
 ## Presenter view
 
-Press `V` (or start with `mdeck talk.md --presenter`) and a second window opens on the display
-beside the slides: the current slide large, the next slide or step, the slide's speaker notes
-rendered as markdown (headings, **emphasis**, lists, code, quotes, tables, math) and the elapsed
-time. `Shift+V` resets the timer; keys typed in either window drive the deck, and `V` closes it.
+Press `V` (or start with `mdeck talk.md --presenter`) and a second window opens: the current
+slide large, the next slide or step, the slide's speaker notes rendered as markdown (headings,
+**emphasis**, lists, code, quotes, tables, math) and the elapsed time. `Shift+V` resets the timer;
+keys typed in either window drive the deck, and `V` closes it.
 
-With one display (or displays that are not side by side) the presenter window has nowhere to go,
-so `V` shows the notes as an overlay at the bottom of the slides instead, with the timer.
+**With a projector or a second screen**, the presenter window opens on another display than the
+slides, your laptop's own screen when the slides are on the projector, wherever the displays sit
+(left, right, above or below). If the slides open on the wrong screen, press `M` to move them to
+the next display; mdeck remembers it for next time. Then press `V`.
+
+**With one screen**, for rehearsing, the slides leave fullscreen and the two windows sit side by
+side. Either can be dragged to another screen. `V` closes the presenter window and the slides go
+back to fullscreen.
 
 Notes are ```` ```@notes ```` blocks anywhere in a slide ([Writing slides](writing-slides.md#speaker-notes)).
 

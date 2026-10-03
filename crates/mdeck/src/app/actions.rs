@@ -8,6 +8,7 @@ use crate::config::Config;
 
 use super::grid::GridLayout;
 use super::keys::{self, Action, DoubleTap, MonitorMoveOutcome, evaluate_monitor_move};
+use super::presenter::place;
 use super::toast::Toast;
 use super::{AppMode, DOUBLE_TAP_WINDOW, PresentationApp, RawOverlaySide};
 
@@ -208,13 +209,28 @@ impl PresentationApp {
             return;
         };
         let current_pos = vp.outer_pos.unwrap_or(egui::pos2(0.0, 0.0));
-        let target = keys::next_monitor_position(current_pos, monitor_size.x);
+        // The next display the system lists; without a list, guess one
+        // display to the right and wrap to the origin if there is none.
+        let displays = place::displays();
+        let (target, wrapped) = match place::display_of(&displays, current_pos) {
+            Some(own) => {
+                let Some(next) = place::next_display(&displays, own) else {
+                    self.toast = Some(Toast::new("No other display".to_string()));
+                    return;
+                };
+                (displays[next].rect.left_top(), true)
+            }
+            None => (
+                keys::next_monitor_position(current_pos, monitor_size.x),
+                false,
+            ),
+        };
         cmds.push(egui::ViewportCommand::Fullscreen(false));
         cmds.push(egui::ViewportCommand::OuterPosition(target));
         self.monitor_move = Some(MonitorMove {
             target,
             monitor_width: monitor_size.x,
-            wrapped: false,
+            wrapped,
             phase: MonitorMovePhase::Reposition,
         });
         self.toast = Some(Toast::new("Moving to next monitor...".to_string()));

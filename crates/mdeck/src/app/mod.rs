@@ -174,7 +174,7 @@ struct PresentationApp {
     transition: Option<ActiveTransition>,
     /// Digits typed for a slide jump.
     jump: keys::SlideJump,
-    /// The presenter window and the notes overlay.
+    /// The presenter window.
     presenter: presenter::Presenter,
     show_hud: bool,
     raw_overlay_side: RawOverlaySide,

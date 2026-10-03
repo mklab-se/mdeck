@@ -51,6 +51,7 @@ ratex-layout.workspace = true
 ratex-types.workspace = true
 pdf-writer.workspace = true
 flate2.workspace = true
+display-info.workspace = true
 
 [dev-dependencies]
 # EXT-14 end to end: an SDK tutorial engine registered next to the built-ins.

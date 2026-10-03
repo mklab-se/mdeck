@@ -30,7 +30,7 @@ pub const SHORTCUTS: &[(&str, &str)] = &[
     ("C", "Cycle thermal palette"),
     ("Shift+C", "Thermal palette as written"),
     ("F", "Toggle fullscreen"),
-    ("M", "Move to next monitor"),
+    ("M", "Move to next display"),
     ("H", "Toggle HUD"),
     ("V", "Presenter view / notes"),
     ("Shift+V", "Reset presenter timer"),

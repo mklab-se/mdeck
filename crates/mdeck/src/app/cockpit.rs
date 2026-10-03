@@ -1,13 +1,13 @@
-//! The presenter view in the window: opening it on the other display, the
-//! one-display notes overlay, keys typed into the presenter window, the
-//! slide-jump number and the timer.
+//! The presenter view in the window: opening it on another display or
+//! beside the slides on the same one, keys typed into the presenter window,
+//! the slide-jump number and the timer.
 
 use std::time::{Duration, Instant};
 
 use eframe::egui;
 
 use super::keys::{Action, JumpKey, KeyMode, map_key};
-use super::presenter::{self, Placing, Presenter};
+use super::presenter::{self, Placing, Presenter, Shared, Stage, place};
 use super::toast::Toast;
 use super::{AppMode, PresentationApp, ViewportSnapshot};
 use crate::theme::Theme;
@@ -72,42 +72,59 @@ impl PresentationApp {
         }
     }
 
-    /// `V`: close the presenter view or the notes overlay if either is
-    /// showing; otherwise open the presenter window on the other display
-    /// (the overlay takes over when there turns out to be only one).
+    /// `V`: close the presenter window if it is open; otherwise open it on
+    /// another display, or beside the slides when there is only one.
     pub(super) fn toggle_presenter(&mut self, vp: &ViewportSnapshot) {
-        if self.presenter.window || self.presenter.overlay {
-            self.presenter.window = false;
-            self.presenter.overlay = false;
-            self.presenter.placing = None;
+        if self.presenter.open() {
+            self.presenter.close();
             return;
         }
         self.open_presenter(vp);
     }
 
     fn open_presenter(&mut self, vp: &ViewportSnapshot) {
-        let (Some(size), Some(pos)) = (vp.monitor_size, vp.outer_pos) else {
-            self.presenter.overlay = true;
-            self.toast = Some(Toast::new("Notes overlay (V hides it)".to_string()));
+        let displays = place::displays();
+        let own = vp.outer_pos.and_then(|p| place::display_of(&displays, p));
+        if let Some(own) = own
+            && let Some(other) = place::presenter_display(&displays, own)
+        {
+            self.presenter.window = true;
+            self.presenter.target = (
+                displays[other].rect.left_top() + egui::vec2(40.0, 40.0),
+                egui::vec2(1280.0, 800.0),
+            );
+            self.presenter.placing = Some(Placing {
+                since: Instant::now(),
+                own: displays[own].rect,
+                slides_fullscreen: vp.fullscreen,
+            });
+            return;
+        }
+        // One display: the slides make room and the presenter goes beside.
+        let display = own.map(|i| displays[i].rect).or_else(|| {
+            vp.monitor_size
+                .map(|size| egui::Rect::from_min_size(egui::Pos2::ZERO, size))
+        });
+        let Some(display) = display else {
+            self.toast = Some(Toast::new("Display layout unknown".to_string()));
             return;
         };
-        let width = size.x.max(1.0);
-        // the left edge of the slide window's display, assuming displays
-        // side by side and alike
-        let main_x = (pos.x / width).floor() * width;
-        let target = presenter::presenter_target(egui::pos2(main_x, pos.y), width);
-        self.presenter.window = true;
-        self.presenter.target = target;
-        self.presenter.placing = Some(Placing {
-            since: Instant::now(),
-            main_x,
-            monitor_width: width,
+        self.share_display(display, vp.fullscreen);
+    }
+
+    /// Put both windows on `display`, the slides leaving fullscreen first.
+    fn share_display(&mut self, display: egui::Rect, fullscreen: bool) {
+        self.presenter.shared = Some(Shared {
+            display,
+            was_fullscreen: fullscreen,
+            stage: Stage::Leave,
         });
     }
 
-    /// `--presenter`: open on the first frame that knows the display.
+    /// `--presenter`: open on the first frame that knows the display, once
+    /// the deck shows.
     pub(super) fn open_presenter_at_start(&mut self, vp: &ViewportSnapshot) {
-        if !self.presenter.open_at_start {
+        if !self.presenter.open_at_start || !self.opening.shown() {
             return;
         }
         self.presenter.start_frames += 1;
@@ -115,6 +132,41 @@ impl PresentationApp {
             self.presenter.open_at_start = false;
             self.open_presenter(vp);
         }
+    }
+
+    /// The slides window's part in the presenter's arrangement, each frame:
+    /// back to fullscreen after a shared display, or leave fullscreen and
+    /// make room for the presenter window beside it.
+    pub(super) fn tick_presenter(
+        &mut self,
+        vp: &ViewportSnapshot,
+        cmds: &mut Vec<egui::ViewportCommand>,
+    ) {
+        if std::mem::take(&mut self.presenter.restore_fullscreen) {
+            cmds.push(egui::ViewportCommand::Fullscreen(true));
+        }
+        let Some(shared) = self.presenter.shared.as_mut() else {
+            return;
+        };
+        let arrange = match shared.stage {
+            Stage::Leave if vp.fullscreen => {
+                cmds.push(egui::ViewportCommand::Fullscreen(false));
+                shared.stage = Stage::Leaving(Instant::now());
+                false
+            }
+            Stage::Leave => true,
+            Stage::Leaving(since) => !vp.fullscreen && since.elapsed() >= Presenter::LEAVE,
+            Stage::Arranged => false,
+        };
+        if !arrange {
+            return;
+        }
+        shared.stage = Stage::Arranged;
+        let layout = place::side_by_side(shared.display);
+        cmds.push(egui::ViewportCommand::OuterPosition(layout.slides.0));
+        cmds.push(egui::ViewportCommand::InnerSize(layout.slides.1));
+        self.presenter.target = layout.presenter;
+        self.presenter.window = true;
     }
 
     pub(super) fn reset_timer(&mut self) {
@@ -137,10 +189,11 @@ impl PresentationApp {
             return;
         }
         ctx.request_repaint_after(Duration::from_millis(500));
+        let (pos, size) = self.presenter.target;
         let builder = egui::ViewportBuilder::default()
             .with_title(format!("{} (presenter)", self.display_title()))
-            .with_inner_size([1280.0, 800.0])
-            .with_position(self.presenter.target);
+            .with_inner_size(size)
+            .with_position(pos);
         ctx.show_viewport_immediate(presenter_id(), builder, |ui, _class| {
             self.presenter_frame(ui);
         });
@@ -150,8 +203,7 @@ impl PresentationApp {
     fn presenter_frame(&mut self, ui: &mut egui::Ui) {
         let pctx = ui.ctx().clone();
         if pctx.input(|i| i.viewport().close_requested()) {
-            self.presenter.window = false;
-            self.presenter.placing = None;
+            self.presenter.close();
             return;
         }
         if !self.settle_presenter(&pctx) {
@@ -177,9 +229,10 @@ impl PresentationApp {
             .show(ui, |ui| presenter::draw(ui, ui.max_rect(), &mut view));
     }
 
-    /// Once the new window has settled, keep it if it landed on another
-    /// display (and fill that display), else close it and show the notes
-    /// overlay. Returns whether the window stays.
+    /// Once a presenter window sent to another display has settled, keep
+    /// it there (filling that display) if the system let it go; otherwise
+    /// close it and put both windows on the slides' display. Returns
+    /// whether the window stays.
     fn settle_presenter(&mut self, pctx: &egui::Context) -> bool {
         let Some(p) = self.presenter.placing else {
             return true;
@@ -189,21 +242,15 @@ impl PresentationApp {
             return true;
         }
         self.presenter.placing = None;
-        let landed = pctx.input(|i| i.viewport().outer_rect.map(|r| r.left()));
-        match landed {
-            Some(x) if presenter::on_other_display(p.main_x, p.monitor_width, x) => {
-                pctx.send_viewport_cmd(egui::ViewportCommand::Maximized(true));
-                true
-            }
-            _ => {
-                self.presenter.window = false;
-                self.presenter.overlay = true;
-                self.toast = Some(Toast::new(
-                    "One display: notes overlay instead (V hides it)".to_string(),
-                ));
-                false
-            }
+        let landed = pctx.input(|i| i.viewport().outer_rect.map(|r| r.left_top()));
+        if landed.is_some_and(|at| !p.own.contains(at + egui::vec2(8.0, 8.0))) {
+            pctx.send_viewport_cmd(egui::ViewportCommand::Maximized(true));
+            return true;
         }
+        self.presenter.window = false;
+        self.share_display(p.own, p.slides_fullscreen);
+        pctx.request_repaint_of(egui::ViewportId::ROOT);
+        false
     }
 
     /// Keys typed into the presenter window drive the slides as well.
@@ -254,22 +301,6 @@ impl PresentationApp {
             }
         }
         pctx.request_repaint_of(egui::ViewportId::ROOT);
-    }
-
-    /// The notes overlay over the slides (one display).
-    pub(super) fn draw_notes_overlay(&self, ui: &mut egui::Ui, rect: egui::Rect) {
-        if !self.presenter.overlay || !matches!(self.mode, AppMode::Presentation { end: false }) {
-            return;
-        }
-        let notes = presenter::notes_blocks(
-            self.deck
-                .presentation
-                .slides
-                .get(self.presenter_slide())
-                .and_then(|s| s.notes.as_deref()),
-        );
-        presenter::draw_overlay(ui, rect, &notes, self.presenter.elapsed());
-        ui.ctx().request_repaint_after(Duration::from_millis(500));
     }
 
     /// The slide number being typed, small in the bottom-left corner.

@@ -100,3 +100,5 @@ ratex-types = "0.1.14"
 # PDF export (#10): one image page per slide.
 pdf-writer = "0.15"
 flate2 = "1.1"
+# The connected displays, for placing the presenter window and `M`.
+display-info = "0.5"

@@ -25,7 +25,7 @@ describes is what the window presents and what export writes.
   - the notes, rendered as markdown (MD-15);
   - the elapsed time (`Shift+V` resets it).
 
-  With one display, `V` shows a notes overlay over the slides instead.
+  With one display, the slides leave fullscreen and the presenter window opens beside them.
 - **RUN-04** SHOULD `implemented`: Typing a slide number and pressing Enter jumps to that slide.
 - **RUN-05** MUST `implemented`: Live reload keeps the current slide and step when the deck
   changes on disk.

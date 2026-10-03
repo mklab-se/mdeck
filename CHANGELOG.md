@@ -4,7 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **The presenter view works on one screen.** With a single display, `V` (or `--presenter`) now
+  takes the slides out of fullscreen and opens the presenter window beside them, so you can
+  rehearse with both and drag either to another screen later. `V` again closes it and the slides
+  go back to fullscreen. This replaces the notes overlay.
+
 ### Fixed
+
+- **The presenter window and `M` find your displays wherever they are.** mdeck now asks the system
+  for the connected displays instead of assuming one display to the right of the other of the
+  same size. The presenter window goes to another display than the slides (your laptop's own
+  screen when the slides are on a projector), including displays to the left, above or below and
+  of another size, and `M` steps through every display in turn.
 
 - **A clean start on macOS.** macOS slides a fullscreen window into its own space after it opens,
   and mdeck drew the first slide through that slide-in, so it showed stretched and cut for half a

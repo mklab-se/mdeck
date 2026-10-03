@@ -216,6 +216,14 @@ impl PresentationApp {
 
         let mut viewport_cmds = self.tick_monitor_move(&vp);
         self.open_presenter_at_start(&vp);
+        self.tick_presenter(&vp, &mut viewport_cmds);
+        if self
+            .presenter
+            .shared
+            .is_some_and(|s| s.stage != super::presenter::Stage::Arranged)
+        {
+            ctx.request_repaint_after(Duration::from_millis(100));
+        }
         self.jump.expire(Instant::now());
         if self.monitor_move.is_some() {
             ctx.request_repaint_after(Duration::from_millis(100));
@@ -352,8 +360,7 @@ impl PresentationApp {
 
         self.draw_toast(ui, ctx, rect, scale);
 
-        // The notes overlay (one display) and the slide number being typed.
-        self.draw_notes_overlay(ui, rect);
+        // The slide number being typed.
         if matches!(self.mode, AppMode::Presentation { .. }) {
             self.draw_jump(ui, rect, scale);
         }

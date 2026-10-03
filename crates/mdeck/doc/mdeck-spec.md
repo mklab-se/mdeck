@@ -2661,9 +2661,9 @@ in-app HUD (`H`) show the same table.
 | T | Cycle transition (slide, fade, spatial, none, then any an extension registers) |
 | Shift+T | Cycle theme (the built-ins, then user and deck themes) |
 | F | Toggle fullscreen |
-| M | Move the fullscreen window to the next monitor (remembered in config) |
+| M | Move the fullscreen slides to the next display (remembered in config) |
 | H | Toggle the presenter HUD |
-| V | Presenter view: a second window with the current slide, the next slide or step, the notes and the elapsed time; with one display, a notes overlay instead. V again closes it |
+| V | Presenter view: a second window with the current slide, the next slide or step, the notes and the elapsed time, on another display, or beside the slides with one display. V again closes it |
 | Shift+V | Reset the presenter timer |
 | Digits, then Enter | Jump to that slide (the number shows in the bottom-left corner while typed; Backspace edits, Esc cancels) |
 | C | Next thermal palette for every `@thermal` image and legend (section 14.20) |
@@ -2687,14 +2687,16 @@ pressed during a transition are queued and applied when it finishes, so fast
 presses never lose a step.
 
 **Presenter view.** `V` (or `mdeck deck.md --presenter`) opens the
-presenter's window on the display beside the slides: the current slide
-large, the next slide or reveal step, the slide's notes rendered as markdown
-(headings, emphasis, lists, code, quotes, tables, math) and the elapsed time
-(`Shift+V` resets it). Keys typed in either window drive the deck. When the
-presenter window cannot land on another display (one screen, displays not
-side by side), the notes show as an overlay at the bottom of the slides
-instead; `V` hides it. `--theme <name>` presents in another theme without
-editing the deck.
+presenter's window: the current slide large, the next slide or reveal step,
+the slide's notes rendered as markdown (headings, emphasis, lists, code,
+quotes, tables, math) and the elapsed time (`Shift+V` resets it). Keys typed
+in either window drive the deck. With more than one display it opens on
+another display than the slides, the computer's own screen when the slides
+are on a projector; `M` moves the slides to the next display. With one
+display the slides leave fullscreen and the two windows sit side by side,
+for rehearsing; either can be dragged to another screen. `V` again closes
+the presenter window and the slides go back to fullscreen.
+`--theme <name>` presents in another theme without editing the deck.
 
 **Reduced motion.** `mdeck deck.md --reduced-motion` (or
 `mdeck config set defaults.reduced_motion true`) presents every slide and

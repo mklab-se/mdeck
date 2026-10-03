@@ -1,11 +1,9 @@
-//! Speaker notes in the presenter view and the one-display overlay: the
-//! notes markdown parsed, fitted and drawn on the cockpit's panel.
+//! Speaker notes in the presenter view: the notes markdown parsed, fitted
+//! and drawn on the cockpit's panel.
 
-use std::time::Duration;
+use eframe::egui::{self, Color32, FontId, Rect, pos2};
 
-use eframe::egui::{self, Color32, FontId, Rect, Stroke, pos2, vec2};
-
-use super::{format_elapsed, ink, spaced};
+use super::ink;
 use crate::parser::{self, Block};
 use crate::render::{self, image_cache::ImageCache, text};
 use crate::theme::Theme;
@@ -112,47 +110,6 @@ fn fade_bottom(painter: &egui::Painter, area: Rect, color: Color32, h: f32) {
     mesh.add_triangle(0, 1, 2);
     mesh.add_triangle(0, 2, 3);
     painter.add(egui::Shape::mesh(mesh));
-}
-
-/// The one-display notes overlay: a translucent band at the bottom of the
-/// slide with the notes and the elapsed time.
-pub fn draw_overlay(ui: &mut egui::Ui, rect: Rect, notes: &[Block], elapsed: Duration) {
-    let hints = render::hints::enabled(ui.ctx());
-    render::hints::set_enabled(ui.ctx(), false);
-    let u = (rect.width() / 1920.0).min(rect.height() / 1080.0);
-    let band = Rect::from_min_max(
-        pos2(rect.left() + 40.0 * u, rect.bottom() - rect.height() * 0.36),
-        pos2(rect.right() - 40.0 * u, rect.bottom() - 40.0 * u),
-    );
-    let painter = &ui.painter().clone();
-    painter.rect_filled(band, 14.0 * u, ink::DESK.gamma_multiply(0.94));
-    painter.rect_stroke(
-        band,
-        14.0 * u,
-        Stroke::new(1.0, ink::HAIRLINE),
-        egui::StrokeKind::Inside,
-    );
-    let pad = 28.0 * u;
-    let head = painter.text(
-        band.left_top() + vec2(pad, pad * 0.8),
-        egui::Align2::LEFT_TOP,
-        spaced("NOTES"),
-        FontId::monospace(16.0 * u),
-        ink::ACCENT,
-    );
-    painter.text(
-        pos2(band.right() - pad, head.top()),
-        egui::Align2::RIGHT_TOP,
-        format_elapsed(elapsed),
-        FontId::monospace(30.0 * u),
-        ink::TEXT,
-    );
-    let area = Rect::from_min_max(
-        pos2(band.left() + pad, head.bottom() + 14.0 * u),
-        band.max - vec2(pad, pad * 0.8),
-    );
-    draw_notes(ui, area, notes, 30.0 * u);
-    render::hints::set_enabled(ui.ctx(), hints);
 }
 
 #[cfg(test)]
