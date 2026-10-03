@@ -12,6 +12,7 @@ pub mod keys;
 mod launch;
 mod look;
 mod navigation;
+mod opening;
 mod overlays;
 mod overview;
 mod placement;
@@ -219,6 +220,9 @@ struct PresentationApp {
     last_frame: Instant,
     /// Opening countdown, while it runs.
     countdown: Option<Countdown>,
+    /// The window's first moment: black until fullscreen has settled, then
+    /// the deck fades in.
+    opening: opening::Opening,
 }
 
 impl PresentationApp {

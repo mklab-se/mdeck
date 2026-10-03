@@ -42,6 +42,8 @@ pub(super) struct Launch {
     pub(super) cli_theme: Option<String>,
     /// `--presenter`: open the presenter view on the first frame.
     pub(super) presenter: bool,
+    /// `--windowed`: a window instead of fullscreen.
+    pub(super) windowed: bool,
 }
 
 impl PresentationApp {
@@ -59,6 +61,7 @@ impl PresentationApp {
             reduced_motion,
             cli_theme,
             presenter,
+            windowed,
         } = launch;
         let FileWatch {
             rx: watcher_rx,
@@ -141,6 +144,7 @@ impl PresentationApp {
             cli_engine,
             engine_override,
             countdown: None,
+            opening: super::opening::Opening::new(windowed, reduced_motion),
         }
     }
 }
@@ -367,6 +371,7 @@ pub fn run(opts: RunOptions) -> anyhow::Result<()> {
                 reduced_motion,
                 cli_theme,
                 presenter,
+                windowed,
             };
             let mut app = PresentationApp::new(file_clone, presentation, watch, launch);
             app.start_at(initial_slide, initial_overview, shared);

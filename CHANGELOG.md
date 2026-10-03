@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- **A clean start on macOS.** macOS slides a fullscreen window into its own space after it opens,
+  and mdeck drew the first slide through that slide-in, so it showed stretched and cut for half a
+  second before settling. The window now stays black until it is in place (and the theme's fonts
+  are in), then the deck fades in. The opening countdown starts its clock only then, so its 3 is
+  never lost to the animation.
+
 ## [2.0.1] - 2026-10-03
 
 ### Fixed

@@ -25,6 +25,22 @@ impl eframe::App for PresentationApp {
         self.handle_input(ctx);
         self.expire(ctx);
 
+        // Black until the window has settled, then the deck fades in.
+        let now = Instant::now();
+        let origin = ctx.input(|i| i.viewport().outer_rect.map(|r| [r.left(), r.top()]));
+        let shown = self
+            .opening
+            .opacity(now, self.pending_theme.is_none(), origin);
+        if self.opening.running(now) {
+            ctx.request_repaint();
+        }
+        if shown <= 0.0 {
+            egui::CentralPanel::default()
+                .frame(egui::Frame::new().fill(egui::Color32::BLACK))
+                .show(root_ui, |_| {});
+            return;
+        }
+
         let bg = if self.blackout || self.on_end_slide() {
             egui::Color32::BLACK
         } else {
@@ -34,6 +50,15 @@ impl eframe::App for PresentationApp {
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(bg).inner_margin(0.0))
             .show(root_ui, |ui| self.paint(ui, ctx, bg));
+
+        if shown < 1.0 {
+            let veil = egui::LayerId::new(egui::Order::Foreground, egui::Id::new("opening"));
+            ctx.layer_painter(veil).rect_filled(
+                ctx.content_rect(),
+                0.0,
+                Theme::with_opacity(egui::Color32::BLACK, 1.0 - shown),
+            );
+        }
 
         // The presenter's own window, when it is open.
         self.show_presenter(ctx);
@@ -197,7 +222,10 @@ impl PresentationApp {
         }
 
         // The opening countdown ends on its own, or on any key or click.
-        if let Some(cd) = &mut self.countdown {
+        // Its clock starts once the deck shows, after the opening's hold.
+        if let Some(cd) = &mut self.countdown
+            && self.opening.shown()
+        {
             cd.start.get_or_insert_with(Instant::now);
             let clicked = ctx.input(|i| i.pointer.any_pressed());
             if cd.phase(Instant::now()) == CountdownPhase::Done || !pressed.is_empty() || clicked {
