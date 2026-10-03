@@ -255,7 +255,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "aurora"
-version = "2.0.2"
+version = "2.0.3"
 dependencies = [
  "mdeck-sdk",
 ]
@@ -1344,21 +1344,21 @@ dependencies = [
 
 [[package]]
 name = "engine-ambience"
-version = "2.0.2"
+version = "2.0.3"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "engine-pictures"
-version = "2.0.2"
+version = "2.0.3"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "engine-reactive"
-version = "2.0.2"
+version = "2.0.3"
 dependencies = [
  "mdeck-sdk",
 ]
@@ -2639,7 +2639,7 @@ dependencies = [
 
 [[package]]
 name = "mdeck"
-version = "2.0.2"
+version = "2.0.3"
 dependencies = [
  "ailloy",
  "anyhow",
@@ -2676,7 +2676,7 @@ dependencies = [
 
 [[package]]
 name = "mdeck-sdk"
-version = "2.0.2"
+version = "2.0.3"
 dependencies = [
  "egui",
  "egui_glow",
@@ -4983,28 +4983,28 @@ dependencies = [
 
 [[package]]
 name = "template-design-set"
-version = "2.0.2"
+version = "2.0.3"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "template-engine"
-version = "2.0.2"
+version = "2.0.3"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "template-transition"
-version = "2.0.2"
+version = "2.0.3"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "template-visual"
-version = "2.0.2"
+version = "2.0.3"
 dependencies = [
  "mdeck-sdk",
 ]

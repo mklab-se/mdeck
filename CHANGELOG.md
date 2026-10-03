@@ -2,7 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.0.2] - 2026-10-03
+## [2.0.3] - 2026-10-03
+
+v2.0.2 was tagged but never published: its Linux build failed. This release carries its changes.
 
 ### Changed
 
@@ -10,6 +12,7 @@ All notable changes to this project will be documented in this file.
   takes the slides out of fullscreen and opens the presenter window beside them, so you can
   rehearse with both and drag either to another screen later. `V` again closes it and the slides
   go back to fullscreen. This replaces the notes overlay.
+  ([#24](https://github.com/mklab-se/mdeck/issues/24))
 
 ### Fixed
 
@@ -17,13 +20,15 @@ All notable changes to this project will be documented in this file.
   for the connected displays instead of assuming one display to the right of the other of the
   same size. The presenter window goes to another display than the slides (your laptop's own
   screen when the slides are on a projector), including displays to the left, above or below and
-  of another size, and `M` steps through every display in turn.
+  of another size, and `M` steps through every display in turn. On Linux, where the system list
+  is not used, the presenter window still guesses the display beside the slides.
+  ([#24](https://github.com/mklab-se/mdeck/issues/24))
 
 - **A clean start on macOS.** macOS slides a fullscreen window into its own space after it opens,
   and mdeck drew the first slide through that slide-in, so it showed stretched and cut for half a
   second before settling. The window now stays black until it is in place (and the theme's fonts
   are in), then the deck fades in. The opening countdown starts its clock only then, so its 3 is
-  never lost to the animation.
+  never lost to the animation. ([#23](https://github.com/mklab-se/mdeck/issues/23))
 
 ## [2.0.1] - 2026-10-03
 

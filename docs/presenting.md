@@ -50,7 +50,7 @@ keys typed in either window drive the deck, and `V` closes it.
 
 **With a projector or a second screen**, the presenter window opens on another display than the
 slides, your laptop's own screen when the slides are on the projector, wherever the displays sit
-(left, right, above or below). If the slides open on the wrong screen, press `M` to move them to
+(left, right, above or below; on Linux mdeck looks beside the slides' display). If the slides open on the wrong screen, press `M` to move them to
 the next display; mdeck remembers it for next time. Then press `V`.
 
 **With one screen**, for rehearsing, the slides leave fullscreen and the two windows sit side by
