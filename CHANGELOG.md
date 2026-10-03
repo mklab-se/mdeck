@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [2.0.0] - 2026-10-03
 
 **mdeck 2.** A breaking release that makes mdeck simpler to write for and better looking out of
 the box. Decks are cleaner markdown: settings are plain YAML in the frontmatter and HTML comments

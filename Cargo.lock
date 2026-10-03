@@ -255,7 +255,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "aurora"
-version = "1.19.0"
+version = "2.0.0"
 dependencies = [
  "mdeck-sdk",
 ]
@@ -1317,21 +1317,21 @@ dependencies = [
 
 [[package]]
 name = "engine-ambience"
-version = "1.19.0"
+version = "2.0.0"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "engine-pictures"
-version = "1.19.0"
+version = "2.0.0"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "engine-reactive"
-version = "1.19.0"
+version = "2.0.0"
 dependencies = [
  "mdeck-sdk",
 ]
@@ -2444,9 +2444,9 @@ checksum = "34b357333733e8260735ba5894eb928c02ecc69c78715f01a8019e7fa7f2db4c"
 
 [[package]]
 name = "libc"
-version = "0.2.189"
+version = "0.2.190"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
+checksum = "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78"
 
 [[package]]
 name = "libloading"
@@ -2603,7 +2603,7 @@ dependencies = [
 
 [[package]]
 name = "mdeck"
-version = "1.19.0"
+version = "2.0.0"
 dependencies = [
  "ailloy",
  "anyhow",
@@ -2639,7 +2639,7 @@ dependencies = [
 
 [[package]]
 name = "mdeck-sdk"
-version = "1.19.0"
+version = "2.0.0"
 dependencies = [
  "egui",
  "egui_glow",
@@ -4853,28 +4853,28 @@ dependencies = [
 
 [[package]]
 name = "template-design-set"
-version = "1.19.0"
+version = "2.0.0"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "template-engine"
-version = "1.19.0"
+version = "2.0.0"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "template-transition"
-version = "1.19.0"
+version = "2.0.0"
 dependencies = [
  "mdeck-sdk",
 ]
 
 [[package]]
 name = "template-visual"
-version = "1.19.0"
+version = "2.0.0"
 dependencies = [
  "mdeck-sdk",
 ]
@@ -5433,9 +5433,9 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.26.1"
+version = "1.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ef6dac1e96601b4fb3acccccff2139741fcb757cb9a36089bf5be91cfb285ce"
+checksum = "97277d36b9c3ace13e58fa6e753f8b0bbbf302a18dd193240d70f9e29681059a"
 dependencies = [
  "atomic",
  "getrandom 0.4.3",
