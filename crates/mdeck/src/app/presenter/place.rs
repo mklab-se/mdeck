@@ -13,7 +13,15 @@ pub struct Display {
 }
 
 /// The connected displays, left to right then top to bottom; empty when
+/// the system cannot say (and on Linux, where the windows guess instead).
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+pub fn displays() -> Vec<Display> {
+    Vec::new()
+}
+
+/// The connected displays, left to right then top to bottom; empty when
 /// the system cannot say.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub fn displays() -> Vec<Display> {
     let Ok(all) = display_info::DisplayInfo::all() else {
         return Vec::new();
@@ -69,6 +77,17 @@ pub fn presenter_display(displays: &[Display], own: usize) -> Option<usize> {
         .clone()
         .find(|&i| displays[i].builtin)
         .or_else(|| others.clone().next())
+}
+
+/// Without a list of displays: guess the presenter's display beside the
+/// slides' one (`own`), to the right, or the primary one when the slides
+/// are to its right. Where the window lands tells whether it was there.
+pub fn guess_presenter_display(own: Rect) -> Rect {
+    if own.left().abs() >= own.width() / 2.0 {
+        Rect::from_min_size(pos2(0.0, 0.0), own.size())
+    } else {
+        own.translate(vec2(own.width(), 0.0))
+    }
 }
 
 /// The display after `own` for `M`, wrapping around; `None` with one.
@@ -168,6 +187,14 @@ mod tests {
     fn a_window_off_every_display_belongs_to_the_nearest() {
         let d = laptop_and_projector();
         assert_eq!(display_of(&d, pos2(3000.0, 10.0)), Some(1));
+    }
+
+    #[test]
+    fn without_a_list_the_guess_is_beside_the_slides() {
+        let own = Rect::from_min_size(pos2(0.0, 0.0), vec2(1920.0, 1080.0));
+        assert_eq!(guess_presenter_display(own).left(), 1920.0);
+        let right = own.translate(vec2(1920.0, 0.0));
+        assert_eq!(guess_presenter_display(right).left(), 0.0);
     }
 
     #[test]

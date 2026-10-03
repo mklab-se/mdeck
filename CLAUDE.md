@@ -50,6 +50,15 @@ Rust workspace with two crates: `crates/mdeck` (package `mdeck`: a library, `mde
 
 GitHub issues are handled with the [`/fix-issue`](.claude/skills/fix-issue/SKILL.md) skill: read and classify the report, reproduce a bug before fixing it, ask the reporter when the report is not reproducible, fix with test, sample and changelog, then thank the reporter in a closing comment that shows before/after screenshots (published to the `issue-screenshots` branch by the skill's `upload-screenshot.sh`) before the issue is closed. Commits reference the issue as `(#n)` and never use closing keywords.
 
+**Work asked for directly gets an issue too, when it matters.** When Kristofer asks for a fix or a
+feature that is big enough that others would want to see it (a user-visible bug, a behaviour
+change, a new capability), register it as a GitHub issue once the task is understood (what is
+wrong or wanted, and why), label it, reference it from the commits as `(#n)`, and close it with a
+comment saying what changed and in which version once the work is done. Users and contributors
+can then follow what changes in mdeck and why. Very small fixes (a typo, a one-line tweak, an
+internal cleanup) need no issue; deciding where the line falls is your call. The `CHANGELOG.md`
+entry is required either way.
+
 ## Releasing
 
 Releases are driven by the [`/release`](.claude/skills/release/SKILL.md) skill (`major`, `minor`, or `patch`): it runs the pre-flight checks, bumps `version` in the root `Cargo.toml`, renames `[Unreleased]` in `CHANGELOG.md` to the dated version, commits `Release vX.Y.Z`, pushes main, and pushes the tag `vX.Y.Z`.

@@ -100,16 +100,31 @@ impl PresentationApp {
             });
             return;
         }
-        // One display: the slides make room and the presenter goes beside.
-        let display = own.map(|i| displays[i].rect).or_else(|| {
-            vp.monitor_size
-                .map(|size| egui::Rect::from_min_size(egui::Pos2::ZERO, size))
-        });
-        let Some(display) = display else {
+        if let Some(own) = own {
+            // One display: the slides make room and the presenter goes beside.
+            self.share_display(displays[own].rect, vp.fullscreen);
+            return;
+        }
+        // No list of displays: try beside the slides' display, and share it
+        // if the system pulls the window back.
+        let (Some(size), Some(pos)) = (vp.monitor_size, vp.outer_pos) else {
             self.toast = Some(Toast::new("Display layout unknown".to_string()));
             return;
         };
-        self.share_display(display, vp.fullscreen);
+        let width = size.x.max(1.0);
+        let main_x = (pos.x / width).floor() * width;
+        let own = egui::Rect::from_min_size(egui::pos2(main_x, pos.y), size);
+        let guess = place::guess_presenter_display(own);
+        self.presenter.window = true;
+        self.presenter.target = (
+            guess.left_top() + egui::vec2(40.0, 40.0),
+            egui::vec2(1280.0, 800.0),
+        );
+        self.presenter.placing = Some(Placing {
+            since: Instant::now(),
+            own,
+            slides_fullscreen: vp.fullscreen,
+        });
     }
 
     /// Put both windows on `display`, the slides leaving fullscreen first.
