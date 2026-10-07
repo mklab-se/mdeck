@@ -15,7 +15,7 @@ members = [
 ]
 
 [workspace.package]
-version = "2.1.0"
+version = "2.1.1"
 edition = "2024"
 authors = ["Kristofer Liljeblad <kristofer@mklab.se>"]
 license = "MIT"
@@ -24,7 +24,7 @@ rust-version = "1.95"
 
 [workspace.dependencies]
 # The SDK, released in lockstep with mdeck.
-mdeck-sdk = { path = "crates/mdeck-sdk", version = "=2.1.0" }
+mdeck-sdk = { path = "crates/mdeck-sdk", version = "=2.1.1" }
 eframe = { version = "0.36", default-features = false, features = ["glow", "default_fonts", "links", "wayland", "x11"] }
 # mdeck-sdk draws through egui privately. These track the versions eframe uses,
 # so one copy of each is built.

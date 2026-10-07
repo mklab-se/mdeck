@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.1] - 2026-10-07
+
+### Changed
+
+- **ailloy 3.0.1.** ailloy now reads and writes its config with `serde_norway` too, so mdeck
+  builds a single YAML stack: the deprecated `serde_yaml` and its `unsafe-libyaml` are gone from
+  the dependency tree. mdeck itself already used `serde_norway`; no file format changes and no
+  migration.
+- **Linux release build on `ubuntu-latest`.** The Linux binary is no longer built on a pinned
+  `ubuntu-24.04`, so it needs a glibc at least as new as the current `ubuntu-latest` image's.
+  `cargo install mdeck` and Homebrew are unaffected.
+- **No em-dashes** in docs and skill files; CI now fails if one comes back.
+- **Dependencies refreshed** to their latest compatible versions.
+
 ## [2.1.0] - 2026-10-07
 
 ### Changed
