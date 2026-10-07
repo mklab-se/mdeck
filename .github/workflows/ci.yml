@@ -21,6 +21,12 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace
+      - name: No em-dashes
+        run: |
+          if git grep -nIP '\x{2014}'; then
+            echo "::error::Em-dash (U+2014) found. Use a comma, colon, parentheses or a new sentence; in Rust code that needs the character, write \\u{2014}."
+            exit 1
+          fi
 
   # Each engine is a cargo feature: a build with none of them, or with any
   # one alone, must compile without warnings.
