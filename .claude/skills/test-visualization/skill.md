@@ -10,7 +10,7 @@ When testing or validating a visualization in mdeck, follow this systematic proc
 ## Step 1: Create or identify the test sample
 
 Find or create the sample presentation in `samples/visualizations/` that covers the visualization being tested. The sample should include:
-- A slide with ALL features visible (no progressive reveal — all items use `-` markers)
+- A slide with ALL features visible (no progressive reveal: all items use `-` markers)
 - A slide with progressive reveal (`+` and `*` markers)
 - Edge cases specific to the visualization type
 - At least one slide that matches a real-world use case
@@ -84,12 +84,12 @@ cargo test --workspace
 
 ## Step 7: Final verification
 
-Export one more time and check slide 1 step 0 (the most important — what users see first) and the final step of the most complex slide. Only declare done if both look correct.
+Export one more time and check slide 1 step 0 (the most important, since it is what users see first) and the final step of the most complex slide. Only declare done if both look correct.
 
 ## Important rules
 
 - NEVER declare work complete based on low-resolution thumbnails. Always export at 1920x1080.
-- NEVER skip checking progressive reveal steps — bugs often hide in intermediate states.
+- NEVER skip checking progressive reveal steps: bugs often hide in intermediate states.
 - NEVER assume a fix worked without re-exporting and re-checking.
 - When the same type of bug keeps recurring, step back and rethink the approach rather than patching.
 - If control points for bezier curves produce wrong shapes, draw a diagram on paper first: P0→P1 defines the start tangent, P2→P3 defines the end tangent.

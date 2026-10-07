@@ -63,13 +63,20 @@ entry is required either way.
 
 Releases are driven by the [`/release`](.claude/skills/release/SKILL.md) skill (`major`, `minor`, or `patch`): it runs the pre-flight checks, bumps `version` in the root `Cargo.toml`, renames `[Unreleased]` in `CHANGELOG.md` to the dated version, commits `Release vX.Y.Z`, pushes main, and pushes the tag `vX.Y.Z`.
 
+## Writing style
+
+- No em-dashes (U+2014) anywhere: docs, comments, help text, error messages, test strings and
+  commit messages. Use a comma; otherwise a colon, parentheses or a new sentence. Rust code that
+  genuinely needs the character writes the escape `\u{2014}`. CI enforces it (`No em-dashes`
+  step in `ci.yml`).
+
 ## Code Style
 
 - Building from source on Windows needs NASM and CMake on `PATH`: `aws-lc-rs` (the TLS crypto
   backend pulled in transitively via `ailloy`) compiles optimized assembly routines at build time.
   macOS and Linux need nothing extra. The release workflow's Windows leg installs NASM with Chocolatey; CMake and MSVC are
-  already on the `windows-latest` image. Its Linux leg builds on a pinned `ubuntu-24.04`
-  (not `ubuntu-latest`) so the binary's glibc requirement stays low.
+  already on the `windows-latest` image. Every workflow runs on `ubuntu-latest` (no pinned
+  Ubuntu version), so the Linux binary needs a glibc at least as new as that image's.
 - **File size guideline:** When a source file exceeds ~500 lines, evaluate whether it would benefit from being split into smaller modules (`mod` in Rust). Look for natural boundaries: distinct type groups, self-contained algorithms, test helpers, or feature areas that could live in their own files. Propose a split plan before refactoring.
 
 ## Dependency Policy
