@@ -85,7 +85,8 @@ jobs:
 
       # One SBOM per target: the dependency graph differs per platform
       # (e.g. windows-sys only on Windows). cargo-cyclonedx writes one file
-      # next to every workspace Cargo.toml; keep the binary crate's, drop the rest.
+      # next to every workspace Cargo.toml (crates/ and examples/); keep the
+      # binary crate's, drop the rest.
       - name: Generate CycloneDX SBOM
         shell: bash
         run: |
@@ -96,7 +97,7 @@ jobs:
             --target "$TARGET" \
             --override-filename "$SBOM"
           mv "crates/mdeck/${SBOM}.json" "${SBOM}.cdx.json"
-          rm -f crates/*/"${SBOM}.json"
+          rm -f crates/*/"${SBOM}.json" examples/*/"${SBOM}.json"
         env:
           TARGET: ${{ matrix.target }}
           SBOM: mdeck-${{ github.ref_name }}-${{ matrix.target }}
