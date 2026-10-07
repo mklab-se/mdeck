@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- **ailloy 3.0.** mdeck now builds on ailloy 3.0 (from 2.2). `mdeck ai config` and
+  `mdeck ai status` still show only the chat and image capabilities mdeck uses; ailloy's new
+  `eval` capability and TypeSafe provider are left out of mdeck's pickers. If you configure an
+  eval node or a TypeSafe provider (here or with another ailloy 3 tool), the shared ailloy config
+  can no longer be read by tools still on ailloy 2.x: update them too.
+- **Dependencies refreshed** to their latest compatible versions (tokio 1.53.2, hyper 1.12 and
+  other transitive updates). The minimum supported Rust version stays 1.95.
+
 ## [2.0.3] - 2026-10-03
 
 v2.0.2 was tagged but never published: its Linux build failed. This release carries its changes.

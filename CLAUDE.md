@@ -87,7 +87,7 @@ mdeck + pidge + rigg + rusty-tmpl).
 
 ### Testing
 - **Always run the full test suite before declaring work complete:** `cargo test --workspace`
-- **Always run the full CI check before pushing:** `cargo fmt --all -- --check && cargo clippy --workspace -- -D warnings && cargo test --workspace`
+- **Always run the full CI check before pushing:** `cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
 - Write unit tests for all new functionality
 - Test edge cases and error paths, not just the happy path
 - **Every bug fix must include a regression test.** When fixing a bug, first write a test that reproduces it (fails before the fix, passes after). This prevents the bug from coming back and documents the expected behavior.
