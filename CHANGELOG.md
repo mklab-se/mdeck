@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- **Config and cache folders follow XDG on macOS too.** mdeck now keeps its files in the same
+  place on Linux and macOS, like every MKLab tool: config, themes, designs, packs, point clouds
+  and incident logs in `$XDG_CONFIG_HOME/mdeck/` (default `~/.config/mdeck/`), custom builds in
+  `$XDG_CACHE_HOME/mdeck/` (default `~/.cache/mdeck/`). The XDG variables count only when they
+  are absolute paths. Windows keeps `%APPDATA%\mdeck\` and `%LOCALAPPDATA%\mdeck\`.
+  **macOS users:** the old folder `~/Library/Application Support/mdeck/` is no longer read. Move
+  it once with
+  `mkdir -p ~/.config && mv ~/Library/Application\ Support/mdeck ~/.config/mdeck`.
+  The old build cache in `~/Library/Caches/mdeck/` can simply be deleted.
+
 ## [2.1.1] - 2026-10-07
 
 ### Changed

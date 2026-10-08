@@ -89,8 +89,8 @@ time. Make it the default with `mdeck config set defaults.reduced_motion true`.
 ## Your defaults
 
 `mdeck config show` prints your configuration and `mdeck config set <key> <value>` changes it.
-The file is `config.yaml` in your user folder (`~/Library/Application Support/mdeck/` on macOS,
-`~/.config/mdeck/` on Linux, `%APPDATA%\mdeck\` on Windows).
+The file is `config.yaml` in your user folder (`~/.config/mdeck/` on Linux and macOS, or
+`$XDG_CONFIG_HOME/mdeck/` when that is set; `%APPDATA%\mdeck\` on Windows).
 
 | Key | Values |
 |---|---|

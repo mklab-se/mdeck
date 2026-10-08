@@ -43,5 +43,5 @@ body:
       label: What `mdeck deck.md --check` says
       description: |
         And, after a crash or a reported incident, the log from
-        `~/Library/Application Support/mdeck/logs/` (macOS) or `~/.config/mdeck/logs/` (Linux).
+        `~/.config/mdeck/logs/` (macOS and Linux) or `%APPDATA%\mdeck\logs\` (Windows).
       render: text

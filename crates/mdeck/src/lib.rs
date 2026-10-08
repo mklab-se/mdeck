@@ -29,6 +29,7 @@ mod guards;
 mod incident_log;
 mod language;
 mod parser;
+mod paths;
 mod prompt;
 mod registry;
 mod render;

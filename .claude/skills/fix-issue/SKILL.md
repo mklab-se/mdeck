@@ -57,7 +57,7 @@ shows it, in the scratchpad, at the resolution users see:
 ```bash
 cargo run -q -p mdeck -- <deck>.md --check                       # parser and structure warnings
 cargo run -q -p mdeck -- export <deck>.md --slide 2 --output-dir <dir>   # add --debug for reveal steps
-cargo run -q -p mdeck -- <deck>.md                                # runtime incidents; logs under ~/Library/Application Support/mdeck/logs/
+cargo run -q -p mdeck -- <deck>.md                                # runtime incidents; logs under ~/.config/mdeck/logs/
 ```
 
 Read the exported PNG. Keep the failing export: it is the "before" picture for Step 8.

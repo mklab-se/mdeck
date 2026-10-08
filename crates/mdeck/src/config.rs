@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 const FILENAME: &str = "config.yaml";
-const APP_DIR: &str = "mdeck";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -139,8 +138,8 @@ pub struct DefaultsConfig {
 
 impl Config {
     pub fn path() -> Result<PathBuf> {
-        dirs::config_dir()
-            .map(|d| d.join(APP_DIR).join(FILENAME))
+        crate::paths::config_dir()
+            .map(|d| d.join(FILENAME))
             .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))
     }
 

@@ -90,8 +90,8 @@ a typo never goes unnoticed. Themes are data only: a theme can never make mdeck 
 **Where themes are found**, first match wins:
 
 1. `themes/` next to the deck (`<name>.yaml`, or `<name>/theme.yaml` when it carries fonts);
-2. your user folder: `~/Library/Application Support/mdeck/themes/` on macOS,
-   `~/.config/mdeck/themes/` on Linux, `%APPDATA%\mdeck\themes\` on Windows;
+2. your user folder: `~/.config/mdeck/themes/` on Linux and macOS (or
+   `$XDG_CONFIG_HOME/mdeck/themes/` when set), `%APPDATA%\mdeck\themes\` on Windows;
 3. the `themes/` folders of installed [packs](#packs);
 4. the built-ins.
 

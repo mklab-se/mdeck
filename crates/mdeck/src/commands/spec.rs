@@ -136,8 +136,8 @@ CHART AXIS LABELS
 
 THEMES (custom themes are YAML files; mdeck spec, section 9.4)
   themes/<name>.yaml     Next to the deck (or <name>/theme.yaml with fonts)
-  user folder            ~/.config/mdeck/themes (macOS: ~/Library/Application
-                         Support/mdeck/themes, Windows: %APPDATA%\mdeck\themes)
+  user folder            ~/.config/mdeck/themes (Linux and macOS; Windows:
+                         %APPDATA%\mdeck\themes)
   extends: dark          Unset keys come from another theme (dark is the default)
   variant-of: ember      A recolouring: listed after the themes
   engine: { name: thermal, palette: iron }   The engine and its settings (9.6)

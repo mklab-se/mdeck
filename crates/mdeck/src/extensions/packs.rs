@@ -113,7 +113,7 @@ impl Installed {
 
 /// The user's packs folder.
 pub fn user_root() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join("mdeck").join("packs"))
+    crate::paths::config_dir().map(|d| d.join("packs"))
 }
 
 /// A deck's packs folder.

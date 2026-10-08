@@ -94,7 +94,7 @@ mdeck extensions list              # packs, engines, visuals, transitions, theme
 **Code extensions** are Rust crates written against `mdeck-sdk` ([SDK](sdk/README.md)).
 `mdeck sdk new engine glow` creates one in `./glow` that builds and tests as it is (it never
 writes into a folder that is not empty). `mdeck build --with ./glow` generates a cargo project in
-the cache folder (`~/Library/Caches/mdeck/build/` on macOS, `~/.cache/mdeck/build/` on Linux)
+the cache folder (`~/.cache/mdeck/build/` on Linux and macOS, or `$XDG_CACHE_HOME/mdeck/build/`)
 that registers mdeck's built-ins and then each extension, compiles it in release mode, copies the
 binary to `./target/release/mdeck` (or `--out`, a file or a folder; `--name` names the binary)
 and prints its path (`--out dist/`, with the slash, makes the folder). Extensions are crate

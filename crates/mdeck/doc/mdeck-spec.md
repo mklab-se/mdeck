@@ -959,8 +959,8 @@ A point cloud name resolves through these places, first match wins:
    `mdeck ai point-cloud`, section 9.7);
 2. `point-clouds/<name>.mdpc` next to the deck;
 3. the user library: `point-clouds/` in the user folder
-   (`~/.config/mdeck/` on Linux, `~/Library/Application Support/mdeck/` on
-   macOS, `%APPDATA%\mdeck\` on Windows);
+   (`~/.config/mdeck/` on Linux and macOS, or `$XDG_CONFIG_HOME/mdeck/` when
+   set, `%APPDATA%\mdeck\` on Windows);
 4. the `point-clouds/` folders of installed packs (section 18);
 5. the set built into mdeck.
 
@@ -1039,9 +1039,8 @@ folder, so it can carry font files). MDeck looks in this order and the first
 match wins:
 
 1. `themes/` next to the deck
-2. the user folder: `~/.config/mdeck/themes/` on Linux,
-   `~/Library/Application Support/mdeck/themes/` on macOS,
-   `%APPDATA%\mdeck\themes\` on Windows
+2. the user folder: `~/.config/mdeck/themes/` on Linux and macOS (or
+   `$XDG_CONFIG_HOME/mdeck/themes/` when set), `%APPDATA%\mdeck\themes\` on Windows
 3. the `themes/` folders of installed packs (`mdeck pack`)
 4. the built-in themes (section 9.1)
 

@@ -191,7 +191,7 @@ pub fn deck_dir(base: &Path) -> PathBuf {
 
 /// The user library folder.
 pub fn user_dir() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join("mdeck").join(FOLDER))
+    crate::paths::config_dir().map(|d| d.join(FOLDER))
 }
 
 include!(concat!(env!("OUT_DIR"), "/builtin_point_clouds.rs"));

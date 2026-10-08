@@ -117,12 +117,12 @@ enum Kind {
 
 /// The user theme folder.
 pub fn user_dir() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join("mdeck").join("themes"))
+    crate::paths::config_dir().map(|d| d.join("themes"))
 }
 
 /// The user design set folder.
 pub fn user_designs_dir() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join("mdeck").join("designs"))
+    crate::paths::config_dir().map(|d| d.join("designs"))
 }
 
 impl Lookup {

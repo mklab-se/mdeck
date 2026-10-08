@@ -154,8 +154,8 @@ meet most.
 ## Visuals in any language
 
 If your team does not write Rust, a visual can be any program that writes a PNG. Map a fence tag
-to a command in the user config (`config.yaml` in the user folder: `~/.config/mdeck/` on Linux, `~/Library/Application Support/mdeck/`
-on macOS; `mdeck config show` prints it):
+to a command in the user config (`config.yaml` in the user folder: `~/.config/mdeck/` on Linux and macOS,
+`%APPDATA%\mdeck\` on Windows; `mdeck config show` prints it):
 
 **TYPE** your user config (`mdeck config show` prints where it is):
 

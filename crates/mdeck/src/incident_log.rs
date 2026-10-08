@@ -132,10 +132,9 @@ fn write_header(f: &mut std::fs::File, presentation_file: &str) -> std::io::Resu
     Ok(())
 }
 
-fn log_dir() -> PathBuf {
-    dirs::config_dir()
+pub(crate) fn log_dir() -> PathBuf {
+    crate::paths::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("mdeck")
         .join("logs")
 }
 

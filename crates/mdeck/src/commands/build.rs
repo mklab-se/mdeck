@@ -422,8 +422,8 @@ impl Project {
 
 /// The cache folder custom builds live in.
 pub fn build_root() -> Result<PathBuf> {
-    dirs::cache_dir()
-        .map(|d| d.join("mdeck").join("build"))
+    crate::paths::cache_dir()
+        .map(|d| d.join("build"))
         .ok_or_else(|| anyhow!("could not find a cache folder for the build"))
 }
 

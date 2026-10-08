@@ -116,8 +116,8 @@ everything you hover. RustRover, Zed, Neovim and Helix support rust-analyzer too
 The first `mdeck build` compiles all of mdeck and its dependencies (a few hundred crates) in
 release mode, with optimisations on. It takes from **about a minute** on a recent machine with many
 cores (measured: 63 seconds on a 14-core Apple M4 Pro) to **10 minutes or more** on an older
-laptop, plus the time to download the crates the first time. It uses about 1.2 GB of disk in mdeck's cache folder (`~/Library/Caches/mdeck/build/` on macOS,
-`~/.cache/mdeck/build/` on Linux, `%LOCALAPPDATA%\mdeck\build\` on Windows).
+laptop, plus the time to download the crates the first time. It uses about 1.2 GB of disk in mdeck's cache folder (`~/.cache/mdeck/build/` on Linux and macOS,
+`%LOCALAPPDATA%\mdeck\build\` on Windows).
 
 After that it is fast: the compiled dependencies are kept, so a rebuild after you change your
 extension takes **15 to 60 seconds**. A new mdeck version (after you upgrade mdeck) compiles mdeck
