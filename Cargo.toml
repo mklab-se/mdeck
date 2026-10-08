@@ -30,6 +30,7 @@ eframe = { version = "0.36", default-features = false, features = ["glow", "defa
 # so one copy of each is built.
 egui = { version = "0.36", default-features = false, features = ["default_fonts"] }
 egui_glow = { version = "0.36", default-features = false }
+# Stays on 0.17 (0.18 is out) until egui_glow moves: the SDK hands glow types to it.
 glow = "0.17"
 # Golden images in mdeck_sdk::testing. Tracks the png version `image` uses.
 png = "0.18"
@@ -92,6 +93,7 @@ tokio = { version = "1.53", features = ["rt", "macros"] }
 
 # Document extraction (for ai create)
 pdf-extract = "0.12"
+# Stays on 8.x: 9.0 is only a pre-release so far.
 zip = "8.6"
 # Spike (#11): LaTeX math layout. RaTeX returns a positioned display list we paint with epaint.
 ratex-parser = "0.1.14"
